@@ -160,6 +160,8 @@ func main() {
 
 	// Innovations & BP
 	api.GET("/innovations", innovationHandler.List)
+	api.GET("/innovations/stats", innovationHandler.GetStats)
+	api.POST("/innovations/targets", innovationHandler.SaveTarget, middleware.RequireRole("admin", "manager"))
 	api.POST("/innovations", innovationHandler.Create)
 	api.GET("/innovations/:id", innovationHandler.Get)
 	api.PUT("/innovations/:id", innovationHandler.Update)

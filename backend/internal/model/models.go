@@ -70,8 +70,9 @@ type Innovation struct {
 	ID            uuid.UUID       `json:"id"`
 	Title         string          `json:"title"`
 	Description   *string         `json:"description"`
-	Category      string          `json:"category"` // innovation, best_practice
-	Status        string          `json:"status"`   // draft, review, approved, implemented
+	Category      string          `json:"category"`   // innovation, best_practice
+	ClassType     string          `json:"class_type"` // Class 3, Class 4, Class 5, Non Adopt, Under Review
+	Status        string          `json:"status"`     // draft, review, approved, implemented
 	AuthorID      *uuid.UUID      `json:"author_id"`
 	AuthorName    *string         `json:"author_name,omitempty"`
 	GroupPartID   *uuid.UUID      `json:"group_part_id"`
@@ -80,6 +81,54 @@ type Innovation struct {
 	Attachments   json.RawMessage `json:"attachments"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
+}
+
+type InnovationTarget struct {
+	ID              uuid.UUID `json:"id"`
+	Year            int       `json:"year"`
+	Month           int       `json:"month"`
+	TargetRegister  int       `json:"target_register"`
+	TargetChallenge int       `json:"target_challenge"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type InnovationMonthlyStat struct {
+	Month           int    `json:"month"`
+	MonthName       string `json:"month_name"`
+	ActualRegister  int    `json:"actual_register"`
+	TargetRegister  int    `json:"target_register"`
+	TargetChallenge int    `json:"target_challenge"`
+	Class3          int    `json:"class3"`
+	Class4          int    `json:"class4"`
+	Class5          int    `json:"class5"`
+	NonAdopt        int    `json:"non_adopt"`
+	UnderReview     int    `json:"under_review"`
+	TargetMet       bool   `json:"target_met"`
+}
+
+type InnovationClassDistribution struct {
+	Name       string  `json:"name"`
+	Count      int     `json:"count"`
+	Percentage float64 `json:"percentage"`
+	Color      string  `json:"color"`
+}
+
+type InnovationStatsResponse struct {
+	Year              int                           `json:"year"`
+	AvailableYears    []int                         `json:"available_years"`
+	TotalActual       int                           `json:"total_actual"`
+	TotalTarget       int                           `json:"total_target"`
+	TotalChallenge    int                           `json:"total_challenge"`
+	AchievementRate   float64                       `json:"achievement_rate"`
+	AdoptedRate       float64                       `json:"adopted_rate"`
+	Class3Count       int                           `json:"class3_count"`
+	Class4Count       int                           `json:"class4_count"`
+	Class5Count       int                           `json:"class5_count"`
+	UnderReviewCount  int                           `json:"under_review_count"`
+	NonAdoptCount     int                           `json:"non_adopt_count"`
+	Monthly           []InnovationMonthlyStat       `json:"monthly"`
+	ClassDistribution []InnovationClassDistribution `json:"class_distribution"`
 }
 
 // Project represents a project tracked by PE
