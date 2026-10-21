@@ -101,6 +101,13 @@
   height: 24px;
 }
 
+.navDivider {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: var(--space-2) var(--space-2) var(--space-1) var(--space-2);
+  opacity: 0.8;
+}
+
 .navLink {
   display: flex;
   align-items: center;

@@ -90,9 +90,12 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
   ].sort((a, b) => a.label.localeCompare(b.label));
 
-  const navItems = [
+  // Dashboard as prime top-level item
+  const dashboardItem = { to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard, end: true };
+
+  // Operations items sorted alphabetically ASC
+  const operationItems = [
     { to: '/imei', label: t('nav.imei', 'Articles'), icon: Newspaper },
-    { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
     { to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
     { to: '/models', label: t('nav.models'), icon: Cpu },
@@ -156,8 +159,24 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       </div>
 
       <nav className={styles.nav}>
+        {/* Prime Dashboard Navigation Item at Top */}
+        <NavLink
+          to={dashboardItem.to}
+          end={dashboardItem.end}
+          className={({ isActive }) =>
+            `${styles.navLink} ${isActive ? styles.active : ''}`
+          }
+          title={dashboardItem.label}
+        >
+          <LayoutDashboard size={18} className={styles.navIcon} />
+          {!isCollapsed && <span>{dashboardItem.label}</span>}
+        </NavLink>
+
+        {/* Separator Line beneath Dashboard */}
+        <div className={styles.navDivider} />
+
         <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_operations', 'OPERATIONS')}</div>
-        {navItems.map((item) => {
+        {operationItems.map((item) => {
           if (item.isGroup) {
             const GroupIcon = item.icon;
             return (

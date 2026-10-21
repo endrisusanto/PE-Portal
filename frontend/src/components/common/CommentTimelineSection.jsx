@@ -155,7 +155,7 @@ export const CommentTimelineSection = ({
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <h3 className={styles.title}>
-            <Activity size={16} color="var(--color-accent)" />
+            <MessageSquare size={15} color="var(--color-accent)" />
             Komentar & Timeline Aktivitas
           </h3>
           <span className={styles.countBadge}>{items.length}</span>
@@ -195,7 +195,7 @@ export const CommentTimelineSection = ({
           </div>
         ) : filteredItems.length === 0 ? (
           <div className={styles.emptyTimeline}>
-            <MessageSquare size={22} color="var(--color-text-muted)" />
+            <MessageSquare size={20} color="var(--color-text-muted)" />
             <span>Belum ada diskusi atau catatan perubahan pada {entityTitle || 'item ini'}.</span>
             <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
               Tulis tanggapan atau buat ubahan pertama Anda menggunakan form di bawah.
@@ -212,11 +212,11 @@ export const CommentTimelineSection = ({
             if (isLog) {
               return (
                 <div key={item.id} className={styles.logItem}>
-                  <div className={styles.logIconWrapper} title="Log Perubahan">
-                    <History size={13} />
+                  <div className={styles.logIconWrapper} title="Log Perubahan Sistem">
+                    <History size={12} />
                   </div>
                   <div className={styles.logContent}>
-                    <span className={styles.logBadge}>LOG PERUBAHAN</span>
+                    <span className={styles.logBadge}>LOG SISTEM</span>
                     <span className={styles.logActor}>
                       {item.author_name || user?.full_name || 'System'}
                     </span>
@@ -225,6 +225,7 @@ export const CommentTimelineSection = ({
                     </span>
                   </div>
                   <span className={styles.logTime} title={item.created_at}>
+                    <Clock size={11} style={{ opacity: 0.6 }} />
                     {formatTime(item.created_at)}
                   </span>
                 </div>

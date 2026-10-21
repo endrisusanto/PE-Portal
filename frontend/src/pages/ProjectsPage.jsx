@@ -24,6 +24,8 @@ import {
   Layers,
   Sparkles,
   Eye,
+  Clock,
+  FileText,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -359,8 +361,9 @@ export const ProjectsPage = () => {
       title: 'PIC Assigned',
       key: 'owner_name',
       render: (val) => (
-        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
-          👤 {val || 'Unassigned'}
+        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <User size={13} style={{ opacity: 0.7 }} />
+          <span>{val || 'Unassigned'}</span>
         </span>
       ),
     },
@@ -692,7 +695,7 @@ export const ProjectsPage = () => {
                   marginTop: 'auto',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--color-text-secondary)' }}>
-                    <span>👤</span>
+                    <User size={12} style={{ opacity: 0.7 }} />
                     <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
                       {p.owner_name ? p.owner_name.split(' ')[0] : 'Unassigned'}
                     </span>
@@ -904,7 +907,10 @@ export const ProjectsPage = () => {
                           fontSize: '11px',
                           color: 'var(--color-text-secondary)',
                         }}>
-                          <span>👤 {task.owner_name ? task.owner_name.split(' ')[0] : 'Unassigned'}</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <User size={12} style={{ opacity: 0.7 }} />
+                            <span>{task.owner_name ? task.owner_name.split(' ')[0] : 'Unassigned'}</span>
+                          </span>
                           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
@@ -1362,46 +1368,91 @@ export const ProjectsPage = () => {
             setIsViewModalOpen(false);
             setViewingProject(null);
           }}
-          title="Detail Milestone Task Analyst"
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FolderKanban size={17} color="var(--color-accent)" />
+              <span style={{ fontSize: '15px', fontWeight: 700 }}>Detail Milestone Task Analyst</span>
+            </div>
+          }
           size="lg"
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Header badges and title */}
-            <div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: 'var(--color-accent)',
-                  background: 'rgba(37, 99, 235, 0.08)',
-                  padding: '2px 8px',
-                  borderRadius: 'var(--radius-xs)',
-                  border: '1px solid rgba(37, 99, 235, 0.2)',
-                }}>
-                  {viewingProject.project_type || 'General'}
-                </span>
-                <StatusBadge status={viewingProject.priority} />
-                <StatusBadge status={viewingProject.status} />
+          <div className={styles.viewModalRoot}>
+            {/* Hero Card with Title, Badges & Metadata */}
+            <div className={styles.viewHeroCard}>
+              <div className={styles.viewHeroTop}>
+                <div className={styles.viewBadgesGroup}>
+                  <span className={styles.categoryTag}>
+                    <Tag size={11} /> {viewingProject.project_type || 'General'}
+                  </span>
+                  <StatusBadge status={viewingProject.priority} />
+                  <StatusBadge status={viewingProject.status} />
+                </div>
+                <div className={styles.viewMilestoneBadge}>
+                  {getMilestone(viewingProject.progress).label} ({viewingProject.progress || 0}%)
+                </div>
               </div>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
+
+              <h2 className={styles.viewHeroTitle}>
                 {viewingProject.title}
               </h2>
+
+              <div className={styles.viewMetaGrid}>
+                <div className={styles.viewMetaItem}>
+                  <div className={styles.viewMetaIconBox}>
+                    <User size={15} />
+                  </div>
+                  <div className={styles.viewMetaText}>
+                    <span className={styles.viewMetaLabel}>Person In Charge (PIC)</span>
+                    <span className={styles.viewMetaValue}>{viewingProject.owner_name || 'Unassigned'}</span>
+                  </div>
+                </div>
+
+                <div className={styles.viewMetaItem}>
+                  <div className={styles.viewMetaIconBox}>
+                    <Calendar size={15} />
+                  </div>
+                  <div className={styles.viewMetaText}>
+                    <span className={styles.viewMetaLabel}>Target Selesai</span>
+                    <span className={styles.viewMetaValue}>
+                      {viewingProject.target_date
+                        ? new Date(viewingProject.target_date).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : 'Tidak ada target'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className={styles.viewMetaItem}>
+                  <div className={styles.viewMetaIconBox}>
+                    <Clock size={15} />
+                  </div>
+                  <div className={styles.viewMetaText}>
+                    <span className={styles.viewMetaLabel}>Tanggal Dibuat</span>
+                    <span className={styles.viewMetaValue}>
+                      {viewingProject.created_at
+                        ? new Date(viewingProject.created_at).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Stepper progress overview */}
-            <div style={{
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '14px',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                  Milestone Progress
+            {/* Stepper Progress Card */}
+            <div className={styles.viewStepperCard}>
+              <div className={styles.viewStepperHeader}>
+                <span className={styles.viewStepperTitle}>
+                  Milestone Progress Problem Solving (5-Tahap)
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-accent)' }}>
-                  {getMilestone(viewingProject.progress).label} ({viewingProject.progress || 0}%)
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                  Tahap {getMilestone(viewingProject.progress).step} dari 5
                 </span>
               </div>
               <div className={styles.breadcrumbStepper}>
@@ -1415,7 +1466,9 @@ export const ProjectsPage = () => {
                       style={{ cursor: 'default' }}
                       title={st.desc}
                     >
-                      <span className={styles.stepNum}>{st.step}</span>
+                      <span className={styles.stepNum}>
+                        {isCompleted && !isCurrent ? <Check size={10} strokeWidth={3} /> : st.step}
+                      </span>
                       <span className={styles.stepLabel}>{st.label}</span>
                     </div>
                   );
@@ -1423,62 +1476,18 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            {/* Metadata Grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '12px',
-              padding: '12px',
-              background: 'var(--color-bg-primary)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '12px',
-            }}>
-              <div>
-                <span style={{ color: 'var(--color-text-secondary)', display: 'block', marginBottom: '2px' }}>
-                  Person In Charge (PIC)
-                </span>
-                <strong style={{ color: 'var(--color-text-primary)' }}>
-                  👤 {viewingProject.owner_name || 'Unassigned'}
-                </strong>
+            {/* Catatan Analisis / Investigasi Card */}
+            <div className={styles.viewNotesCard}>
+              <div className={styles.viewNotesHeader}>
+                <FileText size={14} color="var(--color-accent)" />
+                <span>Catatan Analisis / Investigasi Teknis</span>
               </div>
-              <div>
-                <span style={{ color: 'var(--color-text-secondary)', display: 'block', marginBottom: '2px' }}>
-                  Target Selesai
-                </span>
-                <strong style={{ color: 'var(--color-text-primary)' }}>
-                  📅 {viewingProject.target_date ? new Date(viewingProject.target_date).toLocaleDateString() : '-'}
-                </strong>
-              </div>
-              <div>
-                <span style={{ color: 'var(--color-text-secondary)', display: 'block', marginBottom: '2px' }}>
-                  Tanggal Dibuat
-                </span>
-                <strong style={{ color: 'var(--color-text-primary)' }}>
-                  🕒 {viewingProject.created_at ? new Date(viewingProject.created_at).toLocaleDateString() : '-'}
-                </strong>
-              </div>
-            </div>
-
-            {/* Catatan Analisis / Investigasi */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: '6px' }}>
-                Catatan Analisis / Investigasi
-              </label>
-              <div style={{
-                background: 'var(--color-bg-primary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px 14px',
-                fontSize: '13px',
-                lineHeight: 1.6,
-                color: 'var(--color-text-primary)',
-                whiteSpace: 'pre-wrap',
-                minHeight: '60px',
-              }}>
-                {viewingProject.description || (
-                  <span style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                    Belum ada catatan investigasi atau countermeasure yang dicatat.
+              <div className={styles.viewNotesBody}>
+                {viewingProject.description ? (
+                  viewingProject.description
+                ) : (
+                  <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                    Belum ada catatan investigasi atau countermeasure yang dicatat untuk task ini.
                   </span>
                 )}
               </div>

@@ -1,16 +1,16 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 10px;
   padding-top: 16px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .header {
   display: flex;
   align-items: center;
-  justifyContent: space-between;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -22,13 +22,14 @@
 }
 
 .title {
-  font-size: var(--font-size-md);
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  letter-spacing: -0.01em;
 }
 
 .countBadge {
@@ -36,75 +37,80 @@
   font-weight: 600;
   padding: 1px 7px;
   border-radius: var(--radius-full);
-  background-color: var(--color-accent-subtle);
-  color: var(--color-accent);
-  border: 1px solid var(--color-accent);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .filterTabs {
   display: inline-flex;
   background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
-  padding: 2px;
+  padding: 2.5px;
   gap: 2px;
 }
 
 .filterBtn {
-  padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
   border-radius: var(--radius-xs);
   color: var(--color-text-secondary);
   border: none;
   background: transparent;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
+}
+
+.filterBtn:hover {
+  color: var(--color-text-primary);
 }
 
 .filterBtnActive {
-  background-color: var(--color-accent);
-  color: #ffffff;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .stream {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   max-height: 420px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
-/* Timeline Log Entry (Compact System Event) */
+/* Timeline Log Entry (Sleek System Event) */
 .logItem {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background-color: var(--color-bg-primary);
-  border: 1px dashed var(--color-border);
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
+  font-size: 12px;
   color: var(--color-text-secondary);
-  transition: background-color var(--transition-fast);
+  transition: background-color 0.15s ease;
 }
 
 .logItem:hover {
-  background-color: var(--color-bg-tertiary);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .logIconWrapper {
   display: flex;
   align-items: center;
-  justifyContent: center;
+  justify-content: center;
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background-color: var(--color-accent-subtle);
+  background-color: rgba(37, 99, 235, 0.12);
   color: var(--color-accent);
   flex-shrink: 0;
-  margin-top: 1px;
 }
 
 .logContent {
@@ -114,11 +120,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .logActor {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-primary);
 }
 
@@ -127,36 +133,41 @@
 }
 
 .logBadge {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1.5px 6px;
   border-radius: var(--radius-xs);
-  background-color: var(--color-bg-secondary);
-  color: var(--color-accent);
-  border: 1px solid var(--color-accent);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .logTime {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-text-muted);
   margin-left: auto;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* User Comment Bubble Entry */
 .commentItem {
   display: flex;
-  gap: 10px;
-  padding: 12px;
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
+  gap: 12px;
+  padding: 14px;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
-  transition: border-color var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.15s ease;
 }
 
 .commentItem:hover {
-  border-color: var(--color-accent);
+  border-color: var(--color-border);
 }
 
 .commentBody {
@@ -164,25 +175,28 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .commentMeta {
   display: flex;
   align-items: center;
-  justifyContent: space-between;
+  justify-content: space-between;
   gap: 8px;
 }
 
 .authorName {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .commentTime {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .deleteBtn {
@@ -190,33 +204,35 @@
   border: none;
   color: var(--color-text-muted);
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 3px 5px;
   border-radius: var(--radius-xs);
   display: inline-flex;
   align-items: center;
-  justifyContent: center;
-  transition: all var(--transition-fast);
+  justify-content: center;
+  transition: all 0.15s ease;
+  opacity: 0.7;
 }
 
 .deleteBtn:hover {
+  opacity: 1;
   color: var(--color-error);
   background-color: var(--color-error-subtle);
 }
 
 .commentText {
-  font-size: var(--font-size-sm);
+  font-size: 13px;
   color: var(--color-text-primary);
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 /* Empty State */
 .emptyTimeline {
-  padding: 24px 16px;
+  padding: 28px 16px;
   text-align: center;
-  background-color: var(--color-bg-primary);
-  border: 1px dashed var(--color-border);
+  background-color: rgba(255, 255, 255, 0.015);
+  border: 1px dashed var(--color-border-subtle);
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   font-size: 12px;
@@ -230,43 +246,45 @@
 .formBox {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .textarea {
   width: 100%;
-  min-height: 70px;
+  min-height: 72px;
   max-height: 180px;
   resize: vertical;
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-family: inherit;
-  font-size: var(--font-size-sm);
+  font-size: 13px;
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xs);
   color: var(--color-text-primary);
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  line-height: 1.5;
 }
 
 .textarea:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-subtle);
 }
 
 .formFooter {
   display: flex;
   align-items: center;
-  justifyContent: space-between;
+  justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
 }
 
 .formHint {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--color-text-muted);
 }
