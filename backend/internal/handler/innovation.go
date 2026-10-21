@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -140,6 +141,93 @@ func (h *InnovationHandler) Create(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, created)
+}
+
+type BulkInnovationItem struct {
+	Title       string  `json:"title"`
+	Description *string `json:"description"`
+	Category    string  `json:"category"`
+	ClassType   string  `json:"class_type"`
+	Status      string  `json:"status"`
+	ImpactScore *int    `json:"impact_score"`
+	Date        *string `json:"date,omitempty"` // YYYY-MM-DD or YYYY-MM
+}
+
+type BulkInnovationRequest struct {
+	Items []BulkInnovationItem `json:"items"`
+}
+
+// ponytail: single endpoint for bulk adding innovations
+func (h *InnovationHandler) CreateBulk(c echo.Context) error {
+	var req BulkInnovationRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid bulk payload")
+	}
+	if len(req.Items) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "at least one item required")
+	}
+
+	var authorID *uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			authorID = &uid
+		}
+	}
+
+	innovations := make([]model.Innovation, 0, len(req.Items))
+	for _, it := range req.Items {
+		if it.Title == "" {
+			continue
+		}
+		cat := it.Category
+		if cat == "" {
+			cat = "innovation"
+		}
+		ct := it.ClassType
+		if ct == "" {
+			ct = "Class 4"
+		}
+		st := it.Status
+		if st == "" {
+			st = "draft"
+		}
+
+		var createdAt time.Time
+		if it.Date != nil && *it.Date != "" {
+			if parsed, err := time.Parse("2006-01-02", *it.Date); err == nil {
+				createdAt = parsed
+			} else if parsed, err := time.Parse("2006-01", *it.Date); err == nil {
+				createdAt = parsed
+			}
+		}
+
+		innovations = append(innovations, model.Innovation{
+			ID:          uuid.New(),
+			Title:       it.Title,
+			Description: it.Description,
+			Category:    cat,
+			ClassType:   ct,
+			Status:      st,
+			AuthorID:    authorID,
+			ImpactScore: it.ImpactScore,
+			CreatedAt:   createdAt,
+			Attachments: json.RawMessage("[]"),
+		})
+	}
+
+	if len(innovations) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "no valid items with titles provided")
+	}
+
+	count, err := h.repo.CreateBulk(c.Request().Context(), innovations)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusCreated, map[string]interface{}{
+		"message": fmt.Sprintf("successfully imported %d items", count),
+		"count":   count,
+	})
 }
 
 func (h *InnovationHandler) Update(c echo.Context) error {

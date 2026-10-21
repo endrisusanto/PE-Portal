@@ -26,7 +26,7 @@ export const Button = ({
       ) : Icon ? (
         <Icon className={styles.icon} size={size === 'sm' ? 14 : 16} />
       ) : null}
-      <span>{children}</span>
+      {children && <span className={styles.label}>{children}</span>}
     </button>
   );
 };

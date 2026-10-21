@@ -26,6 +26,10 @@ import {
   Download,
   Grid,
   List,
+  FileSpreadsheet,
+  PieChart as PieIcon,
+  SlidersHorizontal,
+  Upload,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -128,6 +132,112 @@ export const InnovationsPage = () => {
   const [targetRegister, setTargetRegister] = useState(10);
   const [targetChallenge, setTargetChallenge] = useState(15);
   const [savingTarget, setSavingTarget] = useState(false);
+
+  // Chart Display Mode (Donut vs Pie) & Hover state
+  const [chartMode, setChartMode] = useState('donut'); // 'donut' | 'pie'
+  const [hoveredClass, setHoveredClass] = useState(null);
+
+  // Bulk Add Modal State
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkCategory, setBulkCategory] = useState('innovation');
+  const [bulkTargetMonth, setBulkTargetMonth] = useState(new Date().getMonth() + 1);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkFeedback, setBulkFeedback] = useState(null);
+
+  // ponytail: fast client-side tab/comma text parser for spreadsheet paste
+  const parseBulkItems = (text, defaultCategory, year, month) => {
+    if (!text || !text.trim()) return [];
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    return lines.map((line, idx) => {
+      const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+      const title = (parts[0] || '').trim();
+      let classType = (parts[1] || '').trim();
+      let description = (parts[2] || '').trim();
+      let impact = parseInt((parts[3] || '').trim(), 10);
+      let date = (parts[4] || '').trim();
+
+      const lowerClass = classType.toLowerCase();
+      if (lowerClass.includes('3')) classType = 'Class 3';
+      else if (lowerClass.includes('5')) classType = 'Class 5';
+      else if (lowerClass.includes('review')) classType = 'Under Review';
+      else if (lowerClass.includes('non')) classType = 'Non Adopt';
+      else classType = 'Class 4';
+
+      if (isNaN(impact) || impact < 1 || impact > 10) {
+        impact = 5;
+      }
+
+      if (!date) {
+        const mStr = String(month).padStart(2, '0');
+        date = `${year}-${mStr}-01`;
+      }
+
+      return {
+        id: idx,
+        title: title || `Untitled Innovation #${idx + 1}`,
+        class_type: classType,
+        description: description || null,
+        impact_score: impact,
+        category: defaultCategory,
+        date: date,
+      };
+    });
+  };
+
+  const handleBulkSubmit = async () => {
+    const itemsToImport = parseBulkItems(bulkText, bulkCategory, selectedYear, bulkTargetMonth);
+    if (itemsToImport.length === 0) {
+      setBulkFeedback({ type: 'error', message: 'Please enter or paste at least one innovation item' });
+      return;
+    }
+
+    setBulkImporting(true);
+    setBulkFeedback(null);
+    try {
+      const payload = {
+        items: itemsToImport.map(({ title, description, category, class_type, impact_score, date }) => ({
+          title,
+          description,
+          category,
+          class_type,
+          status: 'draft',
+          impact_score,
+          date,
+        })),
+      };
+      const res = await api.post('/innovations/bulk', payload);
+      setBulkFeedback({
+        type: 'success',
+        message: res.data?.message || `Successfully imported ${itemsToImport.length} records!`,
+      });
+      await Promise.all([fetchStats(selectedYear), fetchInnovations()]);
+      setTimeout(() => {
+        setIsBulkModalOpen(false);
+        setBulkText('');
+        setBulkFeedback(null);
+      }, 1200);
+    } catch (err) {
+      console.error('Failed bulk import:', err);
+      setBulkFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Failed to import bulk items',
+      });
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
+  const handleLoadSampleBulk = () => {
+    const sample = [
+      `Jig Welding Semi-Auto Clamping\tClass 3\tReduksi cycle time pengelasan bracket chassis sebesar 22%\t9\t${selectedYear}-02-10`,
+      `SOP Visual Poka-Yoke Main PCB\tClass 4\tStandardisasi instruksi kerja visual dengan barcode scanner\t7\t${selectedYear}-02-15`,
+      `Eliminasi Defect Scratch Housing C\tClass 3\tModifikasi pallet conveyor dengan silicone buffer anti gores\t8\t${selectedYear}-03-01`,
+      `Optimalisasi Suhu Solder Wave Reflow\tClass 5\tPenyesuaian profil termal solder lead-free hemat energi 12%\t6\t${selectedYear}-03-20`,
+      `Kajian Sensor Vision Robotik Line 2\tUnder Review\tStudi kelayakan kamera AI visual inspection baut hilang\t5\t${selectedYear}-04-05`,
+    ].join('\n');
+    setBulkText(sample);
+  };
 
   // Fetch Statistics
   const fetchStats = async (year) => {
@@ -435,13 +545,29 @@ export const InnovationsPage = () => {
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button variant="secondary" size="sm" onClick={() => setIsTargetModalOpen(true)}>
-              <Target size={14} />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Target}
+              onClick={() => setIsTargetModalOpen(true)}
+            >
               Set Targets
             </Button>
-            <Button variant="primary" size="sm" onClick={() => handleOpenEditor(null)}>
-              <Plus size={14} />
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={FileSpreadsheet}
+              onClick={() => setIsBulkModalOpen(true)}
+            >
+              Bulk Add
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              onClick={() => handleOpenEditor(null)}
+            >
               Submit Article
             </Button>
           </div>
@@ -672,79 +798,135 @@ export const InnovationsPage = () => {
                   </div>
                 </div>
 
-                {/* Class Distribution Donut */}
+                {/* Class Distribution Donut / Pie */}
                 <div className={`${styles.glassCard} ${styles.chartCard}`}>
                   <div className={styles.chartCardHeader}>
                     <div className={styles.chartTitle}>
                       <Layers size={16} color="var(--color-accent)" />
                       Class Type Distribution
                     </div>
+                    {/* View Toggle: Donut vs Pie */}
+                    <div className={styles.chartTypeToggle}>
+                      <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${chartMode === 'donut' ? styles.toggleBtnActive : ''}`}
+                        onClick={() => setChartMode('donut')}
+                        title="Donut Chart View"
+                      >
+                        Donut
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${chartMode === 'pie' ? styles.toggleBtnActive : ''}`}
+                        onClick={() => setChartMode('pie')}
+                        title="Pie Chart View"
+                      >
+                        Pie
+                      </button>
+                    </div>
                   </div>
 
-                  <div className={styles.donutLayout}>
-                    {/* SVG Donut */}
-                    <div className={styles.donutSvgWrapper}>
-                      {(() => {
-                        let accum = 0;
-                        const total = stats.total_actual || 1;
-                        return (
-                          <svg viewBox="0 0 160 160" className={styles.donutSvg}>
-                            <circle cx="80" cy="80" r="54" fill="none" stroke="var(--color-bg-primary)" strokeWidth="18" />
-                            {stats.class_distribution.map((dist) => {
-                              const pct = dist.count / total;
-                              const circ = 2 * Math.PI * 54;
-                              const strokeDasharray = `${pct * circ} ${circ}`;
-                              const strokeDashoffset = -accum * circ;
-                              accum += pct;
-                              return (
-                                <circle
-                                  key={dist.name}
-                                  cx="80"
-                                  cy="80"
-                                  r="54"
-                                  fill="none"
-                                  stroke={dist.color}
-                                  strokeWidth="18"
-                                  strokeDasharray={strokeDasharray}
-                                  strokeDashoffset={strokeDashoffset}
-                                  transform="rotate(-90 80 80)"
-                                />
-                              );
-                            })}
-                            <text x="80" y="78" textAnchor="middle" fontSize="22" fontWeight="800" fill="var(--color-text-primary)">
-                              {stats.total_actual}
-                            </text>
-                            <text x="80" y="94" textAnchor="middle" fontSize="10" textTransform="uppercase" fill="var(--color-text-muted)">
-                              TOTAL BP
-                            </text>
-                          </svg>
-                        );
-                      })()}
-                    </div>
+                  {(() => {
+                    // ponytail: flawless conic-gradient calculation for pie/donut chart
+                    const distTotal = stats.class_distribution.reduce((acc, d) => acc + (d.count || 0), 0) || stats.total_actual || 1;
+                    const validDist = stats.class_distribution.filter((d) => d.count > 0);
+                    let currentPct = 0;
+                    const gradientStops = validDist.map((d) => {
+                      const start = currentPct;
+                      const slice = (d.count / distTotal) * 100;
+                      const end = currentPct + slice;
+                      currentPct = end;
+                      return `${d.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+                    });
 
-                    {/* Progress bars list */}
-                    <div className={styles.classBarsList}>
-                      {stats.class_distribution.map((dist) => (
-                        <div key={dist.name} className={styles.classBarRow}>
-                          <div className={styles.classBarHeader}>
-                            <span className={styles.className}>
-                              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: dist.color }} />
-                              {dist.name}
-                            </span>
-                            <span className={styles.classCount}>
-                              {dist.count}{' '}
-                              <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
-                                ({dist.percentage.toFixed(0)}%)
-                              </span>
-                            </span>
-                          </div>
-                          <div className={styles.barTrack}>
-                            <div className={styles.barFill} style={{ width: `${dist.percentage}%`, backgroundColor: dist.color }} />
-                          </div>
+                    const chartBg = validDist.length > 0
+                      ? `conic-gradient(${gradientStops.join(', ')})`
+                      : 'var(--color-bg-tertiary)';
+
+                    return (
+                      <div className={styles.donutLayout}>
+                        {/* Interactive Chart Container */}
+                        <div
+                          className={styles.donutWrapper}
+                          style={{ background: chartBg }}
+                        >
+                          {chartMode === 'donut' && (
+                            <div className={styles.donutHole}>
+                              {hoveredClass ? (
+                                <>
+                                  <span style={{ fontSize: '10px', fontWeight: 700, color: hoveredClass.color, whiteSpace: 'nowrap' }}>
+                                    {hoveredClass.name}
+                                  </span>
+                                  <span className={styles.donutCenterNumber}>
+                                    {hoveredClass.count}
+                                  </span>
+                                  <span style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>
+                                    {hoveredClass.percentage.toFixed(0)}% of total
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className={styles.donutCenterNumber}>
+                                    {stats.total_actual}
+                                  </span>
+                                  <span className={styles.donutCenterLabel}>
+                                    TOTAL BP
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        {/* Class Bars & Interactive Legend List */}
+                        <div className={styles.classBarsList}>
+                          {stats.class_distribution.map((dist) => {
+                            const isHovered = hoveredClass?.name === dist.name;
+                            return (
+                              <div
+                                key={dist.name}
+                                className={`${styles.classBarRow} ${isHovered ? styles.classBarRowActive : ''}`}
+                                onMouseEnter={() => setHoveredClass(dist)}
+                                onMouseLeave={() => setHoveredClass(null)}
+                              >
+                                <div className={styles.classBarHeader}>
+                                  <span className={styles.className}>
+                                    <span
+                                      style={{
+                                        width: '9px',
+                                        height: '9px',
+                                        borderRadius: '50%',
+                                        backgroundColor: dist.color,
+                                        boxShadow: isHovered ? `0 0 8px ${dist.color}` : 'none',
+                                        transition: 'box-shadow 0.2s ease',
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                    {dist.name}
+                                  </span>
+                                  <span className={styles.classCount}>
+                                    {dist.count}{' '}
+                                    <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                                      ({dist.percentage.toFixed(0)}%)
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className={styles.barTrack}>
+                                  <div
+                                    className={styles.barFill}
+                                    style={{
+                                      width: `${dist.percentage}%`,
+                                      backgroundColor: dist.color,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1623,6 +1805,174 @@ export const InnovationsPage = () => {
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Modal: Bulk Add Innovations & Best Practice */}
+      {isBulkModalOpen && (
+        <Modal
+          isOpen={isBulkModalOpen}
+          onClose={() => setIsBulkModalOpen(false)}
+          title={`Bulk Add Innovations & Best Practices (${selectedYear})`}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Quick Helper Box */}
+            <div className={styles.bulkHelpBox}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  📋 Excel / TSV / CSV Fast Paste
+                </span>
+                <Button type="button" size="sm" variant="outline" onClick={handleLoadSampleBulk}>
+                  Fill Example Data
+                </Button>
+              </div>
+              <div>
+                Copy & paste table rows directly from Excel or Google Sheets. Each row format:
+                <br />
+                <code style={{ color: 'var(--color-accent)', background: 'rgba(0,0,0,0.2)', padding: '2px 4px', borderRadius: '3px' }}>
+                  Title [Tab] Class Type [Tab] Description [Tab] Impact (1-10) [Tab] Date
+                </code>
+              </div>
+            </div>
+
+            {/* Config Selectors: Default Category & Month */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Default Category</label>
+                <select
+                  value={bulkCategory}
+                  onChange={(e) => setBulkCategory(e.target.value)}
+                  style={{
+                    height: '36px',
+                    padding: '0 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  <option value="innovation">Innovation Idea</option>
+                  <option value="best_practice">Best Practice (BP)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Target Month</label>
+                <select
+                  value={bulkTargetMonth}
+                  onChange={(e) => setBulkTargetMonth(Number(e.target.value))}
+                  style={{
+                    height: '36px',
+                    padding: '0 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {[
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December',
+                  ].map((mName, idx) => (
+                    <option key={idx + 1} value={idx + 1}>
+                      {mName} ({selectedYear})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Textarea for Bulk Data */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Paste Rows Here</label>
+              <textarea
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder="Paste rows copied from Excel or enter one item per line..."
+                className={styles.bulkTextarea}
+              />
+            </div>
+
+            {/* Live Parse Preview Table */}
+            {(() => {
+              const previewItems = parseBulkItems(bulkText, bulkCategory, selectedYear, bulkTargetMonth);
+              if (previewItems.length === 0) return null;
+
+              return (
+                <div className={styles.bulkPreviewContainer}>
+                  <div className={styles.bulkPreviewHeader}>
+                    <span>Preview Detected Rows ({previewItems.length} items)</span>
+                    <span style={{ fontSize: '10.5px', color: 'var(--color-accent)' }}>Ready to Import</span>
+                  </div>
+                  <div className={styles.bulkTableWrapper}>
+                    <table className={styles.bulkTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '32px' }}>#</th>
+                          <th>Title</th>
+                          <th style={{ width: '100px' }}>Class</th>
+                          <th>Description</th>
+                          <th style={{ width: '60px' }}>Impact</th>
+                          <th style={{ width: '90px' }}>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewItems.map((p, pIdx) => (
+                          <tr key={p.id}>
+                            <td>{pIdx + 1}</td>
+                            <td style={{ fontWeight: 600 }}>{p.title}</td>
+                            <td>
+                              <span className={`${styles.badge} ${getClassBadgeClass(p.class_type)}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
+                                {p.class_type}
+                              </span>
+                            </td>
+                            <td style={{ color: 'var(--color-text-secondary)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.description || '-'}
+                            </td>
+                            <td>⭐ {p.impact_score}</td>
+                            <td style={{ color: 'var(--color-text-muted)' }}>{p.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Feedback Message */}
+            {bulkFeedback && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  backgroundColor: bulkFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: bulkFeedback.type === 'success' ? '#10b981' : '#ef4444',
+                  border: `1px solid ${bulkFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                }}
+              >
+                {bulkFeedback.message}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+              <Button type="button" variant="secondary" onClick={() => setIsBulkModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={bulkImporting || !bulkText.trim()}
+                onClick={handleBulkSubmit}
+                icon={Upload}
+              >
+                {bulkImporting ? 'Importing...' : `Import ${parseBulkItems(bulkText, bulkCategory, selectedYear, bulkTargetMonth).length || 0} Records`}
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

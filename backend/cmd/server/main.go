@@ -163,6 +163,7 @@ func main() {
 	api.GET("/innovations/stats", innovationHandler.GetStats)
 	api.POST("/innovations/targets", innovationHandler.SaveTarget, middleware.RequireRole("admin", "manager"))
 	api.POST("/innovations", innovationHandler.Create)
+	api.POST("/innovations/bulk", innovationHandler.CreateBulk)
 	api.GET("/innovations/:id", innovationHandler.Get)
 	api.PUT("/innovations/:id", innovationHandler.Update)
 	api.PATCH("/innovations/:id/status", innovationHandler.UpdateStatus, middleware.RequireRole("admin", "manager"))

@@ -117,6 +117,62 @@ func (r *InnovationRepository) Create(ctx context.Context, item *model.Innovatio
 	return r.GetByID(ctx, item.ID)
 }
 
+// CreateBulk inserts multiple innovations in a single transaction (ponytail: efficient batch import)
+func (r *InnovationRepository) CreateBulk(ctx context.Context, items []model.Innovation) (int, error) {
+	if len(items) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := `
+		INSERT INTO innovations (id, title, description, category, class_type, status, author_id, group_part_id, impact_score, attachments, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, NOW()), NOW())
+	`
+
+	inserted := 0
+	for _, item := range items {
+		if item.ID == uuid.Nil {
+			item.ID = uuid.New()
+		}
+		if item.Status == "" {
+			item.Status = "draft"
+		}
+		if item.Category == "" {
+			item.Category = "innovation"
+		}
+		if item.ClassType == "" {
+			item.ClassType = "Class 4"
+		}
+		if len(item.Attachments) == 0 {
+			item.Attachments = json.RawMessage("[]")
+		}
+
+		var createdAt *time.Time
+		if !item.CreatedAt.IsZero() {
+			createdAt = &item.CreatedAt
+		}
+
+		_, err := tx.Exec(ctx, query,
+			item.ID, item.Title, item.Description, item.Category, item.ClassType, item.Status,
+			item.AuthorID, item.GroupPartID, item.ImpactScore, item.Attachments, createdAt,
+		)
+		if err != nil {
+			return inserted, fmt.Errorf("failed to insert bulk item %q: %w", item.Title, err)
+		}
+		inserted++
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("failed to commit tx: %w", err)
+	}
+	return inserted, nil
+}
+
 func (r *InnovationRepository) Update(ctx context.Context, item *model.Innovation) (*model.Innovation, error) {
 	if item.ClassType == "" {
 		item.ClassType = "Class 4"
@@ -271,11 +327,11 @@ func (r *InnovationRepository) GetStats(ctx context.Context, year int) (*model.I
 
 	// 6. Class distribution
 	classDist := []model.InnovationClassDistribution{
-		{Name: "Class 3", Count: totalC3, Color: "#e05780"},
-		{Name: "Class 4", Count: totalC4, Color: "#2563eb"},
-		{Name: "Class 5", Count: totalC5, Color: "#059669"},
-		{Name: "Under Review", Count: totalUnderReview, Color: "#d97706"},
-		{Name: "Non Adopt", Count: totalNonAdopt, Color: "#6b7280"},
+		{Name: "Class 3", Count: totalC3, Color: "#ff5487"},
+		{Name: "Class 4", Count: totalC4, Color: "#3b82f6"},
+		{Name: "Class 5", Count: totalC5, Color: "#10b981"},
+		{Name: "Under Review", Count: totalUnderReview, Color: "#f59e0b"},
+		{Name: "Non Adopt", Count: totalNonAdopt, Color: "#8b5cf6"},
 	}
 	for i := range classDist {
 		if totalActual > 0 {

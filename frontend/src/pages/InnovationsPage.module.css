@@ -303,27 +303,55 @@
   overflow: visible;
 }
 
-/* Donut Chart & Class Distribution */
-.donutContainer {
+/* Donut / Pie Chart & Class Distribution */
+.donutLayout {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 220px;
+  padding: 8px 4px;
 }
 
-.donutSvgWrapper {
+@media (max-width: 640px) {
+  .donutLayout {
+    flex-direction: column;
+  }
+}
+
+.donutWrapper {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
 
-.donutCenterText {
+.donutWrapper:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.donutHole {
   position: absolute;
-  text-align: center;
+  width: 94px;
+  height: 94px;
+  border-radius: 50%;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
   pointer-events: none;
+  text-align: center;
+  padding: 4px;
 }
 
 .donutCenterNumber {
@@ -334,24 +362,68 @@
 }
 
 .donutCenterLabel {
-  font-size: 10px;
+  font-size: 9.5px;
+  font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+  margin-top: 3px;
+}
+
+.chartTypeToggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.toggleBtn {
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggleBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.toggleBtnActive {
+  background-color: var(--color-bg-primary);
+  color: var(--color-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .classBarsList {
-  width: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 4px;
+  min-width: 0;
 }
 
 .classBarRow {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.classBarRow:hover,
+.classBarRowActive {
+  background-color: var(--color-bg-hover);
+  transform: translateX(2px);
 }
 
 .classBarHeader {
@@ -365,7 +437,8 @@
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  color: var(--color-text-primary);
 }
 
 .classCount {
@@ -375,7 +448,7 @@
 
 .barTrack {
   width: 100%;
-  height: 6px;
+  height: 5px;
   background-color: var(--color-bg-primary);
   border-radius: 3px;
   overflow: hidden;
@@ -385,6 +458,87 @@
   height: 100%;
   border-radius: 3px;
   transition: width 0.4s ease;
+}
+
+/* Bulk Add Styles */
+.bulkHelpBox {
+  background: var(--color-bg-primary);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.bulkTextarea {
+  width: 100%;
+  height: 140px;
+  padding: 10px 12px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  resize: vertical;
+  white-space: pre;
+}
+
+.bulkTextarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.bulkPreviewContainer {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bulkPreviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.bulkTableWrapper {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.bulkTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.bulkTable th {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 10px;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bulkTable td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+}
+
+.bulkTable tr:last-child td {
+  border-bottom: none;
 }
 
 /* Monthly Matrix Performance Table */
