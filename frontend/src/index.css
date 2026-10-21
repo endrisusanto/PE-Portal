@@ -98,9 +98,9 @@
   --transition-base: 200ms ease;
 
   /* Layout */
-  --sidebar-width: 250px;
+  --sidebar-width: 285px;
   --sidebar-collapsed-width: 68px;
-  --topbar-height: 56px;
+  --topbar-height: 62px;
 }
 
 /* Dark Mode Tokens

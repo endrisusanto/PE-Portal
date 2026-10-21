@@ -1168,22 +1168,20 @@ export const ProjectsPage = () => {
 
               {/* ponytail: interactive breadcrumb navigation */}
               <nav className={styles.breadcrumbNav} aria-label="Milestone Navigation">
-                {MILESTONE_STAGES.map((st, idx) => {
+                {MILESTONE_STAGES.map((st) => {
                   const isCurrent = getMilestone(createProgress).step === st.step;
                   const isCompleted = createProgress >= st.percent;
                   return (
-                    <React.Fragment key={st.id}>
-                      {idx > 0 && <span className={styles.breadcrumbSep} aria-hidden="true">›</span>}
-                      <button
-                        type="button"
-                        onClick={() => setCreateProgress(st.percent)}
-                        className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
-                        title={st.desc}
-                      >
-                        <span className={styles.breadcrumbNum}>{st.step}</span>
-                        <span className={styles.breadcrumbLabel}>{st.label}</span>
-                      </button>
-                    </React.Fragment>
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setCreateProgress(st.percent)}
+                      className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
+                      title={st.desc}
+                    >
+                      <span className={styles.breadcrumbNum}>{st.step}</span>
+                      <span className={styles.breadcrumbLabel}>{st.label}</span>
+                    </button>
                   );
                 })}
               </nav>
@@ -1361,22 +1359,20 @@ export const ProjectsPage = () => {
 
               {/* ponytail: interactive breadcrumb navigation */}
               <nav className={styles.breadcrumbNav} aria-label="Milestone Navigation">
-                {MILESTONE_STAGES.map((st, idx) => {
+                {MILESTONE_STAGES.map((st) => {
                   const isCurrent = getMilestone(editProgress).step === st.step;
                   const isCompleted = editProgress >= st.percent;
                   return (
-                    <React.Fragment key={st.id}>
-                      {idx > 0 && <span className={styles.breadcrumbSep} aria-hidden="true">›</span>}
-                      <button
-                        type="button"
-                        onClick={() => setEditProgress(st.percent)}
-                        className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
-                        title={st.desc}
-                      >
-                        <span className={styles.breadcrumbNum}>{st.step}</span>
-                        <span className={styles.breadcrumbLabel}>{st.label}</span>
-                      </button>
-                    </React.Fragment>
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setEditProgress(st.percent)}
+                      className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
+                      title={st.desc}
+                    >
+                      <span className={styles.breadcrumbNum}>{st.step}</span>
+                      <span className={styles.breadcrumbLabel}>{st.label}</span>
+                    </button>
                   );
                 })}
               </nav>
@@ -1533,22 +1529,20 @@ export const ProjectsPage = () => {
               </div>
               {/* ponytail: breadcrumb navigation view */}
               <nav className={styles.breadcrumbNav} aria-label="Milestone Breadcrumb Trail">
-                {MILESTONE_STAGES.map((st, idx) => {
+                {MILESTONE_STAGES.map((st) => {
                   const isCurrent = getMilestone(viewingProject.progress).step === st.step;
                   const isCompleted = (viewingProject.progress || 0) >= st.percent;
                   return (
-                    <React.Fragment key={st.id}>
-                      {idx > 0 && <span className={styles.breadcrumbSep} aria-hidden="true">›</span>}
-                      <div
-                        className={`${styles.breadcrumbNode} ${styles.breadcrumbNodeStatic} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
-                        title={st.desc}
-                      >
-                        <span className={styles.breadcrumbNum}>
-                          {isCompleted && !isCurrent ? <Check size={10} strokeWidth={3} /> : st.step}
-                        </span>
-                        <span className={styles.breadcrumbLabel}>{st.label}</span>
-                      </div>
-                    </React.Fragment>
+                    <div
+                      key={st.id}
+                      className={`${styles.breadcrumbNode} ${styles.breadcrumbNodeStatic} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
+                      title={st.desc}
+                    >
+                      <span className={styles.breadcrumbNum}>
+                        {isCompleted && !isCurrent ? <Check size={10} strokeWidth={3} /> : st.step}
+                      </span>
+                      <span className={styles.breadcrumbLabel}>{st.label}</span>
+                    </div>
                   );
                 })}
               </nav>
