@@ -376,3 +376,159 @@ func (h *ProjectHandler) GetGbaTasks(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, data)
 }
+
+// SendEmailNotification sends an on-demand milestone progress email to the assignee or specified recipients
+func (h *ProjectHandler) SendEmailNotification(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid project id")
+	}
+
+	p, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil || p == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "task not found")
+	}
+
+	var req struct {
+		Recipients []string `json:"recipients"`
+		Note       string   `json:"note"`
+	}
+	_ = c.Bind(&req)
+
+	var toEmails []string
+	if len(req.Recipients) > 0 {
+		toEmails = req.Recipients
+	} else if p.OwnerID != nil && h.userRepo != nil {
+		assignee, err := h.userRepo.GetByID(c.Request().Context(), *p.OwnerID)
+		if err == nil && assignee != nil && assignee.Email != "" {
+			toEmails = append(toEmails, assignee.Email)
+		}
+	}
+
+	// Fallback to all active admin or registered users if no direct PIC email
+	if len(toEmails) == 0 && h.userRepo != nil {
+		users, err := h.userRepo.ListUsers(c.Request().Context(), nil, "")
+		if err == nil {
+			for _, u := range users {
+				if u.Email != "" && (u.Role == "admin" || u.Role == "manager") {
+					toEmails = append(toEmails, u.Email)
+				}
+			}
+		}
+	}
+
+	if len(toEmails) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "Tidak ada email penerima. Pastikan PIC memiliki email aktif atau tentukan penerima.")
+	}
+
+	smtpCfg, err := h.reportRepo.GetDefaultSMTP(c.Request().Context())
+	if err != nil || smtpCfg == nil || smtpCfg.Host == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "SMTP server belum dikonfigurasi di Settings / Reports.")
+	}
+
+	// Prepare milestone label
+	stageLabel := "1. Issue Identified"
+	if p.Progress >= 100 {
+		stageLabel = "5. Closed & Standardized"
+	} else if p.Progress >= 80 {
+		stageLabel = "4. Verification & Yield"
+	} else if p.Progress >= 60 {
+		stageLabel = "3. Trial Countermeasure"
+	} else if p.Progress >= 40 {
+		stageLabel = "2. Root Cause Analysis"
+	}
+
+	subject := fmt.Sprintf("[Milestone Task Update] %s (Progress: %d%% - %s)", p.Title, p.Progress, stageLabel)
+
+	priorityColor := "#3b82f6"
+	if p.Priority == "urgent" || p.Priority == "high" {
+		priorityColor = "#ef4444"
+	}
+
+	descText := "-"
+	if p.Description != nil && *p.Description != "" {
+		descText = *p.Description
+	}
+
+	targetDateText := "-"
+	if p.TargetDate != nil && *p.TargetDate != "" {
+		targetDateText = *p.TargetDate
+	}
+
+	noteHTML := ""
+	if req.Note != "" {
+		noteHTML = fmt.Sprintf(`<div style="margin: 16px 0; padding: 12px 14px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px; color: #92400e;"><strong>Catatan Tambahan Pengirim:</strong><br/><span style="white-space: pre-wrap;">%s</span></div>`, req.Note)
+	}
+
+	htmlBody := fmt.Sprintf(`
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+  <div style="background: #1e293b; padding: 20px 24px; border-bottom: 3px solid #3b82f6;">
+    <h2 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 700;">SEIN Production Engineer Portal</h2>
+    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Laporan Milestone & Status Problem Solving Task Analyst</p>
+  </div>
+  <div style="padding: 24px;">
+    <p style="font-size: 14px; color: #1e293b; margin-top: 0;">Berikut adalah pembaruan status dan milestone untuk issue produksi:</p>
+    
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 18px 0;">
+      <table style="width: 100%%; border-collapse: collapse; font-size: 13.5px;">
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; width: 140px; font-weight: 600;">Judul Issue:</td>
+          <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">%s</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Kategori:</td>
+          <td style="padding: 6px 0; color: #0f172a; text-transform: capitalize;">%s</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Prioritas:</td>
+          <td style="padding: 6px 0;"><span style="color: %s; font-weight: 700; text-transform: uppercase;">%s</span></td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Milestone Tahap:</td>
+          <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">%s (%d%%)</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Status:</td>
+          <td style="padding: 6px 0; color: #0f172a; text-transform: uppercase; font-weight: 600;">%s</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Target Selesai:</td>
+          <td style="padding: 6px 0; color: #0f172a;">%s</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="margin: 16px 0; padding: 12px 14px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;">
+      <strong>Catatan Investigasi & Tindakan:</strong><br/>
+      <span style="white-space: pre-wrap;">%s</span>
+    </div>
+
+    %s
+
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.4;">
+      <p style="margin: 0;">Silakan akses <strong>PE-Portal</strong> untuk melihat histori komentar dan pembaruan log milestone.</p>
+      <p style="margin: 4px 0 0; color: #94a3b8;">Email ini dikirim melalui SEIN PE Portal Mail Gateway.</p>
+    </div>
+  </div>
+</div>`,
+		p.Title,
+		p.ProjectType,
+		priorityColor,
+		p.Priority,
+		stageLabel,
+		p.Progress,
+		p.Status,
+		targetDateText,
+		descText,
+		noteHTML,
+	)
+
+	if err := h.smtpSvc.SendEmail(smtpCfg, toEmails, nil, subject, htmlBody); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Gagal mengirim email: "+err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message":    fmt.Sprintf("Email berhasil dikirim ke %d penerima (%s)", len(toEmails), toEmails[0]),
+		"recipients": toEmails,
+	})
+}

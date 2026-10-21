@@ -181,6 +181,7 @@ func main() {
 	api.GET("/projects/:id", projectHandler.Get)
 	api.PUT("/projects/:id", projectHandler.Update)
 	api.DELETE("/projects/:id", projectHandler.Delete, middleware.RequireRole("admin", "manager"))
+	api.POST("/projects/:id/send-email", projectHandler.SendEmailNotification)
 
 	// Project Tasks
 	api.GET("/projects/:id/tasks", projectHandler.ListTasks)

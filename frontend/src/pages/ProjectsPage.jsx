@@ -306,6 +306,29 @@ export const ProjectsPage = () => {
     }
   };
 
+  // ponytail: handle instant email notification dispatch for milestone updates
+  const [sendingEmailId, setSendingEmailId] = useState(null);
+
+  const handleSendEmail = async (proj) => {
+    if (!proj) return;
+    const confirmSend = window.confirm(`Kirim notifikasi email ringkasan milestone untuk task "${proj.title}"?`);
+    if (!confirmSend) return;
+
+    setSendingEmailId(proj.id);
+    try {
+      const res = await api.post(`/projects/${proj.id}/send-email`);
+      showToast(res.data?.message || 'Email notifikasi milestone berhasil dikirim!');
+      await logTimelineEvent('project', proj.id, 'Notifikasi email milestone dikirim ke PIC/Tim');
+      if (viewingProject?.id === proj.id) {
+        setTimelineRefreshKey((k) => k + 1);
+      }
+    } catch (err) {
+      alert('Gagal mengirim email: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
+
   // Filtered Projects
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -413,6 +436,16 @@ export const ProjectsPage = () => {
           </Button>
           <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(row)}>
             Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            icon={Mail}
+            loading={sendingEmailId === row.id}
+            onClick={() => handleSendEmail(row)}
+            title="Kirim Notifikasi Milestone via Email"
+          >
+            Email
           </Button>
         </div>
       ),
@@ -762,6 +795,19 @@ export const ProjectsPage = () => {
                       }}
                     >
                       Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      icon={Mail}
+                      loading={sendingEmailId === p.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendEmail(p);
+                      }}
+                      title="Kirim Notifikasi Milestone via Email"
+                    >
+                      Email
                     </Button>
                   </div>
                 </div>
@@ -1374,9 +1420,34 @@ export const ProjectsPage = () => {
             setViewingProject(null);
           }}
           title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FolderKanban size={17} color="var(--color-accent)" />
-              <span style={{ fontSize: '15px', fontWeight: 700 }}>Detail Milestone Task Analyst</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: '28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FolderKanban size={17} color="var(--color-accent)" />
+                <span style={{ fontSize: '15px', fontWeight: 700 }}>Detail Milestone Task Analyst</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  icon={Mail}
+                  loading={sendingEmailId === viewingProject.id}
+                  onClick={() => handleSendEmail(viewingProject)}
+                  title="Kirim Ringkasan Milestone Task via Email"
+                >
+                  Kirim Email
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  icon={Edit2}
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    openEditModal(viewingProject);
+                  }}
+                >
+                  Edit
+                </Button>
+              </div>
             </div>
           }
           size="lg"
