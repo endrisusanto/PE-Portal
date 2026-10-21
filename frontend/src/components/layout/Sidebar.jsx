@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   Kanban,
+  FolderKanban,
   Cpu,
   FileSpreadsheet,
   FolderArchive,
@@ -26,7 +27,8 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const navItems = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
     { to: '/innovations', label: t('nav.innovations'), icon: Lightbulb },
-    { to: '/projects', label: t('nav.projects'), icon: Kanban },
+    { to: '/gba-tasks', label: 'GBA Tasks', icon: Kanban },
+    { to: '/projects', label: t('nav.projects'), icon: FolderKanban },
     { to: '/models', label: t('nav.models'), icon: Cpu },
     { to: '/imei', label: t('nav.imei'), icon: FileSpreadsheet },
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
@@ -77,7 +79,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
               to={item.to}
               end={item.end}
               className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-              title={isCollapsed ? item.label : undefined}
+              title={item.label}
             >
               <Icon size={18} className={styles.navIcon} />
               {!isCollapsed && <span>{item.label}</span>}

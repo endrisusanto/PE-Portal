@@ -165,6 +165,7 @@ func (h *InnovationHandler) Update(c echo.Context) error {
 		ClassType:   req.ClassType,
 		GroupPartID: req.GroupPartID,
 		ImpactScore: req.ImpactScore,
+		Attachments: req.Attachments,
 	}
 
 	updated, err := h.repo.Update(c.Request().Context(), &item)

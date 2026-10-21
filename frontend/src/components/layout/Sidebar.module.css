@@ -112,7 +112,16 @@
   font-weight: 500;
   transition: background-color var(--transition-fast), color var(--transition-fast);
   text-decoration: none;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.navLink span {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .navLink:hover {

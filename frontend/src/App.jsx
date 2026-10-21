@@ -11,6 +11,7 @@ import { ThemeAnimatedBackground } from './components/common/ThemeAnimatedBackgr
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { InnovationsPage } from './pages/InnovationsPage';
+import { GbaTasksPage } from './pages/GbaTasksPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ModelsPage } from './pages/ModelsPage';
 import { ImeiArticlesPage } from './pages/ImeiArticlesPage';
@@ -68,6 +69,7 @@ export function App() {
               >
                 <Route index element={<DashboardPage />} />
                 <Route path="innovations" element={<InnovationsPage />} />
+                <Route path="gba-tasks" element={<GbaTasksPage />} />
                 <Route path="projects" element={<ProjectsPage />} />
                 <Route path="models" element={<ModelsPage />} />
                 <Route path="imei" element={<ImeiArticlesPage />} />

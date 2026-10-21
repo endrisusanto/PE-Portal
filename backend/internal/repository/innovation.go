@@ -125,12 +125,12 @@ func (r *InnovationRepository) Update(ctx context.Context, item *model.Innovatio
 	query := `
 		UPDATE innovations
 		SET title = $1, description = $2, category = $3, class_type = $4, impact_score = $5,
-		    group_part_id = $6, updated_at = NOW()
-		WHERE id = $7 AND deleted_at IS NULL
+		    group_part_id = $6, attachments = COALESCE($7, attachments), updated_at = NOW()
+		WHERE id = $8 AND deleted_at IS NULL
 	`
 	_, err := r.pool.Exec(ctx, query,
 		item.Title, item.Description, item.Category, item.ClassType, item.ImpactScore,
-		item.GroupPartID, item.ID,
+		item.GroupPartID, item.Attachments, item.ID,
 	)
 	if err != nil {
 		return nil, err
