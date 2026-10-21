@@ -109,7 +109,7 @@ export const SettingsPage = () => {
   };
 
   const handleDeleteServer = async (id) => {
-    if (!window.confirm('Remove this MCP server configuration?')) return;
+    if (!window.confirm(t('settings.confirm_delete_server', 'Remove this MCP server configuration?'))) return;
     try {
       await api.delete(`/mcp/servers/${id}`);
       setServers((prev) => prev.filter((s) => s.id !== id));
@@ -198,7 +198,7 @@ export const SettingsPage = () => {
     }
   };
 
-  if (loading) return <LoadingState message="Loading portal configurations..." />;
+  if (loading) return <LoadingState message={t('settings.loading_configs', 'Loading portal configurations...')} />;
   if (error) return <ErrorState message={error} onRetry={fetchData} />;
 
   return (
@@ -209,7 +209,7 @@ export const SettingsPage = () => {
           {t('settings.title')}
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-          Manage engineering tool integrations, MCP endpoints, and corporate auth
+          {t('settings.subtitle', 'Manage engineering tool integrations, MCP endpoints, and corporate auth')}
         </p>
       </div>
 
@@ -285,7 +285,7 @@ export const SettingsPage = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteServer(srv.id)}
-                    aria-label="Delete MCP Server"
+                    aria-label={t('settings.delete_server', 'Delete MCP Server')}
                   >
                     <Trash2 size={16} color="var(--color-error)" />
                   </Button>
@@ -308,7 +308,7 @@ export const SettingsPage = () => {
           {t('settings.auth_config')}
         </h2>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)', marginBottom: '16px' }}>
-          Configured authentication method for engineers and managers
+          {t('settings.auth_desc', 'Configured authentication method for engineers and managers')}
         </p>
 
         <div style={{
@@ -325,7 +325,7 @@ export const SettingsPage = () => {
               {authConfig?.provider === 'ldap' ? t('settings.ldap_auth') : t('settings.local_auth')}
             </span>
             <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Swappable without code modifications via AUTH_PROVIDER setting
+              {t('settings.auth_swappable', 'Swappable without code modifications via AUTH_PROVIDER setting')}
             </div>
           </div>
           <StatusBadge status="approved" label={authConfig?.provider || 'local'} />
@@ -343,10 +343,10 @@ export const SettingsPage = () => {
           <div>
             <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={18} color="var(--color-accent)" />
-              Corporate SMTP Mail Gateway
+              {t('settings.smtp_title', 'Corporate SMTP Mail Gateway')}
             </h2>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-              Configure outbound email server for work reports, digital articles and automated scheduled deliveries
+              {t('settings.smtp_desc', 'Configure outbound email server for work reports, digital articles and automated scheduled deliveries')}
             </p>
           </div>
         </div>
@@ -371,7 +371,7 @@ export const SettingsPage = () => {
 
         <form onSubmit={handleSaveSmtp} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           <Input
-            label="Gateway / Profile Name"
+            label={t('settings.smtp_name', 'Gateway / Profile Name')}
             value={smtpConfig.name}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, name: e.target.value })}
             required
@@ -379,7 +379,7 @@ export const SettingsPage = () => {
           />
 
           <Input
-            label="SMTP Hostname / IP"
+            label={t('settings.smtp_host', 'SMTP Hostname / IP')}
             value={smtpConfig.host}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
             required
@@ -387,7 +387,7 @@ export const SettingsPage = () => {
           />
 
           <Input
-            label="Port"
+            label={t('settings.smtp_port', 'Port')}
             type="number"
             value={smtpConfig.port}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value) || 587 })}
@@ -397,7 +397,7 @@ export const SettingsPage = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Encryption
+              {t('settings.smtp_encryption', 'Encryption')}
             </label>
             <select
               value={smtpConfig.encryption}
@@ -411,21 +411,21 @@ export const SettingsPage = () => {
                 color: 'var(--color-text-primary)',
               }}
             >
-              <option value="tls">STARTTLS (Port 587)</option>
-              <option value="ssl">SSL / TLS Direct (Port 465)</option>
-              <option value="none">Plain / None (Port 25)</option>
+              <option value="tls">{t('settings.smtp_enc_tls', 'STARTTLS (Port 587)')}</option>
+              <option value="ssl">{t('settings.smtp_enc_ssl', 'SSL / TLS Direct (Port 465)')}</option>
+              <option value="none">{t('settings.smtp_enc_none', 'Plain / None (Port 25)')}</option>
             </select>
           </div>
 
           <Input
-            label="Username (Optional)"
+            label={t('settings.smtp_username', 'Username (Optional)')}
             value={smtpConfig.username}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, username: e.target.value })}
             placeholder="pe-reporter@samsung.com"
           />
 
           <Input
-            label="Password (Optional)"
+            label={t('settings.smtp_password', 'Password (Optional)')}
             type="password"
             value={smtpConfig.password}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, password: e.target.value })}
@@ -433,7 +433,7 @@ export const SettingsPage = () => {
           />
 
           <Input
-            label="Sender Address (From Email)"
+            label={t('settings.smtp_from_email', 'Sender Address (From Email)')}
             value={smtpConfig.from_email}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, from_email: e.target.value })}
             required
@@ -441,7 +441,7 @@ export const SettingsPage = () => {
           />
 
           <Input
-            label="Sender Display Name"
+            label={t('settings.smtp_from_name', 'Sender Display Name')}
             value={smtpConfig.from_name}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, from_name: e.target.value })}
             placeholder="SEIN PE Portal Robot"
@@ -451,7 +451,7 @@ export const SettingsPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
                 type="email"
-                placeholder="Test email recipient..."
+                placeholder={t('settings.smtp_test_placeholder', 'Test email recipient...')}
                 value={testRecipient}
                 onChange={(e) => setTestRecipient(e.target.value)}
                 style={{
@@ -473,12 +473,12 @@ export const SettingsPage = () => {
                 loading={testingSmtp}
                 onClick={handleTestSmtp}
               >
-                Send Test Probe
+                {t('settings.smtp_send_test', 'Send Test Probe')}
               </Button>
             </div>
 
             <Button type="submit" variant="primary" size="sm" loading={savingSmtp}>
-              Save SMTP Configuration
+              {t('settings.smtp_save', 'Save SMTP Configuration')}
             </Button>
           </div>
         </form>
@@ -495,10 +495,10 @@ export const SettingsPage = () => {
           <div>
             <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Bot size={18} color="var(--color-accent)" />
-              LLM AI API Configuration (OpenAI-Compatible / LM Studio)
+              {t('settings.llm_title', 'LLM AI API Configuration (OpenAI-Compatible / LM Studio)')}
             </h2>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-              Configure centralized LLM endpoint for PE Assistant, RAG database summarizer, and chat completion
+              {t('settings.llm_desc', 'Configure centralized LLM endpoint for PE Assistant, RAG database summarizer, and chat completion')}
             </p>
           </div>
 
@@ -510,7 +510,7 @@ export const SettingsPage = () => {
             loading={fetchingModels}
             onClick={handleFetchModels}
           >
-            Fetch Available Models
+            {t('settings.llm_fetch_models', 'Fetch Available Models')}
           </Button>
         </div>
 
@@ -535,7 +535,7 @@ export const SettingsPage = () => {
         <form onSubmit={handleSaveLlm} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Provider Type
+              {t('settings.llm_provider_type', 'Provider Type')}
             </label>
             <select
               value={llmConfig.provider}
@@ -557,7 +557,7 @@ export const SettingsPage = () => {
           </div>
 
           <Input
-            label="Provider Name"
+            label={t('settings.llm_provider_name', 'Provider Name')}
             value={llmConfig.name}
             onChange={(e) => setLlmConfig({ ...llmConfig, name: e.target.value })}
             required
@@ -565,7 +565,7 @@ export const SettingsPage = () => {
           />
 
           <Input
-            label="Base URL Endpoint"
+            label={t('settings.llm_base_url', 'Base URL Endpoint')}
             value={llmConfig.base_url}
             onChange={(e) => setLlmConfig({ ...llmConfig, base_url: e.target.value })}
             required
@@ -573,7 +573,7 @@ export const SettingsPage = () => {
           />
 
           <Input
-            label="API Key"
+            label={t('settings.llm_api_key', 'API Key')}
             type="password"
             value={llmConfig.api_key}
             onChange={(e) => setLlmConfig({ ...llmConfig, api_key: e.target.value })}
@@ -582,7 +582,7 @@ export const SettingsPage = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Active Model Name
+              {t('settings.llm_model_name', 'Active Model Name')}
             </label>
             {availableModels.length > 0 ? (
               <select
@@ -627,13 +627,13 @@ export const SettingsPage = () => {
                 checked={llmConfig.is_active}
                 onChange={(e) => setLlmConfig({ ...llmConfig, is_active: e.target.checked })}
               />
-              <span>Enable AI Assistant for all SEIN PE team members</span>
+              <span>{t('settings.llm_enable_checkbox', 'Enable AI Assistant for all SEIN PE team members')}</span>
             </label>
           </div>
 
           <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--color-border-subtle)' }}>
             <Button type="submit" variant="primary" size="sm" loading={savingLlm}>
-              Save LLM API Configuration
+              {t('settings.llm_save', 'Save LLM API Configuration')}
             </Button>
           </div>
         </form>
@@ -701,7 +701,7 @@ export const SettingsPage = () => {
 
           {authType !== 'none' && (
             <Input
-              label="Token / API Key"
+              label={t('settings.token_label', 'Token / API Key')}
               type="password"
               value={authToken}
               onChange={(e) => setAuthToken(e.target.value)}
@@ -710,10 +710,10 @@ export const SettingsPage = () => {
           )}
 
           <Input
-            label="Description"
+            label={t('settings.server_description', 'Description')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Tool capabilities and purpose"
+            placeholder={t('settings.server_description_placeholder', 'Tool capabilities and purpose')}
           />
         </form>
       </Modal>
