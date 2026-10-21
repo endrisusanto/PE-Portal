@@ -177,3 +177,116 @@ func (h *UtilityHandler) CompressPDF(c echo.Context) error {
 
 	return c.Attachment(outPath, fmt.Sprintf("compressed_%s", file.Filename))
 }
+
+// MergePDF merges multiple PDF files into one using Ghostscript
+func (h *UtilityHandler) MergePDF(c echo.Context) error {
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No documents provided"})
+	}
+
+	files := form.File["documents"]
+	if len(files) < 2 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Please provide at least 2 PDF documents to merge"})
+	}
+
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	var inPaths []string
+	defer func() {
+		for _, p := range inPaths {
+			_ = os.Remove(p)
+		}
+	}()
+
+	for idx, file := range files {
+		src, err := file.Open()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": fmt.Sprintf("Failed to open %s", file.Filename)})
+		}
+		inPath := filepath.Join(tempDir, fmt.Sprintf("merge_%d_%d.pdf", now, idx))
+		dst, err := os.Create(inPath)
+		if err != nil {
+			src.Close()
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create temp file"})
+		}
+		_, _ = io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+		inPaths = append(inPaths, inPath)
+	}
+
+	outPath := filepath.Join(tempDir, fmt.Sprintf("merged_%d.pdf", now))
+	defer os.Remove(outPath)
+
+	args := []string{"-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4", "-dNOPAUSE", "-dQUIET", "-dBATCH", fmt.Sprintf("-sOutputFile=%s", outPath)}
+	args = append(args, inPaths...)
+
+	cmd := exec.Command("gs", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": fmt.Sprintf("PDF merge failed: %v", err),
+			"details": string(output),
+		})
+	}
+
+	return c.Attachment(outPath, "merged_document.pdf")
+}
+
+// SplitPDF extracts a page range from a PDF file using Ghostscript
+func (h *UtilityHandler) SplitPDF(c echo.Context) error {
+	file, err := c.FormFile("document")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No document provided"})
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to open document"})
+	}
+	defer src.Close()
+
+	firstPage := c.FormValue("first_page")
+	lastPage := c.FormValue("last_page")
+	if firstPage == "" {
+		firstPage = "1"
+	}
+	if lastPage == "" {
+		lastPage = firstPage
+	}
+
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	inPath := filepath.Join(tempDir, fmt.Sprintf("split_in_%d.pdf", now))
+	outPath := filepath.Join(tempDir, fmt.Sprintf("split_out_%d.pdf", now))
+	defer os.Remove(inPath)
+	defer os.Remove(outPath)
+
+	dst, err := os.Create(inPath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save temp file"})
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to write temp file"})
+	}
+	dst.Close()
+
+	cmd := exec.Command("gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4",
+		fmt.Sprintf("-dFirstPage=%s", firstPage),
+		fmt.Sprintf("-dLastPage=%s", lastPage),
+		"-dNOPAUSE", "-dQUIET", "-dBATCH",
+		fmt.Sprintf("-sOutputFile=%s", outPath), inPath)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": fmt.Sprintf("PDF split failed: %v", err),
+			"details": string(output),
+		})
+	}
+
+	return c.Attachment(outPath, fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename))
+}
+

@@ -306,3 +306,201 @@
   background: linear-gradient(90deg, #ec4899, #8b5cf6);
   transition: width 0.3s ease;
 }
+
+/* ponytail: PDF Merge & Split Utility Components */
+.modeToggle {
+  display: inline-flex;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  gap: 4px;
+}
+
+.modeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.modeBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.modeBtnActive {
+  background-color: var(--color-accent);
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.pdfList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pdfCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  gap: 14px;
+  transition: border-color var(--transition-fast);
+}
+
+.pdfCard:hover {
+  border-color: var(--color-accent);
+}
+
+.pdfCardInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pdfOrderBadge {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.pdfDetails {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.pdfName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdfMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+}
+
+.pdfBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: var(--radius-xs);
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pdfCardActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.iconBtnSmall {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.iconBtnSmall:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background-color: var(--color-bg-hover);
+}
+
+.iconBtnSmall:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.splitCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.splitOptionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.splitOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.splitOption:hover {
+  border-color: var(--color-accent);
+}
+
+.splitOptionSelected {
+  border-color: var(--color-accent);
+  background-color: rgba(224, 87, 128, 0.04);
+}
+
+.successBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  font-size: 13px;
+  font-weight: 500;
+}
+

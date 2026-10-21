@@ -19,8 +19,14 @@ import {
   Eraser,
   Paintbrush,
   Sparkles,
-  FileText
+  FileText,
+  FileStack,
+  ArrowUp,
+  ArrowDown,
+  Layers,
+  Split,
 } from 'lucide-react';
+import { PDFDocument } from 'pdf-lib';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
@@ -30,7 +36,7 @@ export const UtilityPage = () => {
   const { t } = useTranslation();
   const { tab } = useParams();
 
-  // Active Tab from route parameter: 'images', 'documents', 'remove-bg'
+  // Active Tab from route parameter: 'images', 'documents', 'remove-bg', 'pdf-merge-split'
   const activeTab = tab || 'images';
 
   const toolMeta = {
@@ -48,6 +54,11 @@ export const UtilityPage = () => {
       title: t('nav.tools_bg', 'Local Remove Background'),
       subtitle: 'Penghapusan background gambar menjadi format PNG transparan secara lokal & instan.',
       icon: Scissors,
+    },
+    'pdf-merge-split': {
+      title: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'),
+      subtitle: 'Gabungkan beberapa dokumen PDF menjadi satu atau pisahkan halaman tertentu secara instan & 100% lokal di browser.',
+      icon: FileStack,
     },
   };
 
@@ -90,6 +101,7 @@ export const UtilityPage = () => {
       {activeTab === 'images' && <ImageConverterTab />}
       {activeTab === 'documents' && <DocumentCompressTab />}
       {activeTab === 'remove-bg' && <RemoveBackgroundTab />}
+      {activeTab === 'pdf-merge-split' && <PdfMergeSplitTab />}
     </div>
   );
 };
@@ -1329,3 +1341,717 @@ const RemoveBackgroundTab = () => {
     </div>
   );
 };
+
+// ============================================================================
+// 4. PDF MERGE & SPLIT TAB (100% Client-Side with pdf-lib /ponytail)
+// ============================================================================
+const PdfMergeSplitTab = () => {
+  const [mode, setMode] = useState('merge'); // 'merge' | 'split'
+
+  // Merge State
+  const [mergeFiles, setMergeFiles] = useState([]);
+  const [mergeOutputName, setMergeOutputName] = useState('merged_document.pdf');
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeSuccess, setMergeSuccess] = useState(null);
+  const [mergeDragActive, setMergeDragActive] = useState(false);
+  const mergeFileInputRef = useRef(null);
+
+  // Split State
+  const [splitFile, setSplitFile] = useState(null);
+  const [splitMethod, setSplitMethod] = useState('range'); // 'range' | 'every_n'
+  const [pageRange, setPageRange] = useState('');
+  const [everyN, setEveryN] = useState(1);
+  const [splitOutputName, setSplitOutputName] = useState('');
+  const [isSplitting, setIsSplitting] = useState(false);
+  const [splitSuccess, setSplitSuccess] = useState(null);
+  const [splitDragActive, setSplitDragActive] = useState(false);
+  const splitFileInputRef = useRef(null);
+
+  const formatBytes = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  const parsePageRange = (rangeStr, maxPages) => {
+    if (!rangeStr || !rangeStr.trim()) return [];
+    const pages = new Set();
+    const parts = rangeStr.split(',');
+    for (let part of parts) {
+      part = part.trim();
+      if (!part) continue;
+      if (part.includes('-')) {
+        const [startStr, endStr] = part.split('-').map((s) => parseInt(s.trim(), 10));
+        if (!isNaN(startStr) && !isNaN(endStr)) {
+          const start = Math.max(1, Math.min(startStr, endStr));
+          const end = Math.min(maxPages, Math.max(startStr, endStr));
+          for (let i = start; i <= end; i++) pages.add(i);
+        }
+      } else {
+        const p = parseInt(part, 10);
+        if (!isNaN(p) && p >= 1 && p <= maxPages) pages.add(p);
+      }
+    }
+    return Array.from(pages).sort((a, b) => a - b);
+  };
+
+  // --------------------------------------------------------------------------
+  // MERGE ACTIONS
+  // --------------------------------------------------------------------------
+  const handleMergeAddFiles = async (newFileList) => {
+    const pdfFiles = Array.from(newFileList).filter(
+      (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    );
+    if (pdfFiles.length === 0) return;
+
+    setMergeSuccess(null);
+    const loadedItems = [];
+    for (const file of pdfFiles) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const pageCount = pdfDoc.getPageCount();
+        loadedItems.push({
+          id: Math.random().toString(36).substring(2, 9),
+          file,
+          name: file.name,
+          size: file.size,
+          pageCount,
+          arrayBuffer,
+        });
+      } catch (err) {
+        console.error('Failed to parse PDF:', file.name, err);
+      }
+    }
+    setMergeFiles((prev) => [...prev, ...loadedItems]);
+  };
+
+  const handleMoveFile = (index, direction) => {
+    setMergeFiles((prev) => {
+      const copy = [...prev];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= copy.length) return prev;
+      const temp = copy[index];
+      copy[index] = copy[targetIndex];
+      copy[targetIndex] = temp;
+      return copy;
+    });
+  };
+
+  const handleRemoveMergeFile = (id) => {
+    setMergeFiles((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleExecuteMerge = async () => {
+    if (mergeFiles.length < 2) {
+      alert('Silakan pilih minimal 2 dokumen PDF untuk digabungkan.');
+      return;
+    }
+    setIsMerging(true);
+    setMergeSuccess(null);
+
+    try {
+      const mergedPdf = await PDFDocument.create();
+      let totalPagesCount = 0;
+
+      for (const item of mergeFiles) {
+        const srcPdf = await PDFDocument.load(item.arrayBuffer);
+        const copiedPages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
+        copiedPages.forEach((page) => mergedPdf.addPage(page));
+        totalPagesCount += copiedPages.length;
+      }
+
+      const mergedPdfBytes = await mergedPdf.save();
+      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const filename = mergeOutputName.endsWith('.pdf') ? mergeOutputName : `${mergeOutputName}.pdf`;
+
+      // Auto download
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setMergeSuccess({
+        filename,
+        size: blob.size,
+        totalPages: totalPagesCount,
+        fileCount: mergeFiles.length,
+        downloadUrl,
+      });
+    } catch (err) {
+      console.error('Merge PDF error:', err);
+      alert('Gagal menggabungkan PDF: ' + err.message);
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // SPLIT ACTIONS
+  // --------------------------------------------------------------------------
+  const handleSplitAddFile = async (selectedFile) => {
+    if (!selectedFile || (!selectedFile.type.includes('pdf') && !selectedFile.name.toLowerCase().endsWith('.pdf'))) {
+      alert('Silakan pilih dokumen berformat PDF.');
+      return;
+    }
+    setSplitSuccess(null);
+    try {
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pageCount = pdfDoc.getPageCount();
+
+      setSplitFile({
+        file: selectedFile,
+        name: selectedFile.name,
+        size: selectedFile.size,
+        pageCount,
+        arrayBuffer,
+      });
+      setPageRange(`1-${Math.min(5, pageCount)}`);
+      setSplitOutputName(`split_${selectedFile.name}`);
+    } catch (err) {
+      console.error('Failed to load PDF for split:', err);
+      alert('Gagal membaca dokumen PDF: ' + err.message);
+    }
+  };
+
+  const handleExecuteSplit = async () => {
+    if (!splitFile) return;
+    setIsSplitting(true);
+    setSplitSuccess(null);
+
+    try {
+      const srcPdf = await PDFDocument.load(splitFile.arrayBuffer);
+      const totalPages = splitFile.pageCount;
+
+      if (splitMethod === 'range') {
+        const pagesToExtract = parsePageRange(pageRange, totalPages);
+        if (pagesToExtract.length === 0) {
+          alert('Pilihan range halaman tidak valid.');
+          setIsSplitting(false);
+          return;
+        }
+
+        const subPdf = await PDFDocument.create();
+        const pageIndices = pagesToExtract.map((p) => p - 1);
+        const copiedPages = await subPdf.copyPages(srcPdf, pageIndices);
+        copiedPages.forEach((page) => subPdf.addPage(page));
+
+        const subPdfBytes = await subPdf.save();
+        const blob = new Blob([subPdfBytes], { type: 'application/pdf' });
+        const downloadUrl = URL.createObjectURL(blob);
+
+        const filename = splitOutputName.endsWith('.pdf') ? splitOutputName : `${splitOutputName}.pdf`;
+
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        setSplitSuccess({
+          filename,
+          size: blob.size,
+          extractedPages: pagesToExtract.length,
+          pagesList: pagesToExtract.join(', '),
+          downloadUrl,
+        });
+      } else {
+        const n = Math.max(1, parseInt(everyN, 10) || 1);
+        const partsCount = Math.ceil(totalPages / n);
+
+        for (let i = 0; i < partsCount; i++) {
+          const start = i * n;
+          const end = Math.min(start + n, totalPages);
+          const pageIndices = [];
+          for (let p = start; p < end; p++) pageIndices.push(p);
+
+          const partPdf = await PDFDocument.create();
+          const copied = await partPdf.copyPages(srcPdf, pageIndices);
+          copied.forEach((cp) => partPdf.addPage(cp));
+
+          const bytes = await partPdf.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+
+          const partName = `${splitFile.name.replace(/\.pdf$/i, '')}_part_${i + 1}_hal_${start + 1}-${end}.pdf`;
+
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = partName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          await new Promise((r) => setTimeout(r, 250));
+        }
+
+        setSplitSuccess({
+          filename: `${partsCount} file PDF`,
+          partsCount,
+          isBatch: true,
+        });
+      }
+    } catch (err) {
+      console.error('Split PDF error:', err);
+      alert('Gagal memisahkan PDF: ' + err.message);
+    } finally {
+      setIsSplitting(false);
+    }
+  };
+
+  const totalMergePages = mergeFiles.reduce((acc, curr) => acc + curr.pageCount, 0);
+  const totalMergeSize = mergeFiles.reduce((acc, curr) => acc + curr.size, 0);
+
+  const selectedPagesList = splitFile ? parsePageRange(pageRange, splitFile.pageCount) : [];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/* Top Mode Selector */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div className={styles.modeToggle}>
+          <button
+            type="button"
+            className={`${styles.modeBtn} ${mode === 'merge' ? styles.modeBtnActive : ''}`}
+            onClick={() => {
+              setMode('merge');
+              setMergeSuccess(null);
+            }}
+          >
+            <Layers size={16} />
+            Gabung Dokumen (Merge)
+          </button>
+          <button
+            type="button"
+            className={`${styles.modeBtn} ${mode === 'split' ? styles.modeBtnActive : ''}`}
+            onClick={() => {
+              setMode('split');
+              setSplitSuccess(null);
+            }}
+          >
+            <Split size={16} />
+            Pisah Halaman (Split)
+          </button>
+        </div>
+
+        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+          {mode === 'merge'
+            ? 'Urutkan dokumen dengan tombol panah untuk menentukan urutan penggabungan.'
+            : 'Ekstrak range halaman tertentu atau pisah setiap halaman menjadi file independen.'}
+        </span>
+      </div>
+
+      {/* ===================================================================== */}
+      {/* 1. MERGE PDF MODE                                                     */}
+      {/* ===================================================================== */}
+      {mode === 'merge' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Dropzone */}
+          <div
+            className={`${styles.dropzone} ${mergeDragActive ? styles.dropzoneActive : ''}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setMergeDragActive(true);
+            }}
+            onDragLeave={() => setMergeDragActive(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setMergeDragActive(false);
+              handleMergeAddFiles(e.dataTransfer.files);
+            }}
+            onClick={() => mergeFileInputRef.current?.click()}
+          >
+            <Layers size={40} className={styles.dropzoneIcon} />
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                Klik untuk pilih dokumen PDF atau Drag & Drop beberapa file ke sini
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                Mendukung bulk upload file PDF tanpa batasan ukuran server.
+              </div>
+            </div>
+            <Button variant="secondary" icon={Upload} size="sm">
+              Pilih Dokumen PDF
+            </Button>
+            <input
+              ref={mergeFileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files) handleMergeAddFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+          </div>
+
+          {/* Success Banner */}
+          {mergeSuccess && (
+            <div className={styles.successBanner}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <CheckCircle2 size={18} />
+                <span>
+                  Berhasil menggabungkan <strong>{mergeSuccess.fileCount} dokumen</strong> ({mergeSuccess.totalPages} halaman total, {formatBytes(mergeSuccess.size)}) menjadi <strong>{mergeSuccess.filename}</strong>!
+                </span>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Download}
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = mergeSuccess.downloadUrl;
+                  a.download = mergeSuccess.filename;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+              >
+                Unduh Lagi
+              </Button>
+            </div>
+          )}
+
+          {/* Uploaded Files Queue */}
+          {mergeFiles.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Controls bar */}
+              <div className={styles.controlPanel}>
+                <div className={styles.controlGroup}>
+                  <div className={styles.controlItem}>
+                    <span className={styles.controlLabel}>Nama File Hasil Penggabungan</span>
+                    <input
+                      type="text"
+                      className={styles.selectInput}
+                      value={mergeOutputName}
+                      onChange={(e) => setMergeOutputName(e.target.value)}
+                      placeholder="merged_document.pdf"
+                      style={{ minWidth: '220px' }}
+                    />
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', alignSelf: 'flex-end', paddingBottom: '8px' }}>
+                    Total: <strong>{mergeFiles.length} File</strong> • <strong>{totalMergePages} Halaman</strong> • <strong>{formatBytes(totalMergeSize)}</strong>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Button
+                    variant="primary"
+                    icon={Sparkles}
+                    onClick={handleExecuteMerge}
+                    loading={isMerging}
+                    disabled={mergeFiles.length < 2}
+                  >
+                    Gabungkan PDF ({mergeFiles.length} File)
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={Trash2}
+                    onClick={() => {
+                      setMergeFiles([]);
+                      setMergeSuccess(null);
+                    }}
+                  >
+                    Bersihkan
+                  </Button>
+                </div>
+              </div>
+
+              {/* Cards List */}
+              <div className={styles.pdfList}>
+                {mergeFiles.map((item, idx) => (
+                  <div key={item.id} className={styles.pdfCard}>
+                    <div className={styles.pdfCardInfo}>
+                      <div className={styles.pdfOrderBadge}>#{idx + 1}</div>
+                      <FileText size={20} color="var(--color-accent)" style={{ flexShrink: 0 }} />
+                      <div className={styles.pdfDetails}>
+                        <span className={styles.pdfName} title={item.name}>
+                          {item.name}
+                        </span>
+                        <div className={styles.pdfMeta}>
+                          <span className={styles.pdfBadge}>{item.pageCount} Halaman</span>
+                          <span>•</span>
+                          <span>{formatBytes(item.size)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.pdfCardActions}>
+                      <button
+                        type="button"
+                        className={styles.iconBtnSmall}
+                        disabled={idx === 0}
+                        onClick={() => handleMoveFile(idx, -1)}
+                        title="Pindah ke Atas"
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.iconBtnSmall}
+                        disabled={idx === mergeFiles.length - 1}
+                        onClick={() => handleMoveFile(idx, 1)}
+                        title="Pindah ke Bawah"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.iconBtnSmall}
+                        onClick={() => handleRemoveMergeFile(item.id)}
+                        title="Hapus Dokumen"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* 2. SPLIT PDF MODE                                                     */}
+      {/* ===================================================================== */}
+      {mode === 'split' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Dropzone or Loaded File Details */}
+          {!splitFile ? (
+            <div
+              className={`${styles.dropzone} ${splitDragActive ? styles.dropzoneActive : ''}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setSplitDragActive(true);
+              }}
+              onDragLeave={() => setSplitDragActive(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setSplitDragActive(false);
+                if (e.dataTransfer.files?.[0]) handleSplitAddFile(e.dataTransfer.files[0]);
+              }}
+              onClick={() => splitFileInputRef.current?.click()}
+            >
+              <Split size={40} className={styles.dropzoneIcon} />
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Pilih atau Drag & Drop 1 file dokumen PDF yang ingin dipisahkan
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                  Dokumen diproses secara lokal langsung di memori browser.
+                </div>
+              </div>
+              <Button variant="secondary" icon={Upload} size="sm">
+                Pilih File PDF
+              </Button>
+              <input
+                ref={splitFileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) handleSplitAddFile(e.target.files[0]);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Selected PDF Overview Card */}
+              <div className={styles.pdfCard}>
+                <div className={styles.pdfCardInfo}>
+                  <FileText size={24} color="var(--color-accent)" style={{ flexShrink: 0 }} />
+                  <div className={styles.pdfDetails}>
+                    <span className={styles.pdfName} style={{ fontSize: '14px' }}>
+                      {splitFile.name}
+                    </span>
+                    <div className={styles.pdfMeta}>
+                      <span className={styles.pdfBadge}>{splitFile.pageCount} Halaman Total</span>
+                      <span>•</span>
+                      <span>Ukuran: {formatBytes(splitFile.size)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={Trash2}
+                  onClick={() => {
+                    setSplitFile(null);
+                    setSplitSuccess(null);
+                  }}
+                >
+                  Ganti File
+                </Button>
+              </div>
+
+              {/* Success Banner */}
+              {splitSuccess && (
+                <div className={styles.successBanner}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <CheckCircle2 size={18} />
+                    <span>
+                      {splitSuccess.isBatch ? (
+                        <>Berhasil membagi dokumen menjadi <strong>{splitSuccess.partsCount} file terpisah</strong>!</>
+                      ) : (
+                        <>Berhasil mengekstrak <strong>{splitSuccess.extractedPages} halaman</strong> ([{splitSuccess.pagesList}]) menjadi <strong>{splitSuccess.filename}</strong> ({formatBytes(splitSuccess.size)})!</>
+                      )}
+                    </span>
+                  </div>
+                  {splitSuccess.downloadUrl && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={Download}
+                      onClick={() => {
+                        const a = document.createElement('a');
+                        a.href = splitSuccess.downloadUrl;
+                        a.download = splitSuccess.filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }}
+                    >
+                      Unduh Lagi
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Split Options Form */}
+              <div className={styles.splitCard}>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  Pilih Metode Pemisahan (Split Options)
+                </div>
+
+                <div className={styles.splitOptionGroup}>
+                  {/* Option 1: Custom Page Range */}
+                  <label
+                    className={`${styles.splitOption} ${splitMethod === 'range' ? styles.splitOptionSelected : ''}`}
+                    onClick={() => setSplitMethod('range')}
+                  >
+                    <input
+                      type="radio"
+                      name="splitMethod"
+                      checked={splitMethod === 'range'}
+                      onChange={() => setSplitMethod('range')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                        Ekstrak Range Halaman Tertentu
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                        Contoh: <code>1-3, 5, 8-10</code> (Hanya mengambil halaman yang disebutkan ke dalam 1 file baru).
+                      </span>
+
+                      {splitMethod === 'range' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                          <input
+                            type="text"
+                            className={styles.selectInput}
+                            value={pageRange}
+                            onChange={(e) => setPageRange(e.target.value)}
+                            placeholder="Contoh: 1-5, 8, 12"
+                            style={{ maxWidth: '320px' }}
+                          />
+                          <span style={{ fontSize: '11.5px', color: selectedPagesList.length > 0 ? '#10b981' : '#ef4444' }}>
+                            {selectedPagesList.length > 0
+                              ? `✓ Halaman yang akan diekstrak (${selectedPagesList.length} hal): [${selectedPagesList.join(', ')}]`
+                              : 'Ketik halaman atau range angka di antara 1 dan ' + splitFile.pageCount}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  {/* Option 2: Split every N pages */}
+                  <label
+                    className={`${styles.splitOption} ${splitMethod === 'every_n' ? styles.splitOptionSelected : ''}`}
+                    onClick={() => setSplitMethod('every_n')}
+                  >
+                    <input
+                      type="radio"
+                      name="splitMethod"
+                      checked={splitMethod === 'every_n'}
+                      onChange={() => setSplitMethod('every_n')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                        Bagi Rata Setiap N Halaman
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                        Pecah dokumen menjadi beberapa bagian dengan jumlah halaman yang sama (cth: 1 halaman per file).
+                      </span>
+
+                      {splitMethod === 'every_n' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max={splitFile.pageCount}
+                            className={styles.selectInput}
+                            value={everyN}
+                            onChange={(e) => setEveryN(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            style={{ width: '80px' }}
+                          />
+                          <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                            Halaman per bagian ➔ Menghasilkan{' '}
+                            <strong>{Math.ceil(splitFile.pageCount / (parseInt(everyN, 10) || 1))} file PDF</strong>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+
+                {/* Filename & Action */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginTop: '6px' }}>
+                  {splitMethod === 'range' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className={styles.controlLabel}>Nama Output:</span>
+                      <input
+                        type="text"
+                        className={styles.selectInput}
+                        value={splitOutputName}
+                        onChange={(e) => setSplitOutputName(e.target.value)}
+                        placeholder="split_document.pdf"
+                        style={{ minWidth: '220px' }}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Button
+                      variant="primary"
+                      icon={Download}
+                      onClick={handleExecuteSplit}
+                      loading={isSplitting}
+                      disabled={splitMethod === 'range' && selectedPagesList.length === 0}
+                    >
+                      {splitMethod === 'range'
+                        ? `Ekstrak & Unduh (${selectedPagesList.length} Halaman)`
+                        : `Pecah & Unduh Semua Bagian`}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+

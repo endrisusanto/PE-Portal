@@ -23,6 +23,7 @@ import {
   Image as ImageIcon,
   FileArchive,
   Scissors,
+  FileStack,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Sidebar.module.css';
@@ -88,6 +89,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
     { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
     { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
+    { to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
   ].sort((a, b) => a.label.localeCompare(b.label));
 
   // Dashboard as prime top-level item

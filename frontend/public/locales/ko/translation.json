@@ -18,6 +18,7 @@
     "tools_images": "이미지 변환 및 압축",
     "tools_docs": "PDF 문서 압축",
     "tools_bg": "로컬 배경 제거 (PNG)",
+    "tools_pdf_merge_split": "PDF 병합 및 분할 (Merge & Split)",
     "utility": "도구",
     "utility_images": "이미지 변환 및 압축",
     "utility_docs": "PDF 문서 압축",

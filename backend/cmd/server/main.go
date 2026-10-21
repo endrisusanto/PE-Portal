@@ -293,6 +293,8 @@ func main() {
 	api.GET("/utility/status", utilityHandler.GetStatus)
 	api.POST("/utility/remove-bg", utilityHandler.RemoveBackground)
 	api.POST("/utility/compress-pdf", utilityHandler.CompressPDF)
+	api.POST("/utility/merge-pdf", utilityHandler.MergePDF)
+	api.POST("/utility/split-pdf", utilityHandler.SplitPDF)
 
 	// Graceful shutdown handling
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
