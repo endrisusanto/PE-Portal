@@ -152,13 +152,14 @@ func (r *ProjectRepository) Update(ctx context.Context, p *model.Project) (*mode
 		    group_part_id = $6, start_date = NULLIF($7, '')::date, target_date = NULLIF($8, '')::date,
 		    completion_date = NULLIF($9, '')::date, progress = $10,
 		    metadata = COALESCE($11::jsonb, metadata),
+		    owner_id = COALESCE($12::uuid, owner_id),
 		    updated_at = NOW()
-		WHERE id = $12 AND deleted_at IS NULL
+		WHERE id = $13 AND deleted_at IS NULL
 	`
 
 	_, err := r.pool.Exec(ctx, query,
 		p.Title, p.Description, p.ProjectType, p.Status, p.Priority,
-		p.GroupPartID, startDate, targetDate, completionDate, p.Progress, metadataParam, p.ID,
+		p.GroupPartID, startDate, targetDate, completionDate, p.Progress, metadataParam, p.OwnerID, p.ID,
 	)
 	if err != nil {
 		return nil, err

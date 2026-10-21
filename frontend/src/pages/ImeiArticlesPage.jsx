@@ -111,24 +111,24 @@ export const ImeiArticlesPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>
-            {t('nav.imei')}
+            {t('nav.imei', 'Timeline Articles')}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-            Technical notes, IMEI articles, and firmware process records grouped per model
+            Catatan bersama tim PE: posting update teknis, investigasi issue, tips proses, dan timeline pengetahuan bersama
           </p>
         </div>
         <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
-          New Article
+          Post Catatan Baru
         </Button>
       </div>
 
       {/* Filter and Search Bar */}
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-        <div style={{ flex: 1, maxWidth: '360px' }}>
+        <div style={{ flex: 1, maxWidth: '380px' }}>
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search article titles and contents..."
+            placeholder="Cari artikel, topik, atau kata kunci..."
           />
         </div>
         <select
@@ -143,21 +143,23 @@ export const ImeiArticlesPage = () => {
             color: 'var(--color-text-primary)',
           }}
         >
-          <option value="">All Models</option>
+          <option value="">Semua Model / Kategori</option>
           {models.map((m) => (
-            <option key={m.id} value={m.id}>{m.model_name} ({m.codename || 'Standard'})</option>
+            <option key={m.id} value={m.id}>
+              {m.model_name}
+            </option>
           ))}
         </select>
       </div>
 
       {loading ? (
-        <LoadingState message="Loading IMEI articles..." />
+        <LoadingState message="Memuat timeline artikel..." />
       ) : articles.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="No articles found"
-          description="Create technical post notes for project models."
-          actionLabel="Create Note"
+          title="Belum ada artikel / catatan bersama"
+          description="Siapa saja anggota tim PE bisa memposting catatan analisa, SOP, atau update teknis di sini."
+          actionLabel="Tulis Catatan Pertama"
           onAction={() => setIsModalOpen(true)}
         />
       ) : (

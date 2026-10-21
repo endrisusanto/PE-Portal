@@ -1,6 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, FolderKanban, Edit2, LayoutGrid, List } from 'lucide-react';
+import {
+  Plus,
+  FolderKanban,
+  Edit2,
+  LayoutGrid,
+  Kanban as KanbanIcon,
+  List,
+  CheckCircle2,
+  ChevronRight,
+  User,
+  Mail,
+  Send,
+  AlertCircle,
+  ArrowRight,
+  ArrowLeft,
+  Calendar,
+  Flame,
+  Check,
+  Tag,
+  Wrench,
+  Cpu,
+  Layers,
+  Sparkles
+} from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -10,79 +33,150 @@ import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { Table } from '../components/common/Table';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
+import styles from './ProjectsPage.module.css';
+
+// 5 Milestone Problem Solving & Process Stages for PE
+export const MILESTONE_STAGES = [
+  { id: 'identified', step: 1, label: 'Issue Identified', percent: 20, color: '#ef4444', desc: 'Identifikasi awal issue mechanical atau proses produksi' },
+  { id: 'root_cause', step: 2, label: 'Root Cause Analysis', percent: 40, color: '#f59e0b', desc: 'Analisa investigasi 5-Why, Fishbone & log' },
+  { id: 'countermeasure', step: 3, label: 'Trial Countermeasure', percent: 60, color: '#3b82f6', desc: 'Uji coba perbaikan parameter / jig tooling' },
+  { id: 'verification', step: 4, label: 'Verification & Yield', percent: 80, color: '#8b5cf6', desc: 'Validasi kestabilan proses & monitoring yield' },
+  { id: 'standardized', step: 5, label: 'Closed & Standardized', percent: 100, color: '#10b981', desc: 'Standarisasi SOP, transfer line & issue closed' },
+];
+
+export const getMilestone = (progress = 0) => {
+  if (progress >= 100) return MILESTONE_STAGES[4];
+  if (progress >= 75) return MILESTONE_STAGES[3];
+  if (progress >= 50) return MILESTONE_STAGES[2];
+  if (progress >= 25) return MILESTONE_STAGES[1];
+  return MILESTONE_STAGES[0];
+};
+
+export const ISSUE_TYPES = [
+  { value: 'mechanical', label: 'Mechanical Issue Analysis' },
+  { value: 'process', label: 'Production Process Optimization' },
+  { value: 'yield', label: 'Line Yield & Defect Loss' },
+  { value: 'tooling', label: 'Tooling, Fixture & JIGs' },
+  { value: 'development', label: 'New Model Trial Development' },
+];
 
 export const ProjectsPage = () => {
   const { t } = useTranslation();
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
+  const [viewMode, setViewMode] = useState('matrix'); // 'matrix' | 'kanban' | 'table'
+  const [search, setSearch] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
 
-  // Create Project Modal
+  // Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [projectType, setProjectType] = useState('development');
+  const [projectType, setProjectType] = useState('mechanical');
   const [priority, setPriority] = useState('medium');
-  const [startDate, setStartDate] = useState('');
+  const [ownerId, setOwnerId] = useState('');
+  const [createProgress, setCreateProgress] = useState(20);
+  const [sendEmail, setSendEmail] = useState(true);
+  const [startDate, setStartDate] = useState(new Date().toISOString().substring(0, 10));
   const [targetDate, setTargetDate] = useState('');
   const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Edit Project Modal
+  // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editProjectType, setEditProjectType] = useState('development');
+  const [editProjectType, setEditProjectType] = useState('mechanical');
   const [editStatus, setEditStatus] = useState('planning');
   const [editPriority, setEditPriority] = useState('medium');
-  const [editProgress, setEditProgress] = useState(0);
+  const [editOwnerId, setEditOwnerId] = useState('');
+  const [editProgress, setEditProgress] = useState(20);
   const [editStartDate, setEditStartDate] = useState('');
   const [editTargetDate, setEditTargetDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
-  const fetchProjects = async () => {
+  // Fetch Projects & Active Users
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/projects');
-      setProjects(res.data || []);
+      const [projRes, userRes] = await Promise.all([
+        api.get('/projects'),
+        api.get('/users').catch(() => ({ data: [] })),
+      ]);
+      setProjects(projRes.data || []);
+      setUsers(userRes.data || []);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load projects/users:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProjects();
+    fetchData();
   }, []);
 
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 4500);
+  };
+
+  // Create Project / Milestone Task
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!title.trim()) return;
+
+    setSubmitting(true);
     try {
-      const res = await api.post('/projects', {
-        title,
+      const payload = {
+        title: title.trim(),
         project_type: projectType,
         priority,
+        owner_id: ownerId || undefined,
+        progress: createProgress,
+        status: createProgress >= 100 ? 'completed' : createProgress > 20 ? 'in_progress' : 'planning',
         start_date: startDate || undefined,
         target_date: targetDate || undefined,
         description: description || undefined,
-        progress: 0,
-      });
+        send_email: sendEmail,
+      };
+
+      const res = await api.post('/projects', payload);
       setProjects((prev) => [res.data, ...prev]);
       setIsModalOpen(false);
+
+      // Reset form
       setTitle('');
+      setProjectType('mechanical');
+      setPriority('medium');
+      setOwnerId('');
+      setCreateProgress(20);
+      setSendEmail(true);
       setDescription('');
-      setStartDate('');
       setTargetDate('');
+
+      const picUser = users.find((u) => u.id === ownerId);
+      if (sendEmail && picUser && picUser.email) {
+        showToast(`Task berhasil dibuat & notifikasi email dikirim ke ${picUser.email}!`);
+      } else {
+        showToast('Milestone Task berhasil ditambahkan!');
+      }
     } catch (err) {
       alert(err.response?.data?.message || err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  // Open Edit Modal
   const openEditModal = (p) => {
     setEditingProject(p);
     setEditTitle(p.title || '');
-    setEditProjectType(p.project_type || 'development');
+    setEditProjectType(p.project_type || 'mechanical');
     setEditStatus(p.status || 'planning');
     setEditPriority(p.priority || 'medium');
+    setEditOwnerId(p.owner_id || '');
     setEditProgress(p.progress || 0);
     setEditStartDate(p.start_date ? p.start_date.substring(0, 10) : '');
     setEditTargetDate(p.target_date ? p.target_date.substring(0, 10) : '');
@@ -90,48 +184,128 @@ export const ProjectsPage = () => {
     setIsEditModalOpen(true);
   };
 
+  // Update Project / Milestone Task
   const handleUpdate = async (e) => {
     if (e) e.preventDefault();
     if (!editingProject) return;
 
     try {
-      const res = await api.put(`/projects/${editingProject.id}`, {
+      const payload = {
         title: editTitle,
         project_type: editProjectType,
-        status: editStatus,
+        status: editProgress >= 100 ? 'completed' : editStatus,
         priority: editPriority,
+        owner_id: editOwnerId || undefined,
         progress: Number(editProgress) || 0,
         start_date: editStartDate || undefined,
         target_date: editTargetDate || undefined,
         description: editDescription || undefined,
-      });
+      };
+
+      const res = await api.put(`/projects/${editingProject.id}`, payload);
       setProjects((prev) =>
         prev.map((p) => (p.id === editingProject.id ? { ...p, ...res.data } : p))
       );
       setIsEditModalOpen(false);
       setEditingProject(null);
+      showToast('Perubahan milestone task berhasil disimpan!');
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
   };
 
+  // Quick Advance Stage directly from Card
+  const handleAdvanceStage = async (p, direction = 1) => {
+    const curMilestone = getMilestone(p.progress || 0);
+    let nextStep = curMilestone.step + direction;
+    if (nextStep < 1) nextStep = 1;
+    if (nextStep > 5) nextStep = 5;
+
+    const targetStage = MILESTONE_STAGES[nextStep - 1];
+    const newProgress = targetStage.percent;
+    const newStatus = newProgress >= 100 ? 'completed' : 'in_progress';
+
+    try {
+      const res = await api.put(`/projects/${p.id}`, {
+        title: p.title,
+        project_type: p.project_type,
+        status: newStatus,
+        priority: p.priority,
+        owner_id: p.owner_id,
+        progress: newProgress,
+        start_date: p.start_date || undefined,
+        target_date: p.target_date || undefined,
+        description: p.description || undefined,
+      });
+
+      setProjects((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, ...res.data } : item))
+      );
+      showToast(`Milestone ${p.title} diperbarui ke: ${targetStage.label}`);
+    } catch (err) {
+      console.error('Failed to advance stage:', err);
+    }
+  };
+
+  // Filtered Projects
+  const filteredProjects = useMemo(() => {
+    return projects.filter((p) => {
+      if (selectedType && p.project_type !== selectedType) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const mTitle = (p.title || '').toLowerCase().includes(q);
+        const mDesc = (p.description || '').toLowerCase().includes(q);
+        const mOwner = (p.owner_name || '').toLowerCase().includes(q);
+        const mType = (p.project_type || '').toLowerCase().includes(q);
+        if (!mTitle && !mDesc && !mOwner && !mType) return false;
+      }
+      return true;
+    });
+  }, [projects, search, selectedType]);
+
+  // Kanban Column Buckets (1 to 5)
+  const kanbanColumns = useMemo(() => {
+    const cols = {
+      1: [],
+      2: [],
+      3: [],
+      4: [],
+      5: [],
+    };
+    filteredProjects.forEach((p) => {
+      const ms = getMilestone(p.progress || 0);
+      cols[ms.step].push(p);
+    });
+    return cols;
+  }, [filteredProjects]);
+
+  // Table Columns
   const columns = [
     {
-      title: 'Project Title',
+      title: 'Issue / Task Analisis',
       key: 'title',
-      render: (val, row) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{val}</div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'capitalize' }}>
-            {row.project_type}
+      render: (val, row) => {
+        const ms = getMilestone(row.progress || 0);
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text-primary)' }}>{val}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+              <span style={{ textTransform: 'capitalize', color: 'var(--color-accent)', fontWeight: 600 }}>{row.project_type}</span>
+              <span>•</span>
+              <span style={{ color: ms.color, fontWeight: 600 }}>{ms.label} ({row.progress || 0}%)</span>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
-      title: 'Status',
-      key: 'status',
-      render: (val) => <StatusBadge status={val} />,
+      title: 'PIC Assigned',
+      key: 'owner_name',
+      render: (val) => (
+        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+          👤 {val || 'Unassigned'}
+        </span>
+      ),
     },
     {
       title: 'Priority',
@@ -139,27 +313,24 @@ export const ProjectsPage = () => {
       render: (val) => <StatusBadge status={val} />,
     },
     {
-      title: 'Progress',
+      title: 'Milestone Stepper',
       key: 'progress',
-      render: (val) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
-          <div style={{
-            flex: 1,
-            height: '6px',
-            backgroundColor: 'var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              width: `${val}%`,
-              height: '100%',
-              backgroundColor: 'var(--color-accent)',
-              borderRadius: 'inherit',
-            }} />
+      render: (val) => {
+        const ms = getMilestone(val || 0);
+        return (
+          <div style={{ minWidth: '140px' }}>
+            <div className={styles.microStepper}>
+              {MILESTONE_STAGES.map((s) => (
+                <div
+                  key={s.step}
+                  className={`${styles.microStep} ${val >= s.percent ? styles.microStepDone : ms.step === s.step ? styles.microStepActive : ''}`}
+                />
+              ))}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: ms.color }}>{val || 0}% • Step {ms.step}/5</span>
           </div>
-          <span style={{ fontSize: '11px', fontWeight: 600 }}>{val}%</span>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: 'Target Date',
@@ -174,12 +345,7 @@ export const ProjectsPage = () => {
       title: 'Action',
       key: 'action',
       render: (_, row) => (
-        <Button
-          variant="outline"
-          size="xs"
-          icon={Edit2}
-          onClick={() => openEditModal(row)}
-        >
+        <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(row)}>
           Edit
         </Button>
       ),
@@ -188,6 +354,32 @@ export const ProjectsPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '24px',
+          zIndex: 9999,
+          background: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-accent)',
+          borderRadius: 'var(--radius-sm)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          color: 'var(--color-text-primary)',
+          fontSize: '13px',
+          fontWeight: 600,
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          <CheckCircle2 size={16} color="var(--color-accent)" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Top Header */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -195,21 +387,21 @@ export const ProjectsPage = () => {
         background: 'var(--color-bg-secondary)',
         border: '1px solid var(--color-border)',
         borderRadius: 'var(--radius-sm)',
-        padding: '16px 20px',
+        padding: '18px 22px',
         flexWrap: 'wrap',
-        gap: '12px',
+        gap: '14px',
       }}>
         <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
             <FolderKanban size={22} color="var(--color-accent)" />
-            {t('nav.projects')}
+            Milestone Task Analyst
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            SEIN Engineering Project Milestones, JIG Developments, & Equipment Revamps
+            Pelacakan Analisis Issue Mechanical, Optimasi Proses Produksi & Milestone Stepper Tim SEIN PE
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {/* View Toggle */}
           <div style={{
             display: 'inline-flex',
@@ -220,25 +412,48 @@ export const ProjectsPage = () => {
           }}>
             <button
               type="button"
-              onClick={() => setViewMode('cards')}
-              title="Card Grid View"
+              onClick={() => setViewMode('matrix')}
+              title="Matrix Card View"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '4px 10px',
+                gap: '5px',
+                padding: '5px 12px',
                 fontSize: '12px',
                 fontWeight: 600,
                 borderRadius: 'var(--radius-sm)',
                 border: 'none',
-                backgroundColor: viewMode === 'cards' ? 'var(--color-accent)' : 'transparent',
-                color: viewMode === 'cards' ? '#ffffff' : 'var(--color-text-secondary)',
+                backgroundColor: viewMode === 'matrix' ? 'var(--color-accent)' : 'transparent',
+                color: viewMode === 'matrix' ? '#ffffff' : 'var(--color-text-secondary)',
                 cursor: 'pointer',
               }}
             >
               <LayoutGrid size={14} />
-              <span>Cards</span>
+              <span>Matrix Cards</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('kanban')}
+              title="Kanban Board View"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                backgroundColor: viewMode === 'kanban' ? 'var(--color-accent)' : 'transparent',
+                color: viewMode === 'kanban' ? '#ffffff' : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              <KanbanIcon size={14} />
+              <span>Kanban</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setViewMode('table')}
@@ -246,8 +461,8 @@ export const ProjectsPage = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '4px 10px',
+                gap: '5px',
+                padding: '5px 12px',
                 fontSize: '12px',
                 fontWeight: 600,
                 borderRadius: 'var(--radius-sm)',
@@ -262,154 +477,418 @@ export const ProjectsPage = () => {
             </button>
           </div>
 
-          <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-            <Plus size={14} />
-            New Project
+          <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
+            Create New Task
           </Button>
         </div>
       </div>
 
+      {/* Search & Filter Bar */}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '240px', maxWidth: '380px' }}>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search issue title, PIC, or description..."
+          />
+        </div>
+
+        <select
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+          style={{
+            height: '36px',
+            padding: '0 12px',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-bg-secondary)',
+            color: 'var(--color-text-primary)',
+            fontSize: '12.5px',
+          }}
+        >
+          <option value="">Semua Kategori Issue</option>
+          {ISSUE_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Main Content Area */}
       {loading ? (
-        <LoadingState message="Loading projects..." />
-      ) : projects.length === 0 ? (
+        <LoadingState message="Memuat Milestone Task Analyst..." />
+      ) : filteredProjects.length === 0 ? (
         <EmptyState
-          title="No Engineering Projects"
-          description="Get started by creating your first engineering improvement project."
-          actionLabel="New Project"
+          icon={FolderKanban}
+          title="Belum ada Task / Analisa Issue"
+          description="Catat temuan analisa issue mechanical atau proses produksi dan assign PIC terkait."
+          actionLabel="Buat Task Pertama"
           onAction={() => setIsModalOpen(true)}
         />
-      ) : viewMode === 'cards' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-          {projects.map((p) => (
-            <div
-              key={p.id}
-              style={{
-                backgroundColor: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '18px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                position: 'relative',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      ) : viewMode === 'matrix' ? (
+        /* MATRIX CARD VIEW */
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+          gap: '16px',
+        }}>
+          {filteredProjects.map((p) => {
+            const ms = getMilestone(p.progress || 0);
+            return (
+              <div
+                key={p.id}
+                style={{
+                  background: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  transition: 'border-color 0.15s ease, transform 0.15s ease',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-accent)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-border)';
+                  e.currentTarget.style.transform = 'none';
+                }}
+                onClick={() => openEditModal(p)}
+              >
+                {/* Header row: Category & Priority */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{
                     fontSize: '11px',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     textTransform: 'uppercase',
                     color: 'var(--color-accent)',
-                    letterSpacing: '0.04em',
+                    background: 'rgba(37, 99, 235, 0.08)',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-xs)',
+                    border: '1px solid rgba(37, 99, 235, 0.2)',
                   }}>
-                    {p.project_type}
+                    {p.project_type || 'Issue'}
                   </span>
-                  <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: 'var(--color-text-primary)' }}>
-                    {p.title}
-                  </h3>
+                  <StatusBadge status={p.priority || 'medium'} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => openEditModal(p)}
-                  title="Edit Project"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
-                    backgroundColor: 'var(--color-bg-primary)',
-                    color: 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    flexShrink: 0,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--color-accent)';
-                    e.currentTarget.style.borderColor = 'var(--color-accent)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'var(--color-text-secondary)';
-                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                  }}
-                >
-                  <Edit2 size={12} />
-                  <span>Edit</span>
-                </button>
-              </div>
 
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <StatusBadge status={p.status} />
-                <StatusBadge status={p.priority} />
-              </div>
-
-              {p.description && (
-                <p style={{
-                  fontSize: '13px',
-                  color: 'var(--color-text-secondary)',
+                {/* Title */}
+                <h3 style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary)',
                   margin: 0,
-                  whiteSpace: 'pre-wrap',
-                  maxHeight: '80px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  lineHeight: 1.35,
                 }}>
-                  {p.description}
-                </p>
-              )}
+                  {p.title}
+                </h3>
 
-              {/* Progress */}
-              <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, marginBottom: '6px' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Progress</span>
-                  <span style={{ color: 'var(--color-text-primary)' }}>{p.progress || 0}%</span>
+                {/* Description snippet */}
+                {p.description && (
+                  <p style={{
+                    fontSize: '12px',
+                    color: 'var(--color-text-secondary)',
+                    margin: 0,
+                    lineHeight: 1.4,
+                    maxHeight: '48px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                    {p.description}
+                  </p>
+                )}
+
+                {/* Breadcrumb Stepper Micro-Bar */}
+                <div style={{ margin: '4px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 600, color: ms.color }}>{ms.label}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{p.progress || 0}%</span>
+                  </div>
+                  <div className={styles.microStepper}>
+                    {MILESTONE_STAGES.map((s) => (
+                      <div
+                        key={s.step}
+                        className={`${styles.microStep} ${p.progress >= s.percent ? styles.microStepDone : ms.step === s.step ? styles.microStepActive : ''}`}
+                        title={`${s.label} (${s.percent}%)`}
+                      />
+                    ))}
+                  </div>
                 </div>
+
+                {/* Footer: PIC & Actions */}
                 <div style={{
-                  height: '6px',
-                  backgroundColor: 'var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  overflow: 'hidden',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingTop: '10px',
+                  borderTop: '1px solid var(--color-border-subtle)',
+                  fontSize: '11.5px',
+                  marginTop: 'auto',
                 }}>
-                  <div style={{
-                    width: `${p.progress || 0}%`,
-                    height: '100%',
-                    backgroundColor: 'var(--color-accent)',
-                    borderRadius: 'inherit',
-                    transition: 'width 0.3s ease',
-                  }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--color-text-secondary)' }}>
+                    <span>👤</span>
+                    <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                      {p.owner_name ? p.owner_name.split(' ')[0] : 'Unassigned'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={(e) => e.stopPropagation()}>
+                    {ms.step > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleAdvanceStage(p, -1)}
+                        title="Kembali ke stage sebelumnya"
+                        style={{
+                          background: 'var(--color-bg-secondary)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-xs)',
+                          padding: '3px 6px',
+                          cursor: 'pointer',
+                          color: 'var(--color-text-secondary)',
+                        }}
+                      >
+                        <ArrowLeft size={11} />
+                      </button>
+                    )}
+                    {ms.step < 5 && (
+                      <button
+                        type="button"
+                        onClick={() => handleAdvanceStage(p, 1)}
+                        title="Majukan ke milestone berikutnya"
+                        style={{
+                          background: 'rgba(37, 99, 235, 0.1)',
+                          border: '1px solid var(--color-accent)',
+                          borderRadius: 'var(--radius-xs)',
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                          color: 'var(--color-accent)',
+                          fontWeight: 700,
+                          fontSize: '11px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                      >
+                        <span>Next Step</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    )}
+                    <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(p)}>
+                      Edit
+                    </Button>
+                  </div>
                 </div>
               </div>
+            );
+          })}
+        </div>
+      ) : viewMode === 'kanban' ? (
+        /* KANBAN BOARD VIEW (5 MILESTONE COLUMNS) */
+        <div style={{
+          display: 'flex',
+          gap: '16px',
+          overflowX: 'auto',
+          paddingBottom: '16px',
+          alignItems: 'flex-start',
+        }}>
+          {MILESTONE_STAGES.map((st) => {
+            const colTasks = kanbanColumns[st.step] || [];
+            return (
+              <div
+                key={st.id}
+                style={{
+                  flex: '0 0 310px',
+                  width: '310px',
+                  background: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  maxHeight: 'calc(100vh - 220px)',
+                  minHeight: '480px',
+                }}
+              >
+                {/* Column Header */}
+                <div style={{
+                  padding: '12px 14px',
+                  borderBottom: '1px solid var(--color-border-subtle)',
+                  background: 'var(--color-bg-primary)',
+                  borderTopLeftRadius: 'inherit',
+                  borderTopRightRadius: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: st.color }} />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      {st.label}
+                    </span>
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    background: 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                  }}>
+                    {colTasks.length}
+                  </span>
+                </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                <span>Start: {p.start_date ? new Date(p.start_date).toLocaleDateString() : '-'}</span>
-                <span>Target: {p.target_date ? new Date(p.target_date).toLocaleDateString() : '-'}</span>
+                {/* Column Task Cards */}
+                <div style={{
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  overflowY: 'auto',
+                  flex: 1,
+                }}>
+                  {colTasks.length === 0 ? (
+                    <div style={{
+                      padding: '30px 10px',
+                      textAlign: 'center',
+                      color: 'var(--color-text-secondary)',
+                      fontSize: '12px',
+                      fontStyle: 'italic',
+                    }}>
+                      Tidak ada issue di tahap ini
+                    </div>
+                  ) : (
+                    colTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        onClick={() => openEditModal(task)}
+                        style={{
+                          background: 'var(--color-bg-primary)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-xs)',
+                          padding: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          transition: 'transform 0.15s ease, border-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--color-accent)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--color-border)';
+                          e.currentTarget.style.transform = 'none';
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            color: 'var(--color-accent)',
+                          }}>
+                            {task.project_type}
+                          </span>
+                          <StatusBadge status={task.priority} />
+                        </div>
+
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                          {task.title}
+                        </div>
+
+                        {task.description && (
+                          <p style={{
+                            fontSize: '11.5px',
+                            color: 'var(--color-text-secondary)',
+                            margin: 0,
+                            maxHeight: '36px',
+                            overflow: 'hidden',
+                          }}>
+                            {task.description}
+                          </p>
+                        )}
+
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          paddingTop: '8px',
+                          borderTop: '1px solid var(--color-border-subtle)',
+                          fontSize: '11px',
+                          color: 'var(--color-text-secondary)',
+                        }}>
+                          <span>👤 {task.owner_name ? task.owner_name.split(' ')[0] : 'Unassigned'}</span>
+                          <div style={{ display: 'flex', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
+                            {st.step > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleAdvanceStage(task, -1)}
+                                title="Previous Step"
+                                style={{
+                                  background: 'var(--color-bg-secondary)',
+                                  border: '1px solid var(--color-border)',
+                                  borderRadius: '3px',
+                                  padding: '2px 5px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <ArrowLeft size={10} />
+                              </button>
+                            )}
+                            {st.step < 5 && (
+                              <button
+                                type="button"
+                                onClick={() => handleAdvanceStage(task, 1)}
+                                title="Advance to next step"
+                                style={{
+                                  background: 'var(--color-accent)',
+                                  border: 'none',
+                                  color: '#fff',
+                                  borderRadius: '3px',
+                                  padding: '2px 6px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <ArrowRight size={10} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
-        <Table columns={columns} data={projects} />
+        /* TABLE VIEW */
+        <Table columns={columns} data={filteredProjects} />
       )}
 
-      {/* Modal: Create Project */}
+      {/* CREATE MODAL */}
       {isModalOpen && (
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title="Create Engineering Project"
+          title="Create Milestone Task / Issue Analisis"
         >
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600 }}>Project Title</label>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Judul Issue / Task Analisis</label>
               <input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. SMT Line Automation Revamp"
+                placeholder="misal: Root Cause Analisis Bracket Distortion pada SMT Line 2"
                 style={{
                   height: '36px',
                   padding: '0 12px',
@@ -423,7 +902,7 @@ export const ProjectsPage = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Type</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Kategori Issue</label>
                 <select
                   value={projectType}
                   onChange={(e) => setProjectType(e.target.value)}
@@ -436,14 +915,16 @@ export const ProjectsPage = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  <option value="development">Development</option>
-                  <option value="improvement">Improvement</option>
-                  <option value="maintenance">Maintenance</option>
+                  {ISSUE_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Priority</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Prioritas</label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
@@ -464,13 +945,16 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
+            {/* Assign PIC & SMTP Notification */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <User size={13} color="var(--color-accent)" />
+                  Assign PIC (Engineer)
+                </label>
+                <select
+                  value={ownerId}
+                  onChange={(e) => setOwnerId(e.target.value)}
                   style={{
                     height: '36px',
                     padding: '0 12px',
@@ -479,11 +963,18 @@ export const ProjectsPage = () => {
                     background: 'var(--color-bg-secondary)',
                     color: 'var(--color-text-primary)',
                   }}
-                />
+                >
+                  <option value="">Pilih PIC Engineer...</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.email || u.username})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Target Completion</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Target Selesai</label>
                 <input
                   type="date"
                   value={targetDate}
@@ -500,28 +991,81 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            <FormattingTextarea
-              label="Description"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Scope, objectives, and deliverables..."
-              minHeight="100px"
-            />
+            {/* Breadcrumb Stepper (Initial Milestone Step) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Milestone Progress Stepper</label>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: getMilestone(createProgress).color }}>
+                  Step {getMilestone(createProgress).step}: {getMilestone(createProgress).label} ({createProgress}%)
+                </span>
+              </div>
+
+              <div className={styles.breadcrumbStepper}>
+                {MILESTONE_STAGES.map((st) => {
+                  const isCurrent = getMilestone(createProgress).step === st.step;
+                  const isCompleted = createProgress >= st.percent;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setCreateProgress(st.percent)}
+                      className={`${styles.stepBtn} ${isCurrent ? styles.stepCurrent : ''} ${isCompleted ? styles.stepCompleted : ''}`}
+                      title={st.desc}
+                    >
+                      <span className={styles.stepNum}>{st.step}</span>
+                      <span className={styles.stepLabel}>{st.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Description / FormattingTextarea */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Deskripsi / Catatan Investigasi Awal</label>
+              <FormattingTextarea
+                value={description}
+                onChange={setDescription}
+                placeholder="Tuliskan temuan gejala issue, parameter mesin, lokasi line produksi..."
+                minHeight="110px"
+              />
+            </div>
+
+            {/* SMTP Checkbox */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(37, 99, 235, 0.06)',
+              border: '1px solid rgba(37, 99, 235, 0.2)',
+            }}>
+              <input
+                type="checkbox"
+                id="sendEmailCheckbox"
+                checked={sendEmail}
+                onChange={(e) => setSendEmail(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <label htmlFor="sendEmailCheckbox" style={{ fontSize: '12px', cursor: 'pointer', color: 'var(--color-text-primary)' }}>
+                <strong>Kirim notifikasi email via SMTP ke PIC</strong> yang ditugaskan saat task dibuat
+              </label>
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
-                Cancel
+              <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
+                Batal
               </Button>
-              <Button type="submit" variant="primary">
-                Create Project
+              <Button variant="primary" type="submit" disabled={submitting}>
+                {submitting ? 'Menyimpan...' : 'Create & Assign Task'}
               </Button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* Modal: Edit Project */}
+      {/* EDIT MODAL WITH BREADCRUMB STEPPER */}
       {isEditModalOpen && (
         <Modal
           isOpen={isEditModalOpen}
@@ -529,17 +1073,16 @@ export const ProjectsPage = () => {
             setIsEditModalOpen(false);
             setEditingProject(null);
           }}
-          title={`Edit Project: ${editingProject?.title || ''}`}
+          title={`Edit Milestone: ${editingProject?.title || ''}`}
         >
           <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600 }}>Project Title</label>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Judul Task / Issue</label>
               <input
                 type="text"
                 required
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                placeholder="e.g. SMT Line Automation Revamp"
                 style={{
                   height: '36px',
                   padding: '0 12px',
@@ -551,9 +1094,9 @@ export const ProjectsPage = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Type</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Kategori Issue</label>
                 <select
                   value={editProjectType}
                   onChange={(e) => setEditProjectType(e.target.value)}
@@ -566,36 +1109,16 @@ export const ProjectsPage = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  <option value="development">Development</option>
-                  <option value="improvement">Improvement</option>
-                  <option value="maintenance">Maintenance</option>
+                  {ISSUE_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  style={{
-                    height: '36px',
-                    padding: '0 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
-                    background: 'var(--color-bg-secondary)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                >
-                  <option value="planning">Planning</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="on_hold">On Hold</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Priority</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Prioritas</label>
                 <select
                   value={editPriority}
                   onChange={(e) => setEditPriority(e.target.value)}
@@ -616,37 +1139,12 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Progress</label>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-accent)' }}>
-                  {editProgress}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                value={editProgress}
-                onChange={(e) => setEditProgress(Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  accentColor: 'var(--color-accent)',
-                  outline: 'none',
-                  border: 'none',
-                  boxShadow: 'none',
-                }}
-              />
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Start Date</label>
-                <input
-                  type="date"
-                  value={editStartDate}
-                  onChange={(e) => setEditStartDate(e.target.value)}
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Assigned PIC</label>
+                <select
+                  value={editOwnerId}
+                  onChange={(e) => setEditOwnerId(e.target.value)}
                   style={{
                     height: '36px',
                     padding: '0 12px',
@@ -655,11 +1153,18 @@ export const ProjectsPage = () => {
                     background: 'var(--color-bg-secondary)',
                     color: 'var(--color-text-primary)',
                   }}
-                />
+                >
+                  <option value="">Pilih PIC Engineer...</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.email || u.username})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Target Completion</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Target Date</label>
                 <input
                   type="date"
                   value={editTargetDate}
@@ -676,28 +1181,58 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            <FormattingTextarea
-              label="Description"
-              rows={4}
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              placeholder="Scope, objectives, and deliverables..."
-              minHeight="120px"
-            />
+            {/* Interactive Breadcrumb Stepper (Replaces Slider) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Milestone Stepper (Progress)</label>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: getMilestone(editProgress).color }}>
+                  Step {getMilestone(editProgress).step}: {getMilestone(editProgress).label} ({editProgress}%)
+                </span>
+              </div>
+
+              <div className={styles.breadcrumbStepper}>
+                {MILESTONE_STAGES.map((st) => {
+                  const isCurrent = getMilestone(editProgress).step === st.step;
+                  const isCompleted = editProgress >= st.percent;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setEditProgress(st.percent)}
+                      className={`${styles.stepBtn} ${isCurrent ? styles.stepCurrent : ''} ${isCompleted ? styles.stepCompleted : ''}`}
+                      title={st.desc}
+                    >
+                      <span className={styles.stepNum}>{st.step}</span>
+                      <span className={styles.stepLabel}>{st.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Catatan Analisis / Investigasi</label>
+              <FormattingTextarea
+                value={editDescription}
+                onChange={setEditDescription}
+                placeholder="Catat parameter, data investigasi, dan countermeasure..."
+                minHeight="120px"
+              />
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
               <Button
-                type="button"
                 variant="secondary"
                 onClick={() => {
                   setIsEditModalOpen(false);
                   setEditingProject(null);
                 }}
+                type="button"
               >
-                Cancel
+                Batal
               </Button>
-              <Button type="submit" variant="primary">
-                Save Changes
+              <Button variant="primary" type="submit">
+                Simpan Perubahan
               </Button>
             </div>
           </form>
@@ -706,6 +1241,3 @@ export const ProjectsPage = () => {
     </div>
   );
 };
-
-export default ProjectsPage;
-

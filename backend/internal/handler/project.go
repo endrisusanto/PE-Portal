@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -12,14 +14,28 @@ import (
 	"pe-portal/internal/middleware"
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
+	"pe-portal/internal/service"
 )
 
 type ProjectHandler struct {
-	repo *repository.ProjectRepository
+	repo       *repository.ProjectRepository
+	userRepo   *repository.UserRepository
+	reportRepo *repository.ReportRepository
+	smtpSvc    *service.SMTPService
 }
 
-func NewProjectHandler(repo *repository.ProjectRepository) *ProjectHandler {
-	return &ProjectHandler{repo: repo}
+func NewProjectHandler(
+	repo *repository.ProjectRepository,
+	userRepo *repository.UserRepository,
+	reportRepo *repository.ReportRepository,
+	smtpSvc *service.SMTPService,
+) *ProjectHandler {
+	return &ProjectHandler{
+		repo:       repo,
+		userRepo:   userRepo,
+		reportRepo: reportRepo,
+		smtpSvc:    smtpSvc,
+	}
 }
 
 func (h *ProjectHandler) List(c echo.Context) error {
@@ -58,12 +74,14 @@ type CreateProjectRequest struct {
 	ProjectType    string          `json:"project_type"`
 	Status         string          `json:"status"`
 	Priority       string          `json:"priority"`
+	OwnerID        *uuid.UUID      `json:"owner_id"`
 	GroupPartID    *uuid.UUID      `json:"group_part_id"`
 	StartDate      *string         `json:"start_date"`
 	TargetDate     *string         `json:"target_date"`
 	CompletionDate *string         `json:"completion_date"`
 	Progress       int             `json:"progress"`
 	Metadata       json.RawMessage `json:"metadata"`
+	SendEmail      bool            `json:"send_email"`
 }
 
 func (h *ProjectHandler) Create(c echo.Context) error {
@@ -77,7 +95,9 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 	}
 
 	var ownerID *uuid.UUID
-	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+	if req.OwnerID != nil && *req.OwnerID != uuid.Nil {
+		ownerID = req.OwnerID
+	} else if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
 		if uid, ok := uidVal.(uuid.UUID); ok {
 			ownerID = &uid
 		}
@@ -107,6 +127,100 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
+	// Send SMTP assignment notification if requested and PIC is assigned
+	if req.SendEmail && ownerID != nil && h.userRepo != nil && h.reportRepo != nil && h.smtpSvc != nil {
+		go func(targetUserID uuid.UUID, projectTitle string, pType string, priority string, progress int, targetDateStr string, desc string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			assignee, err := h.userRepo.GetByID(ctx, targetUserID)
+			if err != nil || assignee == nil || assignee.Email == "" {
+				return
+			}
+
+			smtpCfg, err := h.reportRepo.GetDefaultSMTP(ctx)
+			if err != nil || smtpCfg == nil || smtpCfg.Host == "" {
+				return
+			}
+
+			subject := fmt.Sprintf("[PE Milestone Task] Penugasan Issue Baru: %s", projectTitle)
+			priorityColor := "#3b82f6"
+			if priority == "urgent" || priority == "high" {
+				priorityColor = "#ef4444"
+			}
+
+			descHTML := ""
+			if desc != "" {
+				descHTML = fmt.Sprintf(`<div style="margin: 16px 0; padding: 12px 14px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;"><strong>Catatan Investigasi / Detail:</strong><br/><span style="white-space: pre-wrap;">%s</span></div>`, desc)
+			}
+
+			htmlBody := fmt.Sprintf(`
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+  <div style="background: #1e293b; padding: 20px 24px; border-bottom: 3px solid #3b82f6;">
+    <h2 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 700;">SEIN Production Engineer Portal</h2>
+    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Notifikasi Penugasan Issue / Milestone Task Analisis</p>
+  </div>
+  <div style="padding: 24px;">
+    <p style="font-size: 14px; color: #1e293b; margin-top: 0;">Halo <strong>%s</strong>,</p>
+    <p style="font-size: 14px; color: #475569; line-height: 1.5;">Anda telah ditugaskan sebagai PIC untuk menganalisa dan memantau progress issue produksi berikut:</p>
+    
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 18px 0;">
+      <table style="width: 100%%; border-collapse: collapse; font-size: 13.5px;">
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; width: 140px; font-weight: 600;">Judul Issue:</td>
+          <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">%s</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Kategori / Tipe:</td>
+          <td style="padding: 6px 0; color: #0f172a; text-transform: capitalize;">%s</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Prioritas:</td>
+          <td style="padding: 6px 0;"><span style="color: %s; font-weight: 700; text-transform: uppercase;">%s</span></td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Milestone Awal:</td>
+          <td style="padding: 6px 0; color: #0f172a;">Progress: %d%%</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Target Selesai:</td>
+          <td style="padding: 6px 0; color: #0f172a;">%s</td>
+        </tr>
+      </table>
+    </div>
+
+    %s
+
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.4;">
+      <p style="margin: 0;">Silakan akses <strong>PE-Portal</strong> untuk memperbarui milestone stepper, catatan investigasi, dan uji coba countermeasure.</p>
+      <p style="margin: 4px 0 0; color: #94a3b8;">Email ini dikirim otomatis oleh SEIN PE Portal Mail Gateway.</p>
+    </div>
+  </div>
+</div>`,
+				assignee.FullName,
+				projectTitle,
+				pType,
+				priorityColor,
+				priority,
+				progress,
+				targetDateStr,
+				descHTML,
+			)
+
+			_ = h.smtpSvc.SendEmail(smtpCfg, []string{assignee.Email}, nil, subject, htmlBody)
+		}(*ownerID, p.Title, p.ProjectType, p.Priority, p.Progress, func() string {
+			if p.TargetDate != nil {
+				return *p.TargetDate
+			}
+			return "-"
+		}(), func() string {
+			if p.Description != nil {
+				return *p.Description
+			}
+			return ""
+		}())
+	}
+
 	return c.JSON(http.StatusCreated, created)
 }
 
@@ -128,6 +242,7 @@ func (h *ProjectHandler) Update(c echo.Context) error {
 		ProjectType:    req.ProjectType,
 		Status:         req.Status,
 		Priority:       req.Priority,
+		OwnerID:        req.OwnerID,
 		GroupPartID:    req.GroupPartID,
 		StartDate:      req.StartDate,
 		TargetDate:     req.TargetDate,
