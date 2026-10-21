@@ -257,3 +257,52 @@
 .copyBtn:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
+
+.algoToggle {
+  display: inline-flex;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 4px;
+}
+
+.algoBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.algoBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.algoBtnActive {
+  background-color: var(--color-accent);
+  color: #fff !important;
+  box-shadow: 0 2px 6px rgba(224, 87, 128, 0.25);
+}
+
+.progressBarContainer {
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  height: 8px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ec4899, #8b5cf6);
+  transition: width 0.3s ease;
+}

@@ -649,9 +649,18 @@ const DocumentCompressTab = () => {
 const RemoveBackgroundTab = () => {
   const [imageSrc, setImageSrc] = useState(null);
   const [imageFile, setImageFile] = useState(null);
+  const [algorithm, setAlgorithm] = useState('u2net'); // 'u2net' (AI Salient Object) or 'color' (Manual Canvas)
+  const [u2ModelQuality, setU2ModelQuality] = useState('medium'); // 'medium' (fp16) or 'small' (quint8 fast)
+  const [processing, setProcessing] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiStatusText, setAiStatusText] = useState('');
+
+  // Color keying controls (fallback / manual mode)
   const [tolerance, setTolerance] = useState(35);
   const [feather, setFeather] = useState(2);
   const [bgColorHex, setBgColorHex] = useState('auto');
+
+  // Interactive brush tools
   const [activeTool, setActiveTool] = useState('eyedropper'); // 'eyedropper', 'eraser', 'restore'
   const [brushSize, setBrushSize] = useState(25);
 
@@ -660,17 +669,95 @@ const RemoveBackgroundTab = () => {
   const isDrawing = useRef(false);
   const fileInputRef = useRef(null);
 
-  // When image loads, process onto canvas
+  // When color keying parameters change in 'color' mode, re-render canvas
   useEffect(() => {
-    if (!imageSrc) return;
+    if (!imageSrc || algorithm !== 'color') return;
     renderBackgroundRemoval();
-  }, [imageSrc, tolerance, feather, bgColorHex]);
+  }, [imageSrc, tolerance, feather, bgColorHex, algorithm]);
+
+  // ponytail: accurate AI salient object background removal via U2-Net / IS-Net in-browser
+  const processWithU2Net = async (fileToProcess) => {
+    const file = fileToProcess || imageFile;
+    if (!file) return;
+
+    setProcessing(true);
+    setAiProgress(10);
+    setAiStatusText('Menginisialisasi U2-Net neural network...');
+
+    try {
+      const { removeBackground } = await import('@imgly/background-removal');
+      const blob = await removeBackground(file, {
+        model: u2ModelQuality, // 'medium' (fp16) or 'small' (quint8)
+        output: {
+          format: 'image/png',
+          quality: 1.0,
+        },
+        progress: (key, current, total) => {
+          if (total > 0) {
+            const pct = Math.min(95, Math.round((current / total) * 100));
+            setAiProgress(pct);
+            if (key.includes('model') || key.includes('onnx')) {
+              setAiStatusText(`Mengunduh model U2-Net: ${pct}%`);
+            } else if (key.includes('wasm')) {
+              setAiStatusText(`Memuat WebAssembly runtime: ${pct}%`);
+            } else {
+              setAiStatusText(`Segmentasi objek U2-Net: ${pct}%`);
+            }
+          }
+        },
+      });
+
+      setAiProgress(100);
+      setAiStatusText('Segmentasi U2-Net selesai!');
+
+      // Draw cutout to canvas
+      const cutoutUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(cutoutUrl);
+      };
+      img.src = cutoutUrl;
+    } catch (err) {
+      console.error('U2-Net execution error, fallback to canvas color keying:', err);
+      setAiStatusText('Inferensi U2-Net gagal, dialihkan ke engine Canvas');
+      renderBackgroundRemoval();
+    } finally {
+      setTimeout(() => {
+        setProcessing(false);
+      }, 400);
+    }
+  };
 
   const handleSelectImage = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     setImageFile(file);
     const url = URL.createObjectURL(file);
     setImageSrc(url);
+
+    // Populate originalCanvas for pipetting / reference
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const origCanvas = originalCanvasRef.current;
+      if (origCanvas) {
+        origCanvas.width = img.width;
+        origCanvas.height = img.height;
+        const origCtx = origCanvas.getContext('2d');
+        origCtx.drawImage(img, 0, 0);
+      }
+    };
+    img.src = url;
+
+    if (algorithm === 'u2net') {
+      processWithU2Net(file);
+    }
   };
 
   const renderBackgroundRemoval = () => {
@@ -699,7 +786,6 @@ const RemoveBackgroundTab = () => {
       // Sample Background Color
       let targetR = 255, targetG = 255, targetB = 255;
       if (bgColorHex === 'auto') {
-        // Average corner pixels
         const corners = [
           [0, 0],
           [canvas.width - 1, 0],
@@ -821,57 +907,105 @@ const RemoveBackgroundTab = () => {
       {/* Control Toolbar */}
       <div className={styles.controlPanel}>
         <div className={styles.controlGroup}>
+          {/* Algorithm Engine Selector */}
           <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Warna Background</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input
-                type="color"
-                value={bgColorHex === 'auto' ? '#ffffff' : bgColorHex}
-                onChange={(e) => setBgColorHex(e.target.value)}
-                style={{ width: '32px', height: '32px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                disabled={bgColorHex === 'auto'}
-              />
+            <span className={styles.controlLabel}>Algoritma Engine</span>
+            <div className={styles.algoToggle}>
               <button
                 type="button"
-                className={styles.copyBtn}
-                style={{
-                  backgroundColor: bgColorHex === 'auto' ? 'var(--color-accent)' : 'rgba(255,255,255,0.08)',
-                  color: bgColorHex === 'auto' ? '#fff' : 'var(--color-text-primary)'
+                className={`${styles.algoBtn} ${algorithm === 'u2net' ? styles.algoBtnActive : ''}`}
+                onClick={() => {
+                  setAlgorithm('u2net');
+                  if (imageFile) processWithU2Net(imageFile);
                 }}
-                onClick={() => setBgColorHex(bgColorHex === 'auto' ? '#ffffff' : 'auto')}
               >
-                {bgColorHex === 'auto' ? 'Auto Detect' : 'Manual'}
+                <Sparkles size={13} /> U2-Net AI (Akurat)
+              </button>
+              <button
+                type="button"
+                className={`${styles.algoBtn} ${algorithm === 'color' ? styles.algoBtnActive : ''}`}
+                onClick={() => {
+                  setAlgorithm('color');
+                  renderBackgroundRemoval();
+                }}
+              >
+                <Sliders size={13} /> Color Key (Manual)
               </button>
             </div>
           </div>
 
-          <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Sensitivitas Warna: {tolerance}%</span>
-            <input
-              type="range"
-              min="5"
-              max="95"
-              value={tolerance}
-              className={styles.rangeInput}
-              onChange={(e) => setTolerance(parseInt(e.target.value, 10))}
-            />
-          </div>
+          {/* Conditional Controls depending on algorithm */}
+          {algorithm === 'u2net' ? (
+            <div className={styles.controlItem}>
+              <span className={styles.controlLabel}>Model U2-Net</span>
+              <select
+                className={styles.selectInput}
+                value={u2ModelQuality}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setU2ModelQuality(val);
+                }}
+                disabled={processing}
+              >
+                <option value="medium">IS-Net / U2-Net FP16 (Akurat & Halus)</option>
+                <option value="small">IS-Net / U2-Net Quint8 (Ringan & Cepat)</option>
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className={styles.controlItem}>
+                <span className={styles.controlLabel}>Warna Background</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input
+                    type="color"
+                    value={bgColorHex === 'auto' ? '#ffffff' : bgColorHex}
+                    onChange={(e) => setBgColorHex(e.target.value)}
+                    style={{ width: '32px', height: '32px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    disabled={bgColorHex === 'auto'}
+                  />
+                  <button
+                    type="button"
+                    className={styles.copyBtn}
+                    style={{
+                      backgroundColor: bgColorHex === 'auto' ? 'var(--color-accent)' : 'rgba(255,255,255,0.08)',
+                      color: bgColorHex === 'auto' ? '#fff' : 'var(--color-text-primary)'
+                    }}
+                    onClick={() => setBgColorHex(bgColorHex === 'auto' ? '#ffffff' : 'auto')}
+                  >
+                    {bgColorHex === 'auto' ? 'Auto Detect' : 'Manual'}
+                  </button>
+                </div>
+              </div>
 
-          <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Kehalusan Tepi (Feather): {feather}px</span>
-            <input
-              type="range"
-              min="0"
-              max="10"
-              value={feather}
-              className={styles.rangeInput}
-              onChange={(e) => setFeather(parseInt(e.target.value, 10))}
-            />
-          </div>
+              <div className={styles.controlItem}>
+                <span className={styles.controlLabel}>Sensitivitas: {tolerance}%</span>
+                <input
+                  type="range"
+                  min="5"
+                  max="95"
+                  value={tolerance}
+                  className={styles.rangeInput}
+                  onChange={(e) => setTolerance(parseInt(e.target.value, 10))}
+                />
+              </div>
 
-          {/* Tools Picker */}
+              <div className={styles.controlItem}>
+                <span className={styles.controlLabel}>Feather: {feather}px</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  value={feather}
+                  className={styles.rangeInput}
+                  onChange={(e) => setFeather(parseInt(e.target.value, 10))}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Tools Picker (Active in both modes) */}
           <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Alat Interaktif</span>
+            <span className={styles.controlLabel}>Touch-up Manual</span>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button
                 type="button"
@@ -919,7 +1053,7 @@ const RemoveBackgroundTab = () => {
 
           {(activeTool === 'eraser' || activeTool === 'restore') && (
             <div className={styles.controlItem}>
-              <span className={styles.controlLabel}>Ukuran Kuas: {brushSize}px</span>
+              <span className={styles.controlLabel}>Kuas: {brushSize}px</span>
               <input
                 type="range"
                 min="5"
@@ -935,16 +1069,59 @@ const RemoveBackgroundTab = () => {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {imageSrc && (
             <>
-              <Button variant="secondary" icon={RefreshCw} onClick={renderBackgroundRemoval}>
+              {algorithm === 'u2net' && (
+                <Button
+                  variant="primary"
+                  icon={Sparkles}
+                  loading={processing}
+                  onClick={() => processWithU2Net(imageFile)}
+                  title="Jalankan ulang segmentasi U2-Net"
+                >
+                  Proses AI U2-Net
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                icon={RefreshCw}
+                onClick={() => {
+                  if (algorithm === 'u2net') {
+                    processWithU2Net(imageFile);
+                  } else {
+                    renderBackgroundRemoval();
+                  }
+                }}
+              >
                 Reset
               </Button>
               <Button variant="primary" icon={Download} onClick={handleDownloadPng}>
-                Unduh PNG Transparan
+                Unduh PNG
               </Button>
             </>
           )}
         </div>
       </div>
+
+      {/* Processing Status Banner */}
+      {processing && (
+        <div style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-accent)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '12px 16px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-primary)' }}>
+              <Sparkles size={16} color="var(--color-accent)" className={styles.spin} />
+              {aiStatusText || 'Sedang memproses algoritma U2-Net...'}
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--color-accent)' }}>{aiProgress}%</span>
+          </div>
+          <div className={styles.progressBarContainer}>
+            <div className={styles.progressBarFill} style={{ width: `${aiProgress}%` }} />
+          </div>
+        </div>
+      )}
+
 
       {/* Upload Zone if no image */}
       {!imageSrc && (
