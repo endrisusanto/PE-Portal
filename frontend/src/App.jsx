@@ -13,6 +13,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { InnovationsPage } from './pages/InnovationsPage';
 import { GbaTasksPage } from './pages/GbaTasksPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { SampleManagementPage } from './pages/SampleManagementPage';
 import { ModelsPage } from './pages/ModelsPage';
 import { ImeiArticlesPage } from './pages/ImeiArticlesPage';
 import { DocumentsPage } from './pages/DocumentsPage';
@@ -71,6 +72,7 @@ export function App() {
                 <Route path="innovations" element={<InnovationsPage />} />
                 <Route path="gba-tasks" element={<GbaTasksPage />} />
                 <Route path="projects" element={<ProjectsPage />} />
+                <Route path="samples" element={<SampleManagementPage />} />
                 <Route path="models" element={<ModelsPage />} />
                 <Route path="imei" element={<ImeiArticlesPage />} />
                 <Route path="documents" element={<DocumentsPage />} />

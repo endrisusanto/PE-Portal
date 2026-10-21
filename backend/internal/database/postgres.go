@@ -48,7 +48,15 @@ func ConnectPostgres(connString string) (*PostgresPool, error) {
 func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 	ctx := context.Background()
 
-	files := []string{"001_init.sql", "002_seed.sql", "003_reports_smtp.sql", "004_llm_config.sql", "005_user_email_lists.sql"}
+	files := []string{
+		"001_init.sql",
+		"002_seed.sql",
+		"003_reports_smtp.sql",
+		"004_llm_config.sql",
+		"005_user_email_lists.sql",
+		"006_innovation_classes_and_targets.sql",
+		"007_sample_management.sql",
+	}
 	for _, file := range files {
 		path := filepath.Join(migrationsDir, file)
 		content, err := os.ReadFile(path)

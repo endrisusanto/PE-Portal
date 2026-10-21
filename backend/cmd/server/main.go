@@ -60,6 +60,7 @@ func main() {
 	reportRepo := repository.NewReportRepository(pgPool.Pool)
 	llmRepo := repository.NewLLMRepository(pgPool.Pool)
 	emailListRepo := repository.NewEmailListRepository(pgPool.Pool)
+	sampleRepo := repository.NewSampleRepository(pgPool.Pool)
 
 	// SMTP & Automated Report Scheduler
 	smtpService := service.NewSMTPService()
@@ -94,6 +95,7 @@ func main() {
 	reportHandler := handler.NewReportHandler(reportRepo, smtpService, reportScheduler)
 	aiHandler := handler.NewAIHandler(llmRepo, llmService)
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
+	sampleHandler := handler.NewSampleHandler(sampleRepo)
 
 	// Echo App
 	e := echo.New()
@@ -189,6 +191,19 @@ func main() {
 	api.PUT("/models/:id", modelHandler.Update)
 	api.GET("/models/:id/stages", modelHandler.ListStages)
 	api.POST("/models/:id/stages", modelHandler.AdvanceStage, middleware.RequireRole("admin", "manager"))
+
+	// Sample Management
+	api.GET("/samples", sampleHandler.List)
+	api.GET("/samples/stats", sampleHandler.GetStats)
+	api.GET("/samples/borrowers", sampleHandler.GetBorrowerGroups)
+	api.GET("/samples/matrix", sampleHandler.GetModelMatrix)
+	api.POST("/samples/scan", sampleHandler.ScanTransaction)
+	api.POST("/samples/bulk-return", sampleHandler.BulkReturn)
+	api.POST("/samples", sampleHandler.Create)
+	api.POST("/samples/bulk", sampleHandler.CreateBulk)
+	api.GET("/samples/:id", sampleHandler.Get)
+	api.PUT("/samples/:id", sampleHandler.Update)
+	api.DELETE("/samples/:id", sampleHandler.Delete, middleware.RequireRole("admin", "manager"))
 
 	// IMEI Articles
 	api.GET("/imei/articles", imeiHandler.List)
