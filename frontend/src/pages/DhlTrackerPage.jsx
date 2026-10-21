@@ -623,7 +623,7 @@ export const DhlTrackerPage = () => {
                   <div className={styles.picInfo}>
                     <User size={14} className={styles.picIcon} />
                     <div>
-                      <div className={styles.picLabel}>{t('dhl.pic_label', 'PIC Engineering:')}</div>
+                      <div className={styles.picLabel}>{t('dhl.pic_label', 'PIC Penerima:')}</div>
                       <div className={styles.picName}>{item.pic || t('dhl.unassigned', 'Belum Ditugaskan')}</div>
                     </div>
                   </div>
@@ -733,10 +733,10 @@ export const DhlTrackerPage = () => {
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Engineering / Penerima')}</label>
+            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
             <Input
               type="text"
-              placeholder={t('dhl.pic_input_placeholder', 'Nama Engineer penanggung jawab sample')}
+              placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
               value={addForm.pic}
               onChange={(e) => setAddForm({ ...addForm, pic: e.target.value })}
             />
@@ -773,10 +773,10 @@ export const DhlTrackerPage = () => {
       >
         <form onSubmit={handleEditSubmit} className={styles.modalForm}>
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Engineering')}</label>
+            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
             <Input
               type="text"
-              placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penanggung jawab')}
+              placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
               value={editForm.pic}
               onChange={(e) => setEditForm({ ...editForm, pic: e.target.value })}
             />
