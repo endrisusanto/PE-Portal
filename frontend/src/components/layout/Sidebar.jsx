@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -8,6 +8,8 @@ import {
   FolderKanban,
   PackageCheck,
   GitCompare,
+  Code2,
+  ChevronDown,
   Cpu,
   FileSpreadsheet,
   FolderArchive,
@@ -24,15 +26,53 @@ import styles from './Sidebar.module.css';
 export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const location = useLocation();
   const isAdmin = user?.role === 'admin';
+
+  // Check if any Software Team route is active
+  const isSoftwareTeamActive =
+    location.pathname.startsWith('/software-mr') || location.pathname.startsWith('/gba-tasks');
+
+  // Multi-level state for Software Team
+  const [softwareTeamOpen, setSoftwareTeamOpen] = useState(() => {
+    return isSoftwareTeamActive || localStorage.getItem('pe_sidebar_sw_team') === 'true';
+  });
+
+  // Auto-expand if user navigates to a software team route
+  useEffect(() => {
+    if (isSoftwareTeamActive) {
+      setSoftwareTeamOpen(true);
+    }
+  }, [isSoftwareTeamActive]);
+
+  const handleToggleSoftwareTeam = () => {
+    setSoftwareTeamOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('pe_sidebar_sw_team', String(next));
+      return next;
+    });
+  };
+
+  const softwareTeamSubItems = [
+    { to: '/gba-tasks', label: 'GBA Tasks', icon: Kanban },
+    { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
+  ];
 
   const navItems = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
     { to: '/innovations', label: t('nav.innovations'), icon: Lightbulb },
-    { to: '/gba-tasks', label: 'GBA Tasks', icon: Kanban },
     { to: '/projects', label: t('nav.projects'), icon: FolderKanban },
     { to: '/samples', label: t('nav.samples', 'Sample Management'), icon: PackageCheck },
-    { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
+    {
+      isGroup: true,
+      key: 'software-team',
+      label: t('nav.software_team', 'Software Team'),
+      icon: Code2,
+      isActive: isSoftwareTeamActive,
+      isOpen: softwareTeamOpen,
+      onToggle: handleToggleSoftwareTeam,
+      children: softwareTeamSubItems,
+    },
     { to: '/models', label: t('nav.models'), icon: Cpu },
     { to: '/imei', label: t('nav.imei'), icon: FileSpreadsheet },
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
@@ -76,6 +116,60 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       <nav className={styles.nav}>
         <div className={styles.sectionLabel}>{!isCollapsed && 'OPERATIONS'}</div>
         {navItems.map((item) => {
+          if (item.isGroup) {
+            const GroupIcon = item.icon;
+            return (
+              <div key={item.key} className={styles.navGroup}>
+                <button
+                  type="button"
+                  className={`${styles.groupHeader} ${item.isActive ? styles.groupHeaderActive : ''}`}
+                  onClick={() => {
+                    if (isCollapsed) {
+                      onToggleCollapse?.();
+                      item.onToggle();
+                    } else {
+                      item.onToggle();
+                    }
+                  }}
+                  title={isCollapsed ? item.label : undefined}
+                  aria-expanded={item.isOpen}
+                >
+                  <div className={styles.groupTitle}>
+                    <GroupIcon size={18} className={styles.navIcon} />
+                    {!isCollapsed && <span>{item.label}</span>}
+                  </div>
+                  {!isCollapsed && (
+                    <ChevronDown
+                      size={14}
+                      className={`${styles.chevronIcon} ${item.isOpen ? styles.chevronOpen : ''}`}
+                    />
+                  )}
+                </button>
+
+                {item.isOpen && (
+                  <div className={styles.subnavContainer}>
+                    {item.children.map((sub) => {
+                      const SubIcon = sub.icon;
+                      return (
+                        <NavLink
+                          key={sub.to}
+                          to={sub.to}
+                          className={({ isActive }) =>
+                            `${styles.subnavLink} ${isActive ? styles.subnavActive : ''}`
+                          }
+                          title={sub.label}
+                        >
+                          <SubIcon size={15} className={styles.navIcon} />
+                          {!isCollapsed && <span>{sub.label}</span>}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           const Icon = item.icon;
           return (
             <NavLink

@@ -139,6 +139,115 @@
   flex-shrink: 0;
 }
 
+/* Multi-Level Submenu (Software Team) */
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.groupHeader:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.groupHeaderActive {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevronIcon {
+  transition: transform var(--transition-fast);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.subnavContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 18px;
+  margin-left: 14px;
+  border-left: 1.5px solid var(--color-border);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.subnavLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.subnavLink span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subnavLink:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.subnavActive {
+  background-color: var(--color-accent-subtle) !important;
+  color: var(--color-accent) !important;
+  font-weight: 700;
+}
+
+.collapsed .groupHeader {
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+
+.collapsed .subnavContainer {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: none;
+}
+
+.collapsed .subnavLink {
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+
 .divider {
   height: 1px;
   background-color: var(--color-border-subtle);
