@@ -56,6 +56,7 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		"005_user_email_lists.sql",
 		"006_innovation_classes_and_targets.sql",
 		"007_sample_management.sql",
+		"008_software_mr.sql",
 	}
 	for _, file := range files {
 		path := filepath.Join(migrationsDir, file)

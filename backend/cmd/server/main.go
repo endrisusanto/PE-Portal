@@ -61,6 +61,7 @@ func main() {
 	llmRepo := repository.NewLLMRepository(pgPool.Pool)
 	emailListRepo := repository.NewEmailListRepository(pgPool.Pool)
 	sampleRepo := repository.NewSampleRepository(pgPool.Pool)
+	softwareMRRepo := repository.NewSoftwareMRRepository(pgPool.Pool)
 
 	// SMTP & Automated Report Scheduler
 	smtpService := service.NewSMTPService()
@@ -96,6 +97,7 @@ func main() {
 	aiHandler := handler.NewAIHandler(llmRepo, llmService)
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
 	sampleHandler := handler.NewSampleHandler(sampleRepo)
+	softwareMRHandler := handler.NewSoftwareMRHandler(softwareMRRepo)
 
 	// Echo App
 	e := echo.New()
@@ -204,6 +206,12 @@ func main() {
 	api.GET("/samples/:id", sampleHandler.Get)
 	api.PUT("/samples/:id", sampleHandler.Update)
 	api.DELETE("/samples/:id", sampleHandler.Delete, middleware.RequireRole("admin", "manager"))
+
+	// Software MR (Software Maintenance Release) - View-Only
+	api.GET("/software-mr", softwareMRHandler.List)
+	api.GET("/software-mr/stats", softwareMRHandler.GetStats)
+	api.GET("/software-mr/filters", softwareMRHandler.GetFilters)
+	api.GET("/software-mr/:id", softwareMRHandler.Get)
 
 	// IMEI Articles
 	api.GET("/imei/articles", imeiHandler.List)
