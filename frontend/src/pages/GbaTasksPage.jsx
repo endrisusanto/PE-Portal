@@ -6,6 +6,7 @@ import {
   Search,
   AlertCircle,
   Calendar,
+  ExternalLink,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -57,7 +58,7 @@ export const GbaTasksPage = () => {
       }
     } catch (err) {
       console.error('Failed to load GBA tasks:', err);
-      setError('Unable to load GBA tasks from port 8089.');
+      setError('Unable to load GBA tasks from intranet http://107.102.39.55/tkdn/ (or local fallback).');
     } finally {
       setLoading(false);
     }
@@ -145,7 +146,7 @@ export const GbaTasksPage = () => {
             {/* Compact live dot per user request */}
             <span
               className={styles.liveDot}
-              title={`Live Connected: Port 8089 (Updated ${lastRefreshed || 'Just now'})`}
+              title={`Live Data Source: http://107.102.39.55/tkdn/ (Fallback: port 8089) • Updated ${lastRefreshed || 'Just now'}`}
             />
           </h1>
 
@@ -210,6 +211,38 @@ export const GbaTasksPage = () => {
           >
             <RefreshCw size={13} className={loading ? 'spin' : ''} />
           </Button>
+
+          <a
+            href="http://107.102.39.55/tkdn/"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '5px 10px',
+              fontSize: '11px',
+              fontWeight: 600,
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-bg-primary)',
+              color: 'var(--color-text-secondary)',
+              textDecoration: 'none',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--color-accent)';
+              e.currentTarget.style.borderColor = 'var(--color-accent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+            }}
+            title="Buka GBA Task Manager di Intranet PC (107.102.39.55/tkdn)"
+          >
+            <ExternalLink size={12} />
+            <span>Intranet 107.102.39.55</span>
+          </a>
 
           <span className={styles.viewOnlyPill}>View-Only</span>
         </div>

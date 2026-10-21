@@ -233,18 +233,21 @@ func (h *ProjectHandler) UpdateTaskStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "task status updated"})
 }
 
-// GetGbaTasks proxies GBA task manager kanban data from project_manager app (view only)
+// GetGbaTasks proxies GBA task manager kanban data from intranet project_manager app (view only)
 func (h *ProjectHandler) GetGbaTasks(c echo.Context) error {
 	apiURL := os.Getenv("GBA_API_URL")
 	if apiURL == "" {
-		apiURL = "http://172.17.0.1:8089/api_kanban.php"
+		apiURL = "http://107.102.39.55/tkdn/api_kanban.php"
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get(apiURL)
 	if err != nil {
-		// Fallback for host/localhost execution
-		resp, err = client.Get("http://localhost:8089/api_kanban.php")
+		// Fallback for local docker/host execution when intranet 107.102.39.55 is unreachable
+		resp, err = client.Get("http://172.17.0.1:8089/api_kanban.php")
+		if err != nil {
+			resp, err = client.Get("http://localhost:8089/api_kanban.php")
+		}
 	}
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadGateway, "Failed to connect to GBA Task Manager: "+err.Error())

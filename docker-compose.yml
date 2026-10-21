@@ -27,6 +27,8 @@ services:
       - JWT_SECRET=${JWT_SECRET:-pe_portal_jwt_secret_super_secure_key_2026_sein_pe_group_random_64}
       - FILE_STORAGE_PATH=/data/files
       - AUTH_PROVIDER=${AUTH_PROVIDER:-local}
+      - GBA_API_URL=${GBA_API_URL:-http://107.102.39.55/tkdn/api_kanban.php}
+      - SOFTWARE_MR_URL=${SOFTWARE_MR_URL:-http://107.102.39.55/companion-release-cheatsheet}
     volumes:
       - file_storage:/data/files
     depends_on:

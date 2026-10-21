@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   ChevronRight,
   TrendingUp,
-  Activity
+  Activity,
+  ExternalLink
 } from 'lucide-react';
 import api from '../api/client';
 import { Modal } from '../components/common/Modal';
@@ -201,11 +202,42 @@ export const SoftwareMRPage = () => {
             Software MR (Maintenance Release)
           </h1>
           <p className={styles.subtitle}>
-            Cheatsheet Pemetaan Binary Firmware, CSC Version Up & Catatan Rilis Perangkat SEIN
+            Cheatsheet Pemetaan Binary Firmware, CSC Version Up & Catatan Rilis Perangkat SEIN • Intranet: <code style={{ fontSize: '11px', padding: '1px 5px', borderRadius: '4px', background: 'var(--color-bg-secondary)' }}>107.102.39.55</code>
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <a
+            href="http://107.102.39.55/companion-release-cheatsheet"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-bg-primary)',
+              color: 'var(--color-text-secondary)',
+              textDecoration: 'none',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--color-accent)';
+              e.currentTarget.style.borderColor = 'var(--color-accent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+            }}
+            title="Buka Companion Release Cheatsheet di Intranet PC (107.102.39.55)"
+          >
+            <ExternalLink size={13} />
+            <span>Intranet 107.102.39.55</span>
+          </a>
           <span className={styles.viewOnlyBadge}>
             <Eye size={13} />
             View-Only Mode
