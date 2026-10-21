@@ -92,7 +92,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
 
   const navItems = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
-    { to: '/innovations', label: t('nav.innovations'), icon: Lightbulb },
+    { to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
     { to: '/projects', label: t('nav.projects', 'Task Analyst'), icon: FolderKanban },
     { to: '/samples', label: t('nav.samples', 'Sample Management'), icon: PackageCheck },
     {
@@ -106,7 +106,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       children: softwareTeamSubItems,
     },
     { to: '/models', label: t('nav.models'), icon: Cpu },
-    { to: '/imei', label: t('nav.imei', 'Artikel'), icon: Newspaper },
+    { to: '/imei', label: t('nav.imei', 'Articles'), icon: Newspaper },
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
     {
       isGroup: true,

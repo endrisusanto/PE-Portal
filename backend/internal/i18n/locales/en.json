@@ -1,10 +1,10 @@
 {
   "app_name": "PE-Portal",
   "dashboard": "Dashboard",
-  "innovations": "Innovations & BP",
-  "projects": "Projects",
+  "innovations": "Innovation",
+  "projects": "Task Analyst",
   "models": "New Models",
-  "imei": "IMEI Articles",
+  "imei": "Articles",
   "documents": "Documents",
   "team": "Team",
   "settings": "Settings",
