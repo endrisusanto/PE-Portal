@@ -708,16 +708,18 @@ export const InnovationsPage = () => {
                   {/* Native SVG Chart */}
                   <div className={styles.chartSvgContainer}>
                     {(() => {
-                      const maxVal = Math.max(
+                      const actualMax = Math.max(
                         ...stats.monthly.map((m) => Math.max(m.actual_register, m.target_register, m.target_challenge)),
-                        15
+                        1
                       );
+                      // ponytail: dynamic max headroom without excessive empty vertical space
+                      const maxVal = Math.max(actualMax, 6);
                       const width = 680;
-                      const height = 220;
-                      const padLeft = 40;
-                      const padBottom = 30;
-                      const padTop = 20;
-                      const padRight = 20;
+                      const height = 135;
+                      const padLeft = 32;
+                      const padBottom = 22;
+                      const padTop = 14;
+                      const padRight = 16;
                       const plotW = width - padLeft - padRight;
                       const plotH = height - padTop - padBottom;
                       const colW = plotW / 12;
@@ -731,7 +733,7 @@ export const InnovationsPage = () => {
                             return (
                               <g key={i}>
                                 <line x1={padLeft} y1={y} x2={width - padRight} y2={y} stroke="var(--color-border)" strokeDasharray="3 3" opacity={0.6} />
-                                <text x={padLeft - 8} y={y + 4} textAnchor="end" fontSize="10" fill="var(--color-text-muted)">
+                                <text x={padLeft - 6} y={y + 3.5} textAnchor="end" fontSize="9" fill="var(--color-text-muted)">
                                   {val}
                                 </text>
                               </g>
@@ -765,7 +767,7 @@ export const InnovationsPage = () => {
                                   opacity={hoveredMonth?.month === m.month ? 1 : 0.85}
                                 />
                                 {m.actual_register > 0 && (
-                                  <text x={xCenter} y={barY - 5} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--color-text-primary)">
+                                  <text x={xCenter} y={barY - 3} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="var(--color-text-primary)">
                                     {m.actual_register}
                                   </text>
                                 )}
@@ -787,7 +789,7 @@ export const InnovationsPage = () => {
                                 )}
 
                                 {/* X-axis label */}
-                                <text x={xCenter} y={height - 10} textAnchor="middle" fontSize="10" fill="var(--color-text-secondary)">
+                                <text x={xCenter} y={height - 6} textAnchor="middle" fontSize="9.5" fill="var(--color-text-secondary)">
                                   {m.month_name}
                                 </text>
                               </g>

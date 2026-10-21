@@ -6,20 +6,12 @@ import {
   Lightbulb,
   Cpu,
   FolderArchive,
-  Users,
   PackageCheck,
   Newspaper,
   Wrench,
   Scissors,
   Activity,
-  ArrowRight,
   Clock,
-  CheckCircle2,
-  Calendar,
-  Layers,
-  ChevronRight,
-  ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/client';
@@ -260,10 +252,10 @@ export const DashboardPage = () => {
           <div className={styles.heroInfo}>
             <div className={styles.heroTags}>
               <span className={styles.groupBadge}>
-                <Layers size={11} /> {user?.group_part_name || 'Production Engineering'}
+                {user?.group_part_name || 'Production Engineering'}
               </span>
               <span className={styles.roleBadge}>
-                <ShieldCheck size={11} /> {user?.role || 'Member'}
+                {user?.role || 'Member'}
               </span>
             </div>
             <h1 className={styles.heroGreeting}>
@@ -295,62 +287,46 @@ export const DashboardPage = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. CORE KPI STATS ROW                                                     */}
+      {/* 2. CORE KPI STATS ROW (Clean typography, zero title icon spam)            */}
       {/* ========================================================================= */}
       <div className={styles.statsRow}>
         <div className={styles.kpiCard} onClick={() => navigate('/projects')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>Task Analyst</span>
-            <div className={`${styles.kpiIconWrapper} ${styles.iconBlue}`}>
-              <FolderKanban size={17} />
-            </div>
           </div>
           <div className={styles.kpiValue}>{stats?.projects_count ?? 0}</div>
           <div className={styles.kpiFooter}>
             <span>{projects.filter((p) => p.status === 'completed').length} Selesai • {projects.filter((p) => p.status !== 'completed').length} Dalam Proses</span>
-            <ArrowRight size={13} />
           </div>
         </div>
 
         <div className={styles.kpiCard} onClick={() => navigate('/innovations')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>Inovasi & Kaizen</span>
-            <div className={`${styles.kpiIconWrapper} ${styles.iconAmber}`}>
-              <Lightbulb size={17} />
-            </div>
           </div>
           <div className={styles.kpiValue}>{stats?.innovations_count ?? 0}</div>
           <div className={styles.kpiFooter}>
             <span>Best Practice Terverifikasi</span>
-            <ArrowRight size={13} />
           </div>
         </div>
 
         <div className={styles.kpiCard} onClick={() => navigate('/models')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>New Models</span>
-            <div className={`${styles.kpiIconWrapper} ${styles.iconCyan}`}>
-              <Cpu size={17} />
-            </div>
           </div>
           <div className={styles.kpiValue}>{stats?.models_count ?? 0}</div>
           <div className={styles.kpiFooter}>
             <span>Parameter Line & Setting</span>
-            <ArrowRight size={13} />
           </div>
         </div>
 
         <div className={styles.kpiCard} onClick={() => navigate('/documents')}>
           <div className={styles.kpiHeader}>
             <span className={styles.kpiLabel}>Dokumen Teknik</span>
-            <div className={`${styles.kpiIconWrapper} ${styles.iconViolet}`}>
-              <FolderArchive size={17} />
-            </div>
           </div>
           <div className={styles.kpiValue}>{stats?.documents_count ?? 0}</div>
           <div className={styles.kpiFooter}>
             <span>Drawing & Standar SOP</span>
-            <ArrowRight size={13} />
           </div>
         </div>
       </div>
@@ -365,7 +341,6 @@ export const DashboardPage = () => {
           <div className={styles.bentoSection}>
             <div className={styles.sectionHeader}>
               <div className={styles.sectionTitleGroup}>
-                <Sparkles size={16} color="var(--color-accent)" />
                 <h2 className={styles.sectionTitle}>Hub Operasional & Fitur Kerja</h2>
               </div>
               <span className={styles.sectionSub}>Akses cepat modul dan tooling teknis PE</span>
@@ -395,7 +370,6 @@ export const DashboardPage = () => {
                       <h3 className={styles.opTitle}>{item.title}</h3>
                       <p className={styles.opDesc}>{item.subtitle}</p>
                     </div>
-                    <ChevronRight size={14} className={styles.opArrow} />
                   </div>
                 );
               })}
@@ -406,7 +380,6 @@ export const DashboardPage = () => {
           <div className={styles.bentoSection}>
             <div className={styles.sectionHeader}>
               <div className={styles.sectionTitleGroup}>
-                <CheckCircle2 size={16} color="var(--color-accent)" />
                 <h2 className={styles.sectionTitle}>Milestone Problem Solving (5-Tahap)</h2>
               </div>
               <span className={styles.sectionSub}>Distribusi penyelesaian issue teknis produksi</span>
@@ -450,7 +423,6 @@ export const DashboardPage = () => {
             <div className={styles.sectionHeaderCol}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <div className={styles.sectionTitleGroup}>
-                  <Users size={16} color="var(--color-accent)" />
                   <h2 className={styles.sectionTitle}>Status Sesi Anggota Tim</h2>
                 </div>
                 <button
@@ -563,7 +535,6 @@ export const DashboardPage = () => {
           <div className={styles.bentoSection}>
             <div className={styles.sectionHeader}>
               <div className={styles.sectionTitleGroup}>
-                <Activity size={16} color="var(--color-accent)" />
                 <h2 className={styles.sectionTitle}>{t('dashboard.recent_activity', 'Aktivitas Terkini')}</h2>
               </div>
             </div>

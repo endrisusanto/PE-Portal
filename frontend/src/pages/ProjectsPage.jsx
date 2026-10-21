@@ -373,21 +373,23 @@ export const ProjectsPage = () => {
       render: (val) => <StatusBadge status={val} />,
     },
     {
-      title: 'Milestone Stepper',
+      title: 'Milestone',
       key: 'progress',
       render: (val) => {
         const ms = getMilestone(val || 0);
         return (
-          <div style={{ minWidth: '140px' }}>
-            <div className={styles.microStepper}>
-              {MILESTONE_STAGES.map((s) => (
-                <div
-                  key={s.step}
-                  className={`${styles.microStep} ${val >= s.percent ? styles.microStepDone : ms.step === s.step ? styles.microStepActive : ''}`}
-                />
-              ))}
+          <div style={{ minWidth: '150px' }}>
+            <div className={styles.tableBreadcrumb}>
+              <span className={styles.tableBreadcrumbBadge}>Step {ms.step}</span>
+              <span className={styles.breadcrumbSep}>›</span>
+              <span className={styles.tableBreadcrumbLabel} style={{ color: ms.color }}>{ms.label}</span>
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: ms.color }}>{val || 0}% • Step {ms.step}/5</span>
+            <div className={styles.microProgressLine}>
+              <div
+                className={styles.microProgressFill}
+                style={{ width: `${val || 0}%`, backgroundColor: ms.color }}
+              />
+            </div>
           </div>
         );
       },
@@ -462,7 +464,7 @@ export const ProjectsPage = () => {
             {t('projects.title', 'Milestone Task Analyst')}
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            {t('projects.subtitle', 'Pelacakan Analisis Issue Mechanical, Optimasi Proses Produksi & Milestone Stepper Tim SEIN PE')}
+            {t('projects.subtitle', 'Pelacakan Analisis Issue Mechanical, Optimasi Proses Produksi & Milestone Breadcrumb Navigation Tim SEIN PE')}
           </p>
         </div>
 
@@ -667,20 +669,17 @@ export const ProjectsPage = () => {
                   </p>
                 )}
 
-                {/* Breadcrumb Stepper Micro-Bar */}
+                {/* Breadcrumb Navigation Indicator */}
                 <div style={{ margin: '4px 0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 600, color: ms.color }}>{ms.label}</span>
+                    <span style={{ fontWeight: 600, color: ms.color }}>Step {ms.step} › {ms.label}</span>
                     <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{p.progress || 0}%</span>
                   </div>
-                  <div className={styles.microStepper}>
-                    {MILESTONE_STAGES.map((s) => (
-                      <div
-                        key={s.step}
-                        className={`${styles.microStep} ${p.progress >= s.percent ? styles.microStepDone : ms.step === s.step ? styles.microStepActive : ''}`}
-                        title={`${s.label} (${s.percent}%)`}
-                      />
-                    ))}
+                  <div className={styles.microProgressLine}>
+                    <div
+                      className={styles.microProgressFill}
+                      style={{ width: `${p.progress || 0}%`, backgroundColor: ms.color }}
+                    />
                   </div>
                 </div>
 
@@ -1112,33 +1111,36 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            {/* Breadcrumb Stepper (Initial Milestone Step) */}
+            {/* Breadcrumb Navigation (Initial Milestone Step) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Milestone Progress Stepper</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Milestone Navigation</label>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: getMilestone(createProgress).color }}>
                   Step {getMilestone(createProgress).step}: {getMilestone(createProgress).label} ({createProgress}%)
                 </span>
               </div>
 
-              <div className={styles.breadcrumbStepper}>
-                {MILESTONE_STAGES.map((st) => {
+              {/* ponytail: interactive breadcrumb navigation */}
+              <nav className={styles.breadcrumbNav} aria-label="Milestone Navigation">
+                {MILESTONE_STAGES.map((st, idx) => {
                   const isCurrent = getMilestone(createProgress).step === st.step;
                   const isCompleted = createProgress >= st.percent;
                   return (
-                    <button
-                      key={st.id}
-                      type="button"
-                      onClick={() => setCreateProgress(st.percent)}
-                      className={`${styles.stepBtn} ${isCurrent ? styles.stepCurrent : ''} ${isCompleted ? styles.stepCompleted : ''}`}
-                      title={st.desc}
-                    >
-                      <span className={styles.stepNum}>{st.step}</span>
-                      <span className={styles.stepLabel}>{st.label}</span>
-                    </button>
+                    <React.Fragment key={st.id}>
+                      {idx > 0 && <span className={styles.breadcrumbSep} aria-hidden="true">›</span>}
+                      <button
+                        type="button"
+                        onClick={() => setCreateProgress(st.percent)}
+                        className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
+                        title={st.desc}
+                      >
+                        <span className={styles.breadcrumbNum}>{st.step}</span>
+                        <span className={styles.breadcrumbLabel}>{st.label}</span>
+                      </button>
+                    </React.Fragment>
                   );
                 })}
-              </div>
+              </nav>
             </div>
 
             {/* Description / FormattingTextarea */}
@@ -1302,33 +1304,36 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            {/* Interactive Breadcrumb Stepper (Replaces Slider) */}
+            {/* Interactive Breadcrumb Navigation */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Milestone Stepper (Progress)</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Milestone Navigation</label>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: getMilestone(editProgress).color }}>
                   Step {getMilestone(editProgress).step}: {getMilestone(editProgress).label} ({editProgress}%)
                 </span>
               </div>
 
-              <div className={styles.breadcrumbStepper}>
-                {MILESTONE_STAGES.map((st) => {
+              {/* ponytail: interactive breadcrumb navigation */}
+              <nav className={styles.breadcrumbNav} aria-label="Milestone Navigation">
+                {MILESTONE_STAGES.map((st, idx) => {
                   const isCurrent = getMilestone(editProgress).step === st.step;
                   const isCompleted = editProgress >= st.percent;
                   return (
-                    <button
-                      key={st.id}
-                      type="button"
-                      onClick={() => setEditProgress(st.percent)}
-                      className={`${styles.stepBtn} ${isCurrent ? styles.stepCurrent : ''} ${isCompleted ? styles.stepCompleted : ''}`}
-                      title={st.desc}
-                    >
-                      <span className={styles.stepNum}>{st.step}</span>
-                      <span className={styles.stepLabel}>{st.label}</span>
-                    </button>
+                    <React.Fragment key={st.id}>
+                      {idx > 0 && <span className={styles.breadcrumbSep} aria-hidden="true">›</span>}
+                      <button
+                        type="button"
+                        onClick={() => setEditProgress(st.percent)}
+                        className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
+                        title={st.desc}
+                      >
+                        <span className={styles.breadcrumbNum}>{st.step}</span>
+                        <span className={styles.breadcrumbLabel}>{st.label}</span>
+                      </button>
+                    </React.Fragment>
                   );
                 })}
-              </div>
+              </nav>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1445,35 +1450,37 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            {/* Stepper Progress Card */}
+            {/* Breadcrumb Navigation Card */}
             <div className={styles.viewStepperCard}>
               <div className={styles.viewStepperHeader}>
                 <span className={styles.viewStepperTitle}>
-                  Milestone Progress Problem Solving (5-Tahap)
+                  Milestone Breadcrumb Navigation (5-Tahap)
                 </span>
                 <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
                   Tahap {getMilestone(viewingProject.progress).step} dari 5
                 </span>
               </div>
-              <div className={styles.breadcrumbStepper}>
-                {MILESTONE_STAGES.map((st) => {
+              {/* ponytail: breadcrumb navigation view */}
+              <nav className={styles.breadcrumbNav} aria-label="Milestone Breadcrumb Trail">
+                {MILESTONE_STAGES.map((st, idx) => {
                   const isCurrent = getMilestone(viewingProject.progress).step === st.step;
                   const isCompleted = (viewingProject.progress || 0) >= st.percent;
                   return (
-                    <div
-                      key={st.id}
-                      className={`${styles.stepBtn} ${isCurrent ? styles.stepCurrent : ''} ${isCompleted ? styles.stepCompleted : ''}`}
-                      style={{ cursor: 'default' }}
-                      title={st.desc}
-                    >
-                      <span className={styles.stepNum}>
-                        {isCompleted && !isCurrent ? <Check size={10} strokeWidth={3} /> : st.step}
-                      </span>
-                      <span className={styles.stepLabel}>{st.label}</span>
-                    </div>
+                    <React.Fragment key={st.id}>
+                      {idx > 0 && <span className={styles.breadcrumbSep} aria-hidden="true">›</span>}
+                      <div
+                        className={`${styles.breadcrumbNode} ${styles.breadcrumbNodeStatic} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
+                        title={st.desc}
+                      >
+                        <span className={styles.breadcrumbNum}>
+                          {isCompleted && !isCurrent ? <Check size={10} strokeWidth={3} /> : st.step}
+                        </span>
+                        <span className={styles.breadcrumbLabel}>{st.label}</span>
+                      </div>
+                    </React.Fragment>
                   );
                 })}
-              </div>
+              </nav>
             </div>
 
             {/* Catatan Analisis / Investigasi Card */}

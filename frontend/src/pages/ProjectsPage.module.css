@@ -533,85 +533,143 @@
   border-radius: var(--radius-xs);
 }
 
-/* Breadcrumb Stepper (Milestone Stages) */
-.breadcrumbStepper {
+/* ponytail: unified breadcrumb navigation for milestones */
+.breadcrumbNav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   overflow-x: auto;
-  padding: 4px 0;
+  padding: 6px 8px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
-.stepBtn {
-  flex: 1;
-  min-width: 100px;
-  display: flex;
+.breadcrumbSep {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  user-select: none;
+  flex-shrink: 0;
+  padding: 0 1px;
+}
+
+.breadcrumbNode {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
+  padding: 5px 8px;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--color-text-secondary);
   font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
   white-space: nowrap;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
-.stepBtn:hover {
-  border-color: var(--color-accent);
+.breadcrumbNode:hover {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.breadcrumbNodeStatic {
+  cursor: default;
+}
+
+.breadcrumbNodeStatic:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.breadcrumbNodeCompleted {
   color: var(--color-text-primary);
 }
 
-.stepCompleted {
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.4);
-  color: var(--color-text-primary);
-}
-
-.stepCurrent {
-  background: rgba(37, 99, 235, 0.12);
+.breadcrumbNodeCurrent {
+  background: var(--color-bg-primary);
   border-color: var(--color-accent);
   color: var(--color-accent);
   font-weight: 700;
-  box-shadow: 0 0 0 1px var(--color-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.stepNum {
-  width: 18px;
-  height: 18px;
+.breadcrumbNum {
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   flex-shrink: 0;
 }
 
-.stepCompleted .stepNum {
+.breadcrumbNodeCompleted .breadcrumbNum {
   background: #10b981;
   color: #fff;
   border-color: #10b981;
 }
 
-.stepCurrent .stepNum {
+.breadcrumbNodeCurrent .breadcrumbNum {
   background: var(--color-accent);
   color: #fff;
   border-color: var(--color-accent);
 }
 
-.stepLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.breadcrumbLabel {
   white-space: nowrap;
 }
 
-/* Micro stepper on milestone cards */
+/* Table & Card Breadcrumb indicators */
+.tableBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.tableBreadcrumbBadge {
+  font-weight: 700;
+  font-size: 10px;
+  padding: 1px 5px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-secondary);
+}
+
+.tableBreadcrumbLabel {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.microProgressLine {
+  width: 100%;
+  height: 4px;
+  background: var(--color-border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.microProgressFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Backward compatibility for microStepper */
 .microStepper {
   display: flex;
   align-items: center;
