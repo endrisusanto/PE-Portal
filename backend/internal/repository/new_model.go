@@ -121,20 +121,25 @@ func (r *NewModelRepository) Update(ctx context.Context, m *model.NewModel) (*mo
 		targetRelease = *m.TargetRelease
 	}
 
+	var specParam any = nil
+	if len(m.Specifications) > 0 && string(m.Specifications) != "null" {
+		specParam = m.Specifications
+	}
+
 	query := `
 		UPDATE new_models
 		SET model_name = $1, codename = $2, description = $3,
 		    project_id = $4,
 		    owner_id = COALESCE($5, owner_id),
 		    target_release = NULLIF($6, '')::date,
-		    specifications = CASE WHEN $7::text = '' OR $7::text = 'null' OR $7 IS NULL THEN specifications ELSE $7 END,
+		    specifications = COALESCE($7::jsonb, specifications),
 		    updated_at = NOW()
 		WHERE id = $8 AND deleted_at IS NULL
 	`
 
 	_, err := r.pool.Exec(ctx, query,
 		m.ModelName, m.Codename, m.Description,
-		m.ProjectID, m.OwnerID, targetRelease, m.Specifications, m.ID,
+		m.ProjectID, m.OwnerID, targetRelease, specParam, m.ID,
 	)
 	if err != nil {
 		return nil, err

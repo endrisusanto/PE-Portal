@@ -198,17 +198,20 @@
 
 .inputGroup:focus-within {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent);
+  box-shadow: none;
 }
 
-.inputField {
+.inputField,
+.inputField:focus,
+.inputField:focus-visible {
   background: transparent;
-  border: none;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: 600;
   width: 100%;
-  outline: none;
 }
 
 .inputField::placeholder {
@@ -226,6 +229,13 @@
   height: 40px;
   outline: none;
   cursor: pointer;
+}
+
+.scanSelect:focus,
+.scanSelect:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: var(--color-accent);
 }
 
 .btnSubmit {

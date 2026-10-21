@@ -297,6 +297,14 @@ textarea:focus {
   box-shadow: 0 0 0 1px var(--color-accent);
 }
 
+input[type="range"],
+input[type="range"]:focus,
+input[type="range"]:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 /* Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;

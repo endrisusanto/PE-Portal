@@ -630,7 +630,13 @@ export const ProjectsPage = () => {
                 step="5"
                 value={editProgress}
                 onChange={(e) => setEditProgress(Number(e.target.value))}
-                style={{ width: '100%', accentColor: 'var(--color-accent)' }}
+                style={{
+                  width: '100%',
+                  accentColor: 'var(--color-accent)',
+                  outline: 'none',
+                  border: 'none',
+                  boxShadow: 'none',
+                }}
               />
             </div>
 

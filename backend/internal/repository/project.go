@@ -139,6 +139,11 @@ func (r *ProjectRepository) Update(ctx context.Context, p *model.Project) (*mode
 		completionDate = *p.CompletionDate
 	}
 
+	var metadataParam any = nil
+	if len(p.Metadata) > 0 && string(p.Metadata) != "null" {
+		metadataParam = p.Metadata
+	}
+
 	query := `
 		UPDATE projects
 		SET title = $1, description = $2, project_type = $3,
@@ -146,14 +151,14 @@ func (r *ProjectRepository) Update(ctx context.Context, p *model.Project) (*mode
 		    priority = $5,
 		    group_part_id = $6, start_date = NULLIF($7, '')::date, target_date = NULLIF($8, '')::date,
 		    completion_date = NULLIF($9, '')::date, progress = $10,
-		    metadata = CASE WHEN $11::text = '' OR $11::text = 'null' OR $11 IS NULL THEN metadata ELSE $11 END,
+		    metadata = COALESCE($11::jsonb, metadata),
 		    updated_at = NOW()
 		WHERE id = $12 AND deleted_at IS NULL
 	`
 
 	_, err := r.pool.Exec(ctx, query,
 		p.Title, p.Description, p.ProjectType, p.Status, p.Priority,
-		p.GroupPartID, startDate, targetDate, completionDate, p.Progress, p.Metadata, p.ID,
+		p.GroupPartID, startDate, targetDate, completionDate, p.Progress, metadataParam, p.ID,
 	)
 	if err != nil {
 		return nil, err
