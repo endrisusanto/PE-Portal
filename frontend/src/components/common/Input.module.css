@@ -37,7 +37,7 @@
 
 .input:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px var(--color-accent-subtle);
+  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
 .hasError {
@@ -45,7 +45,7 @@
 }
 
 .hasError:focus {
-  box-shadow: 0 0 0 2px var(--color-error-subtle) !important;
+  box-shadow: 0 0 0 1px var(--color-error) !important;
 }
 
 .errorText {

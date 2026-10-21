@@ -151,6 +151,12 @@
   cursor: pointer;
 }
 
+.filterInput:focus,
+.filterSelect:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
 .tableWrapper {
   overflow-x: auto;
   width: 100%;
@@ -376,7 +382,14 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-3);
+}
+
+.chartTitleArea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .chartTitle {
@@ -386,6 +399,22 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.chartLegend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.legendIndicator {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background-color: var(--color-accent);
 }
 
 .chartStatsSummary {
@@ -413,10 +442,40 @@
   color: var(--color-text-primary);
 }
 
+.chartLayout {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  align-items: flex-start;
+}
+
+.chartYAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 32px;
+  height: 140px;
+  padding: 2px 4px 2px 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.chartMain {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
 .chartContainer {
   position: relative;
   width: 100%;
-  height: 190px;
+  height: 140px;
 }
 
 .chartSvg {
@@ -424,6 +483,18 @@
   height: 100%;
   overflow: visible;
   display: block;
+}
+
+.chartXAxis {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 6px;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  user-select: none;
 }
 
 .chartTooltip {
@@ -537,4 +608,15 @@
 
 :global([data-theme="light"]) .chartTooltipDate {
   color: #475569;
+}
+
+:global([data-theme="light"]) .chartYAxis,
+:global([data-theme="light"]) .chartXAxis {
+  color: #334155;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .chartLegend {
+  color: #334155;
+  font-weight: 600;
 }

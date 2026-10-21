@@ -67,13 +67,14 @@
   transition: all 0.15s ease-in-out;
 }
 
-.tabButton:hover {
+.tabButton:hover:not(.tabActive) {
   color: var(--color-text-primary);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--color-bg-hover);
 }
 
-.tabActive {
-  background-color: var(--color-accent);
+.tabActive,
+.tabActive:hover {
+  background-color: var(--color-accent) !important;
   color: #ffffff !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
@@ -197,7 +198,7 @@
 
 .inputGroup:focus-within {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
 .inputField {
@@ -593,6 +594,12 @@
   cursor: pointer;
 }
 
+.filterInput:focus,
+.filterSelect:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
 .tableWrapper {
   overflow-x: auto;
   width: 100%;
@@ -800,8 +807,10 @@
 
 .formInput:focus,
 .formSelect:focus,
-.formTextarea:focus {
+.formTextarea:focus,
+.bulkTextarea:focus {
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
 .bulkTextarea {
@@ -836,7 +845,7 @@
   font-weight: 500;
 }
 
-:global([data-theme="light"]) .tabButton {
+:global([data-theme="light"]) .tabButton:not(.tabActive) {
   color: #334155;
   font-weight: 600;
 }

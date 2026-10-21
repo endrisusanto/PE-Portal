@@ -154,17 +154,14 @@ export const SoftwareMRPage = () => {
   const peakDay = trend.reduce((prev, curr) => ((curr.count || 0) > (prev?.count || 0) ? curr : prev), null);
   const avgTrend = trend.length > 0 ? (totalTrendReleases / trend.length).toFixed(1) : '0';
 
-  const svgWidth = 800;
-  const svgHeight = 150;
-  const padLeft = 36;
-  const padRight = 16;
-  const padTop = 15;
-  const padBottom = 26;
-  const plotWidth = svgWidth - padLeft - padRight;
+  const svgWidth = 1000;
+  const svgHeight = 130;
+  const padTop = 8;
+  const padBottom = 8;
   const plotHeight = svgHeight - padTop - padBottom;
 
   const points = trend.map((t, idx) => {
-    const x = padLeft + (idx / Math.max(trend.length - 1, 1)) * plotWidth;
+    const x = (idx / Math.max(trend.length - 1, 1)) * svgWidth;
     const y = padTop + plotHeight - ((t.count || 0) / maxTrendCount) * plotHeight;
     return { x, y, ...t, index: idx };
   });
@@ -179,6 +176,12 @@ export const SoftwareMRPage = () => {
   const areaD = points.length > 0
     ? `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${(padTop + plotHeight).toFixed(1)} L ${points[0].x.toFixed(1)} ${(padTop + plotHeight).toFixed(1)} Z`
     : '';
+
+  // 6 evenly-spaced dates for X-axis labels (HTML based, zero distortion)
+  const xAxisIndices = [0, 6, 12, 18, 24, Math.max(trend.length - 1, 0)];
+  const xAxisLabels = xAxisIndices
+    .map(i => trend[i])
+    .filter(Boolean);
 
   return (
     <div className={styles.container}>
@@ -274,14 +277,20 @@ export const SoftwareMRPage = () => {
         </div>
       </div>
 
-      {/* 30-Day Daily Release Trend Chart (Pure Native SVG / Zero Bloat) */}
+      {/* 30-Day Daily Release Trend Chart (Zero Distort / HTML Labels) */}
       <div className={styles.chartCard}>
         <div className={styles.chartHeader}>
-          <div className={styles.chartTitle}>
-            <TrendingUp size={20} color="var(--color-accent)" />
-            <span>Tren Rilis Harian (30 Hari Kebelakang)</span>
+          <div className={styles.chartTitleArea}>
+            <div className={styles.chartTitle}>
+              <TrendingUp size={20} color="var(--color-accent)" />
+              <span>Tren Rilis Harian (30 Hari Kebelakang)</span>
+            </div>
+            <div className={styles.chartLegend}>
+              <span className={styles.legendIndicator} />
+              <span>Jumlah Rilis per Hari</span>
+            </div>
             {selectedModel && (
-              <span className={styles.picBadge} style={{ marginLeft: 6 }}>
+              <span className={styles.picBadge}>
                 Model: {selectedModel}
               </span>
             )}
@@ -306,151 +315,137 @@ export const SoftwareMRPage = () => {
           </div>
         </div>
 
-        <div className={styles.chartContainer}>
-          {hoveredPoint && (
-            <div
-              className={styles.chartTooltip}
-              style={{
-                left: `${(hoveredPoint.x / svgWidth) * 100}%`,
-                top: `${(hoveredPoint.y / svgHeight) * 100}%`
-              }}
-            >
-              <div className={styles.chartTooltipDate}>{hoveredPoint.date} ({hoveredPoint.label})</div>
-              <div className={styles.chartTooltipCount}>{hoveredPoint.count} Rilis Firmware</div>
-            </div>
-          )}
+        <div className={styles.chartLayout}>
+          {/* Y-Axis HTML Labels (Never Squished) */}
+          <div className={styles.chartYAxis}>
+            <span>{maxTrendCount}</span>
+            <span>{Math.round(maxTrendCount * 0.5)}</span>
+            <span>0</span>
+          </div>
 
-          <svg
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            preserveAspectRatio="none"
-            className={styles.chartSvg}
-            onMouseLeave={() => setHoveredPoint(null)}
-          >
-            <defs>
-              <linearGradient id="mrTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.4" />
-                <stop offset="85%" stopColor="var(--color-accent)" stopOpacity="0.04" />
-                <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
-              </linearGradient>
-            </defs>
+          <div className={styles.chartMain}>
+            <div className={styles.chartContainer}>
+              {hoveredPoint && (
+                <div
+                  className={styles.chartTooltip}
+                  style={{
+                    left: `${(hoveredPoint.x / svgWidth) * 100}%`,
+                    top: `${(hoveredPoint.y / svgHeight) * 100}%`
+                  }}
+                >
+                  <div className={styles.chartTooltipDate}>{hoveredPoint.date} ({hoveredPoint.label})</div>
+                  <div className={styles.chartTooltipCount}>{hoveredPoint.count} Rilis Firmware</div>
+                </div>
+              )}
 
-            {/* Horizontal Grid lines */}
-            {[0, 0.5, 1].map((ratio) => {
-              const yVal = padTop + plotHeight * (1 - ratio);
-              const countVal = Math.round(maxTrendCount * ratio);
-              return (
-                <g key={ratio}>
-                  <line
-                    x1={padLeft}
-                    y1={yVal}
-                    x2={svgWidth - padRight}
-                    y2={yVal}
-                    stroke="var(--color-border)"
-                    strokeDasharray={ratio === 0 ? "none" : "3 3"}
-                    strokeOpacity={0.6}
+              <svg
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                preserveAspectRatio="none"
+                className={styles.chartSvg}
+                onMouseLeave={() => setHoveredPoint(null)}
+              >
+                <defs>
+                  <linearGradient id="mrTrendGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.38" />
+                    <stop offset="85%" stopColor="var(--color-accent)" stopOpacity="0.04" />
+                    <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+
+                {/* Horizontal Grid lines */}
+                {[0, 0.5, 1].map((ratio) => {
+                  const yVal = padTop + plotHeight * (1 - ratio);
+                  return (
+                    <line
+                      key={ratio}
+                      x1={0}
+                      y1={yVal}
+                      x2={svgWidth}
+                      y2={yVal}
+                      stroke="var(--color-border)"
+                      strokeDasharray={ratio === 0 ? "none" : "3 3"}
+                      strokeOpacity={0.6}
+                    />
+                  );
+                })}
+
+                {/* Area Fill */}
+                {areaD && (
+                  <path
+                    d={areaD}
+                    fill="url(#mrTrendGradient)"
                   />
-                  <text
-                    x={padLeft - 6}
-                    y={yVal + 3.5}
-                    textAnchor="end"
-                    fontSize="10"
-                    fill="var(--color-text-secondary)"
-                    fontWeight="600"
-                  >
-                    {countVal}
-                  </text>
-                </g>
-              );
-            })}
+                )}
 
-            {/* Area Fill */}
-            {areaD && (
-              <path
-                d={areaD}
-                fill="url(#mrTrendGradient)"
-              />
-            )}
+                {/* Line Stroke */}
+                {pathD && (
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke="var(--color-accent)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
 
-            {/* Line Stroke */}
-            {pathD && (
-              <path
-                d={pathD}
-                fill="none"
-                stroke="var(--color-accent)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
+                {/* Data Point Dots */}
+                {points.map((pt) => {
+                  if (pt.count === 0 && !hoveredPoint) return null;
+                  const isHovered = hoveredPoint?.index === pt.index;
+                  return (
+                    <circle
+                      key={pt.index}
+                      cx={pt.x}
+                      cy={pt.y}
+                      r={isHovered ? 5.5 : pt.count > 0 ? 3 : 0}
+                      fill={isHovered ? '#ffffff' : 'var(--color-accent)'}
+                      stroke={isHovered ? 'var(--color-accent)' : 'var(--color-bg-secondary)'}
+                      strokeWidth={isHovered ? 2.5 : 1.5}
+                    />
+                  );
+                })}
 
-            {/* Data Point Dots */}
-            {points.map((pt) => {
-              if (pt.count === 0 && !hoveredPoint) return null;
-              const isHovered = hoveredPoint?.index === pt.index;
-              return (
-                <circle
-                  key={pt.index}
-                  cx={pt.x}
-                  cy={pt.y}
-                  r={isHovered ? 5.5 : pt.count > 0 ? 3 : 0}
-                  fill={isHovered ? '#ffffff' : 'var(--color-accent)'}
-                  stroke={isHovered ? 'var(--color-accent)' : 'var(--color-bg-secondary)'}
-                  strokeWidth={isHovered ? 2.5 : 1.5}
-                />
-              );
-            })}
+                {/* Active Hover Guide Line */}
+                {hoveredPoint && (
+                  <line
+                    x1={hoveredPoint.x}
+                    y1={padTop}
+                    x2={hoveredPoint.x}
+                    y2={padTop + plotHeight}
+                    stroke="var(--color-accent)"
+                    strokeWidth="1.5"
+                    strokeDasharray="2 2"
+                    opacity="0.8"
+                  />
+                )}
 
-            {/* Active Hover Guide Line */}
-            {hoveredPoint && (
-              <line
-                x1={hoveredPoint.x}
-                y1={padTop}
-                x2={hoveredPoint.x}
-                y2={padTop + plotHeight}
-                stroke="var(--color-accent)"
-                strokeWidth="1.5"
-                strokeDasharray="2 2"
-                opacity="0.8"
-              />
-            )}
+                {/* Transparent hover columns for easy mouse hit targeting */}
+                {points.map((pt) => {
+                  const colWidth = svgWidth / (points.length || 1);
+                  return (
+                    <rect
+                      key={`hit-${pt.index}`}
+                      x={pt.x - colWidth / 2}
+                      y={padTop}
+                      width={colWidth}
+                      height={plotHeight}
+                      fill="transparent"
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={() => setHoveredPoint(pt)}
+                    />
+                  );
+                })}
+              </svg>
+            </div>
 
-            {/* X-Axis Date Labels */}
-            {points.map((pt, idx) => {
-              if (idx % 5 === 0 || idx === points.length - 1) {
-                return (
-                  <text
-                    key={idx}
-                    x={pt.x}
-                    y={svgHeight - 6}
-                    textAnchor="middle"
-                    fontSize="9.5"
-                    fill="var(--color-text-secondary)"
-                    fontWeight="600"
-                  >
-                    {pt.label}
-                  </text>
-                );
-              }
-              return null;
-            })}
-
-            {/* Transparent hover columns for easy mouse hit targeting */}
-            {points.map((pt) => {
-              const colWidth = plotWidth / (points.length || 1);
-              return (
-                <rect
-                  key={`hit-${pt.index}`}
-                  x={pt.x - colWidth / 2}
-                  y={padTop}
-                  width={colWidth}
-                  height={plotHeight}
-                  fill="transparent"
-                  style={{ cursor: 'pointer' }}
-                  onMouseEnter={() => setHoveredPoint(pt)}
-                />
-              );
-            })}
-          </svg>
+            {/* X-Axis HTML Labels (Never Squished) */}
+            <div className={styles.chartXAxis}>
+              {xAxisLabels.map((lbl, idx) => (
+                <span key={idx}>{lbl.label}</span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
