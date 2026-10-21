@@ -389,7 +389,7 @@ export const InnovationsPage = () => {
         <div className={styles.titleArea}>
           <h1>
             <Award size={22} color="var(--color-accent)" />
-            {t('nav.innovations')}
+            Innovation & Best Practice (BP)
           </h1>
           <p className={styles.subtitle}>
             SEIN Production Engineer Innovation Pipeline, Best Practice Standardization, & Performance Dashboard (BP MXPE)
@@ -878,23 +878,15 @@ export const InnovationsPage = () => {
       {activeTab === 'records' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Controls Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+          <div className={styles.repoControlsBar}>
+            <div className={styles.repoFilterGroup}>
+              <span className={styles.repoFilterLabel}>
                 Filter Class:
               </span>
               <select
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
-                style={{
-                  height: '32px',
-                  padding: '0 10px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '12px',
-                }}
+                className={styles.repoSelect}
               >
                 <option value="">All Classes</option>
                 <option value="Class 3">Class 3 (Breakthrough)</option>
@@ -905,23 +897,11 @@ export const InnovationsPage = () => {
               </select>
 
               {/* View Switcher: Cards vs Table */}
-              <div style={{ display: 'flex', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '2px' }}>
+              <div className={styles.repoViewToggle}>
                 <button
                   type="button"
                   onClick={() => setRepoViewMode('cards')}
-                  style={{
-                    padding: '4px 8px',
-                    border: 'none',
-                    borderRadius: 'var(--radius-xs)',
-                    background: repoViewMode === 'cards' ? 'var(--color-accent)' : 'transparent',
-                    color: repoViewMode === 'cards' ? '#fff' : 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                  }}
+                  className={`${styles.repoViewBtn} ${repoViewMode === 'cards' ? styles.repoViewBtnActive : ''}`}
                   title="Article Cards View"
                 >
                   <Grid size={12} />
@@ -930,19 +910,7 @@ export const InnovationsPage = () => {
                 <button
                   type="button"
                   onClick={() => setRepoViewMode('table')}
-                  style={{
-                    padding: '4px 8px',
-                    border: 'none',
-                    borderRadius: 'var(--radius-xs)',
-                    background: repoViewMode === 'table' ? 'var(--color-accent)' : 'transparent',
-                    color: repoViewMode === 'table' ? '#fff' : 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                  }}
+                  className={`${styles.repoViewBtn} ${repoViewMode === 'table' ? styles.repoViewBtnActive : ''}`}
                   title="Summary Table View"
                 >
                   <List size={12} />
@@ -951,26 +919,15 @@ export const InnovationsPage = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ position: 'relative' }}>
-                <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <div className={styles.repoRightGroup}>
+              <div className={styles.repoSearchWrapper}>
+                <Search size={13} className={styles.repoSearchIcon} />
                 <input
                   type="text"
                   placeholder="Search articles, techniques..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{
-                    height: '32px',
-                    paddingLeft: '30px',
-                    paddingRight: '12px',
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '12px',
-                    color: 'var(--color-text-primary)',
-                    outline: 'none',
-                    width: '240px',
-                  }}
+                  className={styles.repoSearchInput}
                 />
               </div>
 

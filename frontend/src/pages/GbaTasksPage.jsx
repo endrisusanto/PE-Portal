@@ -129,6 +129,25 @@ export const GbaTasksPage = () => {
     return result;
   }, [data, search, selectedPic, urgentOnly]);
 
+  const [pipelineMode, setPipelineMode] = useState('active'); // 'active' (6 cols) | 'all' (8 cols)
+  const [collapsedCols, setCollapsedCols] = useState({});
+  const [showAllArchive, setShowAllArchive] = useState({});
+
+  const toggleCollapseCol = (status) => {
+    setCollapsedCols((prev) => ({ ...prev, [status]: !prev[status] }));
+  };
+
+  const toggleShowAllArchive = (status) => {
+    setShowAllArchive((prev) => ({ ...prev, [status]: !prev[status] }));
+  };
+
+  const displayedStatuses = useMemo(() => {
+    if (pipelineMode === 'active') {
+      return ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted'];
+    }
+    return KANBAN_STATUSES;
+  }, [pipelineMode]);
+
   const handleOpenDetail = (task) => {
     setSelectedTask(task);
     setIsModalOpen(true);
@@ -170,6 +189,26 @@ export const GbaTasksPage = () => {
 
         {/* Controls */}
         <div className={styles.controls}>
+          {/* Active Pipeline vs All Columns Switcher */}
+          <div className={styles.modeSwitcher}>
+            <button
+              type="button"
+              className={`${styles.modeBtn} ${pipelineMode === 'active' ? styles.modeBtnActive : ''}`}
+              onClick={() => setPipelineMode('active')}
+              title="Show 6 active workflow stages (fits viewport cleanly)"
+            >
+              Active Pipeline (6)
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeBtn} ${pipelineMode === 'all' ? styles.modeBtnActive : ''}`}
+              onClick={() => setPipelineMode('all')}
+              title="Show all 8 statuses including Approved & Batal"
+            >
+              All Stages (8)
+            </button>
+          </div>
+
           <input
             type="text"
             placeholder="Search model, AP, PIC..."
@@ -232,86 +271,145 @@ export const GbaTasksPage = () => {
         </div>
       )}
 
-      {/* 8-Column Kanban Grid (Fullwidth, No Horizontal Scroll) */}
+      {/* Kanban Grid */}
       {loading ? (
         <LoadingState message="Loading GBA Kanban tasks..." />
       ) : (
-        <div className={styles.kanbanGrid}>
-          {KANBAN_STATUSES.map((status) => {
+        <div className={`${styles.kanbanGrid} ${pipelineMode === 'active' ? styles.gridActiveMode : styles.gridAllMode}`}>
+          {displayedStatuses.map((status) => {
             const conf = STATUS_CONFIG[status] || { color: '#64748b' };
-            const tasks = filteredColumns[status] || [];
+            const allTasks = filteredColumns[status] || [];
+            const isCollapsed = !!collapsedCols[status];
+            const isArchiveCol = status === 'Approved' || status === 'Batal';
+            const isShowAll = !!showAllArchive[status];
+
+            // In archive columns with high volume, show top 25 unless expanded
+            const tasks = isArchiveCol && !isShowAll ? allTasks.slice(0, 25) : allTasks;
+            const remainingCount = allTasks.length - tasks.length;
+
+            if (isCollapsed) {
+              return (
+                <div
+                  key={status}
+                  className={styles.columnCollapsed}
+                  onClick={() => toggleCollapseCol(status)}
+                  title={`Click to expand ${status} (${allTasks.length} tasks)`}
+                >
+                  <div className={styles.collapsedHeader}>
+                    <span className={styles.colDot} style={{ backgroundColor: conf.color }} />
+                    <span className={styles.collapsedTitle}>{status}</span>
+                    <span className={styles.colBadge}>{allTasks.length}</span>
+                  </div>
+                </div>
+              );
+            }
 
             return (
-              <div key={status} className={styles.column}>
+              <div
+                key={status}
+                className={`${styles.column} ${pipelineMode === 'active' ? styles.colActiveMode : styles.colAllMode}`}
+              >
                 {/* Column Header */}
                 <div className={styles.colHeader}>
                   <div className={styles.colTitleArea}>
                     <span className={styles.colDot} style={{ backgroundColor: conf.color }} />
                     <span className={styles.colTitle}>{status}</span>
+                    <span className={styles.colBadge}>{allTasks.length}</span>
                   </div>
-                  <span className={styles.colBadge}>{tasks.length}</span>
+                  {pipelineMode === 'all' && (
+                    <button
+                      type="button"
+                      className={styles.colCollapseBtn}
+                      onClick={() => toggleCollapseCol(status)}
+                      title={`Collapse ${status}`}
+                    >
+                      –
+                    </button>
+                  )}
                 </div>
 
                 {/* Cards List */}
                 <div className={styles.cardsList}>
-                  {tasks.length === 0 ? (
-                    <div className={styles.emptyCol}>Empty</div>
+                  {allTasks.length === 0 ? (
+                    <div className={styles.emptyCol}>No active tasks</div>
                   ) : (
-                    tasks.map((task) => {
-                      const isUrgent =
-                        task.is_urgent === 1 || task.is_urgent === '1' || task.is_urgent === true;
-                      const picUsername = task.pic_email ? task.pic_email.split('@')[0] : 'Unassigned';
+                    <>
+                      {tasks.map((task) => {
+                        const isUrgent =
+                          task.is_urgent === 1 || task.is_urgent === '1' || task.is_urgent === true;
+                        const picUsername = task.pic_email ? task.pic_email.split('@')[0] : 'Unassigned';
 
-                      return (
-                        <div
-                          key={task.id}
-                          className={styles.card}
-                          onClick={() => handleOpenDetail(task)}
-                          title="Click to view details (View Only)"
+                        return (
+                          <div
+                            key={task.id}
+                            className={styles.card}
+                            onClick={() => handleOpenDetail(task)}
+                            title="Click to view details (View Only)"
+                          >
+                            <div className={styles.cardHeader}>
+                              <div className={styles.modelName} title={task.model_name}>
+                                {task.model_name}
+                              </div>
+                              {isUrgent && (
+                                <span className={styles.urgentPill}>
+                                  <Flame size={9} />
+                                  URGENT
+                                </span>
+                              )}
+                            </div>
+
+                            {(task.ap || task.csc) && (
+                              <div className={styles.cardBuild}>
+                                {task.ap && <span className={styles.buildChip}>AP: {task.ap}</span>}
+                                {task.csc && <span className={styles.buildChip}>CSC: {task.csc}</span>}
+                              </div>
+                            )}
+
+                            <div className={styles.badgesRow}>
+                              {task.test_plan_type && (
+                                <span className={styles.planPill}>{task.test_plan_type}</span>
+                              )}
+                              {task.submission_id && (
+                                <span className={styles.submissionPill}>
+                                  #{task.submission_id}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className={styles.cardFooter}>
+                              <span className={styles.picName} title={task.pic_email}>
+                                👤 {picUsername}
+                              </span>
+                              {task.deadline && (
+                                <span className={styles.deadline} title={`Deadline: ${task.deadline}`}>
+                                  📅 {task.deadline.slice(5)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {remainingCount > 0 && (
+                        <button
+                          type="button"
+                          className={styles.showMoreBtn}
+                          onClick={() => toggleShowAllArchive(status)}
                         >
-                          <div className={styles.cardHeader}>
-                            <div className={styles.modelName} title={task.model_name}>
-                              {task.model_name}
-                            </div>
-                            {isUrgent && (
-                              <span className={styles.urgentPill}>
-                                <Flame size={8} />
-                                URGENT
-                              </span>
-                            )}
-                          </div>
+                          Show all {allTasks.length} tasks (+{remainingCount} more)
+                        </button>
+                      )}
 
-                          {(task.ap || task.csc) && (
-                            <div className={styles.cardBuild}>
-                              {task.ap && <span className={styles.buildText}>AP: {task.ap}</span>}
-                              {task.csc && <span className={styles.buildText}>CSC: {task.csc}</span>}
-                            </div>
-                          )}
-
-                          <div className={styles.badgesRow}>
-                            {task.test_plan_type && (
-                              <span className={styles.planPill}>{task.test_plan_type}</span>
-                            )}
-                            {task.submission_id && (
-                              <span className={styles.planPill} style={{ color: 'var(--color-accent)' }}>
-                                #{task.submission_id}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className={styles.cardFooter}>
-                            <span className={styles.picName} title={task.pic_email}>
-                              👤 {picUsername}
-                            </span>
-                            {task.deadline && (
-                              <span className={styles.deadline} title={`Deadline: ${task.deadline}`}>
-                                📅 {task.deadline.slice(5)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
+                      {isShowAll && allTasks.length > 25 && (
+                        <button
+                          type="button"
+                          className={styles.showMoreBtn}
+                          onClick={() => toggleShowAllArchive(status)}
+                        >
+                          Show fewer tasks
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

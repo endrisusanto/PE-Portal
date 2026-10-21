@@ -4,11 +4,13 @@
    better-ui: Surface depth, glassmorphism, responsive data table matrix.
    ============================================================================ */
 
+.container,
 .pageContainer {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   width: 100%;
+  max-width: 100%;
 }
 
 .header {
@@ -66,30 +68,41 @@
   gap: 6px;
 }
 
+.tabBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.tabBtn.activeTab,
 .tabBtnActive {
   background-color: var(--color-accent);
-  color: #ffffff;
+  color: #ffffff !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
 }
 
+.yearSelectWrapper,
 .yearFilter {
   display: flex;
   align-items: center;
   gap: 6px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  height: 32px;
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
 }
 
 .yearSelect {
-  height: 32px;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background-color: var(--color-bg-secondary);
+  height: 26px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  border: none;
+  background-color: transparent;
   color: var(--color-text-primary);
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 12.5px;
   cursor: pointer;
   outline: none;
 }
@@ -104,41 +117,105 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-/* Top KPI Stat Cards Grid */
+/* Top 5 KPI Cards Grid (Fixed: Proper 5-column layout) */
+.kpiGrid,
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-4);
+  width: 100%;
 }
 
+@media (max-width: 1300px) {
+  .kpiGrid,
+  .statsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .kpiGrid,
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpiCard,
 .statCard {
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
   position: relative;
   overflow: hidden;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.kpiCard:hover,
 .statCard:hover {
   border-color: var(--color-accent);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
+.kpiHeader,
 .statHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--color-text-secondary);
+}
+
+.kpiLabel {
   font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
+  font-weight: 700;
   letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
+
+.kpiValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.kpiMainNumber {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-text-primary);
+  font-feature-settings: "tnum";
+}
+
+.kpiSubNumber {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.kpiFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.achievementBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .statValue {
@@ -422,6 +499,102 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 16px;
+}
+
+/* Repository Articles Controls Bar */
+.repoControlsBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.repoFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.repoFilterLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.repoSelect {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  outline: none;
+}
+
+.repoViewToggle {
+  display: flex;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 2px;
+}
+
+.repoViewBtn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.repoViewBtnActive {
+  background: var(--color-accent) !important;
+  color: #ffffff !important;
+}
+
+.repoRightGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.repoSearchWrapper {
+  position: relative;
+}
+
+.repoSearchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+}
+
+.repoSearchInput {
+  height: 32px;
+  padding-left: 30px;
+  padding-right: 12px;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  color: var(--color-text-primary);
+  outline: none;
+  width: 240px;
 }
 
 .articleCard {
