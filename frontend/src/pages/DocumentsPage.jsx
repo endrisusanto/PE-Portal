@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, Download, Eye, Trash2, File, FileText, Image } from 'lucide-react';
+import { Upload, Download, Eye, Trash2, File, FileText, Image, ExternalLink } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -25,6 +25,12 @@ export const DocumentsPage = () => {
 
   // Preview modal
   const [previewDoc, setPreviewDoc] = useState(null);
+
+  const getDocUrl = (id, action = 'preview') => {
+    const token = localStorage.getItem('pe_portal_token');
+    const base = `/api/v1/documents/${id}/${action}`;
+    return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  };
 
   const fetchDocs = async () => {
     setLoading(true);
@@ -152,7 +158,7 @@ export const DocumentsPage = () => {
             <Eye size={14} />
           </Button>
           <a
-            href={`/api/v1/documents/${val}/download`}
+            href={getDocUrl(val, 'download')}
             target="_blank"
             rel="noreferrer"
             download
@@ -304,31 +310,65 @@ export const DocumentsPage = () => {
         isOpen={Boolean(previewDoc)}
         onClose={() => setPreviewDoc(null)}
         title={`Preview: ${previewDoc?.title || ''}`}
-        maxWidth="900px"
+        maxWidth="950px"
       >
         {previewDoc && (
-          <div style={{ minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {previewDoc.file_type === 'img' ? (
               <img
-                src={`/api/v1/documents/${previewDoc.id}/preview`}
+                src={getDocUrl(previewDoc.id, 'preview')}
                 alt={previewDoc.title}
-                style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain', margin: '0 auto' }}
+                style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain', margin: '0 auto', borderRadius: 'var(--radius-sm)' }}
               />
-            ) : (
+            ) : previewDoc.file_type === 'pdf' ? (
               <iframe
-                src={`/api/v1/documents/${previewDoc.id}/preview`}
+                src={getDocUrl(previewDoc.id, 'preview')}
                 title={previewDoc.title}
                 style={{
                   width: '100%',
-                  height: '550px',
+                  height: '600px',
                   border: '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-sm)',
+                  backgroundColor: '#ffffff',
                 }}
               />
+            ) : (
+              <div
+                style={{
+                  padding: '40px 24px',
+                  textAlign: 'center',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+              >
+                <FileText size={48} color="var(--color-accent)" />
+                <div>
+                  <h4 style={{ margin: '0 0 6px', fontSize: '16px' }}>{previewDoc.title}</h4>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                    Format <strong>{previewDoc.file_type?.toUpperCase()}</strong> ({formatFileSize(previewDoc.file_size)})
+                  </p>
+                </div>
+                <p style={{ maxWidth: '440px', fontSize: '12.5px', color: 'var(--color-text-muted)', margin: 0 }}>
+                  Format dokumen ini (office/spreadsheet) disarankan untuk dibuka melalui tab baru atau diunduh langsung untuk melihat konten penuh.
+                </p>
+              </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', alignItems: 'center' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={ExternalLink}
+                onClick={() => window.open(getDocUrl(previewDoc.id, 'preview'), '_blank')}
+              >
+                Buka di Tab Baru
+              </Button>
               <a
-                href={`/api/v1/documents/${previewDoc.id}/download`}
+                href={getDocUrl(previewDoc.id, 'download')}
                 target="_blank"
                 rel="noreferrer"
                 download
@@ -336,9 +376,13 @@ export const DocumentsPage = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
+                  padding: '6px 14px',
                   fontSize: 'var(--font-size-xs)',
-                  color: 'var(--color-accent)',
+                  backgroundColor: 'var(--color-accent)',
+                  color: '#ffffff',
+                  borderRadius: 'var(--radius-sm)',
                   fontWeight: 600,
+                  textDecoration: 'none',
                 }}
               >
                 <Download size={14} /> Download Original File

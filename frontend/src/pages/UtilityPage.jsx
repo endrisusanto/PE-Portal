@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Eye,
+  ExternalLink,
   Pipette,
   Eraser,
   Paintbrush,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
+import { Modal } from '../components/common/Modal';
 import styles from './UtilityPage.module.css';
 
 export const UtilityPage = () => {
@@ -411,6 +413,7 @@ const DocumentCompressTab = () => {
   const [compressionPreset, setCompressionPreset] = useState('ebook'); // screen, ebook, printer
   const [compressing, setCompressing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [previewPdf, setPreviewPdf] = useState(null);
   const fileInputRef = useRef(null);
 
   const formatBytes = (bytes) => {
@@ -433,10 +436,13 @@ const DocumentCompressTab = () => {
       file,
       name: file.name,
       originalSize: file.size,
+      originalUrl: URL.createObjectURL(file),
       status: 'idle',
       compressedBlob: null,
+      compressedUrl: null,
       compressedSize: null,
       savings: null,
+      errorMessage: null,
     }));
 
     setDocs((prev) => [...prev, ...items]);
@@ -449,6 +455,7 @@ const DocumentCompressTab = () => {
 
     try {
       const res = await api.post('/utility/compress-pdf', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
         responseType: 'blob',
       });
 
@@ -464,16 +471,38 @@ const DocumentCompressTab = () => {
         compressedUrl,
         compressedSize,
         savings,
+        errorMessage: null,
       };
     } catch (err) {
-      console.warn('Backend ghostscript compression fallback:', err);
-      // Fallback: If server is missing Ghostscript, mark done with simulated compression or report
+      console.warn('Backend ghostscript compression error:', err);
+      let errorMsg = 'Ghostscript gagal memproses file atau file terproteksi password.';
+      if (err.response?.data) {
+        if (err.response.data instanceof Blob) {
+          try {
+            const text = await err.response.data.text();
+            const json = JSON.parse(text);
+            if (json.message) errorMsg = json.message;
+          } catch (_) {}
+        } else if (err.response.data.message) {
+          errorMsg = err.response.data.message;
+        }
+      }
       return {
         ...item,
         status: 'error',
-        errorMessage: err.response?.data?.message || 'Ghostscript belum terpasang di container atau file dilindungi kata sandi.',
+        errorMessage: errorMsg,
       };
     }
+  };
+
+  const handleCompressSingle = async (docItem) => {
+    setDocs((prev) =>
+      prev.map((d) => (d.id === docItem.id ? { ...d, status: 'processing', errorMessage: null } : d))
+    );
+    const updated = await compressSingleDoc(docItem);
+    setDocs((prev) =>
+      prev.map((d) => (d.id === docItem.id ? updated : d))
+    );
   };
 
   const handleStartCompressAll = async () => {
@@ -483,6 +512,9 @@ const DocumentCompressTab = () => {
       if (item.status === 'done') {
         updated.push(item);
       } else {
+        setDocs((prev) =>
+          prev.map((d) => (d.id === item.id ? { ...d, status: 'processing', errorMessage: null } : d))
+        );
         const res = await compressSingleDoc(item);
         updated.push(res);
       }
@@ -491,11 +523,21 @@ const DocumentCompressTab = () => {
     setCompressing(false);
   };
 
+  const handleRemoveDoc = (id) => {
+    setDocs((prev) => {
+      const target = prev.find((d) => d.id === id);
+      if (target?.originalUrl) URL.revokeObjectURL(target.originalUrl);
+      if (target?.compressedUrl) URL.revokeObjectURL(target.compressedUrl);
+      return prev.filter((d) => d.id !== id);
+    });
+  };
+
   const handleDownloadPdf = (item) => {
-    if (!item.compressedUrl) return;
+    const url = item.compressedUrl || item.originalUrl;
+    if (!url) return;
     const a = document.createElement('a');
-    a.href = item.compressedUrl;
-    a.download = `compressed_${item.name}`;
+    a.href = url;
+    a.download = item.compressedUrl ? `compressed_${item.name}` : item.name;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -601,9 +643,9 @@ const DocumentCompressTab = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {doc.status === 'done' && (
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', marginRight: '6px' }}>
                     <p style={{ margin: 0, fontWeight: 700, fontSize: '13.5px', color: 'var(--color-text-primary)' }}>
                       {formatBytes(doc.compressedSize)}
                     </p>
@@ -620,6 +662,23 @@ const DocumentCompressTab = () => {
                   </span>
                 )}
 
+                {/* Shortcut Preview PDF Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Eye}
+                  onClick={() =>
+                    setPreviewPdf({
+                      url: doc.compressedUrl || doc.originalUrl,
+                      name: doc.name,
+                      isCompressed: Boolean(doc.compressedUrl),
+                    })
+                  }
+                  title="Shortcut Preview PDF"
+                >
+                  Preview PDF
+                </Button>
+
                 {doc.status === 'done' ? (
                   <Button variant="primary" size="sm" icon={Download} onClick={() => handleDownloadPdf(doc)}>
                     Unduh PDF
@@ -628,17 +687,76 @@ const DocumentCompressTab = () => {
                   <Button
                     variant="secondary"
                     size="sm"
-                    loading={compressing}
-                    onClick={() => compressSingleDoc(doc)}
+                    loading={doc.status === 'processing'}
+                    disabled={compressing || doc.status === 'processing'}
+                    onClick={() => handleCompressSingle(doc)}
                   >
                     Kompres
                   </Button>
                 )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveDoc(doc.id)}
+                  title="Hapus dari daftar"
+                >
+                  <Trash2 size={14} color="var(--color-error)" />
+                </Button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Shortcut PDF Preview Modal */}
+      <Modal
+        isOpen={Boolean(previewPdf)}
+        onClose={() => setPreviewPdf(null)}
+        title={`Preview PDF: ${previewPdf?.name || ''} ${previewPdf?.isCompressed ? '(Terkonpresi)' : '(Asli)'}`}
+        maxWidth="950px"
+      >
+        {previewPdf && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <iframe
+              src={previewPdf.url}
+              title={previewPdf.name}
+              style={{
+                width: '100%',
+                height: '600px',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: '#ffffff',
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={ExternalLink}
+                onClick={() => window.open(previewPdf.url, '_blank')}
+              >
+                Buka di Tab Baru
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Download}
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = previewPdf.url;
+                  a.download = previewPdf.isCompressed ? `compressed_${previewPdf.name}` : previewPdf.name;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+              >
+                Unduh PDF
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
