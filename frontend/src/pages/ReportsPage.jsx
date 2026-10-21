@@ -26,6 +26,7 @@ import { Modal } from '../components/common/Modal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
+import { Table } from '../components/common/Table';
 import styles from './ReportsPage.module.css';
 
 export const ReportsPage = () => {
@@ -609,56 +610,54 @@ export const ReportsPage = () => {
 
       {/* TAB 4: DELIVERY LOGS */}
       {activeTab === 'logs' && (
-        <div className={styles.tableContainer}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Dispatched At</th>
-                <th>Subject</th>
-                <th>Recipients</th>
-                <th>Status</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)' }}>
-                    {t('reports.empty_logs')}
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log) => {
-                  let recDisplay = '-';
-                  try {
-                    const parsed = typeof log.recipients === 'string' ? JSON.parse(log.recipients) : log.recipients;
-                    if (Array.isArray(parsed)) recDisplay = parsed.join(', ');
-                  } catch (e) {
-                    // ignore
-                  }
-                  return (
-                    <tr key={log.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {new Date(log.sent_at).toLocaleString()}
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{log.subject}</td>
-                      <td>{recDisplay}</td>
-                      <td>
-                        <StatusBadge
-                          status={log.status === 'success' ? 'approved' : 'rejected'}
-                          label={log.status}
-                        />
-                      </td>
-                      <td style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                        {log.error_message || 'Transmitted cleanly via SMTP gateway'}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table
+          columns={[
+            {
+              title: 'Dispatched At',
+              key: 'sent_at',
+              render: (val) => <span style={{ whiteSpace: 'nowrap' }}>{new Date(val).toLocaleString()}</span>,
+            },
+            {
+              title: 'Subject',
+              key: 'subject',
+              render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>,
+            },
+            {
+              title: 'Recipients',
+              key: 'recipients',
+              render: (val) => {
+                let recDisplay = '-';
+                try {
+                  const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+                  if (Array.isArray(parsed)) recDisplay = parsed.join(', ');
+                } catch (e) {}
+                return <span>{recDisplay}</span>;
+              },
+            },
+            {
+              title: 'Status',
+              key: 'status',
+              render: (val) => (
+                <StatusBadge
+                  status={val === 'success' ? 'approved' : 'rejected'}
+                  label={val}
+                />
+              ),
+            },
+            {
+              title: 'Details',
+              key: 'error_message',
+              sortable: false,
+              render: (val) => (
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                  {val || 'Transmitted cleanly via SMTP gateway'}
+                </span>
+              ),
+            },
+          ]}
+          data={logs}
+          emptyMessage={t('reports.empty_logs')}
+        />
       )}
 
       {/* Create Template Modal */}

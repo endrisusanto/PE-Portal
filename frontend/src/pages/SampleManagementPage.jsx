@@ -19,7 +19,10 @@ import {
   Smartphone,
   ShieldCheck,
   X,
-  RefreshCw
+  RefreshCw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -64,6 +67,40 @@ export const SampleManagementPage = () => {
   const [tableStatus, setTableStatus] = useState('');
   const [tableCondition, setTableCondition] = useState('');
   const [loadingTable, setLoadingTable] = useState(false);
+
+  // Table Sorting State
+  const [tableSortKey, setTableSortKey] = useState(null);
+  const [tableSortDirection, setTableSortDirection] = useState(null);
+
+  const handleTableSort = (key) => {
+    if (tableSortKey === key) {
+      if (tableSortDirection === 'asc') setTableSortDirection('desc');
+      else if (tableSortDirection === 'desc') {
+        setTableSortKey(null);
+        setTableSortDirection(null);
+      } else setTableSortDirection('asc');
+    } else {
+      setTableSortKey(key);
+      setTableSortDirection('asc');
+    }
+  };
+
+  const sortedTableData = useMemo(() => {
+    if (!tableSortKey || !tableSortDirection || !tableData.length) return tableData;
+    return [...tableData].sort((a, b) => {
+      const valA = a[tableSortKey];
+      const valB = b[tableSortKey];
+      if (valA === valB) return 0;
+      if (valA === null || valA === undefined) return 1;
+      if (valB === null || valB === undefined) return -1;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return tableSortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      return tableSortDirection === 'asc'
+        ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' })
+        : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [tableData, tableSortKey, tableSortDirection]);
 
   // Scanner Form State
   const [scanAsset, setScanAsset] = useState('');
@@ -894,13 +931,37 @@ export const SampleManagementPage = () => {
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>#</th>
-                  <th>No. Asset</th>
-                  <th>Model</th>
-                  <th>Serial Number</th>
-                  <th>Status Pinjam</th>
-                  <th>Kondisi Fisik</th>
-                  <th>Lokasi</th>
-                  <th>PIC Sample</th>
+                  {[
+                    { key: 'asset_number', label: 'No. Asset' },
+                    { key: 'model', label: 'Model' },
+                    { key: 'serial_number', label: 'Serial Number' },
+                    { key: 'status_pinjam', label: 'Status Pinjam' },
+                    { key: 'condition_status', label: 'Kondisi Fisik' },
+                    { key: 'location', label: 'Lokasi' },
+                    { key: 'pic_sample', label: 'PIC Sample' },
+                  ].map((col) => (
+                    <th
+                      key={col.key}
+                      onClick={() => handleTableSort(col.key)}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      title={`Klik untuk mengurutkan ${col.label}`}
+                    >
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{col.label}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          {tableSortKey === col.key ? (
+                            tableSortDirection === 'asc' ? (
+                              <ArrowUp size={12} color="var(--color-accent)" />
+                            ) : (
+                              <ArrowDown size={12} color="var(--color-accent)" />
+                            )
+                          ) : (
+                            <ArrowUpDown size={11} style={{ opacity: 0.35 }} />
+                          )}
+                        </span>
+                      </div>
+                    </th>
+                  ))}
                   <th style={{ textAlign: 'center' }}>Aksi</th>
                 </tr>
               </thead>
@@ -911,14 +972,14 @@ export const SampleManagementPage = () => {
                       Memuat daftar sample...
                     </td>
                   </tr>
-                ) : tableData.length === 0 ? (
+                ) : sortedTableData.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>
                       Tidak ada sample yang cocok dengan kriteria pencarian.
                     </td>
                   </tr>
                 ) : (
-                  tableData.map((s, idx) => (
+                  sortedTableData.map((s, idx) => (
                     <tr key={s.id}>
                       <td style={{ color: 'var(--color-text-muted)' }}>
                         {(tablePage - 1) * tableLimit + idx + 1}

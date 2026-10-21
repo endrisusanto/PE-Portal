@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   GitCompare,
@@ -16,7 +16,10 @@ import {
   ChevronRight,
   TrendingUp,
   Activity,
-  ExternalLink
+  ExternalLink,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import api from '../api/client';
 import { Modal } from '../components/common/Modal';
@@ -62,6 +65,40 @@ export const SoftwareMRPage = () => {
   // Copy Feedback Toast
   const [copyFeedback, setCopyFeedback] = useState('');
   const [syncing, setSyncing] = useState(false);
+
+  // Table Sort State
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null);
+
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') {
+        setSortKey(null);
+        setSortDirection(null);
+      } else setSortDirection('asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedReleases = useMemo(() => {
+    if (!sortKey || !sortDirection || !releases.length) return releases;
+    return [...releases].sort((a, b) => {
+      const valA = a[sortKey];
+      const valB = b[sortKey];
+      if (valA === valB) return 0;
+      if (valA === null || valA === undefined) return 1;
+      if (valB === null || valB === undefined) return -1;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      return sortDirection === 'asc'
+        ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' })
+        : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [releases, sortKey, sortDirection]);
 
   const handleSyncIntranet = async () => {
     setSyncing(true);
@@ -554,14 +591,38 @@ export const SoftwareMRPage = () => {
             <thead>
               <tr>
                 <th style={{ width: 40 }}>#</th>
-                <th>Model</th>
-                <th>PIC</th>
-                <th>AP Version</th>
-                <th>CP Version</th>
-                <th>CSC Version</th>
-                <th>CSC Version Up</th>
-                <th>Tanggal Rilis</th>
-                <th>Status</th>
+                {[
+                  { key: 'model', label: 'Model' },
+                  { key: 'pic', label: 'PIC' },
+                  { key: 'ap', label: 'AP Version' },
+                  { key: 'cp', label: 'CP Version' },
+                  { key: 'csc', label: 'CSC Version' },
+                  { key: 'csc_up', label: 'CSC Version Up' },
+                  { key: 'release_date', label: 'Tanggal Rilis' },
+                  { key: 'status', label: 'Status' },
+                ].map((col) => (
+                  <th
+                    key={col.key}
+                    onClick={() => handleSort(col.key)}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                    title={`Klik untuk mengurutkan ${col.label}`}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{col.label}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        {sortKey === col.key ? (
+                          sortDirection === 'asc' ? (
+                            <ArrowUp size={12} color="var(--color-accent)" />
+                          ) : (
+                            <ArrowDown size={12} color="var(--color-accent)" />
+                          )
+                        ) : (
+                          <ArrowUpDown size={11} style={{ opacity: 0.35 }} />
+                        )}
+                      </span>
+                    </div>
+                  </th>
+                ))}
                 <th style={{ textAlign: 'center' }}>Cheatsheet</th>
               </tr>
             </thead>
@@ -572,14 +633,14 @@ export const SoftwareMRPage = () => {
                     Memuat data rilis firmware...
                   </td>
                 </tr>
-              ) : releases.length === 0 ? (
+              ) : sortedReleases.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>
                     Tidak ada catatan rilis yang cocok dengan filter pencarian.
                   </td>
                 </tr>
               ) : (
-                releases.map((rel, idx) => (
+                sortedReleases.map((rel, idx) => (
                   <tr
                     key={rel.id}
                     className={styles.clickableRow}

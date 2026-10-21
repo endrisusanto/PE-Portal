@@ -23,6 +23,28 @@
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sortableTh:hover {
+  background-color: var(--color-bg-subtle, rgba(255, 255, 255, 0.04));
+  color: var(--color-text-primary);
+}
+
+.sortIcon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.unsortedIcon {
+  opacity: 0.35;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.sortableTh:hover .unsortedIcon {
+  opacity: 0.9;
+  color: var(--color-accent);
 }
 
 .td {
