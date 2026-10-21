@@ -172,7 +172,45 @@ http://localhost:3025
 
 ---
 
-## 💻 Local Development Setup (Without Docker)
+## ⚡ Bare Metal Installation (Without Docker)
+
+Automated 1-command installer for bare metal Linux servers (Debian/Ubuntu) or local workstations. Automatically handles **git clone, system dependencies (Go 1.22+, Node.js 20+, PostgreSQL 16, Redis), database initialization, production build, and service runners**.
+
+### 1-Command Quick Install (Linux)
+Run directly via bash:
+```bash
+curl -fsSL https://raw.githubusercontent.com/endrisusanto/PE-Portal/main/install-baremetal.sh | bash
+```
+*Or if you have already cloned the repository:*
+```bash
+./install-baremetal.sh
+```
+
+### Managing Bare Metal Services
+After installation finishes, control the portal using either method:
+
+#### Option A: Standalone Runner (No Root Required)
+```bash
+./start-baremetal.sh   # Starts backend on :8085 and frontend preview on :3025 in background
+./stop-baremetal.sh    # Gracefully stops all portal services
+tail -f logs/backend.log logs/frontend.log  # View live application logs
+```
+
+#### Option B: Systemd Daemon (Auto-Start on Boot)
+```bash
+sudo systemctl enable --now pe-portal-backend pe-portal-frontend
+sudo systemctl status pe-portal-backend pe-portal-frontend
+sudo systemctl restart pe-portal-backend pe-portal-frontend
+```
+
+### 🪟 Windows Bare Metal Installation
+If running on Windows bare metal without Docker:
+- Run **`install-baremetal.bat`** to verify dependencies, prepare `.env`, and compile the backend and frontend.
+- Run **`start-baremetal.bat`** to launch both services.
+
+---
+
+## 💻 Manual Local Development Setup (Without Docker)
 
 ### Prerequisites
 - **Go**: 1.22+

@@ -35,6 +35,7 @@ uploads/
 *.swo
 *~
 *.log
+logs/
 
 # Scratch & temporary agent logs
 scratch/

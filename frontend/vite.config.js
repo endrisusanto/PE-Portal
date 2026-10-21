@@ -14,4 +14,15 @@ export default defineConfig({
       },
     },
   },
+  // ponytail: enable preview server with proxy for lightweight bare-metal deployment
+  preview: {
+    port: 3025,
+    host: true,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:8085',
+        changeOrigin: true,
+      },
+    },
+  },
 })

@@ -29,7 +29,8 @@ func Load() *Config {
 	_ = godotenv.Load("../.env")
 	_ = godotenv.Load(".env")
 
-	port := getEnv("PORT", "8080")
+	// ponytail: support both PORT and BACKEND_PORT with 8085 default for bare-metal
+	port := getEnv("PORT", getEnv("BACKEND_PORT", "8085"))
 	dbURL := getEnv("DATABASE_URL", "")
 	if dbURL == "" {
 		dbURL = getEnv("LOCAL_DATABASE_URL", "postgres://pe_portal:sein_pe_portal_secret_2026@localhost:5432/pe_portal?sslmode=disable")
