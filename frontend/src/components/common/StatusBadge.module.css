@@ -1,0 +1,65 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+/* Status variants */
+.draft, .planning, .pending, .concept {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.in_progress, .evt, .dvt {
+  background-color: var(--color-info-subtle);
+  color: var(--color-info);
+}
+
+.review, .pvt {
+  background-color: var(--color-warning-subtle);
+  color: var(--color-warning);
+}
+
+.approved, .completed, .done, .mp, .released, .healthy {
+  background-color: var(--color-success-subtle);
+  color: var(--color-success);
+}
+
+.blocked, .unhealthy, .on_hold {
+  background-color: var(--color-error-subtle);
+  color: var(--color-error);
+}
+
+/* Roles */
+.admin {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.manager {
+  background-color: var(--color-info-subtle);
+  color: var(--color-info);
+}
+
+.member {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.default {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}

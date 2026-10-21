@@ -1,0 +1,61 @@
+/* ============================================================================
+   Language Switcher (Compact Switch Button)
+   ponytail: Segmented switch button replacing select dropdown.
+   1-click instant language switch, 0 popup bloat, accessible and responsive.
+   ============================================================================ */
+
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  height: 28px;
+  user-select: none;
+}
+
+.globe {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.switchGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.switchBtn {
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  line-height: 22px;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.switchBtn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-hover);
+}
+
+.switchBtnActive {
+  background-color: var(--color-accent);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+}
+
+.switchBtnActive:hover {
+  background-color: var(--color-accent-hover);
+  color: #ffffff;
+}

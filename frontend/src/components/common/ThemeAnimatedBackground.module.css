@@ -1,0 +1,124 @@
+/* ============================================================================
+   Theme Animated Background
+   Aesthetic, lightweight, 60fps ambient background for SEIN PE-Portal.
+   Adheres to /ponytail (0 heavy libs) and /better-ui (subtle, non-distracting depth).
+   ============================================================================ */
+
+.backgroundContainer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.backgroundHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Ambient Moving Aurora Mesh Glow */
+.auroraLayer {
+  position: absolute;
+  inset: -15%;
+  width: 130%;
+  height: 130%;
+  opacity: 0.16;
+  filter: blur(50px);
+  will-change: transform;
+  animation: auroraBreathe 24s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .auroraLayer {
+  opacity: 0.22;
+}
+
+@keyframes auroraBreathe {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(-2%, 2%) scale(1.06) rotate(1.5deg);
+  }
+  100% {
+    transform: translate(2%, -2%) scale(0.98) rotate(-1deg);
+  }
+}
+
+/* Theme-Specific Aurora Gradients */
+/* 1. SEIN Corporate Teal */
+:global([data-palette="corporate"]) .auroraLayer {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(13, 115, 119, 0.45), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(77, 184, 181, 0.35), transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.2), transparent 50%);
+}
+
+/* 2. Theme Cute (🌸 Sakura Mochi) */
+:global([data-palette="cute"]) .auroraLayer {
+  background:
+    radial-gradient(circle at 18% 25%, rgba(255, 117, 151, 0.55), transparent 45%),
+    radial-gradient(circle at 82% 75%, rgba(244, 114, 182, 0.45), transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(251, 207, 232, 0.35), transparent 40%),
+    radial-gradient(circle at 70% 20%, rgba(224, 87, 128, 0.3), transparent 35%);
+}
+
+/* 3. Cyberpunk Matrix Emerald (⚡) */
+:global([data-palette="cyberpunk"]) .auroraLayer {
+  background:
+    radial-gradient(circle at 80% 15%, rgba(16, 185, 129, 0.5), transparent 45%),
+    radial-gradient(circle at 20% 85%, rgba(5, 150, 105, 0.45), transparent 50%),
+    radial-gradient(circle at 50% 30%, rgba(52, 211, 153, 0.25), transparent 40%);
+}
+
+/* 4. Galactic Cobalt (🌌) */
+:global([data-palette="cobalt"]) .auroraLayer {
+  background:
+    radial-gradient(circle at 20% 25%, rgba(37, 99, 235, 0.5), transparent 45%),
+    radial-gradient(circle at 80% 70%, rgba(96, 165, 250, 0.4), transparent 50%),
+    radial-gradient(circle at 50% 85%, rgba(30, 58, 138, 0.5), transparent 45%);
+}
+
+/* 5. Sunset Amber (🌅) */
+:global([data-palette="amber"]) .auroraLayer {
+  background:
+    radial-gradient(circle at 50% 90%, rgba(245, 158, 11, 0.55), transparent 55%),
+    radial-gradient(circle at 85% 20%, rgba(217, 119, 6, 0.4), transparent 45%),
+    radial-gradient(circle at 15% 45%, rgba(251, 191, 36, 0.35), transparent 40%);
+}
+
+/* 6. Cyber Lavender (🔮) */
+:global([data-palette="purple"]) .auroraLayer {
+  background:
+    radial-gradient(circle at 25% 20%, rgba(167, 139, 250, 0.5), transparent 45%),
+    radial-gradient(circle at 75% 80%, rgba(124, 58, 237, 0.45), transparent 50%),
+    radial-gradient(circle at 50% 40%, rgba(196, 181, 253, 0.3), transparent 40%);
+}
+
+/* 7. Custom Personal Scheme */
+:global([data-palette="custom"]) .auroraLayer {
+  background:
+    radial-gradient(circle at 20% 30%, var(--color-accent), transparent 45%),
+    radial-gradient(circle at 80% 70%, var(--color-accent-hover), transparent 45%),
+    radial-gradient(circle at 50% 80%, var(--color-accent-subtle), transparent 40%);
+}
+
+/* Active 60fps Particle Canvas */
+.particleCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auroraLayer {
+    animation: none !important;
+  }
+}

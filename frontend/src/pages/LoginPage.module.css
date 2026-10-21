@@ -1,0 +1,103 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  padding: var(--space-4);
+  position: relative;
+  z-index: 1;
+}
+
+.langBar {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-7);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.logoContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4) auto;
+  max-width: 180px;
+}
+
+.loginLogo {
+  width: 100%;
+  height: auto;
+  max-height: 72px;
+  object-fit: contain;
+}
+
+[data-theme="dark"] .loginLogo {
+  filter: brightness(0) invert(1);
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
+}
+
+.alertError {
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-error-subtle);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.submitBtn {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.footerNote {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.hintTag {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,41 @@
+# ============================================================================
+# PE-Portal Root .gitignore
+# ============================================================================
+
+# Environment variables & secrets
+.env
+*.env
+!.env.example
+
+# Compiled binaries & builds
+backend/server
+backend/bin/
+bin/
+dist/
+dist-ssr/
+frontend/dist/
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+vendor/
+
+# Local database & uploaded media storage
+data/
+uploads/
+/data/
+*.db
+*.sqlite
+
+# IDE & OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.log
+
+# Scratch & temporary agent logs
+scratch/
+.tempmediaStorage/

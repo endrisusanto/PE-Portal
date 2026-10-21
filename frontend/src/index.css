@@ -1,0 +1,309 @@
+/* ============================================================================
+   PE-Portal Design System & Tokens
+   Designed for: SEIN Production Engineer Group
+   Aesthetic: Industrial Utility / Engineering Precision
+   Design Dials: ENERGY 1 / RHYTHM 2 / MOTION 1
+   ============================================================================ */
+
+:root {
+  /* Color Palette - Light Mode
+     Context: Production engineering workshop and office.
+     Teal is reserved strictly for actionable primary controls. */
+  --color-bg-primary: #f8f9fb;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f0f2f5;
+  --color-bg-hover: #e8ecf1;
+  --color-text-primary: #1a1d23;
+  --color-text-secondary: #5f6368;
+  --color-text-muted: #9aa0a6;
+  --color-accent: #0d7377;
+  --color-accent-hover: #0a5c5f;
+  --color-accent-subtle: #e6f4f4;
+  --color-border: #dadce0;
+  --color-border-subtle: #e8eaed;
+  --color-error: #c5221f;
+  --color-error-subtle: #fce8e6;
+  --color-warning: #e8710a;
+  --color-warning-subtle: #fef7e0;
+  --color-success: #188038;
+  --color-success-subtle: #e6f4ea;
+  --color-info: #1a73e8;
+  --color-info-subtle: #e8f0fe;
+
+  /* Typography: System font stack + native Korean font support for zero latency */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', 'Noto Sans', sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+
+  /* Font Sizes */
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 26px;
+
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+
+  /* Spacing Scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+
+  /* Radius: 3 purposeful levels. No circular pill shapes for tool controls. */
+  --radius-sm: 4px;   /* buttons, inputs, badges */
+  --radius-md: 8px;   /* cards, dropdowns, panels */
+  --radius-lg: 12px;  /* modals, popovers */
+
+  /* Shadows: Functional depth only. Most UI elements sit flat. */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.14);
+
+  /* Transitions: MOTION 1. Rapid, discrete feedback. */
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+
+  /* Layout */
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 68px;
+  --topbar-height: 56px;
+}
+
+/* Dark Mode Tokens
+   Contrast compliance: #4db8b5 on #1a1d23 provides a verified 7.2:1 contrast ratio. */
+[data-theme="dark"] {
+  --color-bg-primary: #14171c;
+  --color-bg-secondary: #1e222a;
+  --color-bg-tertiary: #272c36;
+  --color-bg-hover: #323844;
+  --color-text-primary: #e8eaed;
+  --color-text-secondary: #9aa0a6;
+  --color-text-muted: #6b7280;
+  --color-accent: #4db8b5;
+  --color-accent-hover: #6fcfcc;
+  --color-accent-subtle: #163333;
+  --color-border: #323844;
+  --color-border-subtle: #272c36;
+  --color-error: #f28b82;
+  --color-error-subtle: #3c1e1e;
+  --color-warning: #fdd663;
+  --color-warning-subtle: #3a3215;
+  --color-success: #81c995;
+  --color-success-subtle: #193424;
+  --color-info: #8ab4f8;
+  --color-info-subtle: #1a2d48;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.65);
+}
+
+/* ============================================================================
+   Decorative Palette Themes (Light & Dark Variants)
+   Aesthetics: Cute Pastel, Cyberpunk Neon, Galactic Cobalt, Sunset Amber, Cyber Lavender
+   ============================================================================ */
+
+/* 1. Theme Cute (🌸 Sakura Mochi / Pastel Pink) */
+[data-palette="cute"] {
+  --color-accent: #e05780;
+  --color-accent-hover: #c93b67;
+  --color-accent-subtle: #fdf2f4;
+}
+[data-theme="dark"][data-palette="cute"],
+[data-palette="cute"][data-theme="dark"] {
+  --color-accent: #ff7597;
+  --color-accent-hover: #ff94af;
+  --color-accent-subtle: #3a1724;
+}
+
+/* 2. Cyberpunk Neon Emerald (⚡ Matrix Emerald) */
+[data-palette="cyberpunk"] {
+  --color-accent: #059669;
+  --color-accent-hover: #047857;
+  --color-accent-subtle: #ecfdf5;
+}
+[data-theme="dark"][data-palette="cyberpunk"],
+[data-palette="cyberpunk"][data-theme="dark"] {
+  --color-accent: #10b981;
+  --color-accent-hover: #34d399;
+  --color-accent-subtle: #064e3b;
+}
+
+/* 3. Galactic Cobalt (🌌 Corporate Blue) */
+[data-palette="cobalt"] {
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-subtle: #eff6ff;
+}
+[data-theme="dark"][data-palette="cobalt"],
+[data-palette="cobalt"][data-theme="dark"] {
+  --color-accent: #60a5fa;
+  --color-accent-hover: #93c5fd;
+  --color-accent-subtle: #1e3a8a;
+}
+
+/* 4. Sunset Amber (🌅 Warm Peach Amber) */
+[data-palette="amber"] {
+  --color-accent: #d97706;
+  --color-accent-hover: #b45309;
+  --color-accent-subtle: #fffbeb;
+}
+[data-theme="dark"][data-palette="amber"],
+[data-palette="amber"][data-theme="dark"] {
+  --color-accent: #fbbf24;
+  --color-accent-hover: #fcd34d;
+  --color-accent-subtle: #451a03;
+}
+
+/* 5. Cyber Lavender (🔮 Electric Violet) */
+[data-palette="purple"] {
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-accent-subtle: #f5f3ff;
+}
+[data-theme="dark"][data-palette="purple"],
+[data-palette="purple"][data-theme="dark"] {
+  --color-accent: #a78bfa;
+  --color-accent-hover: #c4b5fd;
+  --color-accent-subtle: #2e1065;
+}
+
+
+/* CSS Reset & Defaults */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Select & Dropdown Styling: Fix dark mode readability */
+select {
+  height: 36px;
+  padding: 0 var(--space-3);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  color-scheme: light;
+}
+
+select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-subtle);
+}
+
+select option, select optgroup {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+/* Dark Mode Overrides for Form Controls & Native Elements */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] select,
+[data-theme="dark"] input,
+[data-theme="dark"] textarea {
+  color-scheme: dark;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] select optgroup {
+  background-color: #1e222a;
+  color: #e8eaed;
+}
+
+/* ponytail: Native SVG micro-fine sand grain via data URI (0 dependencies, fine sand texture) */
+[data-theme="dark"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 99999;
+  opacity: 0.026;
+  background-repeat: repeat;
+  background-size: 80px 80px;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='sandGrain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23sandGrain)'/%3E%3C/svg%3E");
+}
+
+/* Accessibility: Focused states */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
