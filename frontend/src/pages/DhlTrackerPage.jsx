@@ -23,6 +23,11 @@ import {
   Building2,
   FileText,
   Filter,
+  LayoutGrid,
+  Kanban,
+  Table as TableIcon,
+  Eye,
+  PackageCheck,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -45,6 +50,14 @@ export const DhlTrackerPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [collectedFilter, setCollectedFilter] = useState('all');
+
+  // View Mode: 'grid' | 'kanban' | 'table' (ponytail: persistent minimal state)
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('pe_dhl_view_mode') || 'grid');
+
+  const handleViewChange = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('pe_dhl_view_mode', mode);
+  };
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -133,6 +146,62 @@ export const DhlTrackerPage = () => {
 
     return { total, inTransit, delivered, waitingCollection };
   }, [shipments]);
+
+  // Kanban Lifecycle Columns (ponytail: native clean array grouping)
+  const kanbanColumns = useMemo(() => {
+    const preTransit = [];
+    const inTransit = [];
+    const waitingPickup = [];
+    const completed = [];
+
+    shipments.forEach((s) => {
+      const code = (s.status_code || '').toLowerCase();
+      const isCollected = Boolean(s.is_collected);
+
+      if (code === 'delivered') {
+        if (isCollected) {
+          completed.push(s);
+        } else {
+          waitingPickup.push(s);
+        }
+      } else if (code === 'transit') {
+        inTransit.push(s);
+      } else {
+        preTransit.push(s);
+      }
+    });
+
+    return [
+      {
+        id: 'pre-transit',
+        title: t('dhl.kanban_pre_transit', 'Pre-Transit / Manifest'),
+        icon: Clock,
+        badgeClass: styles.kanbanBadgeBlue,
+        items: preTransit,
+      },
+      {
+        id: 'in-transit',
+        title: t('dhl.kanban_transit', 'Dalam Perjalanan (In Transit)'),
+        icon: Truck,
+        badgeClass: styles.kanbanBadgeAmber,
+        items: inTransit,
+      },
+      {
+        id: 'waiting-pickup',
+        title: t('dhl.kanban_waiting_pickup', 'Menunggu Ambil PIC'),
+        icon: PackageCheck,
+        badgeClass: styles.kanbanBadgeRed,
+        items: waitingPickup,
+      },
+      {
+        id: 'completed',
+        title: t('dhl.kanban_completed', 'Selesai / Sample Diambil'),
+        icon: CheckCircle2,
+        badgeClass: styles.kanbanBadgeGreen,
+        items: completed,
+      },
+    ];
+  }, [shipments, t]);
 
   // Handle Create / Track New AWB
   const handleAddSubmit = async (e) => {
@@ -524,10 +593,41 @@ export const DhlTrackerPage = () => {
               <option value="collected">{t('dhl.filter_collected', 'Sudah Diambil PIC')}</option>
             </select>
           </div>
+
+          {/* View Mode Switcher: Grid | Kanban | Table */}
+          <div className={styles.viewModeSwitcher} role="tablist" aria-label="View Mode">
+            <button
+              type="button"
+              className={`${styles.viewBtn} ${viewMode === 'grid' ? styles.viewBtnActive : ''}`}
+              onClick={() => handleViewChange('grid')}
+              title={t('dhl.view_grid', 'Grid View')}
+            >
+              <LayoutGrid size={15} />
+              <span className={styles.viewBtnLabel}>{t('dhl.view_grid', 'Grid')}</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.viewBtn} ${viewMode === 'kanban' ? styles.viewBtnActive : ''}`}
+              onClick={() => handleViewChange('kanban')}
+              title={t('dhl.view_kanban', 'Kanban View')}
+            >
+              <Kanban size={15} />
+              <span className={styles.viewBtnLabel}>{t('dhl.view_kanban', 'Kanban')}</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.viewBtn} ${viewMode === 'table' ? styles.viewBtnActive : ''}`}
+              onClick={() => handleViewChange('table')}
+              title={t('dhl.view_table', 'Table View')}
+            >
+              <TableIcon size={15} />
+              <span className={styles.viewBtnLabel}>{t('dhl.view_table', 'Table')}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Main Content List / Table */}
+      {/* Main Content Area */}
       {loading && shipments.length === 0 ? (
         <LoadingState message={t('common.loading', 'Memuat data...')} />
       ) : shipments.length === 0 ? (
@@ -538,7 +638,302 @@ export const DhlTrackerPage = () => {
           actionText={t('dhl.track_new_awb', 'Lacak AWB Baru')}
           onAction={() => setIsAddModalOpen(true)}
         />
+      ) : viewMode === 'kanban' ? (
+        /* KANBAN VIEW */
+        <div className={styles.kanbanBoard}>
+          {kanbanColumns.map((col) => (
+            <div key={col.id} className={styles.kanbanColumn}>
+              <div className={styles.kanbanColHeader}>
+                <div className={styles.kanbanColTitle}>
+                  <col.icon size={15} />
+                  <span>{col.title}</span>
+                </div>
+                <span className={`${styles.kanbanCount} ${col.badgeClass}`}>
+                  {col.items.length}
+                </span>
+              </div>
+
+              <div className={styles.kanbanColBody}>
+                {col.items.length === 0 ? (
+                  <div className={styles.kanbanEmpty}>
+                    {t('common.empty', 'Tidak ada kiriman')}
+                  </div>
+                ) : (
+                  col.items.map((item) => {
+                    const isDelivered = (item.status_code || '').toLowerCase() === 'delivered';
+                    const isCollected = Boolean(item.is_collected);
+                    const isActionLoading = actionLoadingId === item.id;
+
+                    return (
+                      <div key={item.id} className={styles.kanbanCard}>
+                        {/* Top: AWB + Copy & External Link */}
+                        <div className={styles.kanbanCardHeader}>
+                          <div className={styles.awbBadgeGroup}>
+                            <span className={styles.kanbanAwb}>{item.id}</span>
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              title={t('dhl.copy_awb', 'Salin AWB')}
+                              onClick={() => handleCopyAwb(item.id)}
+                            >
+                              {copiedId === item.id ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                            </button>
+                            <a
+                              href={`https://www.dhl.com/en/express/tracking.html?AWB=${item.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.iconBtn}
+                              title={t('dhl.open_dhl_site', 'Buka di DHL Tracking Website')}
+                            >
+                              <ExternalLink size={13} />
+                            </a>
+                          </div>
+
+                          <div>{getStatusBadge(item.status_code, item.status_label)}</div>
+                        </div>
+
+                        {/* Route Chips */}
+                        <div className={styles.kanbanRouteChip}>
+                          <span>{item.origin_city || item.origin_country || 'Origin'}</span>
+                          <ArrowRight size={11} className={styles.routeArrow} />
+                          <span>{item.dest_city || item.dest_country || 'Destination'}</span>
+                        </div>
+
+                        {/* PIC Receiver */}
+                        <div className={styles.kanbanPicRow}>
+                          <User size={13} />
+                          <span>{t('dhl.pic_label', 'PIC Penerima:')}</span>
+                          <span className={styles.kanbanPicName}>
+                            {item.pic || t('dhl.unassigned', 'Belum Ditugaskan')}
+                          </span>
+                        </div>
+
+                        {/* Checkpoint Snippet */}
+                        <div className={styles.kanbanCheckpointText}>
+                          <div><strong>{item.status_description || item.status_label || '-'}</strong></div>
+                          {item.last_event_time && (
+                            <div style={{ fontSize: '0.68rem', marginTop: 3, opacity: 0.8 }}>
+                              {formatDate(item.last_event_time)}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Collection Toggle Button if Delivered */}
+                        {isDelivered && (
+                          <button
+                            type="button"
+                            className={`${styles.collectionToggle} ${isCollected ? styles.toggleCollected : styles.togglePending}`}
+                            onClick={() => handleToggleCollected(item)}
+                            disabled={isActionLoading}
+                            style={{ width: '100%', justifyContent: 'center' }}
+                            title={isCollected ? t('dhl.sample_collected') : t('dhl.waiting_pickup')}
+                          >
+                            {isCollected ? (
+                              <>
+                                <CheckCircle2 size={13} />
+                                {t('dhl.sample_collected', 'Sample Diambil')}
+                              </>
+                            ) : (
+                              <>
+                                <Clock size={13} />
+                                {t('dhl.waiting_pickup', 'Menunggu Ambil')}
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {/* Actions Footer */}
+                        <div className={styles.kanbanFooter}>
+                          <button
+                            type="button"
+                            className={styles.timelineBtn}
+                            style={{ fontSize: '0.725rem', padding: '0.25rem 0.5rem' }}
+                            onClick={() => {
+                              setActiveShipment(item);
+                              setIsDetailModalOpen(true);
+                            }}
+                          >
+                            <Layers size={13} />
+                            {t('dhl.detail_history', 'Detail')}
+                          </button>
+
+                          <div className={styles.cardActionGroup}>
+                            <button
+                              type="button"
+                              className={styles.smallActionBtn}
+                              title={t('dhl.refresh', 'Refresh')}
+                              onClick={() => handleRefresh(item.id)}
+                              disabled={isActionLoading}
+                            >
+                              <RefreshCw size={12} className={isActionLoading ? styles.spin : ''} />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.smallActionBtn}
+                              title={t('dhl.edit_info', 'Edit')}
+                              onClick={() => handleOpenEdit(item)}
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.smallActionBtn} ${styles.btnDanger}`}
+                              title={t('dhl.delete_awb', 'Hapus')}
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : viewMode === 'table' ? (
+        /* TABLE VIEW */
+        <div className={styles.tableContainer}>
+          <div className={styles.tableWrap}>
+            <table className={styles.trackerTable}>
+              <thead>
+                <tr>
+                  <th>{t('dhl.col_awb', 'No. Resi (AWB)')}</th>
+                  <th>{t('dhl.col_status', 'Status Pengiriman')}</th>
+                  <th>{t('dhl.col_route', 'Rute')}</th>
+                  <th>{t('dhl.col_pic', 'PIC Penerima')}</th>
+                  <th>{t('dhl.col_collection', 'Status Fisik')}</th>
+                  <th>{t('dhl.col_last_checkpoint', 'Checkpoint Terakhir')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('dhl.col_actions', 'Aksi')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shipments.map((item) => {
+                  const isDelivered = (item.status_code || '').toLowerCase() === 'delivered';
+                  const isCollected = Boolean(item.is_collected);
+                  const isActionLoading = actionLoadingId === item.id;
+
+                  return (
+                    <tr key={item.id} className={isCollected ? styles.tableRowCollected : ''}>
+                      <td>
+                        <div className={styles.tableAwbCell}>
+                          <span className={styles.tableAwb}>{item.id}</span>
+                          <button
+                            type="button"
+                            className={styles.iconBtn}
+                            title={t('dhl.copy_awb', 'Salin AWB')}
+                            onClick={() => handleCopyAwb(item.id)}
+                          >
+                            {copiedId === item.id ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                          </button>
+                          <a
+                            href={`https://www.dhl.com/en/express/tracking.html?AWB=${item.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.iconBtn}
+                            title={t('dhl.open_dhl_site', 'Buka di DHL Tracking Website')}
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        </div>
+                      </td>
+                      <td>{getStatusBadge(item.status_code, item.status_label)}</td>
+                      <td>
+                        <div className={styles.tableRoute}>
+                          <span>{item.origin_city || item.origin_country || 'Origin'}</span>
+                          <ArrowRight size={12} className={styles.routeArrow} />
+                          <span>{item.dest_city || item.dest_country || 'Destination'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.tablePic}>
+                          <User size={13} color="var(--color-text-muted)" />
+                          <span>{item.pic || t('dhl.unassigned', 'Belum Ditugaskan')}</span>
+                        </div>
+                      </td>
+                      <td>
+                        {isDelivered ? (
+                          <button
+                            type="button"
+                            className={`${styles.collectionToggle} ${isCollected ? styles.toggleCollected : styles.togglePending}`}
+                            onClick={() => handleToggleCollected(item)}
+                            disabled={isActionLoading}
+                          >
+                            {isCollected ? (
+                              <>
+                                <CheckCircle2 size={12} />
+                                {t('dhl.sample_collected', 'Sample Diambil')}
+                              </>
+                            ) : (
+                              <>
+                                <Clock size={12} />
+                                {t('dhl.waiting_pickup', 'Menunggu Ambil')}
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>-</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className={styles.tableCheckpointDesc} title={item.status_description || item.status_label}>
+                          {item.status_description || item.status_label || '-'}
+                        </div>
+                        <div className={styles.tableCheckpointTime}>
+                          {formatDate(item.last_event_time)}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className={styles.tableActions} style={{ justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className={styles.smallActionBtn}
+                            title={t('dhl.detail_history', 'Detail Riwayat')}
+                            onClick={() => {
+                              setActiveShipment(item);
+                              setIsDetailModalOpen(true);
+                            }}
+                          >
+                            <Eye size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.smallActionBtn}
+                            title={t('dhl.refresh', 'Refresh')}
+                            onClick={() => handleRefresh(item.id)}
+                            disabled={isActionLoading}
+                          >
+                            <RefreshCw size={13} className={isActionLoading ? styles.spin : ''} />
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.smallActionBtn}
+                            title={t('dhl.edit_info', 'Edit')}
+                            onClick={() => handleOpenEdit(item)}
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.smallActionBtn} ${styles.btnDanger}`}
+                            title={t('dhl.delete_awb', 'Hapus')}
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
+        /* GRID VIEW (Default) */
         <div className={styles.cardsGrid}>
           {shipments.map((item) => {
             const isDelivered = (item.status_code || '').toLowerCase() === 'delivered';

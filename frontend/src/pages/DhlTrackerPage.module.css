@@ -345,6 +345,324 @@
   border-color: var(--color-accent);
 }
 
+/* View Mode Switcher (Ponytail clean tabs) */
+.viewModeSwitcher {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 3px;
+  gap: 3px;
+}
+
+.viewBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.775rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.viewBtn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-secondary);
+}
+
+.viewBtnActive {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-accent);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.viewBtnLabel {
+  font-size: 0.75rem;
+}
+
+/* KANBAN BOARD VIEW */
+.kanbanBoard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  align-items: flex-start;
+  min-height: 480px;
+}
+
+@media (max-width: 1200px) {
+  .kanbanBoard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .kanbanBoard {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kanbanColumn {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 320px;
+  box-shadow: var(--shadow-sm);
+}
+
+.kanbanColHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.kanbanColTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.kanbanCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  font-size: 0.725rem;
+  font-weight: 700;
+}
+
+.kanbanBadgeBlue {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.kanbanBadgeAmber {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.kanbanBadgeRed {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.kanbanBadgeGreen {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.kanbanColBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: calc(100vh - 360px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.kanbanEmpty {
+  text-align: center;
+  padding: 2.5rem 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.775rem;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md, 8px);
+}
+
+.kanbanCard {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.kanbanCard:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.kanbanCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kanbanAwb {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+}
+
+.kanbanRouteChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-subtle);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.kanbanPicRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.kanbanPicName {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.kanbanCheckpointText {
+  font-size: 0.725rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+  background-color: var(--color-bg-secondary);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+}
+
+.kanbanFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* TABLE VIEW */
+.tableContainer {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.trackerTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.8125rem;
+}
+
+.trackerTable th {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  padding: 0.85rem 1rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.trackerTable td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.trackerTable tr:last-child td {
+  border-bottom: none;
+}
+
+.trackerTable tr:hover td {
+  background-color: var(--color-bg-hover, rgba(255, 255, 255, 0.02));
+}
+
+.tableAwbCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tableAwb {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.tableRoute {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.775rem;
+}
+
+.tablePic {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.tableCheckpointDesc {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableCheckpointTime {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.tableActions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tableRowCollected td {
+  background-color: rgba(16, 185, 129, 0.03);
+}
+
 /* Shipment Cards Grid */
 .cardsGrid {
   display: grid;
