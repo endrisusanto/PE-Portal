@@ -213,6 +213,7 @@ func main() {
 	api.GET("/software-mr/filters", softwareMRHandler.GetFilters)
 	api.GET("/software-mr/trend", softwareMRHandler.GetDailyTrend)
 	api.GET("/software-mr/:id", softwareMRHandler.Get)
+	api.POST("/software-mr/sync", softwareMRHandler.SyncFromIntranet)
 
 	// IMEI Articles
 	api.GET("/imei/articles", imeiHandler.List)

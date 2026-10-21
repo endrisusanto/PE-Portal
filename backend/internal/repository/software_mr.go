@@ -232,3 +232,84 @@ func (r *SoftwareMRRepository) GetDailyTrend(ctx context.Context, modelName stri
 	}
 	return trends, nil
 }
+
+// UpsertBatch inserts or updates releases synced from intranet XAMPP
+func (r *SoftwareMRRepository) UpsertBatch(ctx context.Context, items []model.SoftwareMRRelease) (int, error) {
+	if len(items) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	stmt := `
+		INSERT INTO software_mr_releases (
+			id, model, ole_version, oxm_olm_new_version, ap, cp, csc,
+			ap_mapping, cp_mapping, csc_version_up, status, pic,
+			release_note_format, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7,
+			$8, $9, $10, $11, $12,
+			$13, $14, $15
+		)
+		ON CONFLICT (id) DO UPDATE SET
+			model = EXCLUDED.model,
+			ole_version = EXCLUDED.ole_version,
+			oxm_olm_new_version = EXCLUDED.oxm_olm_new_version,
+			ap = EXCLUDED.ap,
+			cp = EXCLUDED.cp,
+			csc = EXCLUDED.csc,
+			ap_mapping = EXCLUDED.ap_mapping,
+			cp_mapping = EXCLUDED.cp_mapping,
+			csc_version_up = EXCLUDED.csc_version_up,
+			status = EXCLUDED.status,
+			pic = EXCLUDED.pic,
+			release_note_format = EXCLUDED.release_note_format,
+			updated_at = EXCLUDED.updated_at
+	`
+
+	count := 0
+	for _, it := range items {
+		createdAt := it.CreatedAt
+		if createdAt.IsZero() {
+			createdAt = it.UpdatedAt
+		}
+		if createdAt.IsZero() {
+			continue
+		}
+		updatedAt := it.UpdatedAt
+		if updatedAt.IsZero() {
+			updatedAt = createdAt
+		}
+
+		status := it.Status
+		if status == "" {
+			status = "DONE"
+		}
+		pic := it.PIC
+		if pic == "" {
+			pic = "ENDRI"
+		}
+
+		_, err := tx.Exec(ctx, stmt,
+			it.ID, it.Model, it.OLEVersion, it.OXMOLMNewVersion, it.AP, it.CP, it.CSC,
+			it.APMapping, it.CPMapping, it.CSCVersionUp, status, pic,
+			it.ReleaseNoteFormat, createdAt, updatedAt,
+		)
+		if err == nil {
+			count++
+		}
+	}
+
+	// Sync sequence id
+	_, _ = tx.Exec(ctx, "SELECT setval('software_mr_releases_id_seq', COALESCE((SELECT MAX(id) FROM software_mr_releases), 1))")
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+

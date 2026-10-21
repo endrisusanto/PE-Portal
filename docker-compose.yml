@@ -29,6 +29,7 @@ services:
       - AUTH_PROVIDER=${AUTH_PROVIDER:-local}
       - GBA_API_URL=${GBA_API_URL:-http://107.102.39.55/tkdn/api_kanban.php}
       - SOFTWARE_MR_URL=${SOFTWARE_MR_URL:-http://107.102.39.55/companion-release-cheatsheet}
+      - SOFTWARE_MR_API_URL=${SOFTWARE_MR_API_URL:-http://107.102.39.55/companion-release-cheatsheet/api_releases.php}
     volumes:
       - file_storage:/data/files
     depends_on:

@@ -61,6 +61,27 @@ export const SoftwareMRPage = () => {
 
   // Copy Feedback Toast
   const [copyFeedback, setCopyFeedback] = useState('');
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncIntranet = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post('/software-mr/sync');
+      setCopyFeedback(res.data?.message || 'Sync data dari Intranet XAMPP berhasil!');
+      setTimeout(() => setCopyFeedback(''), 4500);
+    } catch (err) {
+      console.warn('Sync intranet offline or failed:', err);
+      const errMsg = err.response?.data?.message || err.message;
+      setCopyFeedback(`Intranet belum terjangkau: memuat data lokal cache (${errMsg.substring(0, 45)})`);
+      setTimeout(() => setCopyFeedback(''), 5000);
+    } finally {
+      setSyncing(false);
+      fetchStats();
+      fetchFilters();
+      fetchTrend();
+      fetchReleases();
+    }
+  };
 
   // Fetch KPI Stats
   const fetchStats = useCallback(async () => {
@@ -245,15 +266,12 @@ export const SoftwareMRPage = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => {
-              fetchStats();
-              fetchFilters();
-              fetchTrend();
-              fetchReleases();
-            }}
+            onClick={handleSyncIntranet}
+            disabled={syncing}
+            title="Sinkronisasi data rilis langsung dari XAMPP Intranet (107.102.39.55)"
           >
-            <RefreshCw size={14} />
-            Refresh
+            <RefreshCw size={14} className={syncing ? 'spin' : ''} />
+            <span>{syncing ? 'Menyinkronkan...' : 'Sync Intranet'}</span>
           </Button>
         </div>
       </div>
