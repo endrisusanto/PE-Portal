@@ -27,7 +27,11 @@
     "profile": "Profil",
     "settings": "Pengaturan",
     "admin": "Admin",
-    "ai_assistant": "Asisten AI"
+    "ai_assistant": "Asisten AI",
+    "section_operations": "OPERASIONAL",
+    "section_management": "MANAJEMEN",
+    "expand_sidebar": "Buka sidebar",
+    "collapse_sidebar": "Tutup sidebar"
   },
   "common": {
     "loading": "Memuat data...",

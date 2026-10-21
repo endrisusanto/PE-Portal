@@ -58,7 +58,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   };
 
   const softwareTeamSubItems = [
-    { to: '/gba-tasks', label: 'GBA Tasks', icon: Kanban },
+    { to: '/gba-tasks', label: t('nav.gba_tasks', 'GBA Tasks'), icon: Kanban },
     { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
   ];
 
@@ -141,22 +141,22 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
             onToggleCollapse?.();
           }
         }}
-        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={isCollapsed ? t('nav.expand_sidebar', 'Expand sidebar') : t('nav.collapse_sidebar', 'Collapse sidebar')}
+        aria-label={isCollapsed ? t('nav.expand_sidebar', 'Expand sidebar') : t('nav.collapse_sidebar', 'Collapse sidebar')}
       >
-        <div className={styles.logoBadge} title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+        <div className={styles.logoBadge} title={isCollapsed ? t('nav.expand_sidebar', 'Expand sidebar') : t('nav.collapse_sidebar', 'Collapse sidebar')}>
           <img src="/icon.png" alt="PE Logo" className={styles.brandLogoImg} />
         </div>
         {!isCollapsed && (
           <div className={styles.brandText}>
             <span className={styles.brandTitle}>PE-Portal</span>
-            <span className={styles.brandSubtitle}>SEIN Engineering</span>
+            <span className={styles.brandSubtitle}>{t('app.subtitle', 'SEIN Engineering')}</span>
           </div>
         )}
       </div>
 
       <nav className={styles.nav}>
-        <div className={styles.sectionLabel}>{!isCollapsed && 'OPERATIONS'}</div>
+        <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_operations', 'OPERATIONS')}</div>
         {navItems.map((item) => {
           if (item.isGroup) {
             const GroupIcon = item.icon;
@@ -228,7 +228,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
         })}
 
         <div className={styles.divider} />
-        <div className={styles.sectionLabel}>{!isCollapsed && 'MANAGEMENT'}</div>
+        <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_management', 'MANAGEMENT')}</div>
         {adminItems.map((item) => {
           const Icon = item.icon;
           return (

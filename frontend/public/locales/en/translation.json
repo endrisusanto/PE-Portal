@@ -27,7 +27,11 @@
     "profile": "Profile",
     "settings": "Settings",
     "admin": "Admin",
-    "ai_assistant": "AI Assistant"
+    "ai_assistant": "AI Assistant",
+    "section_operations": "OPERATIONS",
+    "section_management": "MANAGEMENT",
+    "expand_sidebar": "Expand sidebar",
+    "collapse_sidebar": "Collapse sidebar"
   },
   "common": {
     "loading": "Loading data...",

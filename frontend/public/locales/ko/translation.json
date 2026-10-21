@@ -27,7 +27,11 @@
     "profile": "프로필 설정",
     "settings": "환경설정",
     "admin": "관리자",
-    "ai_assistant": "AI 어시스턴트"
+    "ai_assistant": "AI 어시스턴트",
+    "section_operations": "운영 관리",
+    "section_management": "시스템 관리",
+    "expand_sidebar": "사이드바 펼치기",
+    "collapse_sidebar": "사이드바 접기"
   },
   "common": {
     "loading": "데이터 로딩 중...",
