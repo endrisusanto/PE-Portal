@@ -60,7 +60,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const softwareTeamSubItems = [
     { to: '/gba-tasks', label: t('nav.gba_tasks', 'GBA Tasks'), icon: Kanban },
     { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
-  ];
+  ].sort((a, b) => a.label.localeCompare(b.label));
 
   // Check if any Tools route is active
   const isToolsActive = location.pathname.startsWith('/tools') || location.pathname.startsWith('/utility');
@@ -85,15 +85,17 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   };
 
   const toolsSubItems = [
-    { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
     { to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
+    { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
     { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
-  ];
+  ].sort((a, b) => a.label.localeCompare(b.label));
 
   const navItems = [
+    { to: '/imei', label: t('nav.imei', 'Articles'), icon: Newspaper },
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
+    { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
     { to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
-    { to: '/projects', label: t('nav.projects', 'Task Analyst'), icon: FolderKanban },
+    { to: '/models', label: t('nav.models'), icon: Cpu },
     { to: '/samples', label: t('nav.samples', 'Sample Management'), icon: PackageCheck },
     {
       isGroup: true,
@@ -105,9 +107,8 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       onToggle: handleToggleSoftwareTeam,
       children: softwareTeamSubItems,
     },
-    { to: '/models', label: t('nav.models'), icon: Cpu },
-    { to: '/imei', label: t('nav.imei', 'Articles'), icon: Newspaper },
-    { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
+    { to: '/projects', label: t('nav.projects', 'Task Analyst'), icon: FolderKanban },
+    { to: '/team', label: t('nav.team'), icon: Users },
     {
       isGroup: true,
       key: 'tools',
@@ -118,15 +119,14 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       onToggle: handleToggleTools,
       children: toolsSubItems,
     },
-    { to: '/team', label: t('nav.team'), icon: Users },
     { to: '/reports', label: t('nav.reports'), icon: FileText },
-  ];
+  ].sort((a, b) => a.label.localeCompare(b.label));
 
   const adminItems = [
+    ...(isAdmin ? [{ to: '/admin', label: t('nav.admin'), icon: ShieldCheck }] : []),
     { to: '/profile', label: t('nav.profile'), icon: UserCircle },
     { to: '/settings', label: t('nav.settings'), icon: Settings },
-    ...(isAdmin ? [{ to: '/admin', label: t('nav.admin'), icon: ShieldCheck }] : []),
-  ];
+  ].sort((a, b) => a.label.localeCompare(b.label));
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
