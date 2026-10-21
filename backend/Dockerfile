@@ -17,10 +17,11 @@ FROM alpine:3.19
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata python3 py3-pillow ghostscript
 
 COPY --from=builder /app/pe-portal /app/pe-portal
 COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/scripts /app/scripts
 
 RUN mkdir -p /data/files
 

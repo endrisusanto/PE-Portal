@@ -98,6 +98,7 @@ func main() {
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
 	sampleHandler := handler.NewSampleHandler(sampleRepo)
 	softwareMRHandler := handler.NewSoftwareMRHandler(softwareMRRepo)
+	utilityHandler := handler.NewUtilityHandler()
 
 	// Echo App
 	e := echo.New()
@@ -286,6 +287,11 @@ func main() {
 	api.DELETE("/ai/config/user", aiHandler.DeleteUserCustom)
 	api.GET("/ai/models", aiHandler.ListModels)
 	api.POST("/ai/chat", aiHandler.Chat)
+
+	// Utility Tools (Local PDF compress & Python Background Remover)
+	api.GET("/utility/status", utilityHandler.GetStatus)
+	api.POST("/utility/remove-bg", utilityHandler.RemoveBackground)
+	api.POST("/utility/compress-pdf", utilityHandler.CompressPDF)
 
 	// Graceful shutdown handling
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)

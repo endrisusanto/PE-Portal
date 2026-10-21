@@ -19,6 +19,10 @@ import {
   BotMessageSquare,
   UserCircle,
   FileText,
+  Wrench,
+  Image as ImageIcon,
+  FileArchive,
+  Scissors,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Sidebar.module.css';
@@ -58,6 +62,34 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
   ];
 
+  // Check if any Utility route is active
+  const isUtilityActive = location.pathname.startsWith('/utility');
+
+  // Multi-level state for Utility
+  const [utilityOpen, setUtilityOpen] = useState(() => {
+    return isUtilityActive || localStorage.getItem('pe_sidebar_utility') === 'true';
+  });
+
+  useEffect(() => {
+    if (isUtilityActive) {
+      setUtilityOpen(true);
+    }
+  }, [isUtilityActive]);
+
+  const handleToggleUtility = () => {
+    setUtilityOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('pe_sidebar_utility', String(next));
+      return next;
+    });
+  };
+
+  const utilitySubItems = [
+    { to: '/utility/images', label: t('nav.utility_images', 'Image Converter & Compress'), icon: ImageIcon },
+    { to: '/utility/documents', label: t('nav.utility_docs', 'Document PDF Compress'), icon: FileArchive },
+    { to: '/utility/remove-bg', label: t('nav.utility_bg', 'Local Remove Background'), icon: Scissors },
+  ];
+
   const navItems = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
     { to: '/innovations', label: t('nav.innovations'), icon: Lightbulb },
@@ -76,6 +108,16 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/models', label: t('nav.models'), icon: Cpu },
     { to: '/imei', label: t('nav.imei', 'Artikel'), icon: Newspaper },
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
+    {
+      isGroup: true,
+      key: 'utility',
+      label: t('nav.utility', 'Utility'),
+      icon: Wrench,
+      isActive: isUtilityActive,
+      isOpen: utilityOpen,
+      onToggle: handleToggleUtility,
+      children: utilitySubItems,
+    },
     { to: '/team', label: t('nav.team'), icon: Users },
     { to: '/reports', label: t('nav.reports'), icon: FileText },
   ];

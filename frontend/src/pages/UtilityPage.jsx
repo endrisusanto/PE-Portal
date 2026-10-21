@@ -1,0 +1,1113 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import {
+  Wrench,
+  Image as ImageIcon,
+  FileArchive,
+  Scissors,
+  Upload,
+  Download,
+  Trash2,
+  RefreshCw,
+  Sliders,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  Pipette,
+  Eraser,
+  Paintbrush,
+  Sparkles,
+  Terminal,
+  FileText
+} from 'lucide-react';
+import api from '../api/client';
+import { Button } from '../components/common/Button';
+import styles from './UtilityPage.module.css';
+
+export const UtilityPage = () => {
+  const { t } = useTranslation();
+  const { tab } = useParams();
+  const navigate = useNavigate();
+
+  // Active Tab: 'images', 'documents', 'remove-bg'
+  const activeTab = tab || 'images';
+
+  const handleTabChange = (newTab) => {
+    navigate(`/utility/${newTab}`);
+  };
+
+  return (
+    <div className={styles.container}>
+      {/* Top Header */}
+      <div className={styles.header}>
+        <div>
+          <h1 className={styles.headerTitle}>
+            <Wrench size={22} color="var(--color-accent)" />
+            {t('nav.utility', 'Utility Tools')}
+          </h1>
+          <p className={styles.headerSubtitle}>
+            Peralatan engineering lokal: Bulk convert & compress gambar, kompresi dokumen PDF, dan penghapusan background mandiri tanpa API cloud.
+          </p>
+        </div>
+
+        {/* Engine Badge */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 12px',
+          borderRadius: '9999px',
+          backgroundColor: 'rgba(16, 185, 129, 0.12)',
+          color: '#10b981',
+          border: '1px solid #10b981',
+          fontSize: '11.5px',
+          fontWeight: 600,
+        }}>
+          <CheckCircle2 size={13} />
+          100% Local & Offline Safe
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className={styles.tabNav}>
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${activeTab === 'images' ? styles.tabBtnActive : ''}`}
+          onClick={() => handleTabChange('images')}
+        >
+          <ImageIcon size={16} />
+          {t('nav.utility_images', 'Image Converter & Compress')}
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${activeTab === 'documents' ? styles.tabBtnActive : ''}`}
+          onClick={() => handleTabChange('documents')}
+        >
+          <FileArchive size={16} />
+          {t('nav.utility_docs', 'Document PDF Compress')}
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${activeTab === 'remove-bg' ? styles.tabBtnActive : ''}`}
+          onClick={() => handleTabChange('remove-bg')}
+        >
+          <Scissors size={16} />
+          {t('nav.utility_bg', 'Local Remove Background')}
+        </button>
+      </div>
+
+      {/* Tab Contents */}
+      {activeTab === 'images' && <ImageConverterTab />}
+      {activeTab === 'documents' && <DocumentCompressTab />}
+      {activeTab === 'remove-bg' && <RemoveBackgroundTab />}
+    </div>
+  );
+};
+
+// ============================================================================
+// 1. IMAGE CONVERTER & COMPRESS TAB (100% Browser Local)
+// ============================================================================
+const ImageConverterTab = () => {
+  const [files, setFiles] = useState([]);
+  const [targetFormat, setTargetFormat] = useState('image/webp');
+  const [quality, setQuality] = useState(80);
+  const [maxDimension, setMaxDimension] = useState('original');
+  const [processing, setProcessing] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const formatExt = targetFormat === 'image/webp' ? '.webp' : targetFormat === 'image/jpeg' ? '.jpg' : '.png';
+
+  const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const processImageFile = (fileItem, format, qual, maxDim) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (maxDim !== 'original') {
+          const limit = parseInt(maxDim, 10);
+          if (width > limit || height > limit) {
+            if (width > height) {
+              height = Math.round((height * limit) / width);
+              width = limit;
+            } else {
+              width = Math.round((width * limit) / height);
+              height = limit;
+            }
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        // Draw white background if converting transparent to JPEG
+        if (format === 'image/jpeg') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(fileItem);
+              return;
+            }
+            const convertedUrl = URL.createObjectURL(blob);
+            const savings = fileItem.originalSize > 0
+              ? Math.round(((fileItem.originalSize - blob.size) / fileItem.originalSize) * 100)
+              : 0;
+
+            const baseName = fileItem.name.substring(0, fileItem.name.lastIndexOf('.')) || fileItem.name;
+            const newName = `${baseName}${formatExt}`;
+
+            resolve({
+              ...fileItem,
+              convertedBlob: blob,
+              convertedUrl,
+              convertedSize: blob.size,
+              convertedName: newName,
+              width,
+              height,
+              savings,
+              status: 'done',
+            });
+          },
+          format,
+          qual / 100
+        );
+      };
+
+      img.src = fileItem.previewUrl;
+    });
+  };
+
+  const handleFilesAdded = async (newRawFiles) => {
+    const validFiles = Array.from(newRawFiles).filter((f) => f.type.startsWith('image/'));
+    if (validFiles.length === 0) return;
+
+    const initialItems = validFiles.map((file) => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      name: file.name,
+      originalSize: file.size,
+      previewUrl: URL.createObjectURL(file),
+      status: 'pending',
+    }));
+
+    setFiles((prev) => [...prev, ...initialItems]);
+
+    // Automatically convert
+    setProcessing(true);
+    const convertedItems = await Promise.all(
+      initialItems.map((item) => processImageFile(item, targetFormat, quality, maxDimension))
+    );
+
+    setFiles((prev) =>
+      prev.map((item) => {
+        const found = convertedItems.find((c) => c.id === item.id);
+        return found || item;
+      })
+    );
+    setProcessing(false);
+  };
+
+  const handleReapply = async () => {
+    if (files.length === 0) return;
+    setProcessing(true);
+    const updated = await Promise.all(
+      files.map((item) => processImageFile(item, targetFormat, quality, maxDimension))
+    );
+    setFiles(updated);
+    setProcessing(false);
+  };
+
+  const handleDownloadSingle = (item) => {
+    if (!item.convertedUrl) return;
+    const a = document.createElement('a');
+    a.href = item.convertedUrl;
+    a.download = item.convertedName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownloadAll = () => {
+    files.forEach((item, index) => {
+      setTimeout(() => {
+        handleDownloadSingle(item);
+      }, index * 200);
+    });
+  };
+
+  const handleClear = () => {
+    files.forEach((item) => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      if (item.convertedUrl) URL.revokeObjectURL(item.convertedUrl);
+    });
+    setFiles([]);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Control Panel */}
+      <div className={styles.controlPanel}>
+        <div className={styles.controlGroup}>
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Format Target</span>
+            <select
+              className={styles.selectInput}
+              value={targetFormat}
+              onChange={(e) => setTargetFormat(e.target.value)}
+            >
+              <option value="image/webp">WEBP (Modern & Ringan)</option>
+              <option value="image/jpeg">JPEG / JPG (Universal)</option>
+              <option value="image/png">PNG (Lossless / Transparent)</option>
+            </select>
+          </div>
+
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Kualitas: {quality}%</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                step="5"
+                value={quality}
+                className={styles.rangeInput}
+                onChange={(e) => setQuality(parseInt(e.target.value, 10))}
+              />
+            </div>
+          </div>
+
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Maksimum Resolusi</span>
+            <select
+              className={styles.selectInput}
+              value={maxDimension}
+              onChange={(e) => setMaxDimension(e.target.value)}
+            >
+              <option value="original">Resolusi Asli (Original)</option>
+              <option value="1920">Full HD (Max 1920px)</option>
+              <option value="1280">HD (Max 1280px)</option>
+              <option value="800">Compact (Max 800px)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {files.length > 0 && (
+            <>
+              <Button variant="secondary" icon={RefreshCw} onClick={handleReapply} loading={processing}>
+                Konversi Ulang
+              </Button>
+              <Button variant="secondary" icon={Trash2} onClick={handleClear}>
+                Hapus Semua
+              </Button>
+              <Button variant="primary" icon={Download} onClick={handleDownloadAll}>
+                Unduh Semua ({files.length})
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Drag & Drop Zone */}
+      <div
+        className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragActive(false);
+          handleFilesAdded(e.dataTransfer.files);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Upload size={38} className={styles.dropzoneIcon} />
+        <div>
+          <p style={{ fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>
+            Tarik & Lepas gambar di sini, atau <span style={{ color: 'var(--color-accent)' }}>klik untuk memilih</span>
+          </p>
+          <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
+            Mendukung file JPG, PNG, WEBP, AVIF, BMP, GIF dalam jumlah banyak (bulk)
+          </p>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => handleFilesAdded(e.target.files)}
+        />
+      </div>
+
+      {/* Results Grid */}
+      {files.length > 0 && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>
+              Daftar Hasil Konversi ({files.length} file)
+            </span>
+          </div>
+
+          <div className={styles.resultsGrid}>
+            {files.map((item) => (
+              <div key={item.id} className={styles.resultCard}>
+                <div className={styles.thumbWrapper}>
+                  <img src={item.convertedUrl || item.previewUrl} alt={item.name} className={styles.thumbImg} />
+                </div>
+
+                <div className={styles.cardDetails}>
+                  <span className={styles.cardFilename} title={item.convertedName || item.name}>
+                    {item.convertedName || item.name}
+                  </span>
+
+                  <div className={styles.cardStats}>
+                    <span>{formatBytes(item.originalSize)}</span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>➔</span>
+                    <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      {item.convertedSize ? formatBytes(item.convertedSize) : 'Menghitung...'}
+                    </span>
+                  </div>
+
+                  {item.savings !== undefined && item.savings > 0 && (
+                    <div style={{ marginTop: '4px' }}>
+                      <span className={styles.savingsBadge}>
+                        Hemat {item.savings}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  variant="primary"
+                  icon={Download}
+                  size="sm"
+                  onClick={() => handleDownloadSingle(item)}
+                  style={{ width: '100%', marginTop: '6px' }}
+                >
+                  Unduh File
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// 2. DOCUMENT / PDF COMPRESS TAB (Local Ghostscript / Native Engine)
+// ============================================================================
+const DocumentCompressTab = () => {
+  const [docs, setDocs] = useState([]);
+  const [compressionPreset, setCompressionPreset] = useState('ebook'); // screen, ebook, printer
+  const [compressing, setCompressing] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const formatBytes = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const handleAddDocs = async (fileList) => {
+    const validPdfs = Array.from(fileList).filter((f) => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+    if (validPdfs.length === 0) {
+      alert('Silakan pilih dokumen berformat PDF.');
+      return;
+    }
+
+    const items = validPdfs.map((file) => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      name: file.name,
+      originalSize: file.size,
+      status: 'idle',
+      compressedBlob: null,
+      compressedSize: null,
+      savings: null,
+    }));
+
+    setDocs((prev) => [...prev, ...items]);
+  };
+
+  const compressSingleDoc = async (item) => {
+    const formData = new FormData();
+    formData.append('document', item.file);
+    formData.append('quality', compressionPreset);
+
+    try {
+      const res = await api.post('/utility/compress-pdf', formData, {
+        responseType: 'blob',
+      });
+
+      const blob = res.data;
+      const compressedUrl = URL.createObjectURL(blob);
+      const compressedSize = blob.size;
+      const savings = Math.max(0, Math.round(((item.originalSize - compressedSize) / item.originalSize) * 100));
+
+      return {
+        ...item,
+        status: 'done',
+        compressedBlob: blob,
+        compressedUrl,
+        compressedSize,
+        savings,
+      };
+    } catch (err) {
+      console.warn('Backend ghostscript compression fallback:', err);
+      // Fallback: If server is missing Ghostscript, mark done with simulated compression or report
+      return {
+        ...item,
+        status: 'error',
+        errorMessage: err.response?.data?.message || 'Ghostscript belum terpasang di container atau file dilindungi kata sandi.',
+      };
+    }
+  };
+
+  const handleStartCompressAll = async () => {
+    setCompressing(true);
+    const updated = [];
+    for (const item of docs) {
+      if (item.status === 'done') {
+        updated.push(item);
+      } else {
+        const res = await compressSingleDoc(item);
+        updated.push(res);
+      }
+    }
+    setDocs(updated);
+    setCompressing(false);
+  };
+
+  const handleDownloadPdf = (item) => {
+    if (!item.compressedUrl) return;
+    const a = document.createElement('a');
+    a.href = item.compressedUrl;
+    a.download = `compressed_${item.name}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Control Bar */}
+      <div className={styles.controlPanel}>
+        <div className={styles.controlGroup}>
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Tingkat Kompresi Dokumen</span>
+            <select
+              className={styles.selectInput}
+              value={compressionPreset}
+              onChange={(e) => setCompressionPreset(e.target.value)}
+            >
+              <option value="screen">Tinggi / Email (72 DPI - Ukuran Terkecil)</option>
+              <option value="ebook">Standar Seimbang (150 DPI - Teks & Grafik Tajam)</option>
+              <option value="printer">Ringan / Cetak (300 DPI - Diagram Presisi Tinggi)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {docs.length > 0 && (
+            <>
+              <Button
+                variant="primary"
+                icon={Sparkles}
+                onClick={handleStartCompressAll}
+                loading={compressing}
+              >
+                Mulai Kompresi ({docs.length} Dokumen)
+              </Button>
+              <Button variant="secondary" icon={Trash2} onClick={() => setDocs([])}>
+                Bersihkan
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* PDF Dropzone */}
+      <div
+        className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragActive(false);
+          handleAddDocs(e.dataTransfer.files);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <FileArchive size={38} className={styles.dropzoneIcon} />
+        <div>
+          <p style={{ fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>
+            Tarik & Lepas dokumen PDF di sini, atau <span style={{ color: 'var(--color-accent)' }}>klik untuk memilih</span>
+          </p>
+          <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
+            Memproses kompresi stream dokumen PDF secara lokal menggunakan Ghostscript engine.
+          </p>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,application/pdf"
+          style={{ display: 'none' }}
+          onChange={(e) => handleAddDocs(e.target.files)}
+        />
+      </div>
+
+      {/* Document Items List */}
+      {docs.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {docs.map((doc) => (
+            <div
+              key={doc.id}
+              style={{
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
+                <FileText size={24} color="var(--color-accent)" />
+                <div>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: '13.5px' }}>{doc.name}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                    Ukuran Asli: {formatBytes(doc.originalSize)}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                {doc.status === 'done' && (
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: '13.5px', color: 'var(--color-text-primary)' }}>
+                      {formatBytes(doc.compressedSize)}
+                    </p>
+                    <span className={styles.savingsBadge}>
+                      Hemat {doc.savings}%
+                    </span>
+                  </div>
+                )}
+
+                {doc.status === 'error' && (
+                  <span style={{ fontSize: '12px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertCircle size={14} />
+                    {doc.errorMessage || 'Gagal memproses'}
+                  </span>
+                )}
+
+                {doc.status === 'done' ? (
+                  <Button variant="primary" size="sm" icon={Download} onClick={() => handleDownloadPdf(doc)}>
+                    Unduh PDF
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={compressing}
+                    onClick={() => compressSingleDoc(doc)}
+                  >
+                    Kompres
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// 3. LOCAL BACKGROUND REMOVER TAB (No API / Python Engine)
+// ============================================================================
+const RemoveBackgroundTab = () => {
+  const [imageSrc, setImageSrc] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [tolerance, setTolerance] = useState(35);
+  const [feather, setFeather] = useState(2);
+  const [bgColorHex, setBgColorHex] = useState('auto');
+  const [activeTool, setActiveTool] = useState('eyedropper'); // 'eyedropper', 'eraser', 'restore'
+  const [brushSize, setBrushSize] = useState(25);
+  const [processing, setProcessing] = useState(false);
+  const [pythonStatus, setPythonStatus] = useState(null);
+
+  const canvasRef = useRef(null);
+  const originalCanvasRef = useRef(null);
+  const isDrawing = useRef(false);
+  const fileInputRef = useRef(null);
+
+  // Check backend local python capability
+  useEffect(() => {
+    api.get('/utility/status')
+      .then((res) => setPythonStatus(res.data))
+      .catch((err) => console.log('Utility status check:', err));
+  }, []);
+
+  // When image loads, process onto canvas
+  useEffect(() => {
+    if (!imageSrc) return;
+    renderBackgroundRemoval();
+  }, [imageSrc, tolerance, feather, bgColorHex]);
+
+  const handleSelectImage = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    setImageFile(file);
+    const url = URL.createObjectURL(file);
+    setImageSrc(url);
+  };
+
+  const renderBackgroundRemoval = () => {
+    if (!imageSrc) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      const origCanvas = originalCanvasRef.current;
+      if (!canvas || !origCanvas) return;
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+      origCanvas.width = img.width;
+      origCanvas.height = img.height;
+
+      const origCtx = origCanvas.getContext('2d');
+      origCtx.drawImage(img, 0, 0);
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      // Sample Background Color
+      let targetR = 255, targetG = 255, targetB = 255;
+      if (bgColorHex === 'auto') {
+        // Average corner pixels
+        const corners = [
+          [0, 0],
+          [canvas.width - 1, 0],
+          [0, canvas.height - 1],
+          [canvas.width - 1, canvas.height - 1],
+        ];
+        let sr = 0, sg = 0, sb = 0;
+        corners.forEach(([cx, cy]) => {
+          const idx = (cy * canvas.width + cx) * 4;
+          sr += data[idx];
+          sg += data[idx + 1];
+          sb += data[idx + 2];
+        });
+        targetR = Math.round(sr / corners.length);
+        targetG = Math.round(sg / corners.length);
+        targetB = Math.round(sb / corners.length);
+      } else {
+        const hex = bgColorHex.replace('#', '');
+        targetR = parseInt(hex.substring(0, 2), 16) || 255;
+        targetG = parseInt(hex.substring(2, 4), 16) || 255;
+        targetB = parseInt(hex.substring(4, 6), 16) || 255;
+      }
+
+      const tolDistance = (tolerance / 100) * 441.67;
+      const featherDistance = (feather / 10) * 80;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        const dist = Math.sqrt(
+          (r - targetR) ** 2 + (g - targetG) ** 2 + (b - targetB) ** 2
+        );
+
+        if (dist <= tolDistance) {
+          data[i + 3] = 0; // Transparent
+        } else if (dist < tolDistance + featherDistance && featherDistance > 0) {
+          const factor = (dist - tolDistance) / featherDistance;
+          data[i + 3] = Math.round(factor * 255);
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+    };
+    img.src = imageSrc;
+  };
+
+  // Canvas Eyedropper & Manual Brush tools
+  const handleCanvasMouseDown = (e) => {
+    isDrawing.current = true;
+    handleCanvasAction(e);
+  };
+
+  const handleCanvasMouseMove = (e) => {
+    if (!isDrawing.current) return;
+    if (activeTool === 'eraser' || activeTool === 'restore') {
+      handleCanvasAction(e);
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    isDrawing.current = false;
+  };
+
+  const handleCanvasAction = (e) => {
+    const canvas = canvasRef.current;
+    const origCanvas = originalCanvasRef.current;
+    if (!canvas || !origCanvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = Math.round((e.clientX - rect.left) * scaleX);
+    const y = Math.round((e.clientY - rect.top) * scaleY);
+
+    const ctx = canvas.getContext('2d');
+    const origCtx = origCanvas.getContext('2d');
+
+    if (activeTool === 'eyedropper') {
+      const pixel = origCtx.getImageData(x, y, 1, 1).data;
+      const hex =
+        '#' +
+        ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2])
+          .toString(16)
+          .slice(1);
+      setBgColorHex(hex);
+      isDrawing.current = false;
+    } else if (activeTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (activeTool === 'restore') {
+      // Restore from original canvas
+      const pat = ctx.createPattern(origCanvas, 'no-repeat');
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.fillStyle = pat;
+      ctx.fillRect(x - brushSize, y - brushSize, brushSize * 2, brushSize * 2);
+      ctx.restore();
+    }
+  };
+
+  const handleDownloadPng = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `transparent_${imageFile?.name || 'cutout'}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  const handleRunPythonServer = async () => {
+    if (!imageFile) return;
+    setProcessing(true);
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('tolerance', String(tolerance));
+    formData.append('bg_color', bgColorHex);
+    formData.append('feather', String(feather));
+
+    try {
+      const res = await api.post('/utility/remove-bg', formData, {
+        responseType: 'blob',
+      });
+      const blob = res.data;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `python_nobg_${imageFile.name}.png`;
+      link.href = url;
+      link.click();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Python local execution error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* CLI / Script information banner */}
+      <div className={styles.cliBanner}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Terminal size={16} />
+          <span>Script Python Lokal: <code>python3 backend/scripts/remove_bg.py input.jpg output.png {tolerance} {bgColorHex} {feather}</code></span>
+        </div>
+        <button
+          type="button"
+          className={styles.copyBtn}
+          onClick={() => {
+            navigator.clipboard.writeText(`python3 backend/scripts/remove_bg.py input.jpg output.png ${tolerance} ${bgColorHex} ${feather}`);
+            alert('Perintah CLI disalin ke clipboard!');
+          }}
+        >
+          Salin Perintah CLI
+        </button>
+      </div>
+
+      {/* Control Toolbar */}
+      <div className={styles.controlPanel}>
+        <div className={styles.controlGroup}>
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Warna Background</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="color"
+                value={bgColorHex === 'auto' ? '#ffffff' : bgColorHex}
+                onChange={(e) => setBgColorHex(e.target.value)}
+                style={{ width: '32px', height: '32px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                disabled={bgColorHex === 'auto'}
+              />
+              <button
+                type="button"
+                className={styles.copyBtn}
+                style={{
+                  backgroundColor: bgColorHex === 'auto' ? 'var(--color-accent)' : 'rgba(255,255,255,0.08)',
+                  color: bgColorHex === 'auto' ? '#fff' : 'var(--color-text-primary)'
+                }}
+                onClick={() => setBgColorHex(bgColorHex === 'auto' ? '#ffffff' : 'auto')}
+              >
+                {bgColorHex === 'auto' ? 'Auto Detect' : 'Manual'}
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Sensitivitas Warna: {tolerance}%</span>
+            <input
+              type="range"
+              min="5"
+              max="95"
+              value={tolerance}
+              className={styles.rangeInput}
+              onChange={(e) => setTolerance(parseInt(e.target.value, 10))}
+            />
+          </div>
+
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Kehalusan Tepi (Feather): {feather}px</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              value={feather}
+              className={styles.rangeInput}
+              onChange={(e) => setFeather(parseInt(e.target.value, 10))}
+            />
+          </div>
+
+          {/* Tools Picker */}
+          <div className={styles.controlItem}>
+            <span className={styles.controlLabel}>Alat Interaktif</span>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                type="button"
+                title="Pilih warna background langsung dari gambar"
+                className={styles.copyBtn}
+                style={{
+                  backgroundColor: activeTool === 'eyedropper' ? 'var(--color-accent)' : 'rgba(255,255,255,0.08)',
+                  color: activeTool === 'eyedropper' ? '#fff' : 'inherit',
+                  padding: '6px 10px',
+                }}
+                onClick={() => setActiveTool('eyedropper')}
+              >
+                <Pipette size={14} /> Pipet
+              </button>
+
+              <button
+                type="button"
+                title="Kuas Penghapus manual"
+                className={styles.copyBtn}
+                style={{
+                  backgroundColor: activeTool === 'eraser' ? 'var(--color-accent)' : 'rgba(255,255,255,0.08)',
+                  color: activeTool === 'eraser' ? '#fff' : 'inherit',
+                  padding: '6px 10px',
+                }}
+                onClick={() => setActiveTool('eraser')}
+              >
+                <Eraser size={14} /> Hapus
+              </button>
+
+              <button
+                type="button"
+                title="Kuas Pemulih area foreground"
+                className={styles.copyBtn}
+                style={{
+                  backgroundColor: activeTool === 'restore' ? 'var(--color-accent)' : 'rgba(255,255,255,0.08)',
+                  color: activeTool === 'restore' ? '#fff' : 'inherit',
+                  padding: '6px 10px',
+                }}
+                onClick={() => setActiveTool('restore')}
+              >
+                <Paintbrush size={14} /> Pulihkan
+              </button>
+            </div>
+          </div>
+
+          {(activeTool === 'eraser' || activeTool === 'restore') && (
+            <div className={styles.controlItem}>
+              <span className={styles.controlLabel}>Ukuran Kuas: {brushSize}px</span>
+              <input
+                type="range"
+                min="5"
+                max="80"
+                value={brushSize}
+                className={styles.rangeInput}
+                onChange={(e) => setBrushSize(parseInt(e.target.value, 10))}
+              />
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {imageSrc && (
+            <>
+              <Button variant="secondary" icon={RefreshCw} onClick={renderBackgroundRemoval}>
+                Reset
+              </Button>
+              <Button
+                variant="secondary"
+                icon={Terminal}
+                onClick={handleRunPythonServer}
+                loading={processing}
+                title="Proses menggunakan skrip Python Pillow di server lokal"
+              >
+                Proses Python
+              </Button>
+              <Button variant="primary" icon={Download} onClick={handleDownloadPng}>
+                Unduh PNG Transparan
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Upload Zone if no image */}
+      {!imageSrc && (
+        <div
+          className={styles.dropzone}
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files?.[0]) handleSelectImage(e.dataTransfer.files[0]);
+          }}
+        >
+          <Scissors size={40} className={styles.dropzoneIcon} />
+          <div>
+            <p style={{ fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>
+              Pilih foto atau drag & drop gambar yang ingin dihapus background-nya
+            </p>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
+              Berjalan 100% lokal di browser dan mesin lokal tanpa upload ke API luar
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              if (e.target.files?.[0]) handleSelectImage(e.target.files[0]);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Side-by-Side Canvas Workspace */}
+      {imageSrc && (
+        <div className={styles.bgRemoverLayout}>
+          {/* Original Preview (For Pipette & Reference) */}
+          <div className={styles.canvasBox}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>Gambar Asli (Klik untuk Pipet Warna)</span>
+              <Button variant="secondary" size="sm" icon={Upload} onClick={() => fileInputRef.current?.click()}>
+                Ganti Gambar
+              </Button>
+            </div>
+            <div className={styles.canvasWrapper} style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+              <canvas
+                ref={originalCanvasRef}
+                className={styles.canvasElem}
+                style={{ cursor: activeTool === 'eyedropper' ? 'crosshair' : 'default' }}
+                onClick={handleCanvasAction}
+              />
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files?.[0]) handleSelectImage(e.target.files[0]);
+              }}
+            />
+          </div>
+
+          {/* Transparent Canvas Cutout */}
+          <div className={styles.canvasBox}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>Hasil Transparan (PNG Cutout)</span>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                {activeTool === 'eraser' ? 'Mode Kuas Penghapus' : activeTool === 'restore' ? 'Mode Kuas Pemulih' : 'Mode Preview'}
+              </span>
+            </div>
+            <div className={`${styles.canvasWrapper} ${styles.checkerboard}`}>
+              <canvas
+                ref={canvasRef}
+                className={styles.canvasElem}
+                style={{
+                  cursor: activeTool === 'eraser' || activeTool === 'restore' ? 'crosshair' : 'default',
+                }}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

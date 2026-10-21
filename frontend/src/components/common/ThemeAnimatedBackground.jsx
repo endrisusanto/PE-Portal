@@ -53,14 +53,15 @@ export const ThemeAnimatedBackground = () => {
 
       for (let i = 0; i < count; i++) {
         if (palette === 'cute') {
-          // Sakura petals (100% natural falling sakura petals, ponytail: removed bubbles)
+          // Sakura petals (65%) & soft floating pastel bubbles (35%)
+          const isBubble = i % 3 === 0;
           particles.push({
-            type: 'petal',
+            type: isBubble ? 'bubble' : 'petal',
             x: Math.random() * width,
             y: Math.random() * height,
-            size: 8 + Math.random() * 10,
-            speedY: 0.7 + Math.random() * 1.1,
-            speedX: 0.4 + Math.random() * 0.8,
+            size: isBubble ? 18 + Math.random() * 26 : 8 + Math.random() * 10,
+            speedY: isBubble ? -(0.3 + Math.random() * 0.5) : 0.7 + Math.random() * 1.1,
+            speedX: isBubble ? (Math.random() - 0.5) * 0.3 : 0.4 + Math.random() * 0.8,
             angle: Math.random() * Math.PI * 2,
             angularSpeed: (Math.random() - 0.5) * 0.03,
             swayPhase: Math.random() * Math.PI * 2,
@@ -240,6 +241,21 @@ export const ThemeAnimatedBackground = () => {
           if (p.x > width + 20) p.x = -20;
 
           drawSakuraPetal(p.x, p.y, p.size, p.angle, p.opacity, p.color);
+        } else if (p.type === 'bubble') {
+          p.y += p.speedY;
+          p.x += Math.sin(tick * 0.015 + p.swayPhase) * 0.4;
+          if (p.y < -p.size * 2) {
+            p.y = height + p.size;
+            p.x = Math.random() * width;
+          }
+          ctx.save();
+          ctx.globalAlpha = p.opacity;
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
         } else if (p.type === 'matrixStream') {
           p.y += p.speedY;
           if (p.y - p.length * p.size * 3 > height) {

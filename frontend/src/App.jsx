@@ -24,6 +24,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { ReportEditorPage } from './pages/ReportEditorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
+import { UtilityPage } from './pages/UtilityPage';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -78,6 +79,8 @@ export function App() {
                 <Route path="models" element={<ModelsPage />} />
                 <Route path="imei" element={<ImeiArticlesPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
+                <Route path="utility" element={<UtilityPage />} />
+                <Route path="utility/:tab" element={<UtilityPage />} />
                 <Route path="team" element={<TeamPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="reports/new" element={<ReportEditorPage />} />
