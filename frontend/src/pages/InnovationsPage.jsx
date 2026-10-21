@@ -1218,6 +1218,7 @@ export const InnovationsPage = () => {
           isOpen={isArticleViewOpen}
           onClose={() => setIsArticleViewOpen(false)}
           title={`Article: ${selectedArticle.title}`}
+          maxWidth="min(1120px, 95vw)"
         >
           {(() => {
             const att = normalizeAttachments(selectedArticle.attachments);
@@ -1412,6 +1413,7 @@ export const InnovationsPage = () => {
           isOpen={isArticleModalOpen}
           onClose={() => setIsArticleModalOpen(false)}
           title={editingId ? 'Edit Innovation Article' : 'New Innovation & Best Practice Article'}
+          maxWidth="min(1120px, 95vw)"
         >
           <form onSubmit={handleSaveArticle} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Editor Sub-Tabs */}
@@ -1731,6 +1733,7 @@ export const InnovationsPage = () => {
           isOpen={isTargetModalOpen}
           onClose={() => setIsTargetModalOpen(false)}
           title={`Set Monthly Innovation Targets (${selectedYear})`}
+          maxWidth="min(760px, 94vw)"
         >
           <form onSubmit={handleSaveTarget} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1814,6 +1817,7 @@ export const InnovationsPage = () => {
           isOpen={isBulkModalOpen}
           onClose={() => setIsBulkModalOpen(false)}
           title={`Bulk Add Innovations & Best Practices (${selectedYear})`}
+          maxWidth="min(1180px, 95vw)"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {/* Quick Helper Box */}
@@ -1926,7 +1930,7 @@ export const InnovationsPage = () => {
                                 {p.class_type}
                               </span>
                             </td>
-                            <td style={{ color: 'var(--color-text-secondary)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <td style={{ color: 'var(--color-text-secondary)', maxWidth: '560px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {p.description || '-'}
                             </td>
                             <td>⭐ {p.impact_score}</td>

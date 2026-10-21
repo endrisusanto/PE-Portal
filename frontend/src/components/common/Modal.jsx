@@ -8,7 +8,7 @@ export const Modal = ({
   title,
   children,
   footer,
-  maxWidth = '540px',
+  maxWidth = 'min(1080px, 94vw)', // ponytail: generous full-width modal for comfortable input & navigation
 }) => {
   const onCloseRef = useRef(onClose);
 
