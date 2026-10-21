@@ -79,7 +79,9 @@ export function App() {
                 <Route path="models" element={<ModelsPage />} />
                 <Route path="imei" element={<ImeiArticlesPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
-                <Route path="utility" element={<UtilityPage />} />
+                <Route path="tools" element={<UtilityPage />} />
+                <Route path="tools/:tab" element={<UtilityPage />} />
+                <Route path="utility" element={<Navigate to="/tools/images" replace />} />
                 <Route path="utility/:tab" element={<UtilityPage />} />
                 <Route path="team" element={<TeamPage />} />
                 <Route path="reports" element={<ReportsPage />} />

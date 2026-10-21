@@ -18,7 +18,6 @@ import {
   Eraser,
   Paintbrush,
   Sparkles,
-  Terminal,
   FileText
 } from 'lucide-react';
 import api from '../api/client';
@@ -28,14 +27,30 @@ import styles from './UtilityPage.module.css';
 export const UtilityPage = () => {
   const { t } = useTranslation();
   const { tab } = useParams();
-  const navigate = useNavigate();
 
-  // Active Tab: 'images', 'documents', 'remove-bg'
+  // Active Tab from route parameter: 'images', 'documents', 'remove-bg'
   const activeTab = tab || 'images';
 
-  const handleTabChange = (newTab) => {
-    navigate(`/utility/${newTab}`);
+  const toolMeta = {
+    images: {
+      title: t('nav.tools_images', 'Image Converter & Compress'),
+      subtitle: 'Bulk konversi format gambar (WEBP, JPEG, PNG, AVIF) & kompresi ukuran instan secara lokal di browser.',
+      icon: ImageIcon,
+    },
+    documents: {
+      title: t('nav.tools_docs', 'Document PDF Compress'),
+      subtitle: 'Kompresi file dokumen PDF secara aman dan lokal tanpa upload ke server eksternal.',
+      icon: FileArchive,
+    },
+    'remove-bg': {
+      title: t('nav.tools_bg', 'Local Remove Background'),
+      subtitle: 'Penghapusan background gambar menjadi format PNG transparan secara lokal & instan.',
+      icon: Scissors,
+    },
   };
+
+  const currentTool = toolMeta[activeTab] || toolMeta.images;
+  const ToolIcon = currentTool.icon;
 
   return (
     <div className={styles.container}>
@@ -43,11 +58,11 @@ export const UtilityPage = () => {
       <div className={styles.header}>
         <div>
           <h1 className={styles.headerTitle}>
-            <Wrench size={22} color="var(--color-accent)" />
-            {t('nav.utility', 'Utility Tools')}
+            <ToolIcon size={22} color="var(--color-accent)" />
+            {currentTool.title}
           </h1>
           <p className={styles.headerSubtitle}>
-            Peralatan engineering lokal: Bulk convert & compress gambar, kompresi dokumen PDF, dan penghapusan background mandiri tanpa API cloud.
+            {currentTool.subtitle}
           </p>
         </div>
 
@@ -69,37 +84,7 @@ export const UtilityPage = () => {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className={styles.tabNav}>
-        <button
-          type="button"
-          className={`${styles.tabBtn} ${activeTab === 'images' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabChange('images')}
-        >
-          <ImageIcon size={16} />
-          {t('nav.utility_images', 'Image Converter & Compress')}
-        </button>
-
-        <button
-          type="button"
-          className={`${styles.tabBtn} ${activeTab === 'documents' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabChange('documents')}
-        >
-          <FileArchive size={16} />
-          {t('nav.utility_docs', 'Document PDF Compress')}
-        </button>
-
-        <button
-          type="button"
-          className={`${styles.tabBtn} ${activeTab === 'remove-bg' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabChange('remove-bg')}
-        >
-          <Scissors size={16} />
-          {t('nav.utility_bg', 'Local Remove Background')}
-        </button>
-      </div>
-
-      {/* Tab Contents */}
+      {/* Direct Tool Rendering (Accessed from Sidebar) */}
       {activeTab === 'images' && <ImageConverterTab />}
       {activeTab === 'documents' && <DocumentCompressTab />}
       {activeTab === 'remove-bg' && <RemoveBackgroundTab />}
@@ -669,20 +654,11 @@ const RemoveBackgroundTab = () => {
   const [bgColorHex, setBgColorHex] = useState('auto');
   const [activeTool, setActiveTool] = useState('eyedropper'); // 'eyedropper', 'eraser', 'restore'
   const [brushSize, setBrushSize] = useState(25);
-  const [processing, setProcessing] = useState(false);
-  const [pythonStatus, setPythonStatus] = useState(null);
 
   const canvasRef = useRef(null);
   const originalCanvasRef = useRef(null);
   const isDrawing = useRef(false);
   const fileInputRef = useRef(null);
-
-  // Check backend local python capability
-  useEffect(() => {
-    api.get('/utility/status')
-      .then((res) => setPythonStatus(res.data))
-      .catch((err) => console.log('Utility status check:', err));
-  }, []);
 
   // When image loads, process onto canvas
   useEffect(() => {
@@ -840,52 +816,8 @@ const RemoveBackgroundTab = () => {
     link.click();
   };
 
-  const handleRunPythonServer = async () => {
-    if (!imageFile) return;
-    setProcessing(true);
-    const formData = new FormData();
-    formData.append('image', imageFile);
-    formData.append('tolerance', String(tolerance));
-    formData.append('bg_color', bgColorHex);
-    formData.append('feather', String(feather));
-
-    try {
-      const res = await api.post('/utility/remove-bg', formData, {
-        responseType: 'blob',
-      });
-      const blob = res.data;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = `python_nobg_${imageFile.name}.png`;
-      link.href = url;
-      link.click();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Python local execution error');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* CLI / Script information banner */}
-      <div className={styles.cliBanner}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Terminal size={16} />
-          <span>Script Python Lokal: <code>python3 backend/scripts/remove_bg.py input.jpg output.png {tolerance} {bgColorHex} {feather}</code></span>
-        </div>
-        <button
-          type="button"
-          className={styles.copyBtn}
-          onClick={() => {
-            navigator.clipboard.writeText(`python3 backend/scripts/remove_bg.py input.jpg output.png ${tolerance} ${bgColorHex} ${feather}`);
-            alert('Perintah CLI disalin ke clipboard!');
-          }}
-        >
-          Salin Perintah CLI
-        </button>
-      </div>
-
       {/* Control Toolbar */}
       <div className={styles.controlPanel}>
         <div className={styles.controlGroup}>
@@ -1005,15 +937,6 @@ const RemoveBackgroundTab = () => {
             <>
               <Button variant="secondary" icon={RefreshCw} onClick={renderBackgroundRemoval}>
                 Reset
-              </Button>
-              <Button
-                variant="secondary"
-                icon={Terminal}
-                onClick={handleRunPythonServer}
-                loading={processing}
-                title="Proses menggunakan skrip Python Pillow di server lokal"
-              >
-                Proses Python
               </Button>
               <Button variant="primary" icon={Download} onClick={handleDownloadPng}>
                 Unduh PNG Transparan
