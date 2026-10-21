@@ -7,17 +7,17 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)](https://www.docker.com)
 [![License](https://img.shields.io/badge/License-Proprietary%20%2F%20Internal-red.svg)](LICENSE)
 
-An all-in-one, ultra-fast, low-resource engineering management platform specifically engineered for the **SEIN Production Engineer Group** (~30 engineers). Designed to streamline best practice innovations, product model stage developments, digital reports, automated email dispatch, and AI/MCP integrations with responsive design and rich visual themes.
+An all-in-one, ultra-fast, low-resource engineering management platform specifically engineered for the **SEIN PE Group** (~30 engineers). Designed to streamline best practice innovations, product model stage developments, digital reports, automated email dispatch, and AI/MCP integrations with responsive design and rich visual themes.
 
 ---
 
-## 👥 SEIN Production Engineer Group Structure
+## 👥 SEIN PE Group Structure
 
 The platform is architected around the distinct workflows of the three core divisions in SEIN PE:
 
 ```
                           ┌────────────────────────────────┐
-                          │  SEIN Production Engineer Group │
+                          │         SEIN PE Group          │
                           └──────────────┬─────────────────┘
                                          │
         ┌────────────────────────────────┼────────────────────────────────┐
@@ -256,5 +256,5 @@ PE-Portal/
 
 ## 📄 License & Attribution
 
-Internal engineering tool developed for **SEIN Production Engineer Group**.  
+Internal engineering tool developed for **SEIN PE Group**.  
 Built with care following the principles of high-performance engineering (`/ponytail`) and polished interface design (`/emil-design-eng` & `/better-ui`).

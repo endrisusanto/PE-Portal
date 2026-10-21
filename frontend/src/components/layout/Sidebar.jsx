@@ -150,7 +150,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
         {!isCollapsed && (
           <div className={styles.brandText}>
             <span className={styles.brandTitle}>PE-Portal</span>
-            <span className={styles.brandSubtitle}>{t('app.subtitle', 'SEIN Engineering')}</span>
+            <span className={styles.brandSubtitle}>{t('app.subtitle', 'SEIN PE Group')}</span>
           </div>
         )}
       </div>

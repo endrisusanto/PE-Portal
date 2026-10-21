@@ -52,7 +52,7 @@ export const TeamPage = () => {
           {t('nav.team')}
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-          SEIN Production Engineer Group structure (30 members across 3 specialized divisions)
+          SEIN PE Group structure (30 members across 3 specialized divisions)
         </p>
       </div>
 
