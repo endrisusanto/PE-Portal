@@ -1,0 +1,110 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 4px;
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
+}
+
+.toolbarWrapper {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-secondary);
+  overflow: hidden;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbarWrapper:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 6px;
+  background-color: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border);
+  user-select: none;
+}
+
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toolBtn:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.toolBtn:active {
+  transform: scale(0.92);
+}
+
+.toolDivider {
+  width: 1px;
+  height: 16px;
+  background-color: var(--color-border);
+  margin: 0 4px;
+  align-self: center;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  outline: none;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 90px;
+}
+
+.textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Light mode overrides */
+:global([data-theme="light"]) .label {
+  color: #334155;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .toolbar {
+  background-color: #f1f5f9;
+  border-bottom-color: #cbd5e1;
+}
+
+:global([data-theme="light"]) .toolBtn {
+  color: #475569;
+}
+
+:global([data-theme="light"]) .toolBtn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}

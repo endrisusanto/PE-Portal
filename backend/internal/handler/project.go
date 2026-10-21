@@ -56,6 +56,7 @@ type CreateProjectRequest struct {
 	Title          string          `json:"title"`
 	Description    *string         `json:"description"`
 	ProjectType    string          `json:"project_type"`
+	Status         string          `json:"status"`
 	Priority       string          `json:"priority"`
 	GroupPartID    *uuid.UUID      `json:"group_part_id"`
 	StartDate      *string         `json:"start_date"`
@@ -82,11 +83,16 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 		}
 	}
 
+	status := req.Status
+	if status == "" {
+		status = "planning"
+	}
+
 	p := model.Project{
 		Title:       req.Title,
 		Description: req.Description,
 		ProjectType: req.ProjectType,
-		Status:      "planning",
+		Status:      status,
 		Priority:    req.Priority,
 		OwnerID:     ownerID,
 		GroupPartID: req.GroupPartID,
@@ -120,6 +126,7 @@ func (h *ProjectHandler) Update(c echo.Context) error {
 		Title:          req.Title,
 		Description:    req.Description,
 		ProjectType:    req.ProjectType,
+		Status:         req.Status,
 		Priority:       req.Priority,
 		GroupPartID:    req.GroupPartID,
 		StartDate:      req.StartDate,

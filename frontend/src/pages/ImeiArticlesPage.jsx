@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pin, FileText, Search } from 'lucide-react';
+import { Plus, Pin, FileText, Search, Edit2 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
+import { FormattingTextarea } from '../components/common/FormattingTextarea';
 
 export const ImeiArticlesPage = () => {
   const { t } = useTranslation();
@@ -17,11 +18,19 @@ export const ImeiArticlesPage = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Form
+  // Create Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [modelId, setModelId] = useState('');
   const [isPinned, setIsPinned] = useState(false);
+
+  // Edit Form State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingArticle, setEditingArticle] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editModelId, setEditModelId] = useState('');
+  const [editIsPinned, setEditIsPinned] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -63,6 +72,35 @@ export const ImeiArticlesPage = () => {
       setContent('');
       setModelId('');
       setIsPinned(false);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleOpenEdit = (art) => {
+    setEditingArticle(art);
+    setEditTitle(art.title || '');
+    setEditContent(art.content || '');
+    setEditModelId(art.model_id || '');
+    setEditIsPinned(!!art.is_pinned);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdate = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingArticle) return;
+    try {
+      const res = await api.put(`/imei/articles/${editingArticle.id}`, {
+        title: editTitle,
+        content: editContent,
+        model_id: editModelId || undefined,
+        is_pinned: editIsPinned,
+      });
+      setArticles((prev) =>
+        prev.map((a) => (a.id === editingArticle.id ? { ...a, ...res.data } : a))
+      );
+      setIsEditModalOpen(false);
+      setEditingArticle(null);
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -138,18 +176,51 @@ export const ImeiArticlesPage = () => {
                 position: 'relative',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{
                   fontSize: '11px',
                   fontWeight: 600,
                   backgroundColor: 'var(--color-bg-primary)',
-                  padding: '2px 6px',
+                  padding: '2px 8px',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--color-border-subtle)',
+                  color: 'var(--color-text-secondary)',
                 }}>
                   {art.model_name || 'General'}
                 </span>
-                {art.is_pinned && <Pin size={14} color="var(--color-accent)" />}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {art.is_pinned && <Pin size={14} color="var(--color-accent)" />}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(art)}
+                    title="Edit Article"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      backgroundColor: 'var(--color-bg-primary)',
+                      color: 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--color-accent)';
+                      e.currentTarget.style.borderColor = 'var(--color-accent)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--color-text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--color-border)';
+                    }}
+                  >
+                    <Edit2 size={12} />
+                    <span>Edit</span>
+                  </button>
+                </div>
               </div>
 
               <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
@@ -233,33 +304,99 @@ export const ImeiArticlesPage = () => {
             </select>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Article Notes / Content
-            </label>
-            <textarea
-              rows="6"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              required
-              placeholder="Record parameters, line settings, error handling..."
-              style={{
-                padding: '8px 12px',
-                backgroundColor: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: 'var(--font-size-sm)',
-              }}
-            />
-          </div>
+          <FormattingTextarea
+            label="Article Notes / Content"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            required
+            placeholder="Record parameters, line settings, error handling..."
+            rows={6}
+            minHeight="140px"
+          />
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}>
             <input
               type="checkbox"
               checked={isPinned}
               onChange={(e) => setIsPinned(e.target.checked)}
+            />
+            Pin article to top of list
+          </label>
+        </form>
+      </Modal>
+
+      {/* Edit Article Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingArticle(null);
+        }}
+        title={`Edit Article: ${editingArticle?.title || ''}`}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingArticle(null);
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" onClick={handleUpdate}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            label="Article Title"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            required
+            placeholder="e.g. S26 Paradigm IMEI Calibration Procedure"
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+              Associated Product Model
+            </label>
+            <select
+              value={editModelId}
+              onChange={(e) => setEditModelId(e.target.value)}
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              <option value="">None / General</option>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>{m.model_name} ({m.codename || 'Standard'})</option>
+              ))}
+            </select>
+          </div>
+
+          <FormattingTextarea
+            label="Article Notes / Content"
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            required
+            placeholder="Record parameters, line settings, error handling..."
+            rows={8}
+            minHeight="160px"
+          />
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}>
+            <input
+              type="checkbox"
+              checked={editIsPinned}
+              onChange={(e) => setEditIsPinned(e.target.checked)}
             />
             Pin article to top of list
           </label>

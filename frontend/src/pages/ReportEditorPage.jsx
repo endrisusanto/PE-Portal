@@ -28,6 +28,7 @@ import { Input } from '../components/common/Input';
 import { EmailChipInput } from '../components/common/EmailChipInput';
 import { Modal } from '../components/common/Modal';
 import { LoadingState } from '../components/common/LoadingState';
+import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import styles from './ReportEditorPage.module.css';
 
 export const ReportEditorPage = () => {
@@ -576,11 +577,12 @@ export const ReportEditorPage = () => {
 
               {/* Paragraph Block */}
               {block.type === 'paragraph' && (
-                <textarea
+                <FormattingTextarea
                   value={block.content || ''}
                   onChange={(e) => updateBlockContent(index, e.target.value)}
-                  className={styles.paragraphInput}
                   placeholder="Type your notes or description here..."
+                  rows={4}
+                  minHeight="90px"
                 />
               )}
 

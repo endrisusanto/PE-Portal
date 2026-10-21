@@ -38,6 +38,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { Table } from '../components/common/Table';
+import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import styles from './InnovationsPage.module.css';
 
 // Helper to get class badge styling
@@ -1524,27 +1525,14 @@ export const InnovationsPage = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11.5px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
-                    Problem Statement, Implementation & Solution
-                  </label>
-                  <textarea
-                    rows="6"
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Detail the technical implementation, cost reduction, line cycle improvements, or quality benefits..."
-                    style={{
-                      padding: '10px 12px',
-                      background: 'var(--color-bg-secondary)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 'var(--radius-sm)',
-                      color: 'var(--color-text-primary)',
-                      fontFamily: 'inherit',
-                      fontSize: '13px',
-                      lineHeight: 1.5,
-                    }}
-                  />
-                </div>
+                <FormattingTextarea
+                  label="Problem Statement, Implementation & Solution"
+                  rows={6}
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  placeholder="Detail the technical implementation, cost reduction, line cycle improvements, or quality benefits..."
+                  minHeight="140px"
+                />
               </div>
             )}
 

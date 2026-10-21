@@ -124,8 +124,11 @@ func (r *NewModelRepository) Update(ctx context.Context, m *model.NewModel) (*mo
 	query := `
 		UPDATE new_models
 		SET model_name = $1, codename = $2, description = $3,
-		    project_id = $4, owner_id = $5, target_release = NULLIF($6, '')::date,
-		    specifications = $7, updated_at = NOW()
+		    project_id = $4,
+		    owner_id = COALESCE($5, owner_id),
+		    target_release = NULLIF($6, '')::date,
+		    specifications = CASE WHEN $7::text = '' OR $7::text = 'null' OR $7 IS NULL THEN specifications ELSE $7 END,
+		    updated_at = NOW()
 		WHERE id = $8 AND deleted_at IS NULL
 	`
 

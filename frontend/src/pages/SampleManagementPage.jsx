@@ -25,6 +25,7 @@ import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
 import { Button } from '../components/common/Button';
+import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import styles from './SampleManagementPage.module.css';
 
 export const SampleManagementPage = () => {
@@ -1320,13 +1321,13 @@ export const SampleManagementPage = () => {
           </div>
 
           <div className={styles.formGroupFull}>
-            <label className={styles.formLabel}>Catatan Tambahan</label>
-            <textarea
-              className={styles.formTextarea}
-              rows={2}
+            <FormattingTextarea
+              label="Catatan Tambahan"
+              rows={3}
               placeholder="Keterangan kondisi khusus perangkat..."
               value={sampleForm.notes}
               onChange={(e) => setSampleForm({ ...sampleForm, notes: e.target.value })}
+              minHeight="90px"
             />
           </div>
 

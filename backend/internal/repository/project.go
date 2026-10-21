@@ -141,9 +141,13 @@ func (r *ProjectRepository) Update(ctx context.Context, p *model.Project) (*mode
 
 	query := `
 		UPDATE projects
-		SET title = $1, description = $2, project_type = $3, status = $4, priority = $5,
+		SET title = $1, description = $2, project_type = $3,
+		    status = COALESCE(NULLIF($4, ''), status),
+		    priority = $5,
 		    group_part_id = $6, start_date = NULLIF($7, '')::date, target_date = NULLIF($8, '')::date,
-		    completion_date = NULLIF($9, '')::date, progress = $10, metadata = $11, updated_at = NOW()
+		    completion_date = NULLIF($9, '')::date, progress = $10,
+		    metadata = CASE WHEN $11::text = '' OR $11::text = 'null' OR $11 IS NULL THEN metadata ELSE $11 END,
+		    updated_at = NOW()
 		WHERE id = $12 AND deleted_at IS NULL
 	`
 

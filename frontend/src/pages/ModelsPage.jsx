@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, ArrowRight, CheckCircle2, ChevronRight, Cpu } from 'lucide-react';
+import { Plus, ChevronRight, Cpu, Edit2 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -8,6 +8,7 @@ import { Modal } from '../components/common/Modal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
+import { FormattingTextarea } from '../components/common/FormattingTextarea';
 
 const PIPELINE_STAGES = [
   { key: 'concept', label: 'Concept' },
@@ -41,6 +42,14 @@ export const ModelsPage = () => {
   const [nextStage, setNextStage] = useState('');
   const [stageNotes, setStageNotes] = useState('');
 
+  // Edit form
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState(null);
+  const [editModelName, setEditModelName] = useState('');
+  const [editCodename, setEditCodename] = useState('');
+  const [editTargetRelease, setEditTargetRelease] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
   const fetchModels = async () => {
     setLoading(true);
     try {
@@ -71,6 +80,7 @@ export const ModelsPage = () => {
       setIsAddModalOpen(false);
       setModelName('');
       setCodename('');
+      setTargetRelease('');
       setDescription('');
     } catch (err) {
       alert(err.response?.data?.message || err.message);
@@ -101,6 +111,36 @@ export const ModelsPage = () => {
     const next = PIPELINE_STAGES[currentIndex + 1]?.key || m.stage;
     setNextStage(next);
     setIsAdvanceModalOpen(true);
+  };
+
+  const openEditModal = (m) => {
+    setEditingModel(m);
+    setEditModelName(m.model_name || '');
+    setEditCodename(m.codename || '');
+    setEditTargetRelease(m.target_release ? m.target_release.substring(0, 10) : '');
+    setEditDescription(m.description || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateModel = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingModel) return;
+
+    try {
+      const res = await api.put(`/models/${editingModel.id}`, {
+        model_name: editModelName,
+        codename: editCodename || undefined,
+        target_release: editTargetRelease || undefined,
+        description: editDescription || undefined,
+      });
+      setModels((prev) =>
+        prev.map((m) => (m.id === editingModel.id ? { ...m, ...res.data } : m))
+      );
+      setIsEditModalOpen(false);
+      setEditingModel(null);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
   };
 
   return (
@@ -147,9 +187,9 @@ export const ModelsPage = () => {
                 }}
               >
                 {/* Model Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                       <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 700 }}>
                         {m.model_name}
                       </h2>
@@ -166,22 +206,37 @@ export const ModelsPage = () => {
                         </span>
                       )}
                       <StatusBadge status={m.stage} />
+                      {m.target_release && (
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                          Target: {new Date(m.target_release).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                     {m.description && (
-                      <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                      <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
                         {m.description}
                       </p>
                     )}
                   </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    icon={ChevronRight}
-                    onClick={() => openAdvanceModal(m)}
-                  >
-                    {t('models.advance_stage')}
-                  </Button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={Edit2}
+                      onClick={() => openEditModal(m)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={ChevronRight}
+                      onClick={() => openAdvanceModal(m)}
+                    >
+                      {t('models.advance_stage')}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Pipeline visual bar */}
@@ -314,26 +369,73 @@ export const ModelsPage = () => {
             onChange={(e) => setTargetRelease(e.target.value)}
           />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Description
-            </label>
-            <textarea
-              rows="3"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Model specifications, line configuration..."
-              style={{
-                padding: '8px 12px',
-                backgroundColor: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: 'var(--font-size-sm)',
+          <FormattingTextarea
+            label="Description"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Model specifications, line configuration..."
+            minHeight="100px"
+          />
+        </form>
+      </Modal>
+
+      {/* Edit Model Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingModel(null);
+        }}
+        title={`Edit Model: ${editingModel?.model_name || ''}`}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingModel(null);
               }}
-            />
-          </div>
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" onClick={handleUpdateModel}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleUpdateModel} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            label="Model Name"
+            value={editModelName}
+            onChange={(e) => setEditModelName(e.target.value)}
+            required
+            placeholder="e.g. S26 Series"
+          />
+
+          <Input
+            label="Codename"
+            value={editCodename}
+            onChange={(e) => setEditCodename(e.target.value)}
+            placeholder="e.g. Paradigm"
+          />
+
+          <Input
+            label="Target Release Date"
+            type="date"
+            value={editTargetRelease}
+            onChange={(e) => setEditTargetRelease(e.target.value)}
+          />
+
+          <FormattingTextarea
+            label="Description"
+            rows={4}
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            placeholder="Model specifications, line configuration..."
+            minHeight="120px"
+          />
         </form>
       </Modal>
 
@@ -376,26 +478,14 @@ export const ModelsPage = () => {
             </select>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Advancement Notes / Verification
-            </label>
-            <textarea
-              rows="4"
-              value={stageNotes}
-              onChange={(e) => setStageNotes(e.target.value)}
-              placeholder="Record approval criteria, build approval results, JIG validation..."
-              style={{
-                padding: '8px 12px',
-                backgroundColor: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: 'var(--font-size-sm)',
-              }}
-            />
-          </div>
+          <FormattingTextarea
+            label="Advancement Notes / Verification"
+            rows={4}
+            value={stageNotes}
+            onChange={(e) => setStageNotes(e.target.value)}
+            placeholder="Record approval criteria, build approval results, JIG validation..."
+            minHeight="120px"
+          />
         </form>
       </Modal>
     </div>
