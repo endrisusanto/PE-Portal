@@ -75,13 +75,12 @@ CREATE TABLE IF NOT EXISTS report_send_logs (
 
 -- Seed initial default SMTP config template
 INSERT INTO smtp_configs (name, host, port, username, password, from_email, from_name, encryption, is_default)
-VALUES ('Corporate SEIN Mail Gateway', 'smtp.sein.corp.local', 587, 'pe-reporter@sein.corp.local', 'sein_pe_smtp_pass', 'pe-reporter@samsung.com', 'SEIN PE Portal Robot', 'tls', true)
-ON CONFLICT DO NOTHING;
+SELECT 'Corporate SEIN Mail Gateway', 'smtp.sein.corp.local', 587, 'pe-reporter@sein.corp.local', 'sein_pe_smtp_pass', 'pe-reporter@samsung.com', 'SEIN PE Portal Robot', 'tls', true
+WHERE NOT EXISTS (SELECT 1 FROM smtp_configs WHERE name = 'Corporate SEIN Mail Gateway');
 
 -- Seed default shared report templates
 INSERT INTO report_templates (title, description, category, is_shared, content)
-VALUES 
-(
+SELECT
   'Daily Engineering Work Report',
   'Standard daily reporting template for Production Engineers with live task list and blocker highlights',
   'daily',
@@ -97,8 +96,10 @@ VALUES
     {"type": "heading", "content": "4. Tomorrow Plan"},
     {"type": "paragraph", "content": "Planned activities and production support schedule for tomorrow."}
   ]'::jsonb
-),
-(
+WHERE NOT EXISTS (SELECT 1 FROM report_templates WHERE title = 'Daily Engineering Work Report');
+
+INSERT INTO report_templates (title, description, category, is_shared, content)
+SELECT
   'Weekly Project & Model Progress Report',
   'Weekly progress overview for Project Owners and Model Engineers',
   'weekly',
@@ -113,5 +114,4 @@ VALUES
     {"type": "heading", "content": "3. Risk Assessment & Support Needed"},
     {"type": "paragraph", "content": "Identified bottlenecks requiring management assistance."}
   ]'::jsonb
-)
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM report_templates WHERE title = 'Weekly Project & Model Progress Report');

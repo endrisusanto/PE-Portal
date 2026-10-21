@@ -111,14 +111,14 @@ export const ImeiArticlesPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>
-            {t('nav.imei', 'Timeline Articles')}
+            {t('nav.imei', 'Artikel')}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-            Catatan bersama tim PE: posting update teknis, investigasi issue, tips proses, dan timeline pengetahuan bersama
+            Catatan & artikel bersama tim PE: posting update teknis, investigasi issue, tips proses, dan panduan kerja
           </p>
         </div>
         <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
-          Post Catatan Baru
+          Post Artikel Baru
         </Button>
       </div>
 

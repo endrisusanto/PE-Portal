@@ -44,9 +44,14 @@ func ConnectPostgres(connString string) (*PostgresPool, error) {
 	return &PostgresPool{Pool: pool}, nil
 }
 
-// RunMigrations executes SQL migration files if needed
+// RunMigrations executes SQL migration files once using schema_migrations tracker
 func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 	ctx := context.Background()
+
+	// Ensure migration tracking table exists
+	if _, err := p.Pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW());`); err != nil {
+		return fmt.Errorf("failed to create schema_migrations table: %w", err)
+	}
 
 	files := []string{
 		"001_init.sql",
@@ -59,6 +64,11 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		"008_software_mr.sql",
 	}
 	for _, file := range files {
+		var alreadyApplied bool
+		if err := p.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)", file).Scan(&alreadyApplied); err == nil && alreadyApplied {
+			continue // Migration already applied, skip
+		}
+
 		path := filepath.Join(migrationsDir, file)
 		content, err := os.ReadFile(path)
 		if err != nil {
@@ -74,6 +84,8 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		if _, err := p.Pool.Exec(ctx, string(content)); err != nil {
 			return fmt.Errorf("migration %s failed: %w", file, err)
 		}
+
+		_, _ = p.Pool.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING", file)
 		log.Printf("[DB] Applied migration: %s", file)
 	}
 

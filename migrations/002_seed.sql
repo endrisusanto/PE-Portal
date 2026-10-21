@@ -33,20 +33,19 @@ ON CONFLICT DO NOTHING;
 
 -- 2. Seed Default Auth Config (Local for development)
 INSERT INTO auth_config (provider, is_active)
-VALUES ('local', true)
-ON CONFLICT DO NOTHING;
+SELECT 'local', true
+WHERE NOT EXISTS (SELECT 1 FROM auth_config WHERE provider = 'local');
 
 -- 3. Seed Initial MCP Server (Google Build Approval)
 INSERT INTO mcp_servers (name, url, description, auth_type, is_active, health_status)
-VALUES (
+SELECT
     'Google Build Approval',
     'http://107.102.39.55:3800/mcp',
     'Google Build Approval Management MCP Server',
     'none',
     true,
     'unknown'
-)
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM mcp_servers WHERE name = 'Google Build Approval');
 
 -- 4. Seed Default Admin User
 -- Username: admin

@@ -485,22 +485,27 @@ INSERT INTO samples (asset_number, model, serial_number, category, status_pinjam
 ('AS10443', 'SM-X946B', 'ZEM0366M', 'Engineering Sample', 'AVAILABLE', '', NULL, 'DHANAR KURNIA PUTRA', 'Dynamics Building Lt 2 | PE Lab', 'Normal', '', '351358840166570', 'CE0426A42A7B94A6417E', 'REV0.4', 'Model variant: SM-X946B_EUR_XX')
 ON CONFLICT (asset_number) DO NOTHING;
 
--- Seed initial transaction flows
-INSERT INTO sample_flows (asset_number, model, borrower_name, action, notes, timestamp) VALUES
-('AS10001', 'SM-A013G', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-21T00:09:32.563477+00:00'),
-('AS10002', 'SM-A022F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-20T17:09:32.563477+00:00'),
-('AS10003', 'SM-A022F', 'LUTFI BUKHARI', 'PINJAM', 'Peminjaman awal', '2026-10-20T10:09:32.563477+00:00'),
-('AS10004', 'SM-A047F', 'DHANAR KURNIA PUTRA', 'PINJAM', 'Peminjaman awal', '2026-10-20T03:09:32.563477+00:00'),
-('AS10005', 'SM-A047F', 'FAZLUR RAHMA', 'PINJAM', 'Peminjaman awal', '2026-10-19T20:09:32.563477+00:00'),
-('AS10006', 'SM-A047F', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-19T13:09:32.563477+00:00'),
-('AS10007', 'SM-A047F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-19T06:09:32.563477+00:00'),
-('AS10008', 'SM-A055F', 'LUTFI BUKHARI', 'PINJAM', 'Peminjaman awal', '2026-10-18T23:09:32.563477+00:00'),
-('AS10009', 'SM-A055F', 'DHANAR KURNIA PUTRA', 'PINJAM', 'Peminjaman awal', '2026-10-18T16:09:32.563477+00:00'),
-('AS10010', 'SM-A055F', 'FAZLUR RAHMA', 'PINJAM', 'Peminjaman awal', '2026-10-18T09:09:32.563477+00:00'),
-('AS10011', 'SM-A055F', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-18T02:09:32.563477+00:00'),
-('AS10012', 'SM-A057F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-17T19:09:32.563477+00:00'),
-('AS10013', 'SM-A057F', 'LUTFI BUKHARI', 'PINJAM', 'Peminjaman awal', '2026-10-17T12:09:32.563477+00:00'),
-('AS10014', 'SM-A057F', 'DHANAR KURNIA PUTRA', 'PINJAM', 'Peminjaman awal', '2026-10-17T05:09:32.563477+00:00'),
-('AS10015', 'SM-A057F', 'FAZLUR RAHMA', 'PINJAM', 'Peminjaman awal', '2026-10-16T22:09:32.563477+00:00'),
-('AS10016', 'SM-A065F', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-16T15:09:32.563477+00:00'),
-('AS10017', 'SM-A065F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-16T08:09:32.563477+00:00');
+-- Seed initial transaction flows (only if empty)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM sample_flows LIMIT 1) THEN
+        INSERT INTO sample_flows (asset_number, model, borrower_name, action, notes, timestamp) VALUES
+        ('AS10001', 'SM-A013G', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-21T00:09:32.563477+00:00'),
+        ('AS10002', 'SM-A022F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-20T17:09:32.563477+00:00'),
+        ('AS10003', 'SM-A022F', 'LUTFI BUKHARI', 'PINJAM', 'Peminjaman awal', '2026-10-20T10:09:32.563477+00:00'),
+        ('AS10004', 'SM-A047F', 'DHANAR KURNIA PUTRA', 'PINJAM', 'Peminjaman awal', '2026-10-20T03:09:32.563477+00:00'),
+        ('AS10005', 'SM-A047F', 'FAZLUR RAHMA', 'PINJAM', 'Peminjaman awal', '2026-10-19T20:09:32.563477+00:00'),
+        ('AS10006', 'SM-A047F', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-19T13:09:32.563477+00:00'),
+        ('AS10007', 'SM-A047F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-19T06:09:32.563477+00:00'),
+        ('AS10008', 'SM-A055F', 'LUTFI BUKHARI', 'PINJAM', 'Peminjaman awal', '2026-10-18T23:09:32.563477+00:00'),
+        ('AS10009', 'SM-A055F', 'DHANAR KURNIA PUTRA', 'PINJAM', 'Peminjaman awal', '2026-10-18T16:09:32.563477+00:00'),
+        ('AS10010', 'SM-A055F', 'FAZLUR RAHMA', 'PINJAM', 'Peminjaman awal', '2026-10-18T09:09:32.563477+00:00'),
+        ('AS10011', 'SM-A055F', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-18T02:09:32.563477+00:00'),
+        ('AS10012', 'SM-A057F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-17T19:09:32.563477+00:00'),
+        ('AS10013', 'SM-A057F', 'LUTFI BUKHARI', 'PINJAM', 'Peminjaman awal', '2026-10-17T12:09:32.563477+00:00'),
+        ('AS10014', 'SM-A057F', 'DHANAR KURNIA PUTRA', 'PINJAM', 'Peminjaman awal', '2026-10-17T05:09:32.563477+00:00'),
+        ('AS10015', 'SM-A057F', 'FAZLUR RAHMA', 'PINJAM', 'Peminjaman awal', '2026-10-16T22:09:32.563477+00:00'),
+        ('AS10016', 'SM-A065F', 'ENDRI SUSANTO', 'PINJAM', 'Peminjaman awal', '2026-10-16T15:09:32.563477+00:00'),
+        ('AS10017', 'SM-A065F', 'APTA PRANA MAS ERLANGGA', 'PINJAM', 'Peminjaman awal', '2026-10-16T08:09:32.563477+00:00');
+    END IF;
+END $$;
