@@ -5,7 +5,7 @@
   },
   "nav": {
     "dashboard": "대시보드",
-    "innovations": "혁신 및 우수사례",
+    "innovations": "Innovation & Best Practice (BP)",
     "projects": "프로젝트",
     "models": "신모델 개발",
     "imei": "IMEI 기술문서",
@@ -55,7 +55,7 @@
     "team_badge": "SEIN PE Group",
     "stats": {
       "active_projects": "진행 중 프로젝트",
-      "innovations": "혁신 및 우수사례",
+      "innovations": "Innovation & Best Practice (BP)",
       "new_models": "개발 중 모델",
       "documents": "보관 문서",
       "team_members": "전체 팀원"

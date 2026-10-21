@@ -3,6 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -222,4 +224,30 @@ func (h *ProjectHandler) UpdateTaskStatus(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "task status updated"})
+}
+
+// GetGbaTasks proxies GBA task manager kanban data from project_manager app (view only)
+func (h *ProjectHandler) GetGbaTasks(c echo.Context) error {
+	apiURL := os.Getenv("GBA_API_URL")
+	if apiURL == "" {
+		apiURL = "http://172.17.0.1:8089/api_kanban.php"
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		// Fallback for host/localhost execution
+		resp, err = client.Get("http://localhost:8089/api_kanban.php")
+	}
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadGateway, "Failed to connect to GBA Task Manager: "+err.Error())
+	}
+	defer resp.Body.Close()
+
+	var data map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to decode GBA tasks: "+err.Error())
+	}
+
+	return c.JSON(http.StatusOK, data)
 }

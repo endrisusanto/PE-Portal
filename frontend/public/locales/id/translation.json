@@ -5,7 +5,7 @@
   },
   "nav": {
     "dashboard": "Dasbor",
-    "innovations": "Inovasi & Praktik",
+    "innovations": "Innovation & Best Practice (BP)",
     "projects": "Proyek",
     "models": "Model Baru",
     "imei": "Catatan IMEI",
@@ -55,7 +55,7 @@
     "team_badge": "SEIN PE Group",
     "stats": {
       "active_projects": "Proyek Aktif",
-      "innovations": "Inovasi & Praktik",
+      "innovations": "Innovation & Best Practice (BP)",
       "new_models": "Model dalam Pengembangan",
       "documents": "Dokumen Diarsipkan",
       "team_members": "Total Anggota"

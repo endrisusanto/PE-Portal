@@ -77,10 +77,11 @@ export const AppShell = () => {
       <Sidebar
         isCollapsed={isCollapsed}
         onToggleChat={() => setIsChatOpen((prev) => !prev)}
+        onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
       />
 
       <div className={styles.mainContainer}>
-        <TopBar onToggleSidebar={() => setIsCollapsed((prev) => !prev)} />
+        <TopBar />
         <main className={styles.content}>
           <Outlet />
         </main>

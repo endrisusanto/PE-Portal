@@ -56,7 +56,6 @@ export const InnovationsPage = () => {
   // Innovation Records State
   const [items, setItems] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
-  const [category, setCategory] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -101,7 +100,6 @@ export const InnovationsPage = () => {
     try {
       const res = await api.get('/innovations', {
         params: {
-          category: category || undefined,
           class_type: classFilter || undefined,
         },
       });
@@ -120,7 +118,7 @@ export const InnovationsPage = () => {
 
   useEffect(() => {
     fetchInnovations();
-  }, [category, classFilter]);
+  }, [classFilter]);
 
   // Handle Save Target
   const handleSaveTarget = async (e) => {
@@ -201,15 +199,7 @@ export const InnovationsPage = () => {
         </div>
       ),
     },
-    {
-      title: 'Category',
-      key: 'category',
-      render: (val) => (
-        <span style={{ textTransform: 'capitalize', fontWeight: 500, fontSize: '12px' }}>
-          {val === 'best_practice' ? '⭐ Best Practice' : '💡 Innovation Idea'}
-        </span>
-      ),
-    },
+
     {
       title: 'Status',
       key: 'status',
@@ -267,7 +257,7 @@ export const InnovationsPage = () => {
         <div className={styles.titleArea}>
           <h1>
             <Award size={22} color="var(--color-accent)" />
-            {t('nav.innovations')} & Best Practice (BP)
+            {t('nav.innovations')}
           </h1>
           <p className={styles.subtitle}>
             SEIN Production Engineer Innovation Pipeline, Best Practice Standardization, & Performance Dashboard (BP MXPE)
@@ -822,45 +812,33 @@ export const InnovationsPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Filters & Search */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {[
-                { key: '', label: 'All Items' },
-                { key: 'best_practice', label: '⭐ Best Practices' },
-                { key: 'innovation', label: '💡 Innovation Ideas' },
-              ].map((tab) => (
-                <Button
-                  key={tab.key}
-                  variant={category === tab.key ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setCategory(tab.key)}
-                >
-                  {tab.label}
-                </Button>
-              ))}
-            </div>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* Class Filter */}
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                Filter Class:
+              </span>
               <select
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
                 style={{
-                  height: '32px',
-                  padding: '0 10px',
+                  height: '34px',
+                  padding: '0 12px',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--color-border)',
                   backgroundColor: 'var(--color-bg-secondary)',
                   color: 'var(--color-text-primary)',
-                  fontSize: '12px',
+                  fontSize: '13px',
                 }}
               >
                 <option value="">All Classes</option>
-                <option value="Class 3">Class 3 (Top Tier)</option>
+                <option value="Class 3">Class 3 (Breakthrough)</option>
                 <option value="Class 4">Class 4 (High Impact)</option>
                 <option value="Class 5">Class 5 (Standard)</option>
                 <option value="Under Review">Under Review</option>
                 <option value="Non Adopt">Non Adopt</option>
               </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
               {/* Search Bar */}
               <div style={{ position: 'relative' }}>
@@ -941,27 +919,6 @@ export const InnovationsPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                Category
-              </label>
-              <select
-                value={formCategory}
-                onChange={(e) => setFormCategory(e.target.value)}
-                style={{
-                  height: '36px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: 'var(--color-text-primary)',
-                }}
-              >
-                <option value="best_practice">⭐ Best Practice (BP)</option>
-                <option value="innovation">💡 Innovation Idea</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Class Type (BP MXPE)
               </label>
               <select
@@ -976,34 +933,34 @@ export const InnovationsPage = () => {
                   color: 'var(--color-text-primary)',
                 }}
               >
-                <option value="Class 3">Class 3 (Top Tier / Breakthrough)</option>
+                <option value="Class 3">Class 3 (Breakthrough / Top Tier)</option>
                 <option value="Class 4">Class 4 (High Impact)</option>
                 <option value="Class 5">Class 5 (Standard Line Improvement)</option>
                 <option value="Under Review">Under Review</option>
                 <option value="Non Adopt">Non Adopt</option>
               </select>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Impact Score (1-5)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="5"
-              value={impactScore}
-              onChange={(e) => setImpactScore(e.target.value)}
-              style={{
-                height: '36px',
-                padding: '0 12px',
-                backgroundColor: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--color-text-primary)',
-              }}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Impact Score (1-5)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="5"
+                value={impactScore}
+                onChange={(e) => setImpactScore(e.target.value)}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-primary)',
+                }}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

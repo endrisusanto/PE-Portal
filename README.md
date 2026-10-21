@@ -118,6 +118,19 @@ git clone https://github.com/endrisusanto/PE-Portal.git
 cd PE-Portal
 ```
 
+### 🪟 Windows Auto-Deploy (1-Click Launch)
+If you are deploying on Windows:
+- Simply double-click **`deploy-windows.bat`** (Command Prompt), OR
+- Run in PowerShell:
+```powershell
+.\deploy-windows.ps1
+```
+The script will automatically detect Docker Desktop, initialize `.env`, build and run all containers, and automatically launch your default browser to `http://localhost:3025`.
+
+---
+
+### 🐧 Linux / macOS Deployment (Manual Docker Compose)
+
 ### 2. Configure Environment Variables
 Copy the example environment configuration:
 ```bash

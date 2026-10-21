@@ -18,7 +18,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Sidebar.module.css';
 
-export const Sidebar = ({ isCollapsed, onToggleChat }) => {
+export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -42,8 +42,21 @@ export const Sidebar = ({ isCollapsed, onToggleChat }) => {
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
-      <div className={styles.brand}>
-        <div className={styles.logoBadge}>
+      <div
+        className={styles.brand}
+        onClick={onToggleCollapse}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggleCollapse?.();
+          }
+        }}
+        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <div className={styles.logoBadge} title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           <img src="/icon.png" alt="PE Logo" className={styles.brandLogoImg} />
         </div>
         {!isCollapsed && (

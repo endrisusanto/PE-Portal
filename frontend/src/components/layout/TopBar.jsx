@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Sun, Moon, LogOut } from 'lucide-react';
+import { Sun, Moon, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
@@ -8,23 +8,13 @@ import { ThemePalettePicker } from '../common/ThemePalettePicker';
 import { Avatar } from '../common/Avatar';
 import styles from './TopBar.module.css';
 
-export const TopBar = ({ onToggleSidebar }) => {
+export const TopBar = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   return (
     <header className={styles.topbar}>
-      <div className={styles.left}>
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          className={styles.iconButton}
-          aria-label="Toggle navigation sidebar"
-        >
-          <Menu size={18} />
-        </button>
-        <span className={styles.orgTag}>SEIN PE GROUP</span>
-      </div>
+      <div className={styles.left} />
 
       <div className={styles.right}>
         <LanguageSwitcher />

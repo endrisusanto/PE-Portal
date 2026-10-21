@@ -168,7 +168,8 @@ func main() {
 	api.PATCH("/innovations/:id/status", innovationHandler.UpdateStatus, middleware.RequireRole("admin", "manager"))
 	api.DELETE("/innovations/:id", innovationHandler.Delete)
 
-	// Projects
+	// Projects & GBA Tasks
+	api.GET("/gba-tasks", projectHandler.GetGbaTasks)
 	api.GET("/projects", projectHandler.List)
 	api.POST("/projects", projectHandler.Create)
 	api.GET("/projects/:id", projectHandler.Get)

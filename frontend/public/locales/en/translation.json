@@ -5,7 +5,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "innovations": "Innovation & BP",
+    "innovations": "Innovation & Best Practice (BP)",
     "projects": "Projects",
     "models": "New Models",
     "imei": "IMEI Articles",
@@ -55,7 +55,7 @@
     "team_badge": "SEIN PE Group",
     "stats": {
       "active_projects": "Active Projects",
-      "innovations": "Innovations & BP",
+      "innovations": "Innovation & Best Practice (BP)",
       "new_models": "Models in Development",
       "documents": "Archived Documents",
       "team_members": "Total Members"
