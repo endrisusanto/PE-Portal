@@ -18,10 +18,9 @@
 
 .content {
   flex: 1;
-  padding: var(--space-6);
-  max-width: 1400px;
+  padding: 20px 28px;
   width: 100%;
-  margin: 0 auto;
+  max-width: 100%;
 }
 
 .chatDrawer {

@@ -1,12 +1,11 @@
-/* GbaTasksPage: Fullwidth 8-Column Zero-Scroll Kanban (Ponytail Mode) */
+/* GBA Task Manager: Classic Horizontal Scroll Kanban (Ponytail Mode) */
 
 .container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   width: 100%;
   max-width: 100%;
-  min-height: calc(100vh - var(--topbar-height) - 32px);
 }
 
 /* Header Area */
@@ -15,17 +14,18 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 10px 16px;
+  padding: 12px 18px;
 }
 
 .titleGroup {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .title {
@@ -45,7 +45,6 @@
   border-radius: 50%;
   background: #10b981;
   display: inline-block;
-  position: relative;
   cursor: pointer;
   box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
   animation: pulseDot 2s infinite;
@@ -62,7 +61,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--color-text-secondary);
 }
 
@@ -80,80 +79,63 @@
 .controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-/* Mode Switcher: Active Pipeline vs All Stages */
-.modeSwitcher {
-  display: flex;
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
-  padding: 2px;
-}
-
-.modeBtn {
-  height: 26px;
-  padding: 0 10px;
-  border-radius: var(--radius-xs);
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.modeBtn:hover {
-  color: var(--color-text-primary);
-}
-
-.modeBtnActive {
-  background: var(--color-accent) !important;
-  color: #ffffff !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
-}
-
 .searchInput {
-  height: 30px;
-  padding: 0 10px;
+  height: 34px;
+  padding: 0 12px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--color-border);
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-size: 11.5px;
-  width: 170px;
+  font-size: 12px;
+  width: 200px;
   outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.searchInput:focus {
+  border-color: var(--color-accent);
 }
 
 .selectInput {
-  height: 30px;
-  padding: 0 8px;
+  height: 34px;
+  padding: 0 10px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--color-border);
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-size: 11.5px;
-  max-width: 130px;
+  font-size: 12px;
   outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.selectInput:focus {
+  border-color: var(--color-accent);
 }
 
 .urgentBtn {
-  height: 30px;
-  padding: 0 8px;
+  height: 34px;
+  padding: 0 12px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--color-border);
   background: var(--color-bg-primary);
   color: var(--color-text-secondary);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
   transition: all var(--transition-fast);
+}
+
+.urgentBtn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
 }
 
 .urgentBtn.active {
@@ -163,110 +145,63 @@
 }
 
 .viewOnlyPill {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: var(--radius-xs);
   background: var(--color-bg-hover);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   text-transform: uppercase;
-}
-
-/* Kanban Board Container */
-.kanbanGrid {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  flex: 1;
-  align-items: stretch;
-  min-height: calc(100vh - var(--topbar-height) - 100px);
-}
-
-/* Active Mode: 6 columns fit across desktop with equal generous width */
-.gridActiveMode {
-  overflow-x: auto;
-}
-
-.colActiveMode {
-  flex: 1 1 240px;
-  min-width: 230px;
-}
-
-/* All Mode: 8 columns with smooth horizontal scroll and minimum comfortable width */
-.gridAllMode {
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
-
-.gridAllMode::-webkit-scrollbar {
-  height: 6px;
-}
-
-.gridAllMode::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 3px;
-}
-
-.colAllMode {
-  flex: 0 0 260px;
-  width: 260px;
-  min-width: 260px;
-}
-
-/* Standard Column */
-.column {
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - var(--topbar-height) - 100px);
-  transition: all var(--transition-fast);
-}
-
-/* Collapsed Column */
-.columnCollapsed {
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  width: 40px;
-  min-width: 40px;
-  flex: 0 0 40px;
-  height: calc(100vh - var(--topbar-height) - 100px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px 4px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.columnCollapsed:hover {
-  border-color: var(--color-accent);
-  background: var(--color-bg-hover);
-}
-
-.collapsedHeader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  height: 100%;
-}
-
-.collapsedTitle {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--color-text-primary);
   letter-spacing: 0.5px;
-  white-space: nowrap;
+}
+
+/* Kanban Board: Smooth Horizontal Scroll */
+.kanbanBoard {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 14px;
+  align-items: stretch;
+}
+
+.kanbanBoard::-webkit-scrollbar {
+  height: 8px;
+}
+
+.kanbanBoard::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+  border-radius: 4px;
+}
+
+.kanbanBoard::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.kanbanBoard::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Kanban Column: Fixed comfortable width (310px) */
+.column {
+  flex: 0 0 310px;
+  width: 310px;
+  min-width: 310px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--topbar-height) - 120px);
+  min-height: 520px;
+  transition: border-color var(--transition-fast);
 }
 
 .colHeader {
-  padding: 8px 10px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -280,20 +215,20 @@
 .colTitleArea {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
 }
 
 .colDot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .colTitle {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-text-primary);
   white-space: nowrap;
@@ -302,9 +237,9 @@
 }
 
 .colBadge {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 2px 8px;
   border-radius: 9999px;
   background: var(--color-bg-secondary);
   color: var(--color-text-secondary);
@@ -312,77 +247,60 @@
   flex-shrink: 0;
 }
 
-.colCollapseBtn {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 4px;
-  border-radius: 2px;
-}
-
-.colCollapseBtn:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-hover);
-}
-
+/* Column Cards List: Smooth Vertical Scroll */
 .cardsList {
-  padding: 8px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   overflow-y: auto;
   flex: 1;
   min-width: 0;
 }
 
 .cardsList::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 
 .cardsList::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
-/* Kanban Card (better-ui polished) */
+/* Kanban Card: Spacious, Visible, & Crisp */
 .card {
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xs);
-  padding: 9px 10px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
   user-select: none;
   min-width: 0;
-  overflow: hidden;
 }
 
 .card:hover {
   transform: translateY(-2px);
   border-color: var(--color-accent);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
 }
 
 .cardHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
 }
 
 .modelName {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  word-break: break-word;
   flex: 1;
 }
 
@@ -390,12 +308,12 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 1px 5px;
+  padding: 2px 7px;
   border-radius: 9999px;
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.35);
   color: #ef4444;
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -403,17 +321,17 @@
 .cardBuild {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .buildChip {
-  font-size: 10px;
+  font-size: 11px;
   font-family: monospace;
   color: var(--color-text-secondary);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-xs);
-  padding: 2px 5px;
+  padding: 3px 7px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -422,14 +340,14 @@
 .badgesRow {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .planPill {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 600;
-  padding: 1px 5px;
+  padding: 2px 7px;
   border-radius: var(--radius-xs);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
@@ -438,9 +356,9 @@
 }
 
 .submissionPill {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 2px 7px;
   border-radius: var(--radius-xs);
   background: rgba(6, 182, 212, 0.1);
   border: 1px solid rgba(6, 182, 212, 0.3);
@@ -452,10 +370,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding-top: 6px;
+  gap: 8px;
+  padding-top: 8px;
+  margin-top: 2px;
   border-top: 1px solid var(--color-border-subtle);
-  font-size: 10.5px;
+  font-size: 11.5px;
 }
 
 .picName {
@@ -468,53 +387,34 @@
 
 .deadline {
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .emptyCol {
-  padding: 24px 8px;
+  padding: 32px 12px;
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-style: italic;
-}
-
-.showMoreBtn {
-  width: 100%;
-  padding: 6px 8px;
-  background: var(--color-bg-secondary);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-xs);
-  color: var(--color-accent);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-top: 4px;
-}
-
-.showMoreBtn:hover {
-  background: var(--color-bg-hover);
-  border-color: var(--color-accent);
 }
 
 /* Modal details */
 .modalGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
 }
 
 .modalField {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .modalLabel {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--color-text-secondary);
@@ -522,7 +422,7 @@
 }
 
 .modalValue {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--color-text-primary);
   word-break: break-all;
@@ -533,6 +433,6 @@
   font-size: 12px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  padding: 4px 6px;
+  padding: 6px 8px;
   border-radius: var(--radius-xs);
 }
