@@ -99,6 +99,8 @@ func main() {
 	sampleHandler := handler.NewSampleHandler(sampleRepo)
 	softwareMRHandler := handler.NewSoftwareMRHandler(softwareMRRepo)
 	utilityHandler := handler.NewUtilityHandler()
+	dhlRepo := repository.NewDHLRepository(pgPool.Pool)
+	dhlHandler := handler.NewDHLHandler(dhlRepo)
 
 	// Echo App
 	e := echo.New()
@@ -295,6 +297,14 @@ func main() {
 	api.POST("/utility/compress-pdf", utilityHandler.CompressPDF)
 	api.POST("/utility/merge-pdf", utilityHandler.MergePDF)
 	api.POST("/utility/split-pdf", utilityHandler.SplitPDF)
+
+	// DHL Express Tracking Routes
+	api.GET("/dhl/track", dhlHandler.TrackDirect)
+	api.GET("/dhl/shipments", dhlHandler.ListShipments)
+	api.POST("/dhl/shipments", dhlHandler.CreateShipment)
+	api.POST("/dhl/shipments/:id/refresh", dhlHandler.RefreshShipment)
+	api.PUT("/dhl/shipments/:id", dhlHandler.UpdateShipment)
+	api.DELETE("/dhl/shipments/:id", dhlHandler.DeleteShipment)
 
 	// Graceful shutdown handling
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)

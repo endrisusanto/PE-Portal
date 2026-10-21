@@ -24,6 +24,7 @@ import {
   FileArchive,
   Scissors,
   FileStack,
+  Truck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Sidebar.module.css';
@@ -92,6 +93,33 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
   ].sort((a, b) => a.label.localeCompare(b.label));
 
+  // Check if any Sample Management route is active
+  const isSampleManagementActive = location.pathname.startsWith('/samples');
+
+  // Multi-level state for Sample Management
+  const [sampleManagementOpen, setSampleManagementOpen] = useState(() => {
+    return isSampleManagementActive || localStorage.getItem('pe_sidebar_sample_mgmt') === 'true';
+  });
+
+  useEffect(() => {
+    if (isSampleManagementActive) {
+      setSampleManagementOpen(true);
+    }
+  }, [isSampleManagementActive]);
+
+  const handleToggleSampleManagement = () => {
+    setSampleManagementOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('pe_sidebar_sample_mgmt', String(next));
+      return next;
+    });
+  };
+
+  const sampleManagementSubItems = [
+    { to: '/samples', label: t('nav.samples_database', 'Database Sample PE'), icon: PackageCheck, end: true },
+    { to: '/samples/dhl-tracker', label: t('nav.dhl_tracker', 'DHL Tracker'), icon: Truck },
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
   // Dashboard as prime top-level item
   const dashboardItem = { to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard, end: true };
 
@@ -101,7 +129,16 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
     { to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
     { to: '/models', label: t('nav.models'), icon: Cpu },
-    { to: '/samples', label: t('nav.samples', 'Sample Management'), icon: PackageCheck },
+    {
+      isGroup: true,
+      key: 'sample-management',
+      label: t('nav.sample_management', 'Sample Management'),
+      icon: PackageCheck,
+      isActive: isSampleManagementActive,
+      isOpen: sampleManagementOpen,
+      onToggle: handleToggleSampleManagement,
+      children: sampleManagementSubItems,
+    },
     {
       isGroup: true,
       key: 'software-team',
@@ -217,6 +254,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
                         <NavLink
                           key={sub.to}
                           to={sub.to}
+                          end={sub.end}
                           className={({ isActive }) =>
                             `${styles.subnavLink} ${isActive ? styles.subnavActive : ''}`
                           }
