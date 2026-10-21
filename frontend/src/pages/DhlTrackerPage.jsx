@@ -33,7 +33,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import styles from './DhlTrackerPage.module.css';
 
 export const DhlTrackerPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,11 +82,11 @@ export const DhlTrackerPage = () => {
       setShipments(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load DHL shipments:', err);
-      setErrorMsg(err.response?.data?.message || 'Gagal mengambil data kiriman DHL');
+      setErrorMsg(err.response?.data?.message || t('common.error', 'Terjadi kesalahan'));
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, collectedFilter]);
+  }, [searchTerm, statusFilter, collectedFilter, t]);
 
   useEffect(() => {
     fetchShipments();
@@ -134,13 +134,13 @@ export const DhlTrackerPage = () => {
         notes: addForm.notes.trim(),
       };
       await api.post('/dhl/shipments', payload);
-      setSuccessMsg(`AWB #${payload.tracking_number} berhasil dilacak & disimpan.`);
+      setSuccessMsg(t('dhl.success_added', { id: payload.tracking_number, defaultValue: `AWB #${payload.tracking_number} berhasil dilacak & disimpan.` }));
       setIsAddModalOpen(false);
       setAddForm({ tracking_number: '', pic: '', notes: '' });
       fetchShipments();
     } catch (err) {
       console.error('Error tracking DHL AWB:', err);
-      setErrorMsg(err.response?.data?.message || 'Gagal melacak nomor resi DHL');
+      setErrorMsg(err.response?.data?.message || t('common.error'));
     } finally {
       setSubmitting(false);
     }
@@ -152,14 +152,14 @@ export const DhlTrackerPage = () => {
       setActionLoadingId(id);
       setErrorMsg('');
       const { data } = await api.post(`/dhl/shipments/${id}/refresh`);
-      setSuccessMsg(`Status AWB #${id} berhasil diperbarui.`);
+      setSuccessMsg(t('dhl.success_refreshed', { id, defaultValue: `Status AWB #${id} berhasil diperbarui.` }));
       setShipments((prev) => prev.map((s) => (s.id === id ? data : s)));
       if (activeShipment?.id === id) {
         setActiveShipment(data);
       }
     } catch (err) {
       console.error('Refresh error:', err);
-      setErrorMsg(err.response?.data?.message || 'Gagal memperbarui status via DHL API');
+      setErrorMsg(err.response?.data?.message || t('common.error'));
     } finally {
       setActionLoadingId(null);
     }
@@ -184,12 +184,12 @@ export const DhlTrackerPage = () => {
       );
       setSuccessMsg(
         nextState
-          ? `Sample AWB #${shipment.id} ditandai: SUDAH DIAMBIL oleh ${shipment.pic || 'PIC'}.`
-          : `Sample AWB #${shipment.id} ditandai: BELUM DIAMBIL.`
+          ? t('dhl.success_collected', { id: shipment.id, pic: shipment.pic || 'PIC', defaultValue: `Sample AWB #${shipment.id} ditandai: SUDAH DIAMBIL oleh ${shipment.pic || 'PIC'}.` })
+          : t('dhl.success_uncollected', { id: shipment.id, defaultValue: `Sample AWB #${shipment.id} ditandai: BELUM DIAMBIL.` })
       );
     } catch (err) {
       console.error('Toggle collection error:', err);
-      setErrorMsg('Gagal memperbarui status pengambilan sample');
+      setErrorMsg(t('common.error'));
     } finally {
       setActionLoadingId(null);
     }
@@ -216,12 +216,12 @@ export const DhlTrackerPage = () => {
         is_collected: editForm.is_collected,
         notes: editForm.notes.trim(),
       });
-      setSuccessMsg(`Informasi AWB #${editForm.id} berhasil disimpan.`);
+      setSuccessMsg(t('dhl.success_updated', { id: editForm.id, defaultValue: `Informasi AWB #${editForm.id} berhasil disimpan.` }));
       setIsEditModalOpen(false);
       fetchShipments();
     } catch (err) {
       console.error('Update error:', err);
-      setErrorMsg(err.response?.data?.message || 'Gagal menyimpan perubahan');
+      setErrorMsg(err.response?.data?.message || t('common.error'));
     } finally {
       setSubmitting(false);
     }
@@ -229,11 +229,12 @@ export const DhlTrackerPage = () => {
 
   // Delete Shipment
   const handleDelete = async (id) => {
-    if (!window.confirm(`Hapus AWB #${id} dari database pelacakan portal?`)) return;
+    const confirmText = t('dhl.delete_confirm', { id, defaultValue: `Hapus AWB #${id} dari database pelacakan portal?` });
+    if (!window.confirm(confirmText)) return;
     try {
       setActionLoadingId(id);
       await api.delete(`/dhl/shipments/${id}`);
-      setSuccessMsg(`AWB #${id} telah dihapus.`);
+      setSuccessMsg(t('dhl.success_deleted', { id, defaultValue: `AWB #${id} telah dihapus.` }));
       setShipments((prev) => prev.filter((s) => s.id !== id));
       if (activeShipment?.id === id) {
         setIsDetailModalOpen(false);
@@ -241,7 +242,7 @@ export const DhlTrackerPage = () => {
       }
     } catch (err) {
       console.error('Delete error:', err);
-      setErrorMsg('Gagal menghapus data kiriman');
+      setErrorMsg(t('common.error'));
     } finally {
       setActionLoadingId(null);
     }
@@ -259,7 +260,8 @@ export const DhlTrackerPage = () => {
     if (!dateStr) return '-';
     try {
       const d = new Date(dateStr);
-      return new Intl.DateTimeFormat('id-ID', {
+      const locale = i18n.language === 'ko' ? 'ko-KR' : i18n.language === 'en' ? 'en-US' : 'id-ID';
+      return new Intl.DateTimeFormat(locale, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -278,7 +280,7 @@ export const DhlTrackerPage = () => {
       return (
         <span className={`${styles.badge} ${styles.badgeDelivered}`}>
           <CheckCircle2 size={13} />
-          {label || 'Delivered'}
+          {label || t('dhl.status_delivered', 'Delivered')}
         </span>
       );
     }
@@ -286,7 +288,7 @@ export const DhlTrackerPage = () => {
       return (
         <span className={`${styles.badge} ${styles.badgeTransit}`}>
           <Truck size={13} />
-          {label || 'In Transit'}
+          {label || t('dhl.status_transit', 'In Transit')}
         </span>
       );
     }
@@ -294,7 +296,7 @@ export const DhlTrackerPage = () => {
       return (
         <span className={`${styles.badge} ${styles.badgePreTransit}`}>
           <Clock size={13} />
-          {label || 'Pre-Transit'}
+          {label || t('dhl.status_pre_transit', 'Pre-Transit')}
         </span>
       );
     }
@@ -356,22 +358,22 @@ export const DhlTrackerPage = () => {
               <span className={styles.expressText}>EXPRESS</span>
             </div>
             <div>
-              <h1 className={styles.pageTitle}>DHL Shipment Tracker</h1>
+              <h1 className={styles.pageTitle}>{t('dhl.title', 'DHL Shipment Tracker')}</h1>
               <p className={styles.pageSubtitle}>
-                Pelacakan Real-time Pengiriman Sample Engineering, Part Trial & Komponen via DHL API
+                {t('dhl.subtitle', 'Pelacakan Real-time Pengiriman Sample Engineering, Part Trial & Komponen via DHL API')}
               </p>
             </div>
           </div>
         </div>
 
         <div className={styles.headerActions}>
-          <Button variant="secondary" onClick={fetchShipments} disabled={loading} title="Muat ulang data">
+          <Button variant="secondary" onClick={fetchShipments} disabled={loading} title={t('dhl.refresh', 'Refresh')}>
             <RefreshCw size={15} className={loading ? styles.spin : ''} />
-            Refresh
+            {t('dhl.refresh', 'Refresh')}
           </Button>
           <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
             <Plus size={16} />
-            Lacak AWB Baru
+            {t('dhl.track_new_awb', 'Lacak AWB Baru')}
           </Button>
         </div>
       </div>
@@ -403,7 +405,7 @@ export const DhlTrackerPage = () => {
             <Package size={22} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Total Dipantau</span>
+            <span className={styles.statLabel}>{t('dhl.total_tracked', 'Total Dipantau')}</span>
             <span className={styles.statValue}>{stats.total}</span>
           </div>
         </div>
@@ -413,7 +415,7 @@ export const DhlTrackerPage = () => {
             <Truck size={22} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Dalam Perjalanan</span>
+            <span className={styles.statLabel}>{t('dhl.in_transit', 'Dalam Perjalanan')}</span>
             <span className={styles.statValue}>{stats.inTransit}</span>
           </div>
         </div>
@@ -423,7 +425,7 @@ export const DhlTrackerPage = () => {
             <CheckCircle2 size={22} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Tiba di Tujuan</span>
+            <span className={styles.statLabel}>{t('dhl.delivered', 'Tiba di Tujuan')}</span>
             <span className={styles.statValue}>{stats.delivered}</span>
           </div>
         </div>
@@ -433,7 +435,7 @@ export const DhlTrackerPage = () => {
             <Clock size={22} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Menunggu Ambil PIC</span>
+            <span className={styles.statLabel}>{t('dhl.waiting_collection', 'Menunggu Ambil PIC')}</span>
             <span className={styles.statValue}>{stats.waitingCollection}</span>
           </div>
         </div>
@@ -446,7 +448,7 @@ export const DhlTrackerPage = () => {
           <input
             type="text"
             className={styles.searchInput}
-            placeholder="Cari AWB, PIC, Kota, atau catatan..."
+            placeholder={t('dhl.search_placeholder', 'Cari AWB, PIC, Kota, atau catatan...')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -460,10 +462,10 @@ export const DhlTrackerPage = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="all">Semua Status</option>
-              <option value="transit">Dalam Perjalanan (Transit)</option>
-              <option value="delivered">Sudah Tiba (Delivered)</option>
-              <option value="pre-transit">Pre-Transit / Manifest</option>
+              <option value="all">{t('dhl.all_status', 'Semua Status')}</option>
+              <option value="transit">{t('dhl.status_transit', 'Dalam Perjalanan (Transit)')}</option>
+              <option value="delivered">{t('dhl.status_delivered', 'Sudah Tiba (Delivered)')}</option>
+              <option value="pre-transit">{t('dhl.status_pre_transit', 'Pre-Transit / Manifest')}</option>
             </select>
           </div>
 
@@ -474,9 +476,9 @@ export const DhlTrackerPage = () => {
               value={collectedFilter}
               onChange={(e) => setCollectedFilter(e.target.value)}
             >
-              <option value="all">Semua Status Sample</option>
-              <option value="uncollected">Menunggu Pengambilan</option>
-              <option value="collected">Sudah Diambil PIC</option>
+              <option value="all">{t('dhl.all_samples', 'Semua Status Sample')}</option>
+              <option value="uncollected">{t('dhl.filter_waiting_collection', 'Menunggu Pengambilan')}</option>
+              <option value="collected">{t('dhl.filter_collected', 'Sudah Diambil PIC')}</option>
             </select>
           </div>
         </div>
@@ -484,13 +486,13 @@ export const DhlTrackerPage = () => {
 
       {/* Main Content List / Table */}
       {loading && shipments.length === 0 ? (
-        <LoadingState message="Memuat daftar pelacakan kiriman DHL..." />
+        <LoadingState message={t('common.loading', 'Memuat data...')} />
       ) : shipments.length === 0 ? (
         <EmptyState
           icon={Truck}
-          title="Belum ada kiriman DHL yang dilacak"
-          description="Tambahkan nomor resi / AWB pengiriman sample engineering untuk memantau pergerakan dari Korea/luar negeri secara real-time."
-          actionText="Lacak AWB Baru"
+          title={t('dhl.empty_title', 'Belum ada kiriman DHL yang dilacak')}
+          description={t('dhl.empty_desc', 'Tambahkan nomor resi / AWB pengiriman sample engineering untuk memantau pergerakan dari Korea/luar negeri secara real-time.')}
+          actionText={t('dhl.track_new_awb', 'Lacak AWB Baru')}
           onAction={() => setIsAddModalOpen(true)}
         />
       ) : (
@@ -512,7 +514,7 @@ export const DhlTrackerPage = () => {
                     <button
                       type="button"
                       className={styles.iconBtn}
-                      title="Salin AWB"
+                      title={t('dhl.copy_awb', 'Salin AWB')}
                       onClick={() => handleCopyAwb(item.id)}
                     >
                       {copiedId === item.id ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
@@ -522,7 +524,7 @@ export const DhlTrackerPage = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       className={styles.iconBtn}
-                      title="Buka pelacakan resmi DHL.com"
+                      title={t('dhl.open_dhl_site', 'Buka di DHL Tracking Website')}
                     >
                       <ExternalLink size={14} />
                     </a>
@@ -548,7 +550,7 @@ export const DhlTrackerPage = () => {
 
                   <div className={styles.routePoint} style={{ textAlign: 'right' }}>
                     <div>
-                      <div className={styles.routeCity}>{item.dest_city || item.dest_country || 'Tujuan'}</div>
+                      <div className={styles.routeCity}>{item.dest_city || item.dest_country || 'Destination'}</div>
                       <div className={styles.routeCountry}>{item.dest_country || '-'}</div>
                     </div>
                     <MapPin size={14} className={styles.routeIcon} />
@@ -559,11 +561,11 @@ export const DhlTrackerPage = () => {
                 <div className={styles.checkpointBox}>
                   <div className={styles.checkpointHeader}>
                     <Clock size={13} />
-                    <span>Checkpoint Terakhir:</span>
+                    <span>{t('dhl.last_checkpoint', 'Checkpoint Terakhir:')}</span>
                     <span className={styles.checkpointTime}>{formatDate(item.last_event_time)}</span>
                   </div>
                   <div className={styles.checkpointDesc}>
-                    {item.status_description || item.status_label || 'Pembaruan dari DHL Gateway'}
+                    {item.status_description || item.status_label || '-'}
                   </div>
                   {item.last_location && (
                     <div className={styles.checkpointLoc}>
@@ -578,8 +580,8 @@ export const DhlTrackerPage = () => {
                   <div className={styles.picInfo}>
                     <User size={14} className={styles.picIcon} />
                     <div>
-                      <div className={styles.picLabel}>PIC Engineering:</div>
-                      <div className={styles.picName}>{item.pic || 'Belum Ditugaskan'}</div>
+                      <div className={styles.picLabel}>{t('dhl.pic_label', 'PIC Engineering:')}</div>
+                      <div className={styles.picName}>{item.pic || t('dhl.unassigned', 'Belum Ditugaskan')}</div>
                     </div>
                   </div>
 
@@ -589,17 +591,17 @@ export const DhlTrackerPage = () => {
                       className={`${styles.collectionToggle} ${isCollected ? styles.toggleCollected : styles.togglePending}`}
                       onClick={() => handleToggleCollected(item)}
                       disabled={isActionLoading}
-                      title="Klik untuk ubah status pengambilan sample fisik"
+                      title={isCollected ? t('dhl.sample_collected') : t('dhl.waiting_pickup')}
                     >
                       {isCollected ? (
                         <>
                           <CheckCircle2 size={13} />
-                          Sample Diambil
+                          {t('dhl.sample_collected', 'Sample Diambil')}
                         </>
                       ) : (
                         <>
                           <Clock size={13} />
-                          Menunggu Ambil
+                          {t('dhl.waiting_pickup', 'Menunggu Ambil')}
                         </>
                       )}
                     </button>
@@ -625,14 +627,14 @@ export const DhlTrackerPage = () => {
                     }}
                   >
                     <Layers size={14} />
-                    Detail Riwayat
+                    {t('dhl.detail_history', 'Detail Riwayat')}
                   </button>
 
                   <div className={styles.cardActionGroup}>
                     <button
                       type="button"
                       className={styles.smallActionBtn}
-                      title="Refresh status dari DHL"
+                      title={t('dhl.refresh', 'Refresh')}
                       onClick={() => handleRefresh(item.id)}
                       disabled={isActionLoading}
                     >
@@ -641,7 +643,7 @@ export const DhlTrackerPage = () => {
                     <button
                       type="button"
                       className={styles.smallActionBtn}
-                      title="Edit PIC & Catatan"
+                      title={t('dhl.edit_info', 'Edit PIC & Catatan')}
                       onClick={() => handleOpenEdit(item)}
                     >
                       <Edit3 size={14} />
@@ -649,7 +651,7 @@ export const DhlTrackerPage = () => {
                     <button
                       type="button"
                       className={`${styles.smallActionBtn} ${styles.btnDanger}`}
-                      title="Hapus dari pelacakan"
+                      title={t('dhl.delete_awb', 'Hapus dari pelacakan')}
                       onClick={() => handleDelete(item.id)}
                     >
                       <Trash2 size={14} />
@@ -666,13 +668,13 @@ export const DhlTrackerPage = () => {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Lacak Pengiriman DHL Express Baru"
+        title={t('dhl.modal_add_title', 'Lacak Pengiriman DHL Express Baru')}
         maxWidth="560px"
       >
         <form onSubmit={handleAddSubmit} className={styles.modalForm}>
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>
-              Nomor Resi / AWB DHL <span className={styles.req}>*</span>
+              {t('dhl.awb_number_label', 'Nomor Resi / AWB DHL')} <span className={styles.req}>*</span>
             </label>
             <Input
               type="text"
@@ -683,26 +685,26 @@ export const DhlTrackerPage = () => {
               autoFocus
             />
             <span className={styles.formHint}>
-              Masukkan 10 digit AWB DHL Express. Data checkpoint otomatis diambil dari API resmi DHL.
+              {t('dhl.awb_number_hint', 'Masukkan 10 digit AWB DHL Express. Data checkpoint otomatis diambil dari API resmi DHL.')}
             </span>
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>PIC Engineering / Penerima</label>
+            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Engineering / Penerima')}</label>
             <Input
               type="text"
-              placeholder="Nama Engineer penanggung jawab sample"
+              placeholder={t('dhl.pic_input_placeholder', 'Nama Engineer penanggung jawab sample')}
               value={addForm.pic}
               onChange={(e) => setAddForm({ ...addForm, pic: e.target.value })}
             />
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Catatan / Identitas Sample</label>
+            <label className={styles.formLabel}>{t('dhl.notes_label', 'Catatan / Identitas Sample')}</label>
             <textarea
               className={styles.textareaInput}
               rows={3}
-              placeholder="Contoh: Sample Main Board Model SM-A566B, 5 Pcs trial dari HQ Korea"
+              placeholder={t('dhl.notes_placeholder', 'Contoh: Sample Main Board Model SM-A566B, 5 Pcs trial dari HQ Korea')}
               value={addForm.notes}
               onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
             />
@@ -710,10 +712,10 @@ export const DhlTrackerPage = () => {
 
           <div className={styles.modalActions}>
             <Button variant="secondary" type="button" onClick={() => setIsAddModalOpen(false)}>
-              Batal
+              {t('dhl.cancel', 'Batal')}
             </Button>
             <Button variant="primary" type="submit" disabled={submitting || !addForm.tracking_number.trim()}>
-              {submitting ? 'Menghubungi DHL...' : 'Lacak & Simpan'}
+              {submitting ? t('dhl.contacting_dhl', 'Menghubungi DHL...') : t('dhl.track_and_save', 'Lacak & Simpan')}
             </Button>
           </div>
         </form>
@@ -723,15 +725,15 @@ export const DhlTrackerPage = () => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title={`Edit Informasi Kiriman #${editForm.id}`}
+        title={`${t('dhl.modal_edit_title', 'Edit Informasi Kiriman')} #${editForm.id}`}
         maxWidth="500px"
       >
         <form onSubmit={handleEditSubmit} className={styles.modalForm}>
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>PIC Engineering</label>
+            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Engineering')}</label>
             <Input
               type="text"
-              placeholder="Nama PIC penanggung jawab"
+              placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penanggung jawab')}
               value={editForm.pic}
               onChange={(e) => setEditForm({ ...editForm, pic: e.target.value })}
             />
@@ -744,16 +746,16 @@ export const DhlTrackerPage = () => {
                 checked={editForm.is_collected}
                 onChange={(e) => setEditForm({ ...editForm, is_collected: e.target.checked })}
               />
-              <span>Fisik sample sudah diambil dari security/reception oleh PIC</span>
+              <span>{t('dhl.checkbox_collected', 'Fisik sample sudah diambil dari security/reception oleh PIC')}</span>
             </label>
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Catatan Khusus</label>
+            <label className={styles.formLabel}>{t('dhl.special_notes', 'Catatan Khusus')}</label>
             <textarea
               className={styles.textareaInput}
               rows={3}
-              placeholder="Catatan sample atau lokasi penyimpanan..."
+              placeholder="Catatan sample..."
               value={editForm.notes}
               onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
             />
@@ -761,10 +763,10 @@ export const DhlTrackerPage = () => {
 
           <div className={styles.modalActions}>
             <Button variant="secondary" type="button" onClick={() => setIsEditModalOpen(false)}>
-              Batal
+              {t('dhl.cancel', 'Batal')}
             </Button>
             <Button variant="primary" type="submit" disabled={submitting}>
-              {submitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+              {submitting ? t('dhl.saving', 'Menyimpan...') : t('dhl.save_changes', 'Simpan Perubahan')}
             </Button>
           </div>
         </form>
@@ -774,7 +776,7 @@ export const DhlTrackerPage = () => {
       <Modal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
-        title={`Riwayat Pengiriman DHL - AWB #${activeShipment?.id || ''}`}
+        title={`${t('dhl.modal_history_title', 'Riwayat Pengiriman DHL')} - AWB #${activeShipment?.id || ''}`}
         maxWidth="760px"
       >
         {activeShipment && (
@@ -796,13 +798,13 @@ export const DhlTrackerPage = () => {
                 <div className={styles.detailSpecs}>
                   {activeDetails.totalNumberOfPieces && (
                     <div className={styles.specItem}>
-                      <span className={styles.specLabel}>Jumlah Koli/Pieces:</span>
+                      <span className={styles.specLabel}>{t('dhl.pieces_count', 'Jumlah Koli/Pieces:')}</span>
                       <span className={styles.specVal}>{activeDetails.totalNumberOfPieces}</span>
                     </div>
                   )}
                   {activeDetails.weight && (
                     <div className={styles.specItem}>
-                      <span className={styles.specLabel}>Berat:</span>
+                      <span className={styles.specLabel}>{t('dhl.weight', 'Berat:')}</span>
                       <span className={styles.specVal}>
                         {activeDetails.weight.value} {activeDetails.weight.unitText || 'kg'}
                       </span>
@@ -813,10 +815,10 @@ export const DhlTrackerPage = () => {
             </div>
 
             {/* Vertical Events Timeline */}
-            <h3 className={styles.timelineSectionTitle}>Perjalanan Paket (Events Checkpoint)</h3>
+            <h3 className={styles.timelineSectionTitle}>{t('dhl.events_title', 'Perjalanan Paket (Events Checkpoint)')}</h3>
 
             {activeEvents.length === 0 ? (
-              <div className={styles.emptyEvents}>Tidak ada rincian event checkpoint dari DHL.</div>
+              <div className={styles.emptyEvents}>{t('dhl.no_events', 'Tidak ada rincian event checkpoint dari DHL.')}</div>
             ) : (
               <div className={styles.timelineTrack}>
                 {activeEvents.map((ev, idx) => {
@@ -829,7 +831,7 @@ export const DhlTrackerPage = () => {
                       <div className={styles.timelineContent}>
                         <div className={styles.timelineTop}>
                           <span className={styles.timelineStatus}>
-                            {ev.description || ev.status || 'Pembaruan status'}
+                            {ev.description || ev.status || 'Checkpoint Update'}
                           </span>
                           <span className={styles.timelineDate}>{formatDate(ev.timestamp)}</span>
                         </div>
@@ -854,10 +856,10 @@ export const DhlTrackerPage = () => {
                 className={styles.externalLinkBtn}
               >
                 <ExternalLink size={14} />
-                Buka di DHL Tracking Website
+                {t('dhl.open_dhl_site', 'Buka di DHL Tracking Website')}
               </a>
               <Button variant="secondary" onClick={() => setIsDetailModalOpen(false)}>
-                Tutup
+                {t('dhl.close', 'Tutup')}
               </Button>
             </div>
           </div>
@@ -866,4 +868,5 @@ export const DhlTrackerPage = () => {
     </div>
   );
 };
+
 export default DhlTrackerPage;
