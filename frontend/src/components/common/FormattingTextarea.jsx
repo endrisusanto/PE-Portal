@@ -94,12 +94,21 @@ export const applyFormat = (textarea, formatType) => {
   }
 
   textarea.focus();
-  const isExecCommandSupported = document.queryCommandSupported && document.queryCommandSupported('insertText');
-  if (isExecCommandSupported) {
-    document.execCommand('insertText', false, replacement);
-  } else {
+  let inserted = false;
+  if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+    inserted = document.execCommand('insertText', false, replacement);
+  }
+  if (!inserted) {
     const newText = text.substring(0, start) + replacement + text.substring(end);
-    textarea.value = newText;
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      'value'
+    )?.set;
+    if (nativeSetter) {
+      nativeSetter.call(textarea, newText);
+    } else {
+      textarea.value = newText;
+    }
     const event = new Event('input', { bubbles: true });
     textarea.dispatchEvent(event);
   }
@@ -257,6 +266,10 @@ export const FormattingTextarea = ({
     }
   };
 
+  const safeValue = typeof value === 'string'
+    ? value
+    : (value != null && typeof value !== 'object' ? String(value) : '');
+
   return (
     <div className={styles.container} style={style}>
       {label && <label className={styles.label}>{label}</label>}
@@ -267,7 +280,7 @@ export const FormattingTextarea = ({
           name={name}
           rows={rows}
           required={required}
-          value={value}
+          value={safeValue}
           onChange={onChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}

@@ -22,7 +22,8 @@ import {
   Wrench,
   Cpu,
   Layers,
-  Sparkles
+  Sparkles,
+  Eye,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -33,6 +34,7 @@ import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { Table } from '../components/common/Table';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
+import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import styles from './ProjectsPage.module.css';
 
 // 5 Milestone Problem Solving & Process Stages for PE
@@ -69,6 +71,16 @@ export const ProjectsPage = () => {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+
+  // View Detail Modal State
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingProject, setViewingProject] = useState(null);
+  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+
+  const openViewModal = (p) => {
+    setViewingProject(p);
+    setIsViewModalOpen(true);
+  };
 
   // Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -157,11 +169,19 @@ export const ProjectsPage = () => {
       setTargetDate('');
 
       const picUser = users.find((u) => u.id === ownerId);
+      const picName = picUser?.full_name || 'Unassigned';
       if (sendEmail && picUser && picUser.email) {
         showToast(`Task berhasil dibuat & notifikasi email dikirim ke ${picUser.email}!`);
       } else {
         showToast('Milestone Task berhasil ditambahkan!');
       }
+
+      // Record timeline change log
+      await logTimelineEvent(
+        'project',
+        res.data.id,
+        `Milestone Task Analyst dibuat dengan prioritas ${priority.toUpperCase()}, milestone ${getMilestone(createProgress).label} (${createProgress}%), dan PIC ${picName}`
+      );
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     } finally {
@@ -203,9 +223,35 @@ export const ProjectsPage = () => {
       };
 
       const res = await api.put(`/projects/${editingProject.id}`, payload);
+      const updated = { ...editingProject, ...res.data };
       setProjects((prev) =>
-        prev.map((p) => (p.id === editingProject.id ? { ...p, ...res.data } : p))
+        prev.map((p) => (p.id === editingProject.id ? updated : p))
       );
+
+      // Compute and record timeline change log
+      const changes = [];
+      if (editTitle !== editingProject.title) changes.push(`Judul diubah ke "${editTitle}"`);
+      if (Number(editProgress) !== Number(editingProject.progress)) {
+        changes.push(`Milestone diubah ke ${getMilestone(editProgress).label} (${editProgress}%)`);
+      }
+      if (payload.status !== editingProject.status) changes.push(`Status diubah ke ${payload.status}`);
+      if (editPriority !== editingProject.priority) changes.push(`Prioritas diubah ke ${editPriority.toUpperCase()}`);
+      if (editProjectType !== editingProject.project_type) changes.push(`Kategori issue diubah ke ${editProjectType}`);
+      if (editOwnerId !== (editingProject.owner_id || '')) {
+        const newOwner = users.find((u) => u.id === editOwnerId)?.full_name || 'Unassigned';
+        changes.push(`PIC dialihkan ke ${newOwner}`);
+      }
+      if (editDescription !== (editingProject.description || '')) {
+        changes.push('Catatan analisis/investigasi diperbarui');
+      }
+      const logMsg = changes.length > 0 ? changes.join('; ') : 'Task Analyst diperbarui';
+      await logTimelineEvent('project', editingProject.id, logMsg);
+
+      if (viewingProject?.id === editingProject.id) {
+        setViewingProject(updated);
+        setTimelineRefreshKey((k) => k + 1);
+      }
+
       setIsEditModalOpen(false);
       setEditingProject(null);
       showToast('Perubahan milestone task berhasil disimpan!');
@@ -238,10 +284,21 @@ export const ProjectsPage = () => {
         description: p.description || undefined,
       });
 
+      const updatedItem = { ...p, ...res.data };
       setProjects((prev) =>
-        prev.map((item) => (item.id === p.id ? { ...item, ...res.data } : item))
+        prev.map((item) => (item.id === p.id ? updatedItem : item))
       );
       showToast(`Milestone ${p.title} diperbarui ke: ${targetStage.label}`);
+
+      await logTimelineEvent(
+        'project',
+        p.id,
+        `Milestone dipindahkan ke Step ${targetStage.step}: ${targetStage.label} (${targetStage.percent}%)`
+      );
+      if (viewingProject?.id === p.id) {
+        setViewingProject(updatedItem);
+        setTimelineRefreshKey((k) => k + 1);
+      }
     } catch (err) {
       console.error('Failed to advance stage:', err);
     }
@@ -345,9 +402,14 @@ export const ProjectsPage = () => {
       title: 'Action',
       key: 'action',
       render: (_, row) => (
-        <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(row)}>
-          Edit
-        </Button>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <Button variant="outline" size="xs" icon={Eye} onClick={() => openViewModal(row)}>
+            Lihat
+          </Button>
+          <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(row)}>
+            Edit
+          </Button>
+        </div>
       ),
     },
   ];
@@ -557,7 +619,7 @@ export const ProjectsPage = () => {
                   e.currentTarget.style.borderColor = 'var(--color-border)';
                   e.currentTarget.style.transform = 'none';
                 }}
-                onClick={() => openEditModal(p)}
+                onClick={() => openViewModal(p)}
               >
                 {/* Header row: Category & Priority */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -677,7 +739,26 @@ export const ProjectsPage = () => {
                         <ArrowRight size={11} />
                       </button>
                     )}
-                    <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(p)}>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      icon={Eye}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openViewModal(p);
+                      }}
+                    >
+                      Lihat
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      icon={Edit2}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditModal(p);
+                      }}
+                    >
                       Edit
                     </Button>
                   </div>
@@ -765,7 +846,7 @@ export const ProjectsPage = () => {
                     colTasks.map((task) => (
                       <div
                         key={task.id}
-                        onClick={() => openEditModal(task)}
+                        onClick={() => openViewModal(task)}
                         style={{
                           background: 'var(--color-bg-primary)',
                           border: '1px solid var(--color-border)',
@@ -824,7 +905,41 @@ export const ProjectsPage = () => {
                           color: 'var(--color-text-secondary)',
                         }}>
                           <span>👤 {task.owner_name ? task.owner_name.split(' ')[0] : 'Unassigned'}</span>
-                          <div style={{ display: 'flex', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => openViewModal(task)}
+                              title="Lihat Detail & Timeline"
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '3px',
+                                padding: '2px 5px',
+                                cursor: 'pointer',
+                                color: 'var(--color-text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Eye size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(task)}
+                              title="Edit Task"
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '3px',
+                                padding: '2px 5px',
+                                cursor: 'pointer',
+                                color: 'var(--color-text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Edit2 size={11} />
+                            </button>
                             {st.step > 1 && (
                               <button
                                 type="button"
@@ -1025,7 +1140,7 @@ export const ProjectsPage = () => {
               <label style={{ fontSize: '12px', fontWeight: 600 }}>Deskripsi / Catatan Investigasi Awal</label>
               <FormattingTextarea
                 value={description}
-                onChange={setDescription}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Tuliskan temuan gejala issue, parameter mesin, lokasi line produksi..."
                 minHeight="110px"
               />
@@ -1214,7 +1329,7 @@ export const ProjectsPage = () => {
               <label style={{ fontSize: '12px', fontWeight: 600 }}>Catatan Analisis / Investigasi</label>
               <FormattingTextarea
                 value={editDescription}
-                onChange={setEditDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
                 placeholder="Catat parameter, data investigasi, dan countermeasure..."
                 minHeight="120px"
               />
@@ -1236,6 +1351,173 @@ export const ProjectsPage = () => {
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* VIEW DETAIL & TIMELINE MODAL */}
+      {isViewModalOpen && viewingProject && (
+        <Modal
+          isOpen={isViewModalOpen}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setViewingProject(null);
+          }}
+          title="Detail Milestone Task Analyst"
+          size="lg"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {/* Header badges and title */}
+            <div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: 'var(--color-accent)',
+                  background: 'rgba(37, 99, 235, 0.08)',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-xs)',
+                  border: '1px solid rgba(37, 99, 235, 0.2)',
+                }}>
+                  {viewingProject.project_type || 'General'}
+                </span>
+                <StatusBadge status={viewingProject.priority} />
+                <StatusBadge status={viewingProject.status} />
+              </div>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
+                {viewingProject.title}
+              </h2>
+            </div>
+
+            {/* Stepper progress overview */}
+            <div style={{
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '14px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                  Milestone Progress
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                  {getMilestone(viewingProject.progress).label} ({viewingProject.progress || 0}%)
+                </span>
+              </div>
+              <div className={styles.breadcrumbStepper}>
+                {MILESTONE_STAGES.map((st) => {
+                  const isCurrent = getMilestone(viewingProject.progress).step === st.step;
+                  const isCompleted = (viewingProject.progress || 0) >= st.percent;
+                  return (
+                    <div
+                      key={st.id}
+                      className={`${styles.stepBtn} ${isCurrent ? styles.stepCurrent : ''} ${isCompleted ? styles.stepCompleted : ''}`}
+                      style={{ cursor: 'default' }}
+                      title={st.desc}
+                    >
+                      <span className={styles.stepNum}>{st.step}</span>
+                      <span className={styles.stepLabel}>{st.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Metadata Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '12px',
+              padding: '12px',
+              background: 'var(--color-bg-primary)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px',
+            }}>
+              <div>
+                <span style={{ color: 'var(--color-text-secondary)', display: 'block', marginBottom: '2px' }}>
+                  Person In Charge (PIC)
+                </span>
+                <strong style={{ color: 'var(--color-text-primary)' }}>
+                  👤 {viewingProject.owner_name || 'Unassigned'}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--color-text-secondary)', display: 'block', marginBottom: '2px' }}>
+                  Target Selesai
+                </span>
+                <strong style={{ color: 'var(--color-text-primary)' }}>
+                  📅 {viewingProject.target_date ? new Date(viewingProject.target_date).toLocaleDateString() : '-'}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--color-text-secondary)', display: 'block', marginBottom: '2px' }}>
+                  Tanggal Dibuat
+                </span>
+                <strong style={{ color: 'var(--color-text-primary)' }}>
+                  🕒 {viewingProject.created_at ? new Date(viewingProject.created_at).toLocaleDateString() : '-'}
+                </strong>
+              </div>
+            </div>
+
+            {/* Catatan Analisis / Investigasi */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: '6px' }}>
+                Catatan Analisis / Investigasi
+              </label>
+              <div style={{
+                background: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px 14px',
+                fontSize: '13px',
+                lineHeight: 1.6,
+                color: 'var(--color-text-primary)',
+                whiteSpace: 'pre-wrap',
+                minHeight: '60px',
+              }}>
+                {viewingProject.description || (
+                  <span style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                    Belum ada catatan investigasi atau countermeasure yang dicatat.
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Comment & Timeline Section */}
+            <CommentTimelineSection
+              entityType="project"
+              entityId={viewingProject.id}
+              entityTitle={viewingProject.title}
+              refreshKey={timelineRefreshKey}
+            />
+
+            {/* Footer Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={Edit2}
+                onClick={() => {
+                  const p = viewingProject;
+                  setIsViewModalOpen(false);
+                  openEditModal(p);
+                }}
+              >
+                Edit Task
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setViewingProject(null);
+                }}
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

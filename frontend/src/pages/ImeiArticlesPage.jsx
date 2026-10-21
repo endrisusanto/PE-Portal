@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pin, FileText, Search, Edit2 } from 'lucide-react';
+import { Plus, Pin, FileText, Search, Edit2, Eye, Calendar, User, MessageSquare } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -8,6 +8,7 @@ import { Modal } from '../components/common/Modal';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
+import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 
 export const ImeiArticlesPage = () => {
   const { t } = useTranslation();
@@ -17,6 +18,11 @@ export const ImeiArticlesPage = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // View Modal State
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingArticle, setViewingArticle] = useState(null);
+  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
 
   // Create Form State
   const [title, setTitle] = useState('');
@@ -57,6 +63,11 @@ export const ImeiArticlesPage = () => {
     fetchData();
   }, [search, selectedModel]);
 
+  const handleOpenView = (art) => {
+    setViewingArticle(art);
+    setIsViewModalOpen(true);
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
@@ -72,6 +83,9 @@ export const ImeiArticlesPage = () => {
       setContent('');
       setModelId('');
       setIsPinned(false);
+
+      // Record timeline change log
+      await logTimelineEvent('imei_article', res.data.id, 'Artikel baru berhasil dibuat dan dipublikasikan');
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -96,9 +110,28 @@ export const ImeiArticlesPage = () => {
         model_id: editModelId || undefined,
         is_pinned: editIsPinned,
       });
+
+      const updatedArt = { ...editingArticle, ...res.data };
       setArticles((prev) =>
-        prev.map((a) => (a.id === editingArticle.id ? { ...a, ...res.data } : a))
+        prev.map((a) => (a.id === editingArticle.id ? updatedArt : a))
       );
+
+      // Record detailed change log
+      const changes = [];
+      if (editTitle !== editingArticle.title) changes.push(`Judul diubah menjadi "${editTitle}"`);
+      if (editContent !== editingArticle.content) changes.push('Konten catatan/artikel diperbarui');
+      if (editModelId !== (editingArticle.model_id || '')) changes.push('Model produk diubah');
+      if (editIsPinned !== !!editingArticle.is_pinned) {
+        changes.push(editIsPinned ? 'Disematkan ke baris atas (Pinned)' : 'Sematan pin dilepas');
+      }
+      const changeMsg = changes.length > 0 ? changes.join('; ') : 'Artikel diperbarui';
+      await logTimelineEvent('imei_article', editingArticle.id, changeMsg);
+
+      if (viewingArticle?.id === editingArticle.id) {
+        setViewingArticle(updatedArt);
+        setTimelineRefreshKey((k) => k + 1);
+      }
+
       setIsEditModalOpen(false);
       setEditingArticle(null);
     } catch (err) {
@@ -190,11 +223,47 @@ export const ImeiArticlesPage = () => {
                 }}>
                   {art.model_name || 'General'}
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {art.is_pinned && <Pin size={14} color="var(--color-accent)" />}
                   <button
                     type="button"
-                    onClick={() => handleOpenEdit(art)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenView(art);
+                    }}
+                    title="Lihat Detail & Komentar"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      backgroundColor: 'var(--color-bg-primary)',
+                      color: 'var(--color-text-primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--color-accent)';
+                      e.currentTarget.style.borderColor = 'var(--color-accent)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--color-text-primary)';
+                      e.currentTarget.style.borderColor = 'var(--color-border)';
+                    }}
+                  >
+                    <Eye size={12} />
+                    <span>View</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEdit(art);
+                    }}
                     title="Edit Article"
                     style={{
                       display: 'inline-flex',
@@ -225,7 +294,18 @@ export const ImeiArticlesPage = () => {
                 </div>
               </div>
 
-              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              <h3
+                onClick={() => handleOpenView(art)}
+                style={{
+                  fontSize: 'var(--font-size-md)',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary)',
+                  cursor: 'pointer',
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-accent)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+              >
                 {art.title}
               </h3>
 
@@ -403,6 +483,114 @@ export const ImeiArticlesPage = () => {
             Pin article to top of list
           </label>
         </form>
+      </Modal>
+
+      {/* View Detail & Comment Timeline Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Detail Artikel & Catatan Teknis"
+        size="lg"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Edit2}
+              onClick={() => {
+                if (viewingArticle) handleOpenEdit(viewingArticle);
+              }}
+            >
+              Edit Artikel
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setIsViewModalOpen(false)}>
+              Tutup
+            </Button>
+          </div>
+        }
+      >
+        {viewingArticle && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Header badges & metadata */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    backgroundColor: 'var(--color-bg-primary)',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                  }}>
+                    Model: {viewingArticle.model_name || 'General'}
+                  </span>
+                  {viewingArticle.is_pinned && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: 'var(--color-accent)',
+                      backgroundColor: 'var(--color-accent-subtle)',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-accent)',
+                    }}>
+                      <Pin size={11} /> Pinned
+                    </span>
+                  )}
+                </div>
+                <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>
+                  {viewingArticle.title}
+                </h2>
+              </div>
+
+              <div style={{
+                fontSize: '11px',
+                color: 'var(--color-text-muted)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: '2px',
+              }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <User size={12} /> {viewingArticle.author_name || 'Engineer'}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Calendar size={12} /> {new Date(viewingArticle.created_at).toLocaleString('id-ID')}
+                </span>
+              </div>
+            </div>
+
+            {/* Content Body */}
+            <div style={{
+              padding: '14px 16px',
+              backgroundColor: 'var(--color-bg-primary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '13px',
+              color: 'var(--color-text-primary)',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              maxHeight: '320px',
+              overflowY: 'auto',
+            }}>
+              {viewingArticle.content}
+            </div>
+
+            {/* Unified Comments & Timeline Logs Section */}
+            <CommentTimelineSection
+              entityType="imei_article"
+              entityId={viewingArticle.id}
+              entityTitle={viewingArticle.title}
+              refreshKey={timelineRefreshKey}
+            />
+          </div>
+        )}
       </Modal>
     </div>
   );
