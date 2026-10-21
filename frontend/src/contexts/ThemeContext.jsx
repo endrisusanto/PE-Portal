@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export const PALETTE_PRESETS = [
-  { id: 'corporate', name: 'SEIN Corporate Teal', icon: '🏢', color: '#0d7377', darkColor: '#4db8b5', desc: 'Industrial engineering standard' },
-  { id: 'cute', name: 'Sakura Mochi (Cute)', icon: '🌸', color: '#e05780', darkColor: '#ff7597', desc: 'Soft pastel pink & cheerful mochi tone' },
-  { id: 'cyberpunk', name: 'Neon Emerald', icon: '⚡', color: '#059669', darkColor: '#10b981', desc: 'High-contrast matrix & hacker green' },
-  { id: 'cobalt', name: 'Galactic Cobalt', icon: '🌌', color: '#2563eb', darkColor: '#60a5fa', desc: 'Executive Samsung corporate blue' },
-  { id: 'amber', name: 'Sunset Amber', icon: '🌅', color: '#d97706', darkColor: '#fbbf24', desc: 'Warm engineering workshop glow' },
-  { id: 'purple', name: 'Cyber Lavender', icon: '🔮', color: '#7c3aed', darkColor: '#a78bfa', desc: 'Futuristic electric violet' },
-  { id: 'custom', name: 'Custom Personal Color', icon: '🎨', color: '#ec4899', darkColor: '#f472b6', desc: 'Pick your own favorite hex accent' },
+  { id: 'corporate', name: 'SEIN Corporate Teal', icon: 'building', color: '#0d7377', darkColor: '#4db8b5', desc: 'Industrial engineering standard' },
+  { id: 'cute', name: 'Sakura Mochi (Cute)', icon: 'heart', color: '#e05780', darkColor: '#ff7597', desc: 'Soft pastel pink & cheerful mochi tone' },
+  { id: 'cyberpunk', name: 'Neon Emerald', icon: 'zap', color: '#059669', darkColor: '#10b981', desc: 'High-contrast matrix & hacker green' },
+  { id: 'cobalt', name: 'Galactic Cobalt', icon: 'compass', color: '#2563eb', darkColor: '#60a5fa', desc: 'Executive Samsung corporate blue' },
+  { id: 'amber', name: 'Sunset Amber', icon: 'sun', color: '#d97706', darkColor: '#fbbf24', desc: 'Warm engineering workshop glow' },
+  { id: 'purple', name: 'Cyber Lavender', icon: 'sparkles', color: '#7c3aed', darkColor: '#a78bfa', desc: 'Futuristic electric violet' },
+  { id: 'custom', name: 'Custom Personal Color', icon: 'palette', color: '#ec4899', darkColor: '#f472b6', desc: 'Pick your own favorite hex accent' },
 ];
 
 export const FONT_PRESETS = [
@@ -15,7 +15,7 @@ export const FONT_PRESETS = [
     id: 'samsung-sans',
     name: 'Samsung Sans',
     category: 'Samsung Corporate',
-    icon: '📱',
+    icon: 'smartphone',
     fontFamily: "'Samsung Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     desc: 'Official Samsung corporate typography, clean & perfectly balanced',
   },
@@ -23,7 +23,7 @@ export const FONT_PRESETS = [
     id: 'system',
     name: 'System Default',
     category: 'OS Standard',
-    icon: '💻',
+    icon: 'monitor',
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', 'Noto Sans', sans-serif",
     desc: 'Native OS modern UI typeface (San Francisco / Segoe UI / Ubuntu)',
   },
@@ -31,7 +31,7 @@ export const FONT_PRESETS = [
     id: 'roboto',
     name: 'Roboto',
     category: 'Material Sans',
-    icon: '📐',
+    icon: 'type',
     fontFamily: "'Roboto', -apple-system, BlinkMacSystemFont, sans-serif",
     desc: 'Geometric and legible engineering standard font',
   },
@@ -39,7 +39,7 @@ export const FONT_PRESETS = [
     id: 'mono',
     name: 'Industrial Mono',
     category: 'Engineering Code',
-    icon: '⚡',
+    icon: 'terminal',
     fontFamily: "'SF Mono', 'Cascadia Code', 'Consolas', monospace",
     desc: 'Monospaced engineering font for precision data and code views',
   },

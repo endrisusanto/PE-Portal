@@ -1,7 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Palette, Check, Sparkles } from 'lucide-react';
+import { Palette, Check, Sparkles, Building2, Heart, Zap, Compass, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import styles from './ThemePalettePicker.module.css';
+
+const renderThemeIcon = (iconKey, size = 13) => {
+  switch (iconKey) {
+    case 'building': return <Building2 size={size} />;
+    case 'heart': return <Heart size={size} />;
+    case 'zap': return <Zap size={size} />;
+    case 'compass': return <Compass size={size} />;
+    case 'sun': return <Sun size={size} />;
+    case 'sparkles': return <Sparkles size={size} />;
+    case 'palette': return <Palette size={size} />;
+    default: return <Palette size={size} />;
+  }
+};
 
 export const ThemePalettePicker = () => {
   const {
@@ -67,7 +80,9 @@ export const ThemePalettePicker = () => {
                   }}
                 >
                   <div className={styles.presetLeft}>
-                    <span style={{ fontSize: '14px' }}>{p.icon}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--color-text-secondary)' }}>
+                      {renderThemeIcon(p.icon, 13)}
+                    </span>
                     <span
                       className={styles.swatch}
                       style={{ backgroundColor: activeColor }}
@@ -81,7 +96,10 @@ export const ThemePalettePicker = () => {
           </div>
 
           <div className={styles.customSection}>
-            <span className={styles.customLabel}>🎨 Custom Hex:</span>
+            <span className={styles.customLabel} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Palette size={13} color="var(--color-accent)" />
+              Custom Hex:
+            </span>
             <div className={styles.colorPickerWrapper}>
               <input
                 type="color"

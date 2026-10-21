@@ -20,6 +20,15 @@ import {
   Trash2,
   Palette,
   Type,
+  Building2,
+  Heart,
+  Zap,
+  Compass,
+  Sun,
+  Smartphone,
+  Monitor,
+  Terminal,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -29,6 +38,29 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Avatar } from '../components/common/Avatar';
 import styles from './ProfilePage.module.css';
+
+const renderThemeIcon = (iconKey, size = 16) => {
+  switch (iconKey) {
+    case 'building': return <Building2 size={size} />;
+    case 'heart': return <Heart size={size} />;
+    case 'zap': return <Zap size={size} />;
+    case 'compass': return <Compass size={size} />;
+    case 'sun': return <Sun size={size} />;
+    case 'sparkles': return <Sparkles size={size} />;
+    case 'palette': return <Palette size={size} />;
+    default: return <Palette size={size} />;
+  }
+};
+
+const renderFontIcon = (iconKey, size = 14) => {
+  switch (iconKey) {
+    case 'smartphone': return <Smartphone size={size} />;
+    case 'monitor': return <Monitor size={size} />;
+    case 'type': return <Type size={size} />;
+    case 'terminal': return <Terminal size={size} />;
+    default: return <Type size={size} />;
+  }
+};
 
 export const ProfilePage = () => {
   const { t } = useTranslation();
@@ -466,7 +498,7 @@ export const ProfilePage = () => {
               Personal Decorative Theme & Color Scheme
             </h2>
             <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Pilih tema dekoratif estetis (termasuk Theme Cute Sakura 🌸, Neon Emerald ⚡, Sunset Amber 🌅) atau buat warna kustom Anda sendiri.
+              Pilih tema dekoratif estetis (termasuk Theme Cute Sakura, Neon Emerald, Sunset Amber) atau buat warna kustom Anda sendiri.
             </p>
           </div>
 
@@ -514,7 +546,9 @@ export const ProfilePage = () => {
                   boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
                 }}
               >
-                <span style={{ fontSize: '18px' }}>{p.icon}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? 'var(--color-accent)' : 'var(--color-text-secondary)' }}>
+                  {renderThemeIcon(p.icon, 18)}
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                     {p.name}
@@ -553,7 +587,9 @@ export const ProfilePage = () => {
           gap: '10px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px' }}>🎨</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}>
+              <Palette size={18} />
+            </span>
             <div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                 Custom Personal Color (Hex Picker)
@@ -620,7 +656,9 @@ export const ProfilePage = () => {
           gap: '12px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '18px' }}>✨</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}>
+              <Sparkles size={18} />
+            </span>
             <div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 Animated Theme Background
@@ -637,7 +675,7 @@ export const ProfilePage = () => {
                 </span>
               </div>
               <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                Partikel hidup & ambient aurora bergerak lembut sesuai tema aktif (🌸 Sakura Petals, ⚡ Matrix Rain, 🌌 Twinkling Stars, 🌅 Rising Embers, 🔮 Lavender Crystals, 🏢 Constellation Nodes)
+                Partikel hidup & ambient aurora bergerak lembut sesuai tema aktif (Sakura Petals, Matrix Rain, Twinkling Stars, Rising Embers, Lavender Crystals, Constellation Nodes)
               </div>
             </div>
           </div>
@@ -647,9 +685,10 @@ export const ProfilePage = () => {
             variant={animatedBg ? 'primary' : 'outline'}
             size="sm"
             onClick={toggleAnimatedBg}
-            style={{ minWidth: '130px' }}
+            style={{ minWidth: '130px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            {animatedBg ? '✨ Matikan Animasi' : '✨ Aktifkan Animasi'}
+            <Sparkles size={13} />
+            {animatedBg ? 'Matikan Animasi' : 'Aktifkan Animasi'}
           </Button>
         </div>
 
@@ -706,7 +745,9 @@ export const ProfilePage = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '14px' }}>{f.icon}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? 'var(--color-accent)' : 'var(--color-text-secondary)' }}>
+                        {renderFontIcon(f.icon, 14)}
+                      </span>
                       <span style={{
                         fontSize: '10px',
                         fontWeight: 600,
@@ -726,9 +767,9 @@ export const ProfilePage = () => {
                         color: 'var(--color-accent)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '2px',
+                        gap: '3px',
                       }}>
-                        ✓ Active
+                        <Check size={11} /> Active
                       </span>
                     )}
                   </div>
