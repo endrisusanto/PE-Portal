@@ -5,6 +5,32 @@
    Design Dials: ENERGY 1 / RHYTHM 2 / MOTION 1
    ============================================================================ */
 
+/* Samsung Sans Font Definition (Offline / Embedded) */
+@font-face {
+  font-family: 'Samsung Sans';
+  src: url('/fonts/samsung-sans/SamsungSans-Regular.woff') format('woff'),
+       url('/fonts/samsung-sans/SamsungSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Samsung Sans';
+  src: url('/fonts/samsung-sans/SamsungSans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Samsung Sans';
+  src: url('/fonts/samsung-sans/SamsungSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Color Palette - Light Mode
      Context: Production engineering workshop and office.

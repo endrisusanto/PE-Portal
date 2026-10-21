@@ -19,6 +19,7 @@ import {
   Plus,
   Trash2,
   Palette,
+  Type,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -41,6 +42,9 @@ export const ProfilePage = () => {
     theme,
     animatedBg,
     toggleAnimatedBg,
+    font,
+    setFont,
+    fontPresets,
   } = useTheme();
 
   const fileInputRef = useRef(null);
@@ -647,6 +651,121 @@ export const ProfilePage = () => {
           >
             {animatedBg ? '✨ Matikan Animasi' : '✨ Aktifkan Animasi'}
           </Button>
+        </div>
+
+        {/* Typography & Font Family Switcher (Samsung Sans & Presets) */}
+        <div style={{ marginTop: '16px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Type size={16} color="var(--color-accent)" />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                Typography & Interface Font Family
+              </span>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-full)',
+              fontWeight: 600,
+              backgroundColor: 'var(--color-accent-subtle)',
+              color: 'var(--color-accent)',
+              border: '1px solid var(--color-accent)',
+            }}>
+              Font: {fontPresets?.find((f) => f.id === font)?.name || 'Samsung Sans'}
+            </span>
+          </div>
+
+          <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+            Pilih jenis huruf antarmuka portal. Dilengkapi font resmi <strong>Samsung Sans</strong> untuk integrasi desain standar Samsung Electronics.
+          </p>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: '10px',
+            marginTop: '10px',
+          }}>
+            {fontPresets?.map((f) => {
+              const isSelected = font === f.id;
+              return (
+                <div
+                  key={f.id}
+                  onClick={() => setFont(f.id)}
+                  style={{
+                    padding: '10px 12px',
+                    backgroundColor: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
+                    border: `2px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
+                    boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '14px' }}>{f.icon}</span>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '1px 5px',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor: 'var(--color-bg-secondary)',
+                        color: 'var(--color-text-secondary)',
+                        border: '1px solid var(--color-border)',
+                      }}>
+                        {f.category}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: 'var(--color-accent)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                      }}>
+                        ✓ Active
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{
+                    fontFamily: f.fontFamily,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                  }}>
+                    {f.name}
+                  </div>
+
+                  <div style={{
+                    fontFamily: f.fontFamily,
+                    fontSize: '11px',
+                    padding: '4px 6px',
+                    borderRadius: 'var(--radius-xs)',
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    border: '1px dashed var(--color-border)',
+                    color: 'var(--color-text-primary)',
+                    letterSpacing: '0.2px',
+                  }}>
+                    SEIN PE Group 2026 • 12345
+                  </div>
+
+                  <div style={{
+                    fontSize: '10px',
+                    color: 'var(--color-text-muted)',
+                    lineHeight: 1.3,
+                  }}>
+                    {f.desc}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

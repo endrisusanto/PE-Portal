@@ -10,6 +10,41 @@ export const PALETTE_PRESETS = [
   { id: 'custom', name: 'Custom Personal Color', icon: '🎨', color: '#ec4899', darkColor: '#f472b6', desc: 'Pick your own favorite hex accent' },
 ];
 
+export const FONT_PRESETS = [
+  {
+    id: 'samsung-sans',
+    name: 'Samsung Sans',
+    category: 'Samsung Corporate',
+    icon: '📱',
+    fontFamily: "'Samsung Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    desc: 'Official Samsung corporate typography, clean & perfectly balanced',
+  },
+  {
+    id: 'system',
+    name: 'System Default',
+    category: 'OS Standard',
+    icon: '💻',
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', 'Noto Sans', sans-serif",
+    desc: 'Native OS modern UI typeface (San Francisco / Segoe UI / Ubuntu)',
+  },
+  {
+    id: 'roboto',
+    name: 'Roboto',
+    category: 'Material Sans',
+    icon: '📐',
+    fontFamily: "'Roboto', -apple-system, BlinkMacSystemFont, sans-serif",
+    desc: 'Geometric and legible engineering standard font',
+  },
+  {
+    id: 'mono',
+    name: 'Industrial Mono',
+    category: 'Engineering Code',
+    icon: '⚡',
+    fontFamily: "'SF Mono', 'Cascadia Code', 'Consolas', monospace",
+    desc: 'Monospaced engineering font for precision data and code views',
+  },
+];
+
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
@@ -25,11 +60,23 @@ export const ThemeProvider = ({ children }) => {
     return localStorage.getItem('pe_portal_custom_accent') || '#e05780';
   });
 
+  // Font family preference (default to Samsung Sans)
+  const [font, setFontState] = useState(() => {
+    return localStorage.getItem('pe_portal_font') || 'samsung-sans';
+  });
+
   // Animated background toggle state (default true)
   const [animatedBg, setAnimatedBgState] = useState(() => {
     const saved = localStorage.getItem('pe_portal_animated_bg');
     return saved !== null ? saved === 'true' : true;
   });
+
+  // Sync font family to document root
+  useEffect(() => {
+    const activePreset = FONT_PRESETS.find((f) => f.id === font) || FONT_PRESETS[0];
+    document.documentElement.style.setProperty('--font-sans', activePreset.fontFamily);
+    localStorage.setItem('pe_portal_font', font);
+  }, [font]);
 
   // Sync theme mode (light / dark)
   useEffect(() => {
@@ -94,6 +141,9 @@ export const ThemeProvider = ({ children }) => {
         setAnimatedBg,
         toggleAnimatedBg,
         presets: PALETTE_PRESETS,
+        font,
+        setFont: setFontState,
+        fontPresets: FONT_PRESETS,
       }}
     >
       {children}
