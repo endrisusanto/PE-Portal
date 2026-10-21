@@ -446,7 +446,7 @@ export const SampleManagementPage = () => {
         <div className={styles.titleArea}>
           <h1>
             <PackageCheck size={26} color="var(--color-accent)" />
-            Database Sample PE
+            {t('nav.samples_database', 'Database Sample PE')}
           </h1>
           <p className={styles.subtitle}>
             Sistem Inventaris, Pelacakan Peminjaman & Matriks Kondisi Sample Perangkat Engineering

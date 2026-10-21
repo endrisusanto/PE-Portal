@@ -254,6 +254,9 @@
   "dhl": {
     "title": "DHL Shipment Tracker",
     "subtitle": "Real-time Tracking for Engineering Samples, Trial Parts & Components via DHL API",
+    "api_status_valid": "DHL API Connected",
+    "api_status_invalid": "DHL API Disconnected / Invalid",
+    "api_status_checking": "Checking DHL API...",
     "track_new_awb": "Track New AWB",
     "refresh": "Refresh",
     "total_tracked": "Total Tracked",

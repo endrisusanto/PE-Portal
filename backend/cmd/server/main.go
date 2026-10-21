@@ -299,6 +299,7 @@ func main() {
 	api.POST("/utility/split-pdf", utilityHandler.SplitPDF)
 
 	// DHL Express Tracking Routes
+	api.GET("/dhl/status", dhlHandler.CheckAPIStatus)
 	api.GET("/dhl/track", dhlHandler.TrackDirect)
 	api.GET("/dhl/shipments", dhlHandler.ListShipments)
 	api.POST("/dhl/shipments", dhlHandler.CreateShipment)

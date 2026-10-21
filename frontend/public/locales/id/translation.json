@@ -9,7 +9,7 @@
     "projects": "Analis Tugas",
     "samples": "Manajemen Sampel",
     "sample_management": "Sample Management",
-    "samples_database": "Database Sample PE",
+    "samples_database": "Database Sampel PE",
     "dhl_tracker": "DHL Tracker",
     "software_team": "Tim Software",
     "software_mr": "Software MR",
@@ -254,6 +254,9 @@
   "dhl": {
     "title": "DHL Shipment Tracker",
     "subtitle": "Pelacakan Real-time Pengiriman Sample Engineering, Part Trial & Komponen via DHL API",
+    "api_status_valid": "API DHL Terhubung",
+    "api_status_invalid": "API DHL Terputus / Tidak Valid",
+    "api_status_checking": "Memeriksa API DHL...",
     "track_new_awb": "Lacak AWB Baru",
     "refresh": "Refresh",
     "total_tracked": "Total Dipantau",

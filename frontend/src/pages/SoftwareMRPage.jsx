@@ -257,7 +257,7 @@ export const SoftwareMRPage = () => {
         <div className={styles.titleArea}>
           <h1>
             <GitCompare size={26} color="var(--color-accent)" />
-            Software MR (Maintenance Release)
+            {t('nav.software_mr', 'Software MR')} (Maintenance Release)
           </h1>
           <p className={styles.subtitle}>
             Cheatsheet Pemetaan Binary Firmware, CSC Version Up & Catatan Rilis Perangkat SEIN • Intranet: <code style={{ fontSize: '11px', padding: '1px 5px', borderRadius: '4px', background: 'var(--color-bg-secondary)' }}>107.102.39.55</code>

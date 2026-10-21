@@ -53,6 +53,9 @@ export const DhlTrackerPage = () => {
   const [activeShipment, setActiveShipment] = useState(null);
   const [copiedId, setCopiedId] = useState('');
 
+  // DHL API Connectivity Status
+  const [apiStatus, setApiStatus] = useState({ valid: true, status: 'checking', message: '' });
+
   // Add Form
   const [addForm, setAddForm] = useState({
     tracking_number: '',
@@ -88,9 +91,20 @@ export const DhlTrackerPage = () => {
     }
   }, [searchTerm, statusFilter, collectedFilter, t]);
 
+  const checkDHLStatus = useCallback(async () => {
+    try {
+      const { data } = await api.get('/dhl/status');
+      setApiStatus(data || { valid: true, status: 'active', message: 'DHL API Connected' });
+    } catch (err) {
+      console.error('Failed to check DHL status:', err);
+      setApiStatus({ valid: false, status: 'offline', message: 'DHL API Offline' });
+    }
+  }, []);
+
   useEffect(() => {
     fetchShipments();
-  }, [fetchShipments]);
+    checkDHLStatus();
+  }, [fetchShipments, checkDHLStatus]);
 
   // Flash message auto dismiss
   useEffect(() => {
@@ -358,7 +372,28 @@ export const DhlTrackerPage = () => {
               <span className={styles.expressText}>EXPRESS</span>
             </div>
             <div>
-              <h1 className={styles.pageTitle}>{t('dhl.title', 'DHL Shipment Tracker')}</h1>
+              <div className={styles.titleWithStatus}>
+                <h1 className={styles.pageTitle}>{t('dhl.title', 'DHL Shipment Tracker')}</h1>
+                <div
+                  className={`${styles.apiStatusBadge} ${
+                    apiStatus?.valid
+                      ? styles.apiStatusActive
+                      : apiStatus?.status === 'checking'
+                      ? styles.apiStatusChecking
+                      : styles.apiStatusOffline
+                  }`}
+                  title={apiStatus?.message || (apiStatus?.valid ? 'DHL API Valid & Connected' : 'DHL API Offline')}
+                >
+                  <span className={styles.statusDotPulse} />
+                  <span className={styles.apiStatusText}>
+                    {apiStatus?.status === 'checking'
+                      ? t('dhl.api_status_checking', 'Checking DHL API...')
+                      : apiStatus?.valid
+                      ? t('dhl.api_status_valid', 'DHL API Active')
+                      : t('dhl.api_status_invalid', 'DHL API Offline')}
+                  </span>
+                </div>
+              </div>
               <p className={styles.pageSubtitle}>
                 {t('dhl.subtitle', 'Pelacakan Real-time Pengiriman Sample Engineering, Part Trial & Komponen via DHL API')}
               </p>
@@ -367,7 +402,15 @@ export const DhlTrackerPage = () => {
         </div>
 
         <div className={styles.headerActions}>
-          <Button variant="secondary" onClick={fetchShipments} disabled={loading} title={t('dhl.refresh', 'Refresh')}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              fetchShipments();
+              checkDHLStatus();
+            }}
+            disabled={loading}
+            title={t('dhl.refresh', 'Refresh')}
+          >
             <RefreshCw size={15} className={loading ? styles.spin : ''} />
             {t('dhl.refresh', 'Refresh')}
           </Button>
@@ -788,9 +831,16 @@ export const DhlTrackerPage = () => {
                   {getStatusBadge(activeShipment.status_code, activeShipment.status_label)}
                   <span className={styles.detailService}>{activeShipment.service_name || 'DHL Express'}</span>
                 </div>
-                <div className={styles.detailRoute}>
-                  {activeShipment.origin_city || activeShipment.origin_country || 'Origin'} &rarr;{' '}
-                  {activeShipment.dest_city || activeShipment.dest_country || 'Destination'}
+                <div className={styles.detailRouteBadge}>
+                  <span className={styles.routeChip}>
+                    <MapPin size={12} />
+                    {activeShipment.origin_city || activeShipment.origin_country || 'Origin'}
+                  </span>
+                  <ArrowRight size={13} className={styles.routeArrow} />
+                  <span className={styles.routeChipActive}>
+                    <CheckCircle2 size={12} />
+                    {activeShipment.dest_city || activeShipment.dest_country || 'Destination'}
+                  </span>
                 </div>
               </div>
 

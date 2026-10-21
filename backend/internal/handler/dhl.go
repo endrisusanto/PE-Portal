@@ -74,6 +74,50 @@ func fetchDHLTracking(trackingNumber string) (map[string]interface{}, error) {
 	return result, nil
 }
 
+// CheckAPIStatus verifies if DHL API key and endpoint are valid and responding
+func (h *DHLHandler) CheckAPIStatus(c echo.Context) error {
+	client := &http.Client{Timeout: 8 * time.Second}
+	reqURL := fmt.Sprintf("%s?trackingNumber=1234567890", DHLAPIURL)
+
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"valid":   false,
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("DHL-API-Key", DHLAPIKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"valid":   false,
+			"status":  "offline",
+			"message": "Connection to DHL API failed",
+		})
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"valid":   false,
+			"status":  "invalid_key",
+			"code":    resp.StatusCode,
+			"message": "DHL API Key is invalid or expired",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"valid":   true,
+		"status":  "active",
+		"code":    resp.StatusCode,
+		"message": "DHL API Connected",
+	})
+}
+
 // TrackDirect proxies the live DHL API for direct searches without requiring saved state
 func (h *DHLHandler) TrackDirect(c echo.Context) error {
 	awb := c.QueryParam("trackingNumber")
