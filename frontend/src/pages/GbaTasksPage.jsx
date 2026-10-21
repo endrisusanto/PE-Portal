@@ -119,10 +119,13 @@ export const GbaTasksPage = () => {
         if (search.trim()) {
           const q = search.toLowerCase();
           const matchModel = (task.model_name || '').toLowerCase().includes(q);
+          const matchProject = (task.project_name || '').toLowerCase().includes(q);
           const matchAp = (task.ap || '').toLowerCase().includes(q);
+          const matchCp = (task.cp || '').toLowerCase().includes(q);
+          const matchCsc = (task.csc || '').toLowerCase().includes(q);
           const matchSubId = (task.submission_id || '').toLowerCase().includes(q);
           const matchPic = (task.pic_email || '').toLowerCase().includes(q);
-          if (!matchModel && !matchAp && !matchSubId && !matchPic) return false;
+          if (!matchModel && !matchProject && !matchAp && !matchCp && !matchCsc && !matchSubId && !matchPic) return false;
         }
         return true;
       });
@@ -303,8 +306,15 @@ export const GbaTasksPage = () => {
                           title="Click to view details (View Only)"
                         >
                           <div className={styles.cardHeader}>
-                            <div className={styles.modelName} title={task.model_name}>
-                              {task.model_name}
+                            <div className={styles.modelTitleGroup}>
+                              {task.project_name && (
+                                <div className={styles.marketingName} title={`Marketing Name: ${task.project_name}`}>
+                                  {task.project_name}
+                                </div>
+                              )}
+                              <div className={styles.modelName} title={`Model: ${task.model_name}`}>
+                                {task.model_name}
+                              </div>
                             </div>
                             {isUrgent && (
                               <span className={styles.urgentPill}>
@@ -314,10 +324,23 @@ export const GbaTasksPage = () => {
                             )}
                           </div>
 
-                          {(task.ap || task.csc) && (
+                          {(task.ap || task.cp || task.csc) && (
                             <div className={styles.cardBuild}>
-                              {task.ap && <span className={styles.buildChip}>AP: {task.ap}</span>}
-                              {task.csc && <span className={styles.buildChip}>CSC: {task.csc}</span>}
+                              {task.ap && (
+                                <span className={styles.buildChip} title={`AP: ${task.ap}`}>
+                                  <strong>AP:</strong> {task.ap}
+                                </span>
+                              )}
+                              {task.cp && (
+                                <span className={styles.buildChip} title={`CP: ${task.cp}`}>
+                                  <strong>CP:</strong> {task.cp}
+                                </span>
+                              )}
+                              {task.csc && (
+                                <span className={styles.buildChip} title={`CSC: ${task.csc}`}>
+                                  <strong>CSC:</strong> {task.csc}
+                                </span>
+                              )}
                             </div>
                           )}
 
