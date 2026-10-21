@@ -10,36 +10,39 @@ export const Modal = ({
   footer,
   maxWidth = '540px',
 }) => {
-  const modalRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  // Keep latest onClose callback without triggering effect on re-render (ponytail: stable callback)
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
+    if (!isOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
+      if (e.key === 'Escape') {
+        onCloseRef.current?.();
       }
     };
 
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-      modalRef.current?.focus();
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
     <div className={styles.overlay} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div
-        ref={modalRef}
-        tabIndex={-1}
         className={styles.modal}
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
