@@ -122,7 +122,7 @@ export const TeamPage = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {partMembers.map((m) => (
                           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-xs)' }}>
-                            <Avatar name={m.full_name} size="sm" />
+                            <Avatar name={m.full_name} src={m.avatar_path} size="sm" />
                             <span style={{ fontWeight: 500 }}>{m.full_name}</span>
                             <StatusBadge status={m.role} />
                           </div>

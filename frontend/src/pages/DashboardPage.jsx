@@ -246,7 +246,7 @@ export const DashboardPage = () => {
       <div className={styles.heroBento}>
         <div className={styles.heroLeft}>
           <div className={styles.heroAvatarBox}>
-            <Avatar name={user?.full_name || 'Engineer'} size="lg" />
+            <Avatar name={user?.full_name || 'Engineer'} src={user?.avatar_path} size="lg" />
             <span className={styles.avatarOnlineDot} title="Akun Anda Sedang Aktif" />
           </div>
           <div className={styles.heroInfo}>
@@ -489,7 +489,7 @@ export const DashboardPage = () => {
                 filteredMembers.map((m) => (
                   <div key={m.id} className={styles.memberRow}>
                     <div className={styles.memberAvatarWrap}>
-                      <Avatar name={m.full_name || m.username} size="sm" />
+                      <Avatar name={m.full_name || m.username} src={m.avatar_path} size="sm" />
                       <span
                         className={`${styles.presenceDot} ${
                           m.presenceStatus === 'online'

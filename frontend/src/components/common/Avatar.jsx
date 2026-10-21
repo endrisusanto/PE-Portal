@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './Avatar.module.css';
 
 export const Avatar = ({ name = '', src = null, size = 'md' }) => {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [src]);
+
   const getInitials = (str) => {
     if (!str) return 'U';
     const parts = str.trim().split(/\s+/);
@@ -11,8 +17,13 @@ export const Avatar = ({ name = '', src = null, size = 'md' }) => {
 
   return (
     <div className={`${styles.avatar} ${styles[size]}`} title={name}>
-      {src ? (
-        <img src={src} alt={name} className={styles.image} />
+      {src && !imageError ? (
+        <img
+          src={src}
+          alt={name}
+          className={styles.image}
+          onError={() => setImageError(true)}
+        />
       ) : (
         <span className={styles.initials}>{getInitials(name)}</span>
       )}
