@@ -111,14 +111,14 @@ export const ImeiArticlesPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>
-            {t('nav.imei', 'Artikel')}
+            {t('imei.title', t('nav.imei', 'Artikel'))}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-            Catatan & artikel bersama tim PE: posting update teknis, investigasi issue, tips proses, dan panduan kerja
+            {t('imei.subtitle', 'Catatan & artikel bersama tim PE: posting update teknis, investigasi issue, tips proses, dan panduan kerja')}
           </p>
         </div>
         <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
-          Post Artikel Baru
+          {t('imei.new_post', 'Post Artikel Baru')}
         </Button>
       </div>
 
@@ -128,7 +128,7 @@ export const ImeiArticlesPage = () => {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari artikel, topik, atau kata kunci..."
+            placeholder={t('imei.search_placeholder', 'Cari artikel, topik, atau kata kunci...')}
           />
         </div>
         <select
@@ -143,7 +143,7 @@ export const ImeiArticlesPage = () => {
             color: 'var(--color-text-primary)',
           }}
         >
-          <option value="">Semua Model / Kategori</option>
+          <option value="">{t('imei.all_models', 'Semua Model / Kategori')}</option>
           {models.map((m) => (
             <option key={m.id} value={m.id}>
               {m.model_name}

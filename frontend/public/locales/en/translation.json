@@ -69,8 +69,12 @@
   "dashboard": {
     "welcome": "Welcome back",
     "team_badge": "SEIN PE Group",
+    "group_part": "Group Part",
+    "role": "Role",
+    "loading": "Loading dashboard statistics...",
+    "view_records": "View records",
     "stats": {
-      "active_projects": "Active Projects",
+      "active_projects": "Active Tasks",
       "innovations": "Innovation & Best Practice (BP)",
       "new_models": "Models in Development",
       "documents": "Archived Documents",
@@ -78,11 +82,41 @@
     },
     "quick_actions": "Quick Actions",
     "new_idea": "Submit Innovation Idea",
-    "new_project": "Create Project",
+    "new_project": "Create Task Analyst",
     "new_model": "Register New Model",
     "upload_doc": "Upload Archive File",
     "recent_activity": "Recent System Activity",
     "no_activity": "No recorded activity yet"
+  },
+  "innovations": {
+    "title": "Innovation & Best Practice (BP)",
+    "subtitle": "SEIN Production Engineer Innovation Pipeline, Best Practice Standardization, & Performance Dashboard (BP MXPE)",
+    "tab_dashboard": "Statistics Dashboard",
+    "tab_records": "Repository Articles",
+    "year": "Year",
+    "set_targets": "Set Targets",
+    "bulk_add": "Bulk Add",
+    "submit_article": "Submit Article",
+    "kpi_actual_target": "ACTUAL VS TARGET",
+    "kpi_class3": "CLASS 3 (TOP TIER)",
+    "kpi_adopted_rate": "ADOPTED RATE",
+    "kpi_under_review": "UNDER REVIEW",
+    "kpi_non_adopt": "NON ADOPT"
+  },
+  "projects": {
+    "title": "Milestone Task Analyst",
+    "subtitle": "Mechanical Issue Analysis Tracking, Production Process Optimization & Milestone Stepper for SEIN PE Team",
+    "view_matrix": "Matrix Card",
+    "view_kanban": "Kanban",
+    "view_table": "Table",
+    "new_task": "Create New Task"
+  },
+  "imei": {
+    "title": "Articles & Engineering Notes",
+    "subtitle": "PE team shared notes & technical articles: post engineering updates, issue investigations, and work guides",
+    "new_post": "Post New Article",
+    "search_placeholder": "Search articles, topics, or keywords...",
+    "all_models": "All Models / Categories"
   },
   "models": {
     "title": "New Model Development",

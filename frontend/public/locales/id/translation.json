@@ -69,20 +69,54 @@
   "dashboard": {
     "welcome": "Selamat datang kembali",
     "team_badge": "SEIN PE Group",
+    "group_part": "Bagian Grup",
+    "role": "Peran",
+    "loading": "Memuat statistik dasbor...",
+    "view_records": "Lihat data",
     "stats": {
-      "active_projects": "Proyek Aktif",
-      "innovations": "Innovation & Best Practice (BP)",
+      "active_projects": "Analis Tugas Aktif",
+      "innovations": "Inovasi & Praktik Terbaik (BP)",
       "new_models": "Model dalam Pengembangan",
       "documents": "Dokumen Diarsipkan",
       "team_members": "Total Anggota"
     },
     "quick_actions": "Aksi Cepat",
     "new_idea": "Kirim Ide Inovasi",
-    "new_project": "Buat Proyek",
+    "new_project": "Buat Analis Tugas",
     "new_model": "Daftarkan Model Baru",
     "upload_doc": "Unggah Berkas Arsip",
     "recent_activity": "Aktivitas Sistem Terkini",
     "no_activity": "Belum ada aktivitas tercatat"
+  },
+  "innovations": {
+    "title": "Inovasi & Praktik Terbaik (BP)",
+    "subtitle": "Saluran Pipa Inovasi Engineer Produksi SEIN, Standardisasi Praktik Terbaik, & Dasbor Kinerja (BP MXPE)",
+    "tab_dashboard": "Dasbor Statistik",
+    "tab_records": "Repositori Artikel",
+    "year": "Tahun",
+    "set_targets": "Atur Target",
+    "bulk_add": "Tambah Massal",
+    "submit_article": "Kirim Artikel",
+    "kpi_actual_target": "AKTUAL VS TARGET",
+    "kpi_class3": "KELAS 3 (TINGKAT TINGGI)",
+    "kpi_adopted_rate": "TINGKAT ADOPSI",
+    "kpi_under_review": "DALAM PENINJAUAN",
+    "kpi_non_adopt": "TIDAK DIADOPSI"
+  },
+  "projects": {
+    "title": "Milestone Analis Tugas",
+    "subtitle": "Pelacakan Analisis Issue Mechanical, Optimasi Proses Produksi & Milestone Stepper Tim SEIN PE",
+    "view_matrix": "Kartu Matrix",
+    "view_kanban": "Kanban",
+    "view_table": "Tabel",
+    "new_task": "Tambah Task Baru"
+  },
+  "imei": {
+    "title": "Artikel & Catatan Teknis",
+    "subtitle": "Catatan & artikel bersama tim PE: posting update teknis, investigasi issue, tips proses, dan panduan kerja",
+    "new_post": "Post Artikel Baru",
+    "search_placeholder": "Cari artikel, topik, atau kata kunci...",
+    "all_models": "Semua Model / Kategori"
   },
   "models": {
     "title": "Pengembangan Model Baru",

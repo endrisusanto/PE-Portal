@@ -45,7 +45,7 @@ export const DashboardPage = () => {
   }, []);
 
   if (loading) {
-    return <LoadingState message="Loading dashboard statistics..." />;
+    return <LoadingState message={t('dashboard.loading', 'Loading dashboard statistics...')} />;
   }
 
   if (error) {
@@ -95,7 +95,7 @@ export const DashboardPage = () => {
             {t('dashboard.welcome')}, {user?.full_name || 'Engineer'}
           </h1>
           <p className={styles.subheading}>
-            Group Part: <strong>{user?.group_part_name || 'Production Engineer'}</strong> | Role: <strong>{user?.role}</strong>
+            {t('dashboard.group_part', 'Group Part')}: <strong>{user?.group_part_name || 'Production Engineer'}</strong> | {t('dashboard.role', 'Role')}: <strong>{user?.role}</strong>
           </p>
         </div>
       </div>
@@ -116,7 +116,7 @@ export const DashboardPage = () => {
               </div>
               <div className={styles.statValue}>{card.value}</div>
               <div className={styles.statFooter}>
-                <span>View records</span>
+                <span>{t('dashboard.view_records', 'View records')}</span>
                 <ArrowRight size={14} />
               </div>
             </div>

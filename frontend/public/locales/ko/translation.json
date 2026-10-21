@@ -68,21 +68,55 @@
   },
   "dashboard": {
     "welcome": "환영합니다",
-    "team_badge": "SEIN PE Group",
+    "team_badge": "SEIN 생산기술 그룹",
+    "group_part": "소속 파트",
+    "role": "권한",
+    "loading": "대시보드 통계 로딩 중...",
+    "view_records": "상세 보기",
     "stats": {
-      "active_projects": "진행 중 프로젝트",
-      "innovations": "Innovation & Best Practice (BP)",
+      "active_projects": "진행 중 업무 분석",
+      "innovations": "혁신 및 우수사례 (BP)",
       "new_models": "개발 중 모델",
       "documents": "보관 문서",
       "team_members": "전체 팀원"
     },
     "quick_actions": "빠른 실행",
     "new_idea": "혁신 아이디어 등록",
-    "new_project": "프로젝트 생성",
+    "new_project": "업무 분석 생성",
     "new_model": "신규 모델 등록",
     "upload_doc": "문서 파일 업로드",
     "recent_activity": "최근 시스템 활동",
     "no_activity": "기록된 활동 내역이 없습니다"
+  },
+  "innovations": {
+    "title": "혁신 및 우수사례 (BP)",
+    "subtitle": "SEIN 생산기술 혁신 파이프라인, 우수사례(BP) 표준화 및 실적 대시보드 (BP MXPE)",
+    "tab_dashboard": "통계 대시보드",
+    "tab_records": "아티클 저장소",
+    "year": "연도",
+    "set_targets": "목표 설정",
+    "bulk_add": "일괄 등록",
+    "submit_article": "아티클 등록",
+    "kpi_actual_target": "실적 대비 목표",
+    "kpi_class3": "3등급 (우수 과제)",
+    "kpi_adopted_rate": "적용률",
+    "kpi_under_review": "검토 진행 중",
+    "kpi_non_adopt": "미적용"
+  },
+  "projects": {
+    "title": "마일스톤 업무 분석",
+    "subtitle": "기구 이슈 분석 추적, 생산 공정 최적화 및 SEIN 생산기술팀 마일스톤 스테퍼",
+    "view_matrix": "매트릭스 카드",
+    "view_kanban": "칸반 보드",
+    "view_table": "목록 테이블",
+    "new_task": "신규 과제 생성"
+  },
+  "imei": {
+    "title": "아티클 및 기술 노트",
+    "subtitle": "생산기술팀 공유 노트 및 기술 아티클: 기술 업데이트, 이슈 분석, 공정 노하우 및 업무 가이드",
+    "new_post": "새 아티클 작성",
+    "search_placeholder": "아티클, 주제 또는 키워드 검색...",
+    "all_models": "전체 모델 / 카테고리"
   },
   "models": {
     "title": "신모델 개발 관리",

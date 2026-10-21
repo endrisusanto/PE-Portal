@@ -500,10 +500,10 @@ export const InnovationsPage = () => {
         <div className={styles.titleArea}>
           <h1>
             <Award size={22} color="var(--color-accent)" />
-            Innovation & Best Practice (BP)
+            {t('innovations.title', 'Innovation & Best Practice (BP)')}
           </h1>
           <p className={styles.subtitle}>
-            SEIN Production Engineer Innovation Pipeline, Best Practice Standardization, & Performance Dashboard (BP MXPE)
+            {t('innovations.subtitle', 'SEIN Production Engineer Innovation Pipeline, Best Practice Standardization, & Performance Dashboard (BP MXPE)')}
           </p>
         </div>
 
@@ -516,7 +516,7 @@ export const InnovationsPage = () => {
               onClick={() => setActiveTab('dashboard')}
             >
               <BarChart3 size={14} />
-              Statistics Dashboard
+              {t('innovations.tab_dashboard', 'Statistics Dashboard')}
             </button>
             <button
               type="button"
@@ -524,14 +524,14 @@ export const InnovationsPage = () => {
               onClick={() => setActiveTab('records')}
             >
               <BookOpen size={14} />
-              Repository Articles
+              {t('innovations.tab_records', 'Repository Articles')}
             </button>
           </div>
 
           {/* Year Selector */}
           <div className={styles.yearSelectWrapper}>
             <Calendar size={14} color="var(--color-text-muted)" />
-            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Year:</span>
+            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>{t('innovations.year', 'Year')}:</span>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
@@ -553,7 +553,7 @@ export const InnovationsPage = () => {
               icon={Target}
               onClick={() => setIsTargetModalOpen(true)}
             >
-              Set Targets
+              {t('innovations.set_targets', 'Set Targets')}
             </Button>
             <Button
               variant="secondary"
@@ -561,7 +561,7 @@ export const InnovationsPage = () => {
               icon={FileSpreadsheet}
               onClick={() => setIsBulkModalOpen(true)}
             >
-              Bulk Add
+              {t('innovations.bulk_add', 'Bulk Add')}
             </Button>
             <Button
               variant="primary"
@@ -569,7 +569,7 @@ export const InnovationsPage = () => {
               icon={Plus}
               onClick={() => handleOpenEditor(null)}
             >
-              Submit Article
+              {t('innovations.submit_article', 'Submit Article')}
             </Button>
           </div>
         </div>
@@ -589,7 +589,7 @@ export const InnovationsPage = () => {
                 {/* 1. Target vs Actual */}
                 <div className={`${styles.glassCard} ${styles.kpiCard}`}>
                   <div className={styles.kpiHeader}>
-                    <span className={styles.kpiLabel}>ACTUAL VS TARGET</span>
+                    <span className={styles.kpiLabel}>{t('innovations.kpi_actual_target', 'ACTUAL VS TARGET')}</span>
                     <Target size={18} color="var(--color-accent)" />
                   </div>
                   <div className={styles.kpiValueRow}>
@@ -609,7 +609,7 @@ export const InnovationsPage = () => {
                 {/* 2. Class 3 Proposals */}
                 <div className={`${styles.glassCard} ${styles.kpiCard}`}>
                   <div className={styles.kpiHeader}>
-                    <span className={styles.kpiLabel}>CLASS 3 (TOP TIER)</span>
+                    <span className={styles.kpiLabel}>{t('innovations.kpi_class3', 'CLASS 3 (TOP TIER)')}</span>
                     <Award size={18} color="#ff7597" />
                   </div>
                   <div className={styles.kpiValueRow}>
@@ -628,7 +628,7 @@ export const InnovationsPage = () => {
                 {/* 3. Adopted Rate */}
                 <div className={`${styles.glassCard} ${styles.kpiCard}`}>
                   <div className={styles.kpiHeader}>
-                    <span className={styles.kpiLabel}>ADOPTED RATE</span>
+                    <span className={styles.kpiLabel}>{t('innovations.kpi_adopted_rate', 'ADOPTED RATE')}</span>
                     <TrendingUp size={18} color="#10b981" />
                   </div>
                   <div className={styles.kpiValueRow}>
@@ -646,7 +646,7 @@ export const InnovationsPage = () => {
                 {/* 4. Under Review */}
                 <div className={`${styles.glassCard} ${styles.kpiCard}`}>
                   <div className={styles.kpiHeader}>
-                    <span className={styles.kpiLabel}>UNDER REVIEW</span>
+                    <span className={styles.kpiLabel}>{t('innovations.kpi_under_review', 'UNDER REVIEW')}</span>
                     <Clock size={18} color="#fbbf24" />
                   </div>
                   <div className={styles.kpiValueRow}>
@@ -664,7 +664,7 @@ export const InnovationsPage = () => {
                 {/* 5. Non Adopt */}
                 <div className={`${styles.glassCard} ${styles.kpiCard}`}>
                   <div className={styles.kpiHeader}>
-                    <span className={styles.kpiLabel}>NON ADOPT</span>
+                    <span className={styles.kpiLabel}>{t('innovations.kpi_non_adopt', 'NON ADOPT')}</span>
                     <Ban size={18} color="#9ca3af" />
                   </div>
                   <div className={styles.kpiValueRow}>

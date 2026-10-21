@@ -394,10 +394,10 @@ export const ProjectsPage = () => {
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
             <FolderKanban size={22} color="var(--color-accent)" />
-            Milestone Task Analyst
+            {t('projects.title', 'Milestone Task Analyst')}
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            Pelacakan Analisis Issue Mechanical, Optimasi Proses Produksi & Milestone Stepper Tim SEIN PE
+            {t('projects.subtitle', 'Pelacakan Analisis Issue Mechanical, Optimasi Proses Produksi & Milestone Stepper Tim SEIN PE')}
           </p>
         </div>
 
@@ -429,7 +429,7 @@ export const ProjectsPage = () => {
               }}
             >
               <LayoutGrid size={14} />
-              <span>Matrix Cards</span>
+              <span>{t('projects.view_matrix', 'Matrix Cards')}</span>
             </button>
 
             <button
@@ -451,7 +451,7 @@ export const ProjectsPage = () => {
               }}
             >
               <KanbanIcon size={14} />
-              <span>Kanban</span>
+              <span>{t('projects.view_kanban', 'Kanban')}</span>
             </button>
 
             <button
@@ -473,12 +473,12 @@ export const ProjectsPage = () => {
               }}
             >
               <List size={14} />
-              <span>Table</span>
+              <span>{t('projects.view_table', 'Table')}</span>
             </button>
           </div>
 
           <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
-            Create New Task
+            {t('projects.new_task', 'Create New Task')}
           </Button>
         </div>
       </div>
