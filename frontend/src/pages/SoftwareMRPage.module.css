@@ -525,6 +525,30 @@
   margin-top: 1px;
 }
 
+/* Mathematically Perfect Circles (Zero Distortion / Zero Gepeng) */
+.chartDot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  border: 1.5px solid var(--color-bg-secondary);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: width 0.12s ease, height 0.12s ease;
+  z-index: 3;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.chartDotHovered {
+  width: 11px;
+  height: 11px;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-accent);
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
 /* ============================================================================
    High Contrast Light Mode Overrides (better-ui & antislop)
    Ensure 7:1+ contrast on all text labels, pills, badges and table headers

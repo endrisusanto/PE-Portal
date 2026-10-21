@@ -389,23 +389,6 @@ export const SoftwareMRPage = () => {
                   />
                 )}
 
-                {/* Data Point Dots */}
-                {points.map((pt) => {
-                  if (pt.count === 0 && !hoveredPoint) return null;
-                  const isHovered = hoveredPoint?.index === pt.index;
-                  return (
-                    <circle
-                      key={pt.index}
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={isHovered ? 5.5 : pt.count > 0 ? 3 : 0}
-                      fill={isHovered ? '#ffffff' : 'var(--color-accent)'}
-                      stroke={isHovered ? 'var(--color-accent)' : 'var(--color-bg-secondary)'}
-                      strokeWidth={isHovered ? 2.5 : 1.5}
-                    />
-                  );
-                })}
-
                 {/* Active Hover Guide Line */}
                 {hoveredPoint && (
                   <line
@@ -437,6 +420,22 @@ export const SoftwareMRPage = () => {
                   );
                 })}
               </svg>
+
+              {/* Perfectly Circular Data Point Dots (HTML Rendered - Zero Distortion / Zero Gepeng) */}
+              {points.map((pt) => {
+                if (pt.count === 0 && hoveredPoint?.index !== pt.index) return null;
+                const isHovered = hoveredPoint?.index === pt.index;
+                return (
+                  <div
+                    key={`dot-${pt.index}`}
+                    className={`${styles.chartDot} ${isHovered ? styles.chartDotHovered : ''}`}
+                    style={{
+                      left: `${(pt.x / svgWidth) * 100}%`,
+                      top: `${(pt.y / svgHeight) * 100}%`
+                    }}
+                  />
+                );
+              })}
             </div>
 
             {/* X-Axis HTML Labels (Never Squished) */}
