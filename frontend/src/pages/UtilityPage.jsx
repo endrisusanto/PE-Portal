@@ -32,6 +32,48 @@ import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import styles from './UtilityPage.module.css';
 
+// Safe universal blob download helper ensuring Chrome does not revert to UUID
+export const safeDownloadBlob = (blobOrUrl, filename) => {
+  if (!blobOrUrl || !filename) return;
+
+  let url;
+  let isCreated = false;
+
+  if (blobOrUrl instanceof Blob) {
+    url = URL.createObjectURL(blobOrUrl);
+    isCreated = true;
+  } else {
+    url = blobOrUrl;
+  }
+
+  const safeFilename = filename.trim();
+  const a = document.createElement('a');
+  a.style.position = 'fixed';
+  a.style.top = '-9999px';
+  a.style.left = '-9999px';
+  a.setAttribute('href', url);
+  a.setAttribute('download', safeFilename);
+  a.setAttribute('target', '_self');
+  document.body.appendChild(a);
+
+  // Trigger download click
+  a.click();
+
+  // Keep in DOM for 3.5s to ensure Chrome download manager reads download attribute
+  setTimeout(() => {
+    try {
+      if (document.body.contains(a)) {
+        document.body.removeChild(a);
+      }
+      if (isCreated) {
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // ignore
+    }
+  }, 3500);
+};
+
 export const UtilityPage = () => {
   const { t } = useTranslation();
   const { tab } = useParams();
@@ -238,19 +280,14 @@ const ImageConverterTab = () => {
 
   const handleDownloadSingle = (item) => {
     if (!item.convertedUrl) return;
-    const a = document.createElement('a');
-    a.href = item.convertedUrl;
-    a.download = item.convertedName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    safeDownloadBlob(item.convertedBlob || item.convertedUrl, item.convertedName);
   };
 
   const handleDownloadAll = () => {
     files.forEach((item, index) => {
       setTimeout(() => {
         handleDownloadSingle(item);
-      }, index * 200);
+      }, index * 650);
     });
   };
 
@@ -547,12 +584,8 @@ const DocumentCompressTab = () => {
   const handleDownloadPdf = (item) => {
     const url = item.compressedUrl || item.originalUrl;
     if (!url) return;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = item.compressedUrl ? `compressed_${item.name}` : item.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const filename = item.compressedUrl ? `compressed_${item.name}` : item.name;
+    safeDownloadBlob(url, filename);
   };
 
   return (
@@ -755,12 +788,8 @@ const DocumentCompressTab = () => {
                 size="sm"
                 icon={Download}
                 onClick={() => {
-                  const a = document.createElement('a');
-                  a.href = previewPdf.url;
-                  a.download = previewPdf.isCompressed ? `compressed_${previewPdf.name}` : previewPdf.name;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
+                  const filename = previewPdf.isCompressed ? `compressed_${previewPdf.name}` : previewPdf.name;
+                  safeDownloadBlob(previewPdf.url, filename);
                 }}
               >
                 Unduh PDF
@@ -1026,10 +1055,15 @@ const RemoveBackgroundTab = () => {
   const handleDownloadPng = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = `transparent_${imageFile?.name || 'cutout'}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    const baseName = (imageFile?.name || 'cutout').replace(/\.[^/.]+$/, '');
+    const filename = `transparent_${baseName}.png`;
+    canvas.toBlob((blob) => {
+      if (blob) {
+        safeDownloadBlob(blob, filename);
+      } else {
+        safeDownloadBlob(canvas.toDataURL('image/png'), filename);
+      }
+    }, 'image/png');
   };
 
   return (
@@ -1465,24 +1499,17 @@ const PdfMergeSplitTab = () => {
 
       const mergedPdfBytes = await mergedPdf.save();
       const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-      const downloadUrl = URL.createObjectURL(blob);
-
       const filename = mergeOutputName.endsWith('.pdf') ? mergeOutputName : `${mergeOutputName}.pdf`;
 
-      // Auto download
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Safe download with guaranteed filename and extension
+      safeDownloadBlob(blob, filename);
 
       setMergeSuccess({
         filename,
         size: blob.size,
         totalPages: totalPagesCount,
         fileCount: mergeFiles.length,
-        downloadUrl,
+        blob,
       });
     } catch (err) {
       console.error('Merge PDF error:', err);
@@ -1545,27 +1572,22 @@ const PdfMergeSplitTab = () => {
 
         const subPdfBytes = await subPdf.save();
         const blob = new Blob([subPdfBytes], { type: 'application/pdf' });
-        const downloadUrl = URL.createObjectURL(blob);
-
         const filename = splitOutputName.endsWith('.pdf') ? splitOutputName : `${splitOutputName}.pdf`;
 
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        // Safe download
+        safeDownloadBlob(blob, filename);
 
         setSplitSuccess({
           filename,
           size: blob.size,
           extractedPages: pagesToExtract.length,
           pagesList: pagesToExtract.join(', '),
-          downloadUrl,
+          blob,
         });
       } else {
         const n = Math.max(1, parseInt(everyN, 10) || 1);
         const partsCount = Math.ceil(totalPages / n);
+        const generatedParts = [];
 
         for (let i = 0; i < partsCount; i++) {
           const start = i * n;
@@ -1579,25 +1601,34 @@ const PdfMergeSplitTab = () => {
 
           const bytes = await partPdf.save();
           const blob = new Blob([bytes], { type: 'application/pdf' });
-          const url = URL.createObjectURL(blob);
 
-          const partName = `${splitFile.name.replace(/\.pdf$/i, '')}_part_${i + 1}_hal_${start + 1}-${end}.pdf`;
+          const baseCleanName = splitFile.name.replace(/\.pdf$/i, '');
+          const partName = `${baseCleanName}_part_${i + 1}_hal_${start + 1}-${end}.pdf`;
 
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = partName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-
-          await new Promise((r) => setTimeout(r, 250));
+          generatedParts.push({
+            partIndex: i + 1,
+            filename: partName,
+            pagesText: `Halaman ${start + 1} - ${end}`,
+            pageCount: pageIndices.length,
+            size: blob.size,
+            blob,
+          });
         }
 
         setSplitSuccess({
           filename: `${partsCount} file PDF`,
           partsCount,
+          parts: generatedParts,
           isBatch: true,
         });
+
+        // Safe spaced sequential downloads so Chrome download manager gives each file proper filename
+        for (let i = 0; i < generatedParts.length; i++) {
+          safeDownloadBlob(generatedParts[i].blob, generatedParts[i].filename);
+          if (i < generatedParts.length - 1) {
+            await new Promise((r) => setTimeout(r, 650));
+          }
+        }
       }
     } catch (err) {
       console.error('Split PDF error:', err);
@@ -1707,12 +1738,7 @@ const PdfMergeSplitTab = () => {
                 size="sm"
                 icon={Download}
                 onClick={() => {
-                  const a = document.createElement('a');
-                  a.href = mergeSuccess.downloadUrl;
-                  a.download = mergeSuccess.filename;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
+                  safeDownloadBlob(mergeSuccess.blob, mergeSuccess.filename);
                 }}
               >
                 Unduh Lagi
@@ -1897,33 +1923,79 @@ const PdfMergeSplitTab = () => {
 
               {/* Success Banner */}
               {splitSuccess && (
-                <div className={styles.successBanner}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <CheckCircle2 size={18} />
-                    <span>
-                      {splitSuccess.isBatch ? (
-                        <>Berhasil membagi dokumen menjadi <strong>{splitSuccess.partsCount} file terpisah</strong>!</>
-                      ) : (
-                        <>Berhasil mengekstrak <strong>{splitSuccess.extractedPages} halaman</strong> ([{splitSuccess.pagesList}]) menjadi <strong>{splitSuccess.filename}</strong> ({formatBytes(splitSuccess.size)})!</>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div className={styles.successBanner}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <CheckCircle2 size={18} />
+                      <span>
+                        {splitSuccess.isBatch ? (
+                          <>Berhasil membagi dokumen menjadi <strong>{splitSuccess.partsCount} file terpisah</strong>!</>
+                        ) : (
+                          <>Berhasil mengekstrak <strong>{splitSuccess.extractedPages} halaman</strong> ([{splitSuccess.pagesList}]) menjadi <strong>{splitSuccess.filename}</strong> ({formatBytes(splitSuccess.size)})!</>
+                        )}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {splitSuccess.blob && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={Download}
+                          onClick={() => {
+                            safeDownloadBlob(splitSuccess.blob, splitSuccess.filename);
+                          }}
+                        >
+                          Unduh Lagi
+                        </Button>
                       )}
-                    </span>
+                      {splitSuccess.isBatch && splitSuccess.parts && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={Download}
+                          onClick={async () => {
+                            for (let i = 0; i < splitSuccess.parts.length; i++) {
+                              safeDownloadBlob(splitSuccess.parts[i].blob, splitSuccess.parts[i].filename);
+                              if (i < splitSuccess.parts.length - 1) {
+                                await new Promise((r) => setTimeout(r, 650));
+                              }
+                            }
+                          }}
+                        >
+                          Unduh Semua ({splitSuccess.parts.length} File)
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  {splitSuccess.downloadUrl && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={Download}
-                      onClick={() => {
-                        const a = document.createElement('a');
-                        a.href = splitSuccess.downloadUrl;
-                        a.download = splitSuccess.filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                      }}
-                    >
-                      Unduh Lagi
-                    </Button>
+
+                  {splitSuccess.isBatch && splitSuccess.parts && (
+                    <div className={styles.batchPartsList}>
+                      <div className={styles.batchPartsHeader}>
+                        <span>Daftar File Hasil Pemisahan ({splitSuccess.parts.length} Bagian):</span>
+                      </div>
+                      <div className={styles.batchPartsGrid}>
+                        {splitSuccess.parts.map((part) => (
+                          <div key={part.partIndex} className={styles.batchPartItem}>
+                            <div className={styles.batchPartInfo}>
+                              <FileText size={16} color="var(--color-accent)" />
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span className={styles.batchPartName} title={part.filename}>{part.filename}</span>
+                                <span className={styles.batchPartMeta}>{part.pagesText} • {formatBytes(part.size)}</span>
+                              </div>
+                            </div>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              icon={Download}
+                              onClick={() => safeDownloadBlob(part.blob, part.filename)}
+                            >
+                              Unduh
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
