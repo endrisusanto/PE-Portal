@@ -821,3 +821,155 @@
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ============================================================================
+   High Contrast Light Mode Overrides (better-ui & antislop)
+   Ensure crisp 7:1+ contrast on all text labels, pills, badges and table headers
+   ============================================================================ */
+:global([data-theme="light"]) .kpiLabel {
+  color: #334155;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .subtitle {
+  color: #334155;
+  font-weight: 500;
+}
+
+:global([data-theme="light"]) .tabButton {
+  color: #334155;
+  font-weight: 600;
+}
+
+:global([data-theme="light"]) .userBadge {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1e40af;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .borrowerName {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+:global([data-theme="light"]) .borrowerCountBadge {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .matrixModelTitle {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+:global([data-theme="light"]) .badgeTotal {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1e40af;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .badgeBorrowed {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .badgeAvailable {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .chip {
+  color: #334155;
+  font-weight: 600;
+  border-color: #cbd5e1;
+}
+
+:global([data-theme="light"]) .chipActive {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .badgeMono {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .statusPillAvailable {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .statusPillBorrowed {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .conditionBadgeNormal {
+  color: #065f46;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .conditionBadgeDefect {
+  color: #92400e;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .btnPinjamToggle {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .btnKembaliToggle {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .btnReturnCard {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .denseTable th,
+:global([data-theme="light"]) .mainTable th {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+:global([data-theme="light"]) .denseTable td {
+  color: #334155;
+  font-weight: 500;
+}
+
+:global([data-theme="light"]) .filterInput,
+:global([data-theme="light"]) .filterSelect,
+:global([data-theme="light"]) .inputGroup {
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+:global([data-theme="light"]) .formLabel {
+  color: #1e293b;
+  font-weight: 700;
+}

@@ -83,3 +83,13 @@ func (h *SoftwareMRHandler) Get(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, item)
 }
+
+// GetDailyTrend returns 30-day daily release trend
+func (h *SoftwareMRHandler) GetDailyTrend(c echo.Context) error {
+	modelName := c.QueryParam("model")
+	trend, err := h.repo.GetDailyTrend(c.Request().Context(), modelName)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, trend)
+}

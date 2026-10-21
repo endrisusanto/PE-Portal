@@ -191,3 +191,44 @@ func (r *SoftwareMRRepository) GetByID(ctx context.Context, id int) (*model.Soft
 	}
 	return &rel, nil
 }
+
+// GetDailyTrend returns daily release count for the last 30 days
+func (r *SoftwareMRRepository) GetDailyTrend(ctx context.Context, modelName string) ([]model.DailyReleaseTrend, error) {
+	query := `
+		WITH latest AS (
+			SELECT 
+				CASE 
+					WHEN EXISTS (SELECT 1 FROM software_mr_releases WHERE created_at >= CURRENT_DATE - INTERVAL '30 days' AND deleted_at IS NULL)
+					THEN CURRENT_DATE
+					ELSE COALESCE((SELECT MAX(DATE(created_at)) FROM software_mr_releases WHERE deleted_at IS NULL), CURRENT_DATE)
+				END AS end_date
+		)
+		SELECT 
+			TO_CHAR(d::date, 'YYYY-MM-DD') AS date,
+			TO_CHAR(d::date, 'DD Mon') AS label,
+			COALESCE(COUNT(r.id), 0)::int AS count
+		FROM latest,
+		     generate_series(latest.end_date - INTERVAL '29 days', latest.end_date, '1 day'::interval) d
+		LEFT JOIN software_mr_releases r 
+			ON DATE(r.created_at) = d::date 
+			AND r.deleted_at IS NULL
+			AND ($1 = '' OR r.model = $1)
+		GROUP BY d::date
+		ORDER BY d::date ASC
+	`
+	rows, err := r.pool.Query(ctx, query, modelName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query daily release trend: %w", err)
+	}
+	defer rows.Close()
+
+	var trends []model.DailyReleaseTrend
+	for rows.Next() {
+		var t model.DailyReleaseTrend
+		if err := rows.Scan(&t.Date, &t.Label, &t.Count); err != nil {
+			return nil, fmt.Errorf("failed to scan daily release trend: %w", err)
+		}
+		trends = append(trends, t)
+	}
+	return trends, nil
+}

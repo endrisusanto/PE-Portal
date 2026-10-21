@@ -36,3 +36,10 @@ type SoftwareMRFilters struct {
 	PICs   []string `json:"pics"`
 	Years  []int    `json:"years"`
 }
+
+// DailyReleaseTrend represents count of releases per day
+type DailyReleaseTrend struct {
+	Date  string `json:"date"`
+	Label string `json:"label"`
+	Count int    `json:"count"`
+}
