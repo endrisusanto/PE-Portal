@@ -2,8 +2,14 @@ package handler
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"pe-portal/internal/model"
@@ -11,11 +17,12 @@ import (
 )
 
 type TrainingHandler struct {
-	repo *repository.TrainingRepository
+	repo        *repository.TrainingRepository
+	storagePath string
 }
 
-func NewTrainingHandler(repo *repository.TrainingRepository) *TrainingHandler {
-	return &TrainingHandler{repo: repo}
+func NewTrainingHandler(repo *repository.TrainingRepository, storagePath string) *TrainingHandler {
+	return &TrainingHandler{repo: repo, storagePath: storagePath}
 }
 
 // List returns employee training courses
@@ -146,4 +153,66 @@ func (h *TrainingHandler) Delete(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+// UploadAsset saves an uploaded training banner or answer key image
+func (h *TrainingHandler) UploadAsset(c echo.Context) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "No image file provided")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to open uploaded file")
+	}
+	defer src.Close()
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" && ext != ".gif" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Only image files (PNG, JPG, JPEG, WEBP, GIF) are allowed")
+	}
+
+	trainingsDir := filepath.Join(h.storagePath, "trainings")
+	_ = os.MkdirAll(trainingsDir, 0755)
+
+	storedName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filepath.Base(file.Filename))
+	dstPath := filepath.Join(trainingsDir, storedName)
+
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create destination file")
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save file")
+	}
+
+	assetURL := fmt.Sprintf("/api/v1/trainings/assets/%s", storedName)
+	return c.JSON(http.StatusOK, map[string]string{
+		"url":      assetURL,
+		"filename": storedName,
+	})
+}
+
+// ServeAsset streams the training asset file
+func (h *TrainingHandler) ServeAsset(c echo.Context) error {
+	filename := filepath.Base(c.Param("filename"))
+	filePath := filepath.Join(h.storagePath, "trainings", filename)
+
+	if _, err := os.Stat(filePath); err != nil {
+		// Fallback to frontend public training-assets if present
+		fallbackPath := filepath.Join("frontend", "public", "training-assets", filename)
+		if _, errF := os.Stat(fallbackPath); errF == nil {
+			return c.File(fallbackPath)
+		}
+		fallbackPath2 := filepath.Join("..", "frontend", "public", "training-assets", filename)
+		if _, errF2 := os.Stat(fallbackPath2); errF2 == nil {
+			return c.File(fallbackPath2)
+		}
+		return echo.NewHTTPError(http.StatusNotFound, "Asset not found")
+	}
+
+	return c.File(filePath)
 }

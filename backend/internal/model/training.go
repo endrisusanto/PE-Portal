@@ -11,11 +11,13 @@ type TrainingModule struct {
 	LinkURL      string     `json:"link_url"`
 	Deadline     *time.Time `json:"deadline"`
 	IsMandatory  bool       `json:"is_mandatory"`
-	BannerImage  string     `json:"banner_image"`
-	HasAnswerKey bool       `json:"has_answer_key"`
-	IsLocked     bool       `json:"is_locked"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	BannerImage     string     `json:"banner_image"`
+	HasAnswerKey    bool       `json:"has_answer_key"`
+	AnswerKeyImages []string   `json:"answer_key_images,omitempty"`
+	AnswerKeyNotes  string     `json:"answer_key_notes,omitempty"`
+	IsLocked        bool       `json:"is_locked"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // TrainingAnswerKey is returned only after entering the correct password

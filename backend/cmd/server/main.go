@@ -104,7 +104,7 @@ func main() {
 	gmesRepo := repository.NewGmesRepository(pgPool.Pool)
 	gmesHandler := handler.NewGmesHandler(gmesRepo)
 	trainingRepo := repository.NewTrainingRepository(pgPool.Pool)
-	trainingHandler := handler.NewTrainingHandler(trainingRepo)
+	trainingHandler := handler.NewTrainingHandler(trainingRepo, cfg.FileStoragePath)
 	navRepo := repository.NewNavigationRepository(pgPool.Pool)
 	navHandler := handler.NewNavigationHandler(navRepo)
 
@@ -345,6 +345,8 @@ func main() {
 	api.POST("/trainings", trainingHandler.Create, middleware.RequireRole("admin", "manager"))
 	api.PUT("/trainings/:id", trainingHandler.Update, middleware.RequireRole("admin", "manager"))
 	api.DELETE("/trainings/:id", trainingHandler.Delete, middleware.RequireRole("admin", "manager"))
+	api.POST("/trainings/upload-asset", trainingHandler.UploadAsset, middleware.RequireRole("admin", "manager"))
+	e.GET("/api/v1/trainings/assets/:filename", trainingHandler.ServeAsset)
 
 	// Navigation Side Menu Visibility & Role/Group Access Rules
 	api.GET("/navigation/menu-permissions", navHandler.GetMenuPermissions)

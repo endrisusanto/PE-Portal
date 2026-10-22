@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   Pencil,
   Trash2,
-  X
+  X,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
@@ -82,6 +83,10 @@ export const TrainingPage = () => {
   const [editForm, setEditForm] = useState(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState('');
+
+  // Upload state indicators: null | 'create' | 'edit'
+  const [uploadingBanner, setUploadingBanner] = useState(null);
+  const [uploadingAnswer, setUploadingAnswer] = useState(null);
 
   // Current timestamp for live countdown
   const [now, setNow] = useState(Date.now());
@@ -179,8 +184,87 @@ export const TrainingPage = () => {
     }
   };
 
+  // Asset Upload Handlers
+  const handleUploadBannerFile = async (e, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploadingBanner(isEdit ? 'edit' : 'create');
+      const res = await api.post('/trainings/upload-asset', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.url) {
+        if (isEdit) {
+          setEditForm(prev => ({ ...prev, banner_image: res.data.url }));
+        } else {
+          setCreateForm(prev => ({ ...prev, banner_image: res.data.url }));
+        }
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengupload gambar banner.');
+    } finally {
+      setUploadingBanner(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleUploadAnswerKeys = async (e, isEdit = false) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    try {
+      setUploadingAnswer(isEdit ? 'edit' : 'create');
+      const uploadedUrls = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/trainings/upload-asset', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        if (res.data?.url) {
+          uploadedUrls.push(res.data.url);
+        }
+      }
+
+      if (isEdit) {
+        setEditForm(prev => ({
+          ...prev,
+          answer_key_images: [...(prev?.answer_key_images || []), ...uploadedUrls]
+        }));
+      } else {
+        setCreateForm(prev => ({
+          ...prev,
+          answer_key_images: [...(prev?.answer_key_images || []), ...uploadedUrls]
+        }));
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengupload gambar kunci jawaban.');
+    } finally {
+      setUploadingAnswer(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAnswerImage = (indexToRemove, isEdit = false) => {
+    if (isEdit) {
+      setEditForm(prev => ({
+        ...prev,
+        answer_key_images: (prev?.answer_key_images || []).filter((_, i) => i !== indexToRemove)
+      }));
+    } else {
+      setCreateForm(prev => ({
+        ...prev,
+        answer_key_images: (prev?.answer_key_images || []).filter((_, i) => i !== indexToRemove)
+      }));
+    }
+  };
+
   // Open Edit Training Modal with existing course data
-  const handleOpenEditModal = (tItem) => {
+  const handleOpenEditModal = async (tItem) => {
     setEditForm({
       id: tItem.id,
       title: tItem.title || '',
@@ -192,11 +276,28 @@ export const TrainingPage = () => {
       banner_image: tItem.banner_image || '/training-assets/training.png',
       has_answer_key: Boolean(tItem.has_answer_key),
       answer_key_password: '', // leave empty to keep existing password
-      answer_key_images: tItem.answer_key_images || ['/training-assets/1759219281_jawaban.png'],
+      answer_key_images: Array.isArray(tItem.answer_key_images) ? tItem.answer_key_images : [],
       answer_key_notes: tItem.answer_key_notes || ''
     });
     setEditError('');
     setIsEditModalOpen(true);
+
+    try {
+      const res = await api.get(`/trainings/${tItem.id}`);
+      if (res.data) {
+        setEditForm((prev) => {
+          if (!prev || prev.id !== tItem.id) return prev;
+          return {
+            ...prev,
+            banner_image: res.data.banner_image || prev.banner_image,
+            answer_key_images: Array.isArray(res.data.answer_key_images) ? res.data.answer_key_images : prev.answer_key_images,
+            answer_key_notes: res.data.answer_key_notes !== undefined ? res.data.answer_key_notes : prev.answer_key_notes
+          };
+        });
+      }
+    } catch (e) {
+      console.warn('Could not fetch full training details for edit:', e);
+    }
   };
 
   // Submit Edit Training
@@ -700,6 +801,80 @@ export const TrainingPage = () => {
             />
           </div>
 
+          {/* Banner Image Upload & Presets */}
+          <div className={styles.formGroup}>
+            <label>Gambar Banner Pelatihan</label>
+            <div className={styles.bannerUploadWrapper}>
+              <div className={styles.bannerPreviewCard}>
+                {createForm.banner_image ? (
+                  <img
+                    src={createForm.banner_image}
+                    alt="Banner Preview"
+                    className={styles.bannerPreviewImg}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className={styles.bannerPlaceholder}>
+                    <ImageIcon size={32} />
+                    <span>Belum ada gambar banner</span>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.uploadActionRow}>
+                <label className={styles.fileUploadLabel}>
+                  <Upload size={14} />
+                  <span>{uploadingBanner === 'create' ? 'Mengupload...' : 'Upload Banner'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className={styles.fileUploadInput}
+                    disabled={uploadingBanner === 'create'}
+                    onChange={(e) => handleUploadBannerFile(e, false)}
+                  />
+                </label>
+
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginLeft: '0.25rem' }}>Preset:</span>
+                <button
+                  type="button"
+                  className={styles.presetChip}
+                  onClick={() => setCreateForm({ ...createForm, banner_image: '/training-assets/training.png' })}
+                >
+                  Standard
+                </button>
+                <button
+                  type="button"
+                  className={styles.presetChip}
+                  onClick={() => setCreateForm({ ...createForm, banner_image: '/training-assets/EHSss.png' })}
+                >
+                  EHS & Safety
+                </button>
+                <button
+                  type="button"
+                  className={styles.presetChip}
+                  onClick={() => setCreateForm({ ...createForm, banner_image: '/training-assets/PRIVACY.PNG' })}
+                >
+                  Security
+                </button>
+                <button
+                  type="button"
+                  className={styles.presetChip}
+                  onClick={() => setCreateForm({ ...createForm, banner_image: '/training-assets/gen.png' })}
+                >
+                  Tech & AI
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={createForm.banner_image}
+                onChange={(e) => setCreateForm({ ...createForm, banner_image: e.target.value })}
+                placeholder="Path atau URL gambar banner (contoh: /training-assets/... atau upload)"
+                style={{ fontSize: '0.8rem' }}
+              />
+            </div>
+          </div>
+
           <div className={styles.formGroup}>
             <label>Deskripsi Pelatihan</label>
             <textarea
@@ -731,8 +906,8 @@ export const TrainingPage = () => {
           </div>
 
           {createForm.has_answer_key && (
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color, rgba(255,255,255,0.08))', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
-              <div className={styles.formGroup}>
+            <div className={styles.answerKeySection}>
+              <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                 <label>Password Kunci Jawaban</label>
                 <input
                   type="text"
@@ -742,14 +917,63 @@ export const TrainingPage = () => {
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                 <label>Catatan / Ringkasan Kunci Jawaban</label>
                 <textarea
                   rows={2}
                   value={createForm.answer_key_notes}
                   onChange={(e) => setCreateForm({ ...createForm, answer_key_notes: e.target.value })}
-                  placeholder="Contoh: 1.A, 2.C, 3.B..."
+                  placeholder="Contoh: 1.A, 2.C, 3.B... atau rangkuman jawaban"
                 />
+              </div>
+
+              <div className={styles.formGroup} style={{ marginBottom: 0 }}>
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Lampiran Screenshot Kunci Jawaban ({createForm.answer_key_images?.length || 0})</span>
+                  <label className={styles.fileUploadLabel} style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
+                    <Upload size={12} />
+                    <span>{uploadingAnswer === 'create' ? 'Mengupload...' : 'Upload Screenshot Kunci'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className={styles.fileUploadInput}
+                      disabled={uploadingAnswer === 'create'}
+                      onChange={(e) => handleUploadAnswerKeys(e, false)}
+                    />
+                  </label>
+                </label>
+
+                {createForm.answer_key_images && createForm.answer_key_images.length > 0 ? (
+                  <div className={styles.answerKeyGrid}>
+                    {createForm.answer_key_images.map((imgUrl, idx) => (
+                      <div key={idx} className={styles.answerKeyCard}>
+                        <img
+                          src={imgUrl}
+                          alt={`Kunci Jawaban ${idx + 1}`}
+                          className={styles.answerKeyImg}
+                          onClick={() => setBannerPreview(imgUrl)}
+                          title="Klik untuk melihat ukuran penuh"
+                        />
+                        <button
+                          type="button"
+                          className={styles.deleteThumbBtn}
+                          onClick={() => handleRemoveAnswerImage(idx, false)}
+                          title="Hapus gambar ini"
+                        >
+                          <X size={13} />
+                        </button>
+                        <div className={styles.answerKeyFooter}>
+                          <span>Hal #{idx + 1}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '0.25rem 0' }}>
+                    Belum ada screenshot gambar kunci jawaban yang dilampirkan.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -838,6 +1062,80 @@ export const TrainingPage = () => {
               />
             </div>
 
+            {/* Banner Image Upload & Presets */}
+            <div className={styles.formGroup}>
+              <label>Gambar Banner Pelatihan</label>
+              <div className={styles.bannerUploadWrapper}>
+                <div className={styles.bannerPreviewCard}>
+                  {editForm.banner_image ? (
+                    <img
+                      src={editForm.banner_image}
+                      alt="Banner Preview"
+                      className={styles.bannerPreviewImg}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className={styles.bannerPlaceholder}>
+                      <ImageIcon size={32} />
+                      <span>Belum ada gambar banner</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.uploadActionRow}>
+                  <label className={styles.fileUploadLabel}>
+                    <Upload size={14} />
+                    <span>{uploadingBanner === 'edit' ? 'Mengupload...' : 'Upload Banner'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className={styles.fileUploadInput}
+                      disabled={uploadingBanner === 'edit'}
+                      onChange={(e) => handleUploadBannerFile(e, true)}
+                    />
+                  </label>
+
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginLeft: '0.25rem' }}>Preset:</span>
+                  <button
+                    type="button"
+                    className={styles.presetChip}
+                    onClick={() => setEditForm({ ...editForm, banner_image: '/training-assets/training.png' })}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.presetChip}
+                    onClick={() => setEditForm({ ...editForm, banner_image: '/training-assets/EHSss.png' })}
+                  >
+                    EHS & Safety
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.presetChip}
+                    onClick={() => setEditForm({ ...editForm, banner_image: '/training-assets/PRIVACY.PNG' })}
+                  >
+                    Security
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.presetChip}
+                    onClick={() => setEditForm({ ...editForm, banner_image: '/training-assets/gen.png' })}
+                  >
+                    Tech & AI
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={editForm.banner_image || ''}
+                  onChange={(e) => setEditForm({ ...editForm, banner_image: e.target.value })}
+                  placeholder="Path atau URL gambar banner (contoh: /training-assets/... atau upload)"
+                  style={{ fontSize: '0.8rem' }}
+                />
+              </div>
+            </div>
+
             <div className={styles.formGroup}>
               <label>Deskripsi Pelatihan</label>
               <textarea
@@ -869,8 +1167,8 @@ export const TrainingPage = () => {
             </div>
 
             {editForm.has_answer_key && (
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color, rgba(255,255,255,0.08))', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
-                <div className={styles.formGroup}>
+              <div className={styles.answerKeySection}>
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                   <label>Password Kunci Jawaban (Kosongkan bila tidak ingin diubah)</label>
                   <input
                     type="text"
@@ -880,14 +1178,63 @@ export const TrainingPage = () => {
                   />
                 </div>
 
-                <div className={styles.formGroup}>
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                   <label>Catatan / Ringkasan Kunci Jawaban</label>
                   <textarea
                     rows={2}
                     value={editForm.answer_key_notes}
                     onChange={(e) => setEditForm({ ...editForm, answer_key_notes: e.target.value })}
-                    placeholder="Contoh: 1.A, 2.C, 3.B..."
+                    placeholder="Contoh: 1.A, 2.C, 3.B... atau rangkuman jawaban"
                   />
+                </div>
+
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Lampiran Screenshot Kunci Jawaban ({editForm.answer_key_images?.length || 0})</span>
+                    <label className={styles.fileUploadLabel} style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
+                      <Upload size={12} />
+                      <span>{uploadingAnswer === 'edit' ? 'Mengupload...' : 'Upload Screenshot Kunci'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className={styles.fileUploadInput}
+                        disabled={uploadingAnswer === 'edit'}
+                        onChange={(e) => handleUploadAnswerKeys(e, true)}
+                      />
+                    </label>
+                  </label>
+
+                  {editForm.answer_key_images && editForm.answer_key_images.length > 0 ? (
+                    <div className={styles.answerKeyGrid}>
+                      {editForm.answer_key_images.map((imgUrl, idx) => (
+                        <div key={idx} className={styles.answerKeyCard}>
+                          <img
+                            src={imgUrl}
+                            alt={`Kunci Jawaban ${idx + 1}`}
+                            className={styles.answerKeyImg}
+                            onClick={() => setBannerPreview(imgUrl)}
+                            title="Klik untuk melihat ukuran penuh"
+                          />
+                          <button
+                            type="button"
+                            className={styles.deleteThumbBtn}
+                            onClick={() => handleRemoveAnswerImage(idx, true)}
+                            title="Hapus gambar ini"
+                          >
+                            <X size={13} />
+                          </button>
+                          <div className={styles.answerKeyFooter}>
+                            <span>Hal #{idx + 1}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '0.25rem 0' }}>
+                      Belum ada screenshot gambar kunci jawaban yang dilampirkan.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

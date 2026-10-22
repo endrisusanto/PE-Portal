@@ -90,14 +90,21 @@ func (r *TrainingRepository) List(ctx context.Context, category, mandatoryStr, s
 // Get fetches one module by id
 func (r *TrainingRepository) Get(ctx context.Context, id int) (*model.TrainingModule, error) {
 	query := `
-		SELECT id, title, category, description, link_url, deadline, is_mandatory, banner_image, has_answer_key, created_at, updated_at
+		SELECT id, title, category, description, link_url, deadline, is_mandatory, banner_image, has_answer_key,
+		       COALESCE(answer_key_images, '[]'::jsonb), COALESCE(answer_key_notes, ''), created_at, updated_at
 		FROM training_modules WHERE id = $1
 	`
 	var m model.TrainingModule
-	err := r.pool.QueryRow(ctx, query, id).Scan(&m.ID, &m.Title, &m.Category, &m.Description, &m.LinkURL, &m.Deadline, &m.IsMandatory, &m.BannerImage, &m.HasAnswerKey, &m.CreatedAt, &m.UpdatedAt)
+	var rawImages []byte
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&m.ID, &m.Title, &m.Category, &m.Description, &m.LinkURL, &m.Deadline,
+		&m.IsMandatory, &m.BannerImage, &m.HasAnswerKey, &rawImages, &m.AnswerKeyNotes,
+		&m.CreatedAt, &m.UpdatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
+	_ = json.Unmarshal(rawImages, &m.AnswerKeyImages)
 	m.IsLocked = m.HasAnswerKey
 	return &m, nil
 }
