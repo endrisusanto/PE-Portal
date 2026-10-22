@@ -604,8 +604,8 @@ export const TrainingPage = () => {
                     </a>
 
                     {/* View Post-Test Key Button */}
-                    {tItem.has_answer_key ? (
-                      isAnswerKeyAllowed ? (
+                    {isAnswerKeyAllowed && (
+                      tItem.has_answer_key ? (
                         <button
                           type="button"
                           className={styles.keyButton}
@@ -615,18 +615,10 @@ export const TrainingPage = () => {
                           <span>Lihat Kunci Jawaban</span>
                         </button>
                       ) : (
-                        <div
-                          className={styles.noKeyBadge}
-                          title="Akses kunci jawaban dinonaktifkan atau dibatasi oleh administrator untuk akun Anda"
-                        >
-                          <Lock size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: -1 }} />
-                          Kunci Jawaban Dibatasi
+                        <div className={styles.noKeyBadge}>
+                          Tidak Ada Kunci Jawaban Post-Test
                         </div>
                       )
-                    ) : (
-                      <div className={styles.noKeyBadge}>
-                        Tidak Ada Kunci Jawaban Post-Test
-                      </div>
                     )}
 
                     {/* Admin Access: Edit & Delete (ponytail) */}
