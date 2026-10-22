@@ -24,7 +24,7 @@ export const Button = ({
       {loading ? (
         <span className={styles.spinner} aria-hidden="true" />
       ) : Icon ? (
-        <Icon className={styles.icon} size={size === 'sm' ? 14 : 16} />
+        <Icon className={styles.icon} size={size === 'xs' ? 13 : size === 'sm' ? 14 : 16} />
       ) : null}
       {children && <span className={styles.label}>{children}</span>}
     </button>

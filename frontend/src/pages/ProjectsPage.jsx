@@ -506,9 +506,10 @@ export const ProjectsPage = () => {
           <div style={{
             display: 'inline-flex',
             backgroundColor: 'var(--color-bg-primary)',
-            borderRadius: 'var(--radius-sm)',
+            borderRadius: '9999px',
             border: '1px solid var(--color-border)',
-            padding: '2px',
+            padding: '3px',
+            gap: '3px',
           }}>
             <button
               type="button"
@@ -517,15 +518,16 @@ export const ProjectsPage = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
+                gap: '6px',
+                padding: '6px 14px',
                 fontSize: '12px',
                 fontWeight: 600,
-                borderRadius: 'var(--radius-sm)',
+                borderRadius: '9999px',
                 border: 'none',
                 backgroundColor: viewMode === 'matrix' ? 'var(--color-accent)' : 'transparent',
                 color: viewMode === 'matrix' ? '#ffffff' : 'var(--color-text-secondary)',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               <LayoutGrid size={14} />
@@ -539,15 +541,16 @@ export const ProjectsPage = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
+                gap: '6px',
+                padding: '6px 14px',
                 fontSize: '12px',
                 fontWeight: 600,
-                borderRadius: 'var(--radius-sm)',
+                borderRadius: '9999px',
                 border: 'none',
                 backgroundColor: viewMode === 'kanban' ? 'var(--color-accent)' : 'transparent',
                 color: viewMode === 'kanban' ? '#ffffff' : 'var(--color-text-secondary)',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               <KanbanIcon size={14} />
@@ -561,15 +564,16 @@ export const ProjectsPage = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
+                gap: '6px',
+                padding: '6px 14px',
                 fontSize: '12px',
                 fontWeight: 600,
-                borderRadius: 'var(--radius-sm)',
+                borderRadius: '9999px',
                 border: 'none',
                 backgroundColor: viewMode === 'table' ? 'var(--color-accent)' : 'transparent',
                 color: viewMode === 'table' ? '#ffffff' : 'var(--color-text-secondary)',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               <List size={14} />
@@ -667,8 +671,8 @@ export const ProjectsPage = () => {
                     textTransform: 'uppercase',
                     color: 'var(--color-accent)',
                     background: 'rgba(37, 99, 235, 0.08)',
-                    padding: '2px 8px',
-                    borderRadius: 'var(--radius-xs)',
+                    padding: '3.5px 10px',
+                    borderRadius: '9999px',
                     border: '1px solid rgba(37, 99, 235, 0.2)',
                   }}>
                     {p.project_type || 'Issue'}
@@ -742,8 +746,8 @@ export const ProjectsPage = () => {
                         style={{
                           background: 'var(--color-bg-secondary)',
                           border: '1px solid var(--color-border)',
-                          borderRadius: 'var(--radius-xs)',
-                          padding: '3px 6px',
+                          borderRadius: '9999px',
+                          padding: '4px 8px',
                           cursor: 'pointer',
                           color: 'var(--color-text-secondary)',
                         }}
@@ -759,15 +763,15 @@ export const ProjectsPage = () => {
                         style={{
                           background: 'rgba(37, 99, 235, 0.1)',
                           border: '1px solid var(--color-accent)',
-                          borderRadius: 'var(--radius-xs)',
-                          padding: '3px 8px',
+                          borderRadius: '9999px',
+                          padding: '4px 12px',
                           cursor: 'pointer',
                           color: 'var(--color-accent)',
                           fontWeight: 700,
                           fontSize: '11px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '3px',
+                          gap: '4px',
                         }}
                       >
                         <span>Next Step</span>
@@ -861,7 +865,7 @@ export const ProjectsPage = () => {
                   <span style={{
                     fontSize: '11px',
                     fontWeight: 700,
-                    padding: '2px 8px',
+                    padding: '3px 10px',
                     borderRadius: '9999px',
                     background: 'var(--color-bg-secondary)',
                     border: '1px solid var(--color-border)',
@@ -956,7 +960,7 @@ export const ProjectsPage = () => {
                             <User size={12} style={{ opacity: 0.7 }} />
                             <span>{task.owner_name ? task.owner_name.split(' ')[0] : 'Unassigned'}</span>
                           </span>
-                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => openViewModal(task)}
@@ -964,8 +968,8 @@ export const ProjectsPage = () => {
                               style={{
                                 background: 'transparent',
                                 border: '1px solid var(--color-border)',
-                                borderRadius: '3px',
-                                padding: '2px 5px',
+                                borderRadius: '6px',
+                                padding: '4px 7px',
                                 cursor: 'pointer',
                                 color: 'var(--color-text-secondary)',
                                 display: 'flex',
@@ -981,8 +985,8 @@ export const ProjectsPage = () => {
                               style={{
                                 background: 'transparent',
                                 border: '1px solid var(--color-border)',
-                                borderRadius: '3px',
-                                padding: '2px 5px',
+                                borderRadius: '6px',
+                                padding: '4px 7px',
                                 cursor: 'pointer',
                                 color: 'var(--color-text-secondary)',
                                 display: 'flex',
@@ -999,8 +1003,8 @@ export const ProjectsPage = () => {
                                 style={{
                                   background: 'var(--color-bg-secondary)',
                                   border: '1px solid var(--color-border)',
-                                  borderRadius: '3px',
-                                  padding: '2px 5px',
+                                  borderRadius: '6px',
+                                  padding: '4px 7px',
                                   cursor: 'pointer',
                                 }}
                               >
@@ -1016,8 +1020,8 @@ export const ProjectsPage = () => {
                                   background: 'var(--color-accent)',
                                   border: 'none',
                                   color: '#fff',
-                                  borderRadius: '3px',
-                                  padding: '2px 6px',
+                                  borderRadius: '6px',
+                                  padding: '4px 8px',
                                   cursor: 'pointer',
                                 }}
                               >
@@ -1424,7 +1428,7 @@ export const ProjectsPage = () => {
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <Button
                   variant="outline"
-                  size="xs"
+                  size="sm"
                   icon={Mail}
                   loading={sendingEmailId === viewingProject.id}
                   onClick={() => handleSendEmail(viewingProject)}
@@ -1434,7 +1438,7 @@ export const ProjectsPage = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  size="xs"
+                  size="sm"
                   icon={Edit2}
                   onClick={() => {
                     setIsViewModalOpen(false);

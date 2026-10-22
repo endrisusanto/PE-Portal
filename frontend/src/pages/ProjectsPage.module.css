@@ -48,12 +48,12 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
+  padding: 4px 12px;
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #10b981;
   border-radius: 9999px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
@@ -321,7 +321,7 @@
 .colBadge {
   font-size: 11px;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 3px 10px;
   border-radius: 9999px;
   background: var(--color-bg-secondary);
   color: var(--color-text-secondary);
@@ -350,7 +350,7 @@
 .kanbanCard {
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm, 6px);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -385,13 +385,13 @@
 .urgentPill {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
+  gap: 4px;
+  padding: 2.5px 8px;
   border-radius: 9999px;
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: #ef4444;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -426,10 +426,10 @@
 }
 
 .planPill {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
+  padding: 3px 10px;
+  border-radius: 9999px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
@@ -533,7 +533,7 @@
   border-radius: var(--radius-xs);
 }
 
-/* ponytail: unified full-width breadcrumb navigation with chevron-tapered right edge */
+/* ponytail: unified full-width breadcrumb navigation with smooth rounded pill styling */
 .breadcrumbNav {
   display: flex;
   align-items: center;
@@ -542,9 +542,9 @@
   padding: 8px 10px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md, 8px);
   box-sizing: border-box;
-  min-height: 54px;
+  min-height: 52px;
 }
 
 .breadcrumbSep {
@@ -554,15 +554,15 @@
 .breadcrumbNode {
   flex: 1; /* full width distributed across the modal card */
   min-width: 0;
-  height: 40px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 18px 0 12px;
-  border-radius: 4px 0 0 4px;
+  padding: 0 16px;
+  border-radius: 9999px;
   background: var(--color-bg-primary);
-  border: none;
+  border: 1px solid var(--color-border-subtle);
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 600;
@@ -570,8 +570,6 @@
   white-space: nowrap;
   transition: all 0.15s ease;
   box-sizing: border-box;
-  /* ponytail: sisi kanan mengerucut (tapered chevron arrow right edge) */
-  clip-path: polygon(0% 0%, calc(100% - 14px) 0%, 100% 50%, calc(100% - 14px) 100%, 0% 100%);
 }
 
 .breadcrumbNode:hover {
@@ -586,6 +584,7 @@
 .breadcrumbNodeCompleted {
   background: rgba(16, 185, 129, 0.12);
   color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .breadcrumbNodeCompleted:hover {
@@ -596,6 +595,7 @@
   background: var(--color-accent);
   color: #ffffff;
   font-weight: 700;
+  border-color: var(--color-accent);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
@@ -648,11 +648,11 @@
 
 .tableBreadcrumbBadge {
   font-weight: 700;
-  font-size: 10px;
-  padding: 1px 5px;
+  font-size: 10.5px;
+  padding: 2.5px 8px;
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
+  border-radius: 9999px;
   color: var(--color-text-secondary);
 }
 
@@ -738,25 +738,25 @@
 .categoryTag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-accent);
   background: rgba(37, 99, 235, 0.08);
-  padding: 3px 9px;
-  border-radius: var(--radius-xs);
+  padding: 4px 12px;
+  border-radius: 9999px;
   border: 1px solid rgba(37, 99, 235, 0.2);
 }
 
 .viewMilestoneBadge {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--color-accent);
   background: var(--color-accent-subtle);
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
+  padding: 5px 14px;
+  border-radius: 9999px;
   border: 1px solid var(--color-accent);
 }
 
