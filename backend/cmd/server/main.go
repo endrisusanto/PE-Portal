@@ -344,6 +344,21 @@ func main() {
 	api.PUT("/trainings/:id", trainingHandler.Update, middleware.RequireRole("admin", "manager"))
 	api.DELETE("/trainings/:id", trainingHandler.Delete, middleware.RequireRole("admin", "manager"))
 
+	// ponytail: serve frontend SPA if dist folder exists (bare metal / single-binary Windows deployment)
+	distPath := os.Getenv("FRONTEND_DIST_PATH")
+	if distPath == "" {
+		distPath = "frontend/dist"
+	}
+	if info, err := os.Stat(distPath); err == nil && info.IsDir() {
+		log.Printf("[Static] Serving frontend SPA from: %s", distPath)
+		e.Use(echoMiddleware.StaticWithConfig(echoMiddleware.StaticConfig{
+			Root:   distPath,
+			Index:  "index.html",
+			HTML5:  true,
+			Browse: false,
+		}))
+	}
+
 	// Graceful shutdown handling
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
 	go func() {

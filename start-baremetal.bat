@@ -10,6 +10,16 @@ echo   Starting SEIN PE-Portal Services (Bare Metal)
 echo ========================================================
 echo.
 
+:: Check & ensure PostgreSQL and Redis services are running if registered
+sc query postgresql-x64-16 >nul 2>&1
+if %errorlevel% equ 0 net start postgresql-x64-16 >nul 2>&1
+
+sc query memurai >nul 2>&1
+if %errorlevel% equ 0 net start memurai >nul 2>&1
+
+sc query redis >nul 2>&1
+if %errorlevel% equ 0 net start redis >nul 2>&1
+
 if not exist "bin\pe-portal-backend.exe" (
     echo Compiling backend binary...
     cd backend
