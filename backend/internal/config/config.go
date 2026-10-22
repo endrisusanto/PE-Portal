@@ -41,7 +41,7 @@ func Load() *Config {
 		}
 	}
 	if dbURL == "" {
-		dbURL = getEnv("LOCAL_DATABASE_URL", "postgres://pe_portal:sein_pe_portal_secret_2026@localhost:5432/pe_portal?sslmode=disable")
+		dbURL = getEnv("LOCAL_DATABASE_URL", "postgres://pe_portal:Sein2016!@localhost:5432/pe_portal?sslmode=disable")
 	}
 
 	redisURL := getEnv("REDIS_URL", "")

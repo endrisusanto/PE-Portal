@@ -84,22 +84,31 @@ foreach ($d in $dirs) {
 # 4. Inisialisasi Database PostgreSQL
 Write-Host ""
 Write-Host "--- [4/6] Inisialisasi Database PostgreSQL ---" -ForegroundColor Cyan
-try {
-    # Buat user dan database pe_portal jika belum ada
-    $createDbSql = @"
-DO `$do`$
-BEGIN
-   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pe_portal') THEN
-      CREATE ROLE pe_portal WITH LOGIN PASSWORD 'sein_pe_portal_secret_2026' SUPERUSER;
-   END IF;
-END
-`$do`$;
-SELECT 'CREATE DATABASE pe_portal OWNER pe_portal' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'pe_portal')\gexec
-"@
-    $createDbSql | psql -U postgres -h localhost >$null 2>&1
-    Write-Host "[OK] Database dan Role 'pe_portal' siap." -ForegroundColor Green
-} catch {
-    Write-Host "[Note] Database setup otomatis diskip (pastikan DB 'pe_portal' dapat diakses via .env)." -ForegroundColor Yellow
+
+# ponytail: auto-locate psql.exe if not directly in PATH
+$psqlCmd = Get-Command "psql" -ErrorAction SilentlyContinue
+if (-not $psqlCmd) {
+    $foundPsql = Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\psql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($foundPsql) {
+        $psqlBinDir = Split-Path -Parent $foundPsql.FullName
+        $env:Path = "$psqlBinDir;$env:Path"
+        $psqlCmd = $foundPsql.FullName
+    }
+} else {
+    $psqlCmd = "psql"
+}
+
+if ($psqlCmd) {
+    Write-Host "Mengonfigurasi Role & Database 'pe_portal'..." -ForegroundColor Yellow
+    try {
+        & $psqlCmd -U postgres -h localhost -c "CREATE ROLE pe_portal WITH LOGIN PASSWORD 'Sein2016!' SUPERUSER;" 2>$null
+        & $psqlCmd -U postgres -h localhost -c "CREATE DATABASE pe_portal OWNER pe_portal;" 2>$null
+        Write-Host "[OK] Database dan Role 'pe_portal' siap." -ForegroundColor Green
+    } catch {
+        Write-Host "[Note] Jalankan manual jika postgres meminta password khusus: psql -U postgres" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[Note] psql belum terdeteksi di PATH. Pastikan DB 'pe_portal' dapat diakses via .env." -ForegroundColor Yellow
 }
 
 # 5. Build Backend & Frontend
