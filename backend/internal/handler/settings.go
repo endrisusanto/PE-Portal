@@ -54,6 +54,7 @@ type DashboardStatsResponse struct {
 	InnovationsCount int              `json:"innovations_count"`
 	ModelsCount      int              `json:"models_count"`
 	DocumentsCount   int              `json:"documents_count"`
+	TrainingsCount   int              `json:"trainings_count"`
 	UsersCount       int              `json:"users_count"`
 	RecentLogs       []model.AuditLog `json:"recent_logs"`
 }
@@ -67,6 +68,7 @@ func (h *SettingsHandler) DashboardStats(c echo.Context) error {
 	_ = h.pool.QueryRow(ctx, "SELECT COUNT(*) FROM innovations WHERE deleted_at IS NULL").Scan(&stats.InnovationsCount)
 	_ = h.pool.QueryRow(ctx, "SELECT COUNT(*) FROM new_models WHERE deleted_at IS NULL").Scan(&stats.ModelsCount)
 	_ = h.pool.QueryRow(ctx, "SELECT COUNT(*) FROM documents WHERE deleted_at IS NULL").Scan(&stats.DocumentsCount)
+	_ = h.pool.QueryRow(ctx, "SELECT COUNT(*) FROM training_modules").Scan(&stats.TrainingsCount)
 	_ = h.pool.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL").Scan(&stats.UsersCount)
 
 	logs, err := h.settingsRepo.ListAuditLogs(ctx, 10)

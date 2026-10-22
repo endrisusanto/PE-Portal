@@ -12,6 +12,13 @@ import {
   Scissors,
   Activity,
   Clock,
+  GraduationCap,
+  Video,
+  Share2,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/client';
@@ -221,6 +228,22 @@ export const DashboardPage = () => {
       accentColor: '#8b5cf6',
     },
     {
+      title: 'Training Online',
+      subtitle: 'Modul Pelatihan & Skill Engineer',
+      icon: GraduationCap,
+      link: '/training',
+      badge: `${stats?.trainings_count ?? 0} Modul`,
+      accentColor: '#10b981',
+    },
+    {
+      title: 'Video Compressor (VAAPI)',
+      subtitle: 'Kompres Video GPU Linux & CPU',
+      icon: Video,
+      link: '/tools/video-compress',
+      badge: 'H.264 GPU',
+      accentColor: '#2563eb',
+    },
+    {
       title: 'PDF & Media Tools',
       subtitle: 'Kompres Dokumen & Convert Format',
       icon: Wrench,
@@ -296,7 +319,7 @@ export const DashboardPage = () => {
           </div>
           <div className={styles.kpiValue}>{stats?.projects_count ?? 0}</div>
           <div className={styles.kpiFooter}>
-            <span>{projects.filter((p) => p.status === 'completed').length} Selesai • {projects.filter((p) => p.status !== 'completed').length} Dalam Proses</span>
+            <span>{projects.filter((p) => p.status === 'completed').length} Selesai • {projects.filter((p) => p.status !== 'completed').length} Berjalan</span>
           </div>
         </div>
 
@@ -307,6 +330,16 @@ export const DashboardPage = () => {
           <div className={styles.kpiValue}>{stats?.innovations_count ?? 0}</div>
           <div className={styles.kpiFooter}>
             <span>Best Practice Terverifikasi</span>
+          </div>
+        </div>
+
+        <div className={styles.kpiCard} onClick={() => navigate('/training')}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiLabel}>Online Training</span>
+          </div>
+          <div className={styles.kpiValue}>{stats?.trainings_count ?? 0}</div>
+          <div className={styles.kpiFooter}>
+            <span>Modul & Kursus Interaktif</span>
           </div>
         </div>
 
@@ -326,7 +359,193 @@ export const DashboardPage = () => {
           </div>
           <div className={styles.kpiValue}>{stats?.documents_count ?? 0}</div>
           <div className={styles.kpiFooter}>
-            <span>Drawing & Standar SOP</span>
+            <span>Protected File Sharing</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. FEATURE SPOTLIGHTS: HIGHLIGHT FITUR TERBARU                            */}
+      {/* ponytail: clear functional differentiation, purposeful actions            */}
+      {/* ========================================================================= */}
+      <div className={styles.spotlightSection}>
+        <div className={styles.spotlightHeader}>
+          <div className={styles.spotlightTitleGroup}>
+            <h2 className={styles.spotlightTitle}>Pembaruan Fitur Terbaru</h2>
+            <span className={styles.spotlightTag}>Baru Rilis</span>
+          </div>
+          <span className={styles.spotlightSubtitle}>
+            Peningkatan kapabilitas performa media, materi pelatihan, dan sekuriti dokumen
+          </span>
+        </div>
+
+        <div className={styles.spotlightGrid}>
+          {/* Card 1: Video Compressor VAAPI */}
+          <div className={styles.spotlightCard}>
+            <div className={styles.spotlightTop}>
+              <div className={`${styles.spotlightIconBox} ${styles.iconBlue}`}>
+                <Video size={22} />
+              </div>
+              <span className={`${styles.spotlightBadge} ${styles.badgeBlue}`}>
+                Hardware Accelerated
+              </span>
+            </div>
+            <div className={styles.spotlightBody}>
+              <h3 className={styles.spotlightCardTitle}>Video Compressor (VAAPI)</h3>
+              <p className={styles.spotlightCardDesc}>
+                Kompresi video berkecepatan tinggi bertenaga Linux GPU H.264 VAAPI dengan CPU fallback aman. Mendukung resolusi 1080p, 720p, 480p, dan ukuran berkas hingga 1 GB.
+              </p>
+              <div className={styles.spotlightPills}>
+                <span className={styles.spotlightPill}>H.264 VAAPI</span>
+                <span className={styles.spotlightPill}>Batas 1 GB</span>
+                <span className={styles.spotlightPill}>Preview & Download</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={styles.spotlightActionBtn}
+              onClick={() => navigate('/tools/video-compress')}
+            >
+              <span>Buka Video Compressor</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+
+          {/* Card 2: Online Training */}
+          <div className={styles.spotlightCard}>
+            <div className={styles.spotlightTop}>
+              <div className={`${styles.spotlightIconBox} ${styles.iconGreen}`}>
+                <GraduationCap size={22} />
+              </div>
+              <span className={`${styles.spotlightBadge} ${styles.badgeGreen}`}>
+                Admin Management
+              </span>
+            </div>
+            <div className={styles.spotlightBody}>
+              <h3 className={styles.spotlightCardTitle}>Online Training Platform</h3>
+              <p className={styles.spotlightCardDesc}>
+                Katalog kursus dan modul pelatihan teknis engineer interaktif lengkap dengan video panduan. Didukung hak akses penuh Administrator untuk mengedit dan menghapus modul.
+              </p>
+              <div className={styles.spotlightPills}>
+                <span className={styles.spotlightPill}>Video Pembelajaran</span>
+                <span className={styles.spotlightPill}>Role Admin Edit & Hapus</span>
+                <span className={styles.spotlightPill}>Tracking Deadline</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={styles.spotlightActionBtn}
+              onClick={() => navigate('/training')}
+            >
+              <span>Jelajahi Training Online</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+
+          {/* Card 3: Protected Document Sharing */}
+          <div className={styles.spotlightCard}>
+            <div className={styles.spotlightTop}>
+              <div className={`${styles.spotlightIconBox} ${styles.iconViolet}`}>
+                <Share2 size={22} />
+              </div>
+              <span className={`${styles.spotlightBadge} ${styles.badgePurple}`}>
+                Custom Access Rules
+              </span>
+            </div>
+            <div className={styles.spotlightBody}>
+              <h3 className={styles.spotlightCardTitle}>Document Sharing & Vault</h3>
+              <p className={styles.spotlightCardDesc}>
+                Penyimpanan dan pembagian berkas teknik terpusat dengan aturan fleksibel: Open Public, Login Required, atau Proteksi Kata Sandi, serta generator tautan berbagi instan.
+              </p>
+              <div className={styles.spotlightPills}>
+                <span className={styles.spotlightPill}>Open Public</span>
+                <span className={styles.spotlightPill}>Login Required</span>
+                <span className={styles.spotlightPill}>Password Lock</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={styles.spotlightActionBtn}
+              onClick={() => navigate('/documents')}
+            >
+              <span>Buka Document Vault</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 4. TOOLS MEDIA & OFFLINE AI QUICK LAUNCH TRAY                            */}
+      {/* ponytail: lightweight horizontal access to offline tools                  */}
+      {/* ========================================================================= */}
+      <div className={styles.quickLaunchSection}>
+        <div className={styles.quickLaunchHeader}>
+          <h3 className={styles.quickLaunchTitle}>
+            <Zap size={16} style={{ color: 'var(--color-accent)' }} />
+            <span>Tools Media & Offline AI Quick Launch</span>
+          </h3>
+          <span className={styles.quickLaunchSub}>Pemrosesan cepat tanpa pihak ketiga</span>
+        </div>
+        <div className={styles.quickLaunchGrid}>
+          <div
+            className={styles.quickLaunchItem}
+            onClick={() => navigate('/tools/video-compress')}
+            role="button"
+            tabIndex={0}
+          >
+            <div className={`${styles.quickLaunchIconWrap} ${styles.iconBlue}`}>
+              <Video size={16} />
+            </div>
+            <div className={styles.quickLaunchText}>
+              <span className={styles.quickLaunchName}>Video Compressor</span>
+              <span className={styles.quickLaunchDesc}>H.264 VAAPI (Linux GPU)</span>
+            </div>
+          </div>
+
+          <div
+            className={styles.quickLaunchItem}
+            onClick={() => navigate('/tools/remove-bg')}
+            role="button"
+            tabIndex={0}
+          >
+            <div className={`${styles.quickLaunchIconWrap} ${styles.iconCyan}`}>
+              <Scissors size={16} />
+            </div>
+            <div className={styles.quickLaunchText}>
+              <span className={styles.quickLaunchName}>AI Remove Background</span>
+              <span className={styles.quickLaunchDesc}>Isolasi Part Lokal (WASM)</span>
+            </div>
+          </div>
+
+          <div
+            className={styles.quickLaunchItem}
+            onClick={() => navigate('/tools/pdf-merge-split')}
+            role="button"
+            tabIndex={0}
+          >
+            <div className={`${styles.quickLaunchItemWrap || styles.quickLaunchIconWrap} ${styles.iconAmber}`}>
+              <Wrench size={16} />
+            </div>
+            <div className={styles.quickLaunchText}>
+              <span className={styles.quickLaunchName}>PDF Merge & Split</span>
+              <span className={styles.quickLaunchDesc}>Gabung & Potong Halaman</span>
+            </div>
+          </div>
+
+          <div
+            className={styles.quickLaunchItem}
+            onClick={() => navigate('/tools/documents')}
+            role="button"
+            tabIndex={0}
+          >
+            <div className={`${styles.quickLaunchIconWrap} ${styles.iconViolet}`}>
+              <FolderArchive size={16} />
+            </div>
+            <div className={styles.quickLaunchText}>
+              <span className={styles.quickLaunchName}>Konversi & Kompres</span>
+              <span className={styles.quickLaunchDesc}>Dokumen & Format Gambar</span>
+            </div>
           </div>
         </div>
       </div>
