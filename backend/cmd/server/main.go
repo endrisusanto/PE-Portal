@@ -105,6 +105,8 @@ func main() {
 	gmesHandler := handler.NewGmesHandler(gmesRepo)
 	trainingRepo := repository.NewTrainingRepository(pgPool.Pool)
 	trainingHandler := handler.NewTrainingHandler(trainingRepo)
+	navRepo := repository.NewNavigationRepository(pgPool.Pool)
+	navHandler := handler.NewNavigationHandler(navRepo)
 
 	// Echo App
 	e := echo.New()
@@ -343,6 +345,11 @@ func main() {
 	api.POST("/trainings", trainingHandler.Create, middleware.RequireRole("admin", "manager"))
 	api.PUT("/trainings/:id", trainingHandler.Update, middleware.RequireRole("admin", "manager"))
 	api.DELETE("/trainings/:id", trainingHandler.Delete, middleware.RequireRole("admin", "manager"))
+
+	// Navigation Side Menu Visibility & Role/Group Access Rules
+	api.GET("/navigation/menu-permissions", navHandler.GetMenuPermissions)
+	api.PUT("/navigation/menu-permissions/:key", navHandler.UpdateMenuPermission, middleware.RequireRole("admin"))
+	api.PUT("/navigation/menu-permissions", navHandler.BatchUpdateMenuPermissions, middleware.RequireRole("admin"))
 
 	// ponytail: serve frontend SPA if dist folder exists (bare metal / single-binary Windows deployment)
 	distPath := os.Getenv("FRONTEND_DIST_PATH")

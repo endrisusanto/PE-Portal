@@ -31,6 +31,7 @@ import {
   Video,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../api/client';
 import styles from './Sidebar.module.css';
 
 export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
@@ -86,6 +87,68 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     else if (isToolsMediaActive) setOpenToolsSubKey('media');
     else if (isToolsSwActive) setOpenToolsSubKey('software-dev');
   }, [isToolsDocsActive, isToolsMediaActive, isToolsSwActive]);
+
+  // Dynamic Menu Permissions & Role/Part-based Visibility
+  const [menuPermissions, setMenuPermissions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('pe_menu_permissions');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const fetchPerms = () => {
+      api.get('/navigation/menu-permissions')
+        .then((res) => {
+          if (Array.isArray(res.data)) {
+            setMenuPermissions(res.data);
+            localStorage.setItem('pe_menu_permissions', JSON.stringify(res.data));
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchPerms();
+
+    window.addEventListener('pe_menu_permissions_updated', fetchPerms);
+    return () => window.removeEventListener('pe_menu_permissions_updated', fetchPerms);
+  }, []);
+
+  const isMenuAllowed = (key) => {
+    // Admin always has full visibility
+    if (isAdmin) return true;
+    if (!menuPermissions || !Array.isArray(menuPermissions)) return true;
+
+    const perm = menuPermissions.find((p) => p.menu_key === key);
+    if (!perm) return true;
+
+    // 1. Master enable/disable toggle
+    if (perm.is_visible === false) return false;
+
+    // 2. Role-based check
+    if (perm.allowed_roles && perm.allowed_roles.length > 0) {
+      const userRole = user?.role || 'member';
+      if (!perm.allowed_roles.includes(userRole)) {
+        return false;
+      }
+    }
+
+    // 3. Department / Part-based check
+    if (perm.allowed_groups && perm.allowed_groups.length > 0) {
+      const userParentGroup = user?.parent_group || '';
+      const userGroupId = user?.group_part_id || '';
+      const match = perm.allowed_groups.some(
+        (g) => g === userParentGroup || g === userGroupId
+      );
+      if (!match) {
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   const handleToggleGroup = (groupKey) => {
     setOpenGroupKey((prev) => {
@@ -154,16 +217,16 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   ].sort((a, b) => a.label.localeCompare(b.label));
 
   // Dashboard as prime top-level item
-  const dashboardItem = { to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard, end: true };
+  const dashboardItem = { key: 'dashboard', to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard, end: true };
 
   // Operations items sorted alphabetically ASC
   const operationItems = [
-    { to: '/articles', label: t('nav.articles', t('nav.imei', 'Articles')), icon: Newspaper },
-    { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
-    { to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
-    { to: '/models', label: t('nav.models'), icon: Cpu },
-    { to: '/gmes', label: t('nav.gmes', 'GMES Monitor'), icon: Activity },
-    { to: '/training', label: t('nav.training', 'Online Training'), icon: GraduationCap },
+    { key: 'articles', to: '/articles', label: t('nav.articles', t('nav.imei', 'Articles')), icon: Newspaper },
+    { key: 'documents', to: '/documents', label: t('nav.documents'), icon: FolderArchive },
+    { key: 'innovations', to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
+    { key: 'models', to: '/models', label: t('nav.models'), icon: Cpu },
+    { key: 'gmes', to: '/gmes', label: t('nav.gmes', 'GMES Monitor'), icon: Activity },
+    { key: 'training', to: '/training', label: t('nav.training', 'Online Training'), icon: GraduationCap },
     {
       isGroup: true,
       key: 'sample-management',
@@ -184,8 +247,8 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       onToggle: () => handleToggleGroup('software-team'),
       children: softwareTeamSubItems,
     },
-    { to: '/projects', label: t('nav.projects', 'Task Analyst'), icon: FolderKanban },
-    { to: '/team', label: t('nav.team'), icon: Users },
+    { key: 'projects', to: '/projects', label: t('nav.projects', 'Task Analyst'), icon: FolderKanban },
+    { key: 'team', to: '/team', label: t('nav.team'), icon: Users },
     {
       isGroup: true,
       isNested: true,
@@ -197,13 +260,16 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       onToggle: () => handleToggleGroup('tools'),
       nestedGroups: toolsNestedGroups,
     },
-    { to: '/reports', label: t('nav.reports'), icon: FileText },
+    { key: 'reports', to: '/reports', label: t('nav.reports'), icon: FileText },
   ].sort((a, b) => a.label.localeCompare(b.label));
 
+  const visibleOperationItems = operationItems.filter((item) => isMenuAllowed(item.key));
+  const isDashboardVisible = isMenuAllowed('dashboard');
+
   const adminItems = [
-    ...(isAdmin ? [{ to: '/admin', label: t('nav.admin'), icon: ShieldCheck }] : []),
-    { to: '/profile', label: t('nav.profile'), icon: UserCircle },
-    { to: '/settings', label: t('nav.settings'), icon: Settings },
+    ...(isAdmin ? [{ key: 'admin', to: '/admin', label: t('nav.admin'), icon: ShieldCheck }] : []),
+    { key: 'profile', to: '/profile', label: t('nav.profile'), icon: UserCircle },
+    { key: 'settings', to: '/settings', label: t('nav.settings'), icon: Settings },
   ].sort((a, b) => a.label.localeCompare(b.label));
 
   return (
@@ -235,23 +301,27 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
 
       <nav className={styles.nav}>
         {/* Prime Dashboard Navigation Item at Top */}
-        <NavLink
-          to={dashboardItem.to}
-          end={dashboardItem.end}
-          className={({ isActive }) =>
-            `${styles.navLink} ${isActive ? styles.active : ''}`
-          }
-          title={dashboardItem.label}
-        >
-          <LayoutDashboard size={18} className={styles.navIcon} />
-          {!isCollapsed && <span>{dashboardItem.label}</span>}
-        </NavLink>
+        {isDashboardVisible && (
+          <>
+            <NavLink
+              to={dashboardItem.to}
+              end={dashboardItem.end}
+              className={({ isActive }) =>
+                `${styles.navLink} ${isActive ? styles.active : ''}`
+              }
+              title={dashboardItem.label}
+            >
+              <LayoutDashboard size={18} className={styles.navIcon} />
+              {!isCollapsed && <span>{dashboardItem.label}</span>}
+            </NavLink>
+            <div className={styles.navDivider} />
+          </>
+        )}
 
-        {/* Separator Line beneath Dashboard */}
-        <div className={styles.navDivider} />
-
-        <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_operations', 'OPERATIONS')}</div>
-        {operationItems.map((item) => {
+        {visibleOperationItems.length > 0 && (
+          <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_operations', 'OPERATIONS')}</div>
+        )}
+        {visibleOperationItems.map((item) => {
           if (item.isGroup) {
             const GroupIcon = item.icon;
             return (
