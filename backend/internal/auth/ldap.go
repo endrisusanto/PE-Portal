@@ -30,6 +30,12 @@ func (l *LDAPAuthProvider) Type() string {
 
 // Authenticate verifies user credentials with the Active Directory LDAP server
 func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password string) (*model.User, error) {
+	// ponytail: allow local admin / break-glass accounts to login even when LDAP is enabled
+	localAuth := NewLocalAuthProvider(l.pool)
+	if user, err := localAuth.Authenticate(ctx, username, password); err == nil {
+		return user, nil
+	}
+
 	if l.cfg.LDAPHost == "" {
 		return nil, errors.New("LDAP host is not configured; check settings or environment variables")
 	}
