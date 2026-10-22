@@ -357,36 +357,58 @@ export const DhlTrackerPage = () => {
   };
 
   // Badge Status Styling
-  const getStatusBadge = (code, label) => {
-    const c = (code || '').toLowerCase();
-    if (c === 'delivered') {
+  const getStatusBadge = (code, label, iconOnly = false) => {
+    const c = (code || '').toLowerCase().trim();
+    const l = (label || '').toLowerCase().trim();
+
+    const isDelivered = c === 'delivered' || l === 'delivered' || c === '600' || l === '600';
+    const isTransit = c === 'transit' || l === 'transit' || c === 'in transit' || l === 'in transit';
+    const isPreTransit = c === 'pre-transit' || l === 'pre-transit' || c === 'pre transit' || l === 'pre transit';
+
+    let badgeClass = styles.badgeFailure;
+    let Icon = AlertCircle;
+    let defaultLabel = t('dhl.status_unknown', 'Unknown');
+
+    if (isDelivered) {
+      badgeClass = styles.badgeDelivered;
+      Icon = CheckCircle2;
+      defaultLabel = t('dhl.status_delivered', 'Delivered');
+    } else if (isTransit) {
+      badgeClass = styles.badgeTransit;
+      Icon = Truck;
+      defaultLabel = t('dhl.status_transit', 'In Transit');
+    } else if (isPreTransit) {
+      badgeClass = styles.badgePreTransit;
+      Icon = Clock;
+      defaultLabel = t('dhl.status_pre_transit', 'Pre-Transit');
+    }
+
+    // Determine clean label (filter out raw numeric codes like '600')
+    let displayTitle = defaultLabel;
+    if (!isDelivered && !isTransit && !isPreTransit) {
+      if (label && !/^\d+$/.test(label.trim())) {
+        displayTitle = label;
+      } else if (code && !/^\d+$/.test(code.trim())) {
+        displayTitle = code;
+      }
+    }
+
+    if (iconOnly) {
       return (
-        <span className={`${styles.badge} ${styles.badgeDelivered}`}>
-          <CheckCircle2 size={13} />
-          {label || t('dhl.status_delivered', 'Delivered')}
+        <span
+          className={`${styles.badge} ${badgeClass} ${styles.badgeIconOnly}`}
+          title={displayTitle}
+          aria-label={displayTitle}
+        >
+          <Icon size={14} />
         </span>
       );
     }
-    if (c === 'transit') {
-      return (
-        <span className={`${styles.badge} ${styles.badgeTransit}`}>
-          <Truck size={13} />
-          {label || t('dhl.status_transit', 'In Transit')}
-        </span>
-      );
-    }
-    if (c === 'pre-transit') {
-      return (
-        <span className={`${styles.badge} ${styles.badgePreTransit}`}>
-          <Clock size={13} />
-          {label || t('dhl.status_pre_transit', 'Pre-Transit')}
-        </span>
-      );
-    }
+
     return (
-      <span className={`${styles.badge} ${styles.badgeFailure}`}>
-        <AlertCircle size={13} />
-        {label || code || 'Unknown'}
+      <span className={`${styles.badge} ${badgeClass}`} title={displayTitle}>
+        <Icon size={13} />
+        {displayTitle}
       </span>
     );
   };
@@ -689,7 +711,7 @@ export const DhlTrackerPage = () => {
                             </a>
                           </div>
 
-                          <div>{getStatusBadge(item.status_code, item.status_label)}</div>
+                          <div>{getStatusBadge(item.status_code, item.status_label, true)}</div>
                         </div>
 
                         {/* Route Chips */}
@@ -968,7 +990,7 @@ export const DhlTrackerPage = () => {
                     </a>
                   </div>
 
-                  <div>{getStatusBadge(item.status_code, item.status_label)}</div>
+                  <div>{getStatusBadge(item.status_code, item.status_label, true)}</div>
                 </div>
 
                 {/* Route Flow */}

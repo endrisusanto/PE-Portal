@@ -767,6 +767,23 @@
   border: 1px solid var(--color-error);
 }
 
+.badgeIconOnly {
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: default;
+}
+
+.badgeIconOnly:hover {
+  transform: scale(1.08);
+}
+
 /* Route Flow */
 .routeBox {
   display: flex;
