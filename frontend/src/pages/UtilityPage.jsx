@@ -2820,6 +2820,7 @@ const VideoCompressTab = () => {
       const response = await api.post('/utility/compress-video', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         responseType: 'blob',
+        timeout: 600000,
       });
 
       const blob = response.data;
@@ -2842,7 +2843,9 @@ const VideoCompressTab = () => {
     } catch (err) {
       console.error('Compression failed:', err);
       let errMsg = 'Gagal melakukan kompresi video.';
-      if (err.response?.data instanceof Blob) {
+      if (err.response?.status === 413) {
+        errMsg = 'Ukuran berkas video melebihi batas upload server (Maksimal 1 GB).';
+      } else if (err.response?.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
           const json = JSON.parse(text);
