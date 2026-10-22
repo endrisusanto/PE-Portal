@@ -18,11 +18,12 @@ import (
 
 type TrainingHandler struct {
 	repo        *repository.TrainingRepository
+	navRepo     *repository.NavigationRepository
 	storagePath string
 }
 
-func NewTrainingHandler(repo *repository.TrainingRepository, storagePath string) *TrainingHandler {
-	return &TrainingHandler{repo: repo, storagePath: storagePath}
+func NewTrainingHandler(repo *repository.TrainingRepository, navRepo *repository.NavigationRepository, storagePath string) *TrainingHandler {
+	return &TrainingHandler{repo: repo, navRepo: navRepo, storagePath: storagePath}
 }
 
 // List returns employee training courses
@@ -84,6 +85,66 @@ func (h *TrainingHandler) Unlock(c echo.Context) error {
 	var req model.TrainingUnlockRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	// Verify Dynamic Access Control for training-answer-key
+	if h.navRepo != nil {
+		if perm, err := h.navRepo.GetMenuPermissionByKey(c.Request().Context(), "training-answer-key"); err == nil && perm != nil {
+			roleVal := c.Get("user_role")
+			userRole, _ := roleVal.(string)
+
+			// Admins always have bypass access
+			if userRole != "admin" {
+				if !perm.IsVisible {
+					return c.JSON(http.StatusForbidden, map[string]interface{}{
+						"success": false,
+						"error":   "Akses kunci jawaban dinonaktifkan oleh administrator.",
+					})
+				}
+
+				claimsVal := c.Get("user_claims")
+				var username, userIDStr string
+				if claims, ok := claimsVal.(*model.UserClaims); ok && claims != nil {
+					username = claims.Username
+					userIDStr = claims.UserID.String()
+				}
+
+				// Check specific user restriction if configured
+				if len(perm.AllowedUsers) > 0 {
+					matchedUser := false
+					for _, u := range perm.AllowedUsers {
+						uNorm := strings.ToLower(strings.TrimSpace(u))
+						if uNorm != "" && (uNorm == strings.ToLower(username) || uNorm == strings.ToLower(userIDStr)) {
+							matchedUser = true
+							break
+						}
+					}
+					if !matchedUser {
+						return c.JSON(http.StatusForbidden, map[string]interface{}{
+							"success": false,
+							"error":   "Akses kunci jawaban dibatasi hanya untuk user tertentu yang diizinkan oleh admin.",
+						})
+					}
+				}
+
+				// Check role restriction if configured
+				if len(perm.AllowedRoles) > 0 {
+					matchedRole := false
+					for _, r := range perm.AllowedRoles {
+						if strings.EqualFold(r, userRole) {
+							matchedRole = true
+							break
+						}
+					}
+					if !matchedRole {
+						return c.JSON(http.StatusForbidden, map[string]interface{}{
+							"success": false,
+							"error":   "Role Anda tidak memiliki izin untuk melihat kunci jawaban.",
+						})
+					}
+				}
+			}
+		}
 	}
 
 	answerKey, err := h.repo.VerifyAndUnlock(c.Request().Context(), id, req.Password)

@@ -16,6 +16,7 @@ type MenuPermission struct {
 	IsVisible     bool      `json:"is_visible"`
 	AllowedRoles  []string  `json:"allowed_roles"`
 	AllowedGroups []string  `json:"allowed_groups"`
+	AllowedUsers  []string  `json:"allowed_users"`
 	SortOrder     int       `json:"sort_order"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
@@ -26,4 +27,5 @@ type UpdateMenuPermissionRequest struct {
 	IsVisible     bool     `json:"is_visible"`
 	AllowedRoles  []string `json:"allowed_roles"`
 	AllowedGroups []string `json:"allowed_groups"`
+	AllowedUsers  []string `json:"allowed_users"`
 }

@@ -15,6 +15,8 @@ import {
   Check,
   Layers,
   Sparkles,
+  User,
+  X,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -106,6 +108,28 @@ export const AdminPage = () => {
     );
   };
 
+  const handleAddUserToMenu = (menuKey, userIdentifier) => {
+    if (!userIdentifier) return;
+    setMenuPermissions((prev) =>
+      prev.map((item) => {
+        if (item.menu_key !== menuKey) return item;
+        const currentUsers = item.allowed_users || [];
+        if (currentUsers.includes(userIdentifier)) return item;
+        return { ...item, allowed_users: [...currentUsers, userIdentifier] };
+      })
+    );
+  };
+
+  const handleRemoveUserFromMenu = (menuKey, userIdentifier) => {
+    setMenuPermissions((prev) =>
+      prev.map((item) => {
+        if (item.menu_key !== menuKey) return item;
+        const currentUsers = item.allowed_users || [];
+        return { ...item, allowed_users: currentUsers.filter((u) => u !== userIdentifier) };
+      })
+    );
+  };
+
   const handleSavePermissions = async () => {
     setSavingPermissions(true);
     setPermissionSuccess('');
@@ -122,13 +146,14 @@ export const AdminPage = () => {
   };
 
   const handleResetPermissions = () => {
-    if (!window.confirm('Reset semua menu ke visibilitas penuh (semua role & part)?')) return;
+    if (!window.confirm('Reset semua menu ke visibilitas penuh (semua role, part & user)?')) return;
     setMenuPermissions((prev) =>
       prev.map((item) => ({
         ...item,
         is_visible: true,
         allowed_roles: ['admin', 'manager', 'member', 'guest'],
         allowed_groups: [],
+        allowed_users: [],
       }))
     );
   };
@@ -410,6 +435,7 @@ export const AdminPage = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 600, width: '140px' }}>Visibilitas</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Akses Role (Siapa yang bisa lihat?)</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Akses Part / Bagian</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Akses Specific User</th>
                 </tr>
               </thead>
               <tbody>
@@ -579,6 +605,103 @@ export const AdminPage = () => {
                                 (Semua Part / No Restriction)
                               </span>
                             )}
+                          </div>
+                        </td>
+
+                        {/* 5. Specific User Access */}
+                        <td style={{ padding: '14px 16px', minWidth: '220px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                              {(item.allowed_users || []).map((u) => {
+                                const matchedUser = users.find(
+                                  (usr) => usr.username === u || usr.employee_id === u || usr.id === u
+                                );
+                                const displayName = matchedUser
+                                  ? `${matchedUser.full_name} (@${matchedUser.username})`
+                                  : u;
+
+                                return (
+                                  <span
+                                    key={u}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '2px 6px',
+                                      borderRadius: 'var(--radius-sm)',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      backgroundColor: 'rgba(234, 179, 8, 0.15)',
+                                      color: '#eab308',
+                                      border: '1px solid rgba(234, 179, 8, 0.4)',
+                                    }}
+                                  >
+                                    <User size={11} />
+                                    <span>{displayName}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveUserFromMenu(item.menu_key, u)}
+                                      style={{
+                                        border: 'none',
+                                        background: 'transparent',
+                                        cursor: 'pointer',
+                                        color: '#eab308',
+                                        padding: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                      }}
+                                      title="Hapus user ini"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </span>
+                                );
+                              })}
+
+                              {(!item.allowed_users || item.allowed_users.length === 0) && (
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    color: 'var(--color-text-secondary)',
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  (Semua User / No Restriction)
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Dropdown to add specific user */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <select
+                                defaultValue=""
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    handleAddUserToMenu(item.menu_key, e.target.value);
+                                    e.target.value = '';
+                                  }
+                                }}
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '2px 6px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: '1px solid var(--color-border)',
+                                  backgroundColor: 'var(--color-bg-primary)',
+                                  color: 'var(--color-text-secondary)',
+                                  cursor: 'pointer',
+                                  maxWidth: '220px',
+                                }}
+                              >
+                                <option value="">+ Tambah User Khusus...</option>
+                                {users
+                                  .filter((u) => !(item.allowed_users || []).includes(u.username))
+                                  .map((u) => (
+                                    <option key={u.id} value={u.username}>
+                                      {u.full_name} (@{u.username})
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
                           </div>
                         </td>
                       </tr>

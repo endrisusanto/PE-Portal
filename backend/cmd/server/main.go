@@ -103,10 +103,10 @@ func main() {
 	dhlHandler := handler.NewDHLHandler(dhlRepo)
 	gmesRepo := repository.NewGmesRepository(pgPool.Pool)
 	gmesHandler := handler.NewGmesHandler(gmesRepo)
-	trainingRepo := repository.NewTrainingRepository(pgPool.Pool)
-	trainingHandler := handler.NewTrainingHandler(trainingRepo, cfg.FileStoragePath)
 	navRepo := repository.NewNavigationRepository(pgPool.Pool)
 	navHandler := handler.NewNavigationHandler(navRepo)
+	trainingRepo := repository.NewTrainingRepository(pgPool.Pool)
+	trainingHandler := handler.NewTrainingHandler(trainingRepo, navRepo, cfg.FileStoragePath)
 
 	// Echo App
 	e := echo.New()

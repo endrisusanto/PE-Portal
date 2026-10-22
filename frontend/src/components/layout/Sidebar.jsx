@@ -127,7 +127,20 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     // 1. Master enable/disable toggle
     if (perm.is_visible === false) return false;
 
-    // 2. Role-based check
+    // 2. Specific User restriction check
+    if (perm.allowed_users && perm.allowed_users.length > 0) {
+      const uName = (user?.username || '').toLowerCase();
+      const uEmp = (user?.employee_id || '').toLowerCase();
+      const uEmail = (user?.email || '').toLowerCase();
+      const uId = (user?.id || '').toLowerCase();
+      const match = perm.allowed_users.some((u) => {
+        const t = (u || '').toLowerCase().trim();
+        return t && (t === uName || t === uEmp || t === uEmail || t === uId);
+      });
+      if (!match) return false;
+    }
+
+    // 3. Role-based check
     if (perm.allowed_roles && perm.allowed_roles.length > 0) {
       const userRole = user?.role || 'member';
       if (!perm.allowed_roles.includes(userRole)) {
@@ -135,7 +148,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       }
     }
 
-    // 3. Department / Part-based check
+    // 4. Department / Part-based check
     if (perm.allowed_groups && perm.allowed_groups.length > 0) {
       const userParentGroup = user?.parent_group || '';
       const userGroupId = user?.group_part_id || '';

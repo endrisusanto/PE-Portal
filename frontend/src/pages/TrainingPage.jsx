@@ -88,6 +88,76 @@ export const TrainingPage = () => {
   const [uploadingBanner, setUploadingBanner] = useState(null);
   const [uploadingAnswer, setUploadingAnswer] = useState(null);
 
+  // Dynamic Menu / Feature Permissions
+  const [menuPermissions, setMenuPermissions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('pe_menu_permissions');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const fetchPerms = () => {
+      api.get('/navigation/menu-permissions')
+        .then((res) => {
+          if (Array.isArray(res.data)) {
+            setMenuPermissions(res.data);
+            localStorage.setItem('pe_menu_permissions', JSON.stringify(res.data));
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchPerms();
+    window.addEventListener('pe_menu_permissions_updated', fetchPerms);
+    return () => window.removeEventListener('pe_menu_permissions_updated', fetchPerms);
+  }, []);
+
+  // Determine if current user is allowed to view/unlock post-test answer keys
+  const isAnswerKeyAllowed = useMemo(() => {
+    if (user?.role === 'admin') return true;
+    if (!menuPermissions || !Array.isArray(menuPermissions)) return true;
+
+    const perm = menuPermissions.find((p) => p.menu_key === 'training-answer-key');
+    if (!perm) return true;
+
+    // 1. Master toggle
+    if (perm.is_visible === false) return false;
+
+    // 2. Specific user restriction check
+    if (perm.allowed_users && perm.allowed_users.length > 0) {
+      const uName = (user?.username || '').toLowerCase();
+      const uEmp = (user?.employee_id || '').toLowerCase();
+      const uEmail = (user?.email || '').toLowerCase();
+      const uId = (user?.id || '').toLowerCase();
+      const match = perm.allowed_users.some((u) => {
+        const t = (u || '').toLowerCase().trim();
+        return t && (t === uName || t === uEmp || t === uEmail || t === uId);
+      });
+      if (!match) return false;
+    }
+
+    // 3. Role check
+    if (perm.allowed_roles && perm.allowed_roles.length > 0) {
+      const userRole = user?.role || 'member';
+      if (!perm.allowed_roles.includes(userRole)) return false;
+    }
+
+    // 4. Department / Part check
+    if (perm.allowed_groups && perm.allowed_groups.length > 0) {
+      const userParentGroup = user?.parent_group || '';
+      const userGroupId = user?.group_part_id || '';
+      const match = perm.allowed_groups.some(
+        (g) => g === userParentGroup || g === userGroupId
+      );
+      if (!match) return false;
+    }
+
+    return true;
+  }, [user, menuPermissions]);
+
   // Current timestamp for live countdown
   const [now, setNow] = useState(Date.now());
 
@@ -535,14 +605,24 @@ export const TrainingPage = () => {
 
                     {/* View Post-Test Key Button */}
                     {tItem.has_answer_key ? (
-                      <button
-                        type="button"
-                        className={styles.keyButton}
-                        onClick={() => handleOpenUnlockModal(tItem)}
-                      >
-                        <Lock size={15} />
-                        <span>Lihat Kunci Jawaban</span>
-                      </button>
+                      isAnswerKeyAllowed ? (
+                        <button
+                          type="button"
+                          className={styles.keyButton}
+                          onClick={() => handleOpenUnlockModal(tItem)}
+                        >
+                          <Lock size={15} />
+                          <span>Lihat Kunci Jawaban</span>
+                        </button>
+                      ) : (
+                        <div
+                          className={styles.noKeyBadge}
+                          title="Akses kunci jawaban dinonaktifkan atau dibatasi oleh administrator untuk akun Anda"
+                        >
+                          <Lock size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: -1 }} />
+                          Kunci Jawaban Dibatasi
+                        </div>
+                      )
                     ) : (
                       <div className={styles.noKeyBadge}>
                         Tidak Ada Kunci Jawaban Post-Test
