@@ -19,7 +19,8 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const from = location.state?.from?.pathname || '/';
+  const searchParams = new URLSearchParams(location.search);
+  const from = location.state?.from?.pathname || searchParams.get('redirect') || '/';
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -89,7 +89,7 @@ func main() {
 	projectHandler := handler.NewProjectHandler(projectRepo, userRepo, reportRepo, smtpService)
 	modelHandler := handler.NewNewModelHandler(modelRepo)
 	articleHandler := handler.NewArticleHandler(articleRepo)
-	docHandler := handler.NewDocumentHandler(docRepo, cfg.FileStoragePath)
+	docHandler := handler.NewDocumentHandler(docRepo, cfg.FileStoragePath, jwtService)
 	commentHandler := handler.NewCommentHandler(commentRepo)
 	mcpHandler := handler.NewMCPHandler(mcpRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo, pgPool.Pool)
@@ -143,6 +143,12 @@ func main() {
 	authGroup.POST("/login", authHandler.Login)
 	authGroup.POST("/refresh", authHandler.Refresh)
 	authGroup.POST("/logout", authHandler.Logout)
+
+	// Public Shared Documents Endpoints (Open public, Login required, Password protected)
+	e.GET("/api/v1/shared/documents/:token", docHandler.GetPublicShare)
+	e.POST("/api/v1/shared/documents/:token/verify", docHandler.VerifySharePassword)
+	e.GET("/api/v1/shared/documents/:token/download", docHandler.DownloadSharedFile)
+	e.GET("/api/v1/shared/documents/:token/preview", docHandler.PreviewSharedFile)
 
 	// Protected routes (Require JWT)
 	jwtMiddleware := middleware.AuthMiddleware(jwtService)
@@ -237,13 +243,16 @@ func main() {
 	api.PUT("/imei/articles/:id", articleHandler.Update)
 	api.DELETE("/imei/articles/:id", articleHandler.Delete)
 
-	// Documents / File Archive
+	// Documents / File Archive & Sharing
 	api.GET("/documents", docHandler.List)
 	api.POST("/documents/upload", docHandler.Upload)
 	api.GET("/documents/:id", docHandler.Get)
 	api.GET("/documents/:id/download", docHandler.Download)
 	api.GET("/documents/:id/preview", docHandler.Preview)
 	api.DELETE("/documents/:id", docHandler.Delete)
+	api.POST("/documents/:id/share", docHandler.CreateOrUpdateShare)
+	api.GET("/documents/:id/share", docHandler.GetShare)
+	api.DELETE("/documents/:id/share", docHandler.RevokeShare)
 
 	// Comments & Reactions
 	api.GET("/comments", commentHandler.List)

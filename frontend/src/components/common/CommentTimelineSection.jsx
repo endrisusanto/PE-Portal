@@ -53,7 +53,7 @@ export const CommentTimelineSection = ({
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // 'all' | 'comments' | 'logs'
+  const [filter, setFilter] = useState('comments'); // 'comments' (default) | 'logs' | 'all'
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -198,13 +198,6 @@ export const CommentTimelineSection = ({
         <div className={styles.filterTabs}>
           <button
             type="button"
-            className={`${styles.filterBtn} ${filter === 'all' ? styles.filterBtnActive : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            Semua ({items.length})
-          </button>
-          <button
-            type="button"
             className={`${styles.filterBtn} ${filter === 'comments' ? styles.filterBtnActive : ''}`}
             onClick={() => setFilter('comments')}
           >
@@ -216,6 +209,13 @@ export const CommentTimelineSection = ({
             onClick={() => setFilter('logs')}
           >
             Log Ubahan ({logsCount})
+          </button>
+          <button
+            type="button"
+            className={`${styles.filterBtn} ${filter === 'all' ? styles.filterBtnActive : ''}`}
+            onClick={() => setFilter('all')}
+          >
+            Semua ({items.length})
           </button>
         </div>
       </div>

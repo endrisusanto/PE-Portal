@@ -239,6 +239,35 @@ type Document struct {
 	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
+// DocumentShare represents sharing settings for a document (open public, login required, or password-locked)
+type DocumentShare struct {
+	ID            uuid.UUID  `json:"id"`
+	DocumentID    uuid.UUID  `json:"document_id"`
+	ShareToken    string     `json:"share_token"`
+	AccessRule    string     `json:"access_rule"` // public, login_required, password
+	PasswordHash  string     `json:"-"`
+	PlainPassword string     `json:"plain_password,omitempty"`
+	AllowDownload bool       `json:"allow_download"`
+	ExpiresAt     *time.Time `json:"expires_at"`
+	ViewCount     int        `json:"view_count"`
+	DownloadCount int        `json:"download_count"`
+	CreatedBy     *uuid.UUID `json:"created_by"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	Document      *Document  `json:"document,omitempty"`
+}
+
+type CreateShareRequest struct {
+	AccessRule    string `json:"access_rule"` // public, login_required, password
+	Password      string `json:"password"`
+	AllowDownload *bool  `json:"allow_download"`
+	ExpiresInDays *int   `json:"expires_in_days"`
+}
+
+type VerifySharePasswordRequest struct {
+	Password string `json:"password"`
+}
+
 // Comment supports comments with full emoji UTF-8 and reaction counters
 type Comment struct {
 	ID         uuid.UUID       `json:"id"`

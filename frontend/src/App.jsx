@@ -28,6 +28,7 @@ import { AdminPage } from './pages/AdminPage';
 import { UtilityPage } from './pages/UtilityPage';
 import { GmesMonitoringPage } from './pages/GmesMonitoringPage';
 import { TrainingPage } from './pages/TrainingPage';
+import { SharedDocumentPage } from './pages/SharedDocumentPage';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -63,6 +64,7 @@ export function App() {
             <Routes>
               {/* Public Login Route */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/share/:token" element={<SharedDocumentPage />} />
 
               {/* Protected Application Routes */}
               <Route

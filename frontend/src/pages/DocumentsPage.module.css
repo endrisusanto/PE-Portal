@@ -1,0 +1,173 @@
+/* Share Modal Styling - Follows ponytail: clean, native, generous hit areas, rounded corners */
+.ruleCardGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.ruleCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-secondary, #1e293b);
+  border: 1.5px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.ruleCard:hover {
+  border-color: var(--color-border-hover, rgba(255, 255, 255, 0.25));
+  background: var(--color-bg-hover, #243248);
+}
+
+.ruleCardActive {
+  border-color: var(--color-accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.ruleIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm, 6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ruleCardTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin: 0 0 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ruleCardDesc {
+  font-size: 12px;
+  color: var(--color-text-secondary, #94a3b8);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ruleTag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+
+/* Link Result Box */
+.linkResultBox {
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: var(--radius-md, 8px);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.linkHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.linkInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.linkInput {
+  flex: 1;
+  background: var(--color-bg-primary, #0f172a);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.15));
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-family: var(--font-mono, monospace);
+  color: #ffffff;
+  outline: none;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-accent, #3b82f6);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.copyBtn:hover {
+  opacity: 0.9;
+}
+
+.linkStats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.optionSection {
+  background: var(--color-bg-primary, #0f172a);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.selectGroup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.selectGroup label {
+  font-size: 12.5px;
+  color: var(--color-text-secondary, #cbd5e1);
+}
+
+.customSelect {
+  background: var(--color-bg-secondary, #1e293b);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.15));
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 12.5px;
+  outline: none;
+}
