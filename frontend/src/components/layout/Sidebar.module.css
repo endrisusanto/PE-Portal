@@ -239,6 +239,90 @@
   font-weight: 700;
 }
 
+/* Level 2 Nested Submenu (inside Tools) */
+.nestedGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 1px 0;
+}
+
+.nestedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.nestedHeader:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.nestedHeaderActive {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.nestedTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nestedSubnavContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  margin-left: 10px;
+  border-left: 1.5px solid var(--color-border);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.nestedSubnavLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.nestedSubnavLink span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nestedSubnavLink:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.nestedSubnavActive {
+  background-color: var(--color-accent-subtle) !important;
+  color: var(--color-accent) !important;
+  font-weight: 700;
+}
+
 .collapsed .groupHeader {
   justify-content: center;
   padding: var(--space-2) 0;

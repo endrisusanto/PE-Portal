@@ -27,6 +27,7 @@ import {
   Truck,
   Activity,
   GraduationCap,
+  Terminal,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Sidebar.module.css';
@@ -43,12 +44,28 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const isToolsActive = location.pathname.startsWith('/tools') || location.pathname.startsWith('/utility');
   const isSampleManagementActive = location.pathname.startsWith('/samples');
 
+  // Tools sub-category active checks
+  const isToolsDocsActive = location.pathname === '/tools/documents' || location.pathname === '/tools/pdf-merge-split';
+  const isToolsMediaActive =
+    location.pathname === '/tools/images' ||
+    location.pathname === '/tools/remove-bg' ||
+    location.pathname === '/utility/remove-bg';
+  const isToolsSwActive = location.pathname === '/tools/cl-compare' || location.pathname === '/tools/build-command';
+
   // Single open group state (accordion pattern: max 1 multilevel menu open at any time)
   const [openGroupKey, setOpenGroupKey] = useState(() => {
     if (isSampleManagementActive) return 'sample-management';
     if (isSoftwareTeamActive) return 'software-team';
     if (isToolsActive) return 'tools';
     return localStorage.getItem('pe_sidebar_open_group') || null;
+  });
+
+  // Sub-level accordion inside Tools: max 1 sub-group open at a time
+  const [openToolsSubKey, setOpenToolsSubKey] = useState(() => {
+    if (isToolsDocsActive) return 'dokumen';
+    if (isToolsMediaActive) return 'media';
+    if (isToolsSwActive) return 'software-dev';
+    return 'dokumen';
   });
 
   // Auto-switch open group when route changes to an active section
@@ -62,6 +79,12 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     }
   }, [isSampleManagementActive, isSoftwareTeamActive, isToolsActive]);
 
+  useEffect(() => {
+    if (isToolsDocsActive) setOpenToolsSubKey('dokumen');
+    else if (isToolsMediaActive) setOpenToolsSubKey('media');
+    else if (isToolsSwActive) setOpenToolsSubKey('software-dev');
+  }, [isToolsDocsActive, isToolsMediaActive, isToolsSwActive]);
+
   const handleToggleGroup = (groupKey) => {
     setOpenGroupKey((prev) => {
       const next = prev === groupKey ? null : groupKey;
@@ -74,17 +97,53 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     });
   };
 
+  const handleToggleToolsSub = (subKey) => {
+    setOpenToolsSubKey((prev) => (prev === subKey ? null : subKey));
+  };
+
   const softwareTeamSubItems = [
     { to: '/gba-tasks', label: t('nav.gba_tasks', 'GBA Tasks'), icon: Kanban },
     { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
   ].sort((a, b) => a.label.localeCompare(b.label));
 
-  const toolsSubItems = [
-    { to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
-    { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
-    { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
-    { to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  const toolsNestedGroups = [
+    {
+      key: 'dokumen',
+      label: t('nav.tools_category_docs', 'Dokumen'),
+      icon: FileArchive,
+      isActive: isToolsDocsActive,
+      isOpen: openToolsSubKey === 'dokumen',
+      onToggle: () => handleToggleToolsSub('dokumen'),
+      children: [
+        { to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
+        { to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
+      ].sort((a, b) => a.label.localeCompare(b.label)),
+    },
+    {
+      key: 'media',
+      label: t('nav.tools_category_media', 'Media'),
+      icon: ImageIcon,
+      isActive: isToolsMediaActive,
+      isOpen: openToolsSubKey === 'media',
+      onToggle: () => handleToggleToolsSub('media'),
+      children: [
+        { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
+        { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
+      ].sort((a, b) => a.label.localeCompare(b.label)),
+    },
+    {
+      key: 'software-dev',
+      label: t('nav.tools_category_sw', 'Software Dev'),
+      icon: Terminal,
+      isActive: isToolsSwActive,
+      isOpen: openToolsSubKey === 'software-dev',
+      onToggle: () => handleToggleToolsSub('software-dev'),
+      children: [
+        { to: '/tools/cl-compare', label: t('nav.tools_cl_compare', 'CL Compare'), icon: GitCompare },
+        { to: '/tools/build-command', label: t('nav.tools_build_command', 'Build Command'), icon: Terminal },
+      ].sort((a, b) => a.label.localeCompare(b.label)),
+    },
+  ];
 
   const sampleManagementSubItems = [
     { to: '/samples', label: t('nav.samples_database', 'Database Sample PE'), icon: PackageCheck, end: true },
@@ -126,13 +185,14 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/team', label: t('nav.team'), icon: Users },
     {
       isGroup: true,
+      isNested: true,
       key: 'tools',
       label: t('nav.tools', 'Tools'),
       icon: Wrench,
       isActive: isToolsActive,
       isOpen: openGroupKey === 'tools',
       onToggle: () => handleToggleGroup('tools'),
-      children: toolsSubItems,
+      nestedGroups: toolsNestedGroups,
     },
     { to: '/reports', label: t('nav.reports'), icon: FileText },
   ].sort((a, b) => a.label.localeCompare(b.label));
@@ -221,23 +281,71 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
 
                 {item.isOpen && (
                   <div className={styles.subnavContainer}>
-                    {item.children.map((sub) => {
-                      const SubIcon = sub.icon;
-                      return (
-                        <NavLink
-                          key={sub.to}
-                          to={sub.to}
-                          end={sub.end}
-                          className={({ isActive }) =>
-                            `${styles.subnavLink} ${isActive ? styles.subnavActive : ''}`
-                          }
-                          title={sub.label}
-                        >
-                          <SubIcon size={15} className={styles.navIcon} />
-                          {!isCollapsed && <span>{sub.label}</span>}
-                        </NavLink>
-                      );
-                    })}
+                    {item.isNested ? (
+                      item.nestedGroups.map((nested) => {
+                        const NestedIcon = nested.icon;
+                        return (
+                          <div key={nested.key} className={styles.nestedGroup}>
+                            <button
+                              type="button"
+                              className={`${styles.nestedHeader} ${nested.isActive ? styles.nestedHeaderActive : ''}`}
+                              onClick={nested.onToggle}
+                              title={nested.label}
+                              aria-expanded={nested.isOpen}
+                            >
+                              <div className={styles.nestedTitle}>
+                                <NestedIcon size={14} className={styles.navIcon} />
+                                <span>{nested.label}</span>
+                              </div>
+                              <ChevronDown
+                                size={12}
+                                className={`${styles.chevronIcon} ${nested.isOpen ? styles.chevronOpen : ''}`}
+                              />
+                            </button>
+
+                            {nested.isOpen && (
+                              <div className={styles.nestedSubnavContainer}>
+                                {nested.children.map((sub) => {
+                                  const SubIcon = sub.icon;
+                                  return (
+                                    <NavLink
+                                      key={sub.to}
+                                      to={sub.to}
+                                      end={sub.end}
+                                      className={({ isActive }) =>
+                                        `${styles.nestedSubnavLink} ${isActive ? styles.nestedSubnavActive : ''}`
+                                      }
+                                      title={sub.label}
+                                    >
+                                      <SubIcon size={13} className={styles.navIcon} />
+                                      <span>{sub.label}</span>
+                                    </NavLink>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      item.children.map((sub) => {
+                        const SubIcon = sub.icon;
+                        return (
+                          <NavLink
+                            key={sub.to}
+                            to={sub.to}
+                            end={sub.end}
+                            className={({ isActive }) =>
+                              `${styles.subnavLink} ${isActive ? styles.subnavActive : ''}`
+                            }
+                            title={sub.label}
+                          >
+                            <SubIcon size={15} className={styles.navIcon} />
+                            {!isCollapsed && <span>{sub.label}</span>}
+                          </NavLink>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>

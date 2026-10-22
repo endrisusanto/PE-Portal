@@ -25,6 +25,10 @@ import {
   ArrowDown,
   Layers,
   Split,
+  GitCompare,
+  Terminal,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import api from '../api/client';
@@ -102,6 +106,16 @@ export const UtilityPage = () => {
       subtitle: 'Gabungkan beberapa dokumen PDF menjadi satu atau pisahkan halaman tertentu secara instan & 100% lokal di browser.',
       icon: FileStack,
     },
+    'cl-compare': {
+      title: t('nav.tools_cl_compare', 'CL Compare'),
+      subtitle: 'Normalisasi, sortir urutan Change List (CL), serta komparasi 3-way (Left Only, Common, Right Only) secara instan.',
+      icon: GitCompare,
+    },
+    'build-command': {
+      title: t('nav.tools_build_command', 'Build Command'),
+      subtitle: 'Konversi otomatis perintah BASE SYSTEM_BUILD_CMD ke versi INDONESIA USER & ENG build command dengan sentuhan cerdas.',
+      icon: Terminal,
+    },
   };
 
   const currentTool = toolMeta[activeTab] || toolMeta.images;
@@ -144,6 +158,8 @@ export const UtilityPage = () => {
       {activeTab === 'documents' && <DocumentCompressTab />}
       {activeTab === 'remove-bg' && <RemoveBackgroundTab />}
       {activeTab === 'pdf-merge-split' && <PdfMergeSplitTab />}
+      {activeTab === 'cl-compare' && <CLCompareTab />}
+      {activeTab === 'build-command' && <BuildCommandTab />}
     </div>
   );
 };
@@ -2123,6 +2139,573 @@ const PdfMergeSplitTab = () => {
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+// ============================================================================
+// 5. CL COMPARE TOOL TAB
+// ============================================================================
+const preprocessCL = (input) => {
+  if (!input) return [];
+  const parts = input.split(/\D+/);
+  const set = new Set();
+  const result = [];
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (!p) continue;
+    const val = parseInt(p, 10);
+    if (!isNaN(val) && !set.has(val)) {
+      set.add(val);
+      result.push(val);
+    }
+  }
+  result.sort((a, b) => a - b);
+  return result;
+};
+
+const CLCompareTab = () => {
+  const [mode, setMode] = useState('sort'); // 'sort' | 'compare'
+
+  // Sort state
+  const [sortInput, setSortInput] = useState('');
+  const [sortDelimiter, setSortDelimiter] = useState('comma'); // 'comma' | 'newline'
+  const [sortCopied, setSortCopied] = useState(false);
+
+  const sortedCLs = React.useMemo(() => preprocessCL(sortInput), [sortInput]);
+  const sortedOutput = React.useMemo(() => {
+    return sortDelimiter === 'comma' ? sortedCLs.join(', ') : sortedCLs.join('\n');
+  }, [sortedCLs, sortDelimiter]);
+
+  const handleCopySort = () => {
+    if (!sortedOutput) return;
+    navigator.clipboard.writeText(sortedOutput);
+    setSortCopied(true);
+    setTimeout(() => setSortCopied(false), 1500);
+  };
+
+  // Compare state
+  const [leftInput, setLeftInput] = useState('');
+  const [rightInput, setRightInput] = useState('');
+  const [compareDelimiter, setCompareDelimiter] = useState('comma'); // 'comma' | 'newline'
+  const [copiedColumn, setCopiedColumn] = useState(null); // 'left' | 'common' | 'right'
+
+  const { leftOnly, common, rightOnly } = React.useMemo(() => {
+    const leftList = preprocessCL(leftInput);
+    const rightList = preprocessCL(rightInput);
+
+    const leftSet = new Set(leftList);
+    const rightSet = new Set(rightList);
+
+    const commonItems = leftList.filter((x) => rightSet.has(x));
+    const leftOnlyItems = leftList.filter((x) => !rightSet.has(x));
+    const rightOnlyItems = rightList.filter((x) => !leftSet.has(x));
+
+    return {
+      leftOnly: leftOnlyItems,
+      common: commonItems,
+      rightOnly: rightOnlyItems,
+    };
+  }, [leftInput, rightInput]);
+
+  const formatList = (arr) => (compareDelimiter === 'comma' ? arr.join(', ') : arr.join('\n'));
+
+  const handleCopyColumn = (colName, text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedColumn(colName);
+    setTimeout(() => setCopiedColumn(null), 1500);
+  };
+
+  return (
+    <div className={styles.toolCard}>
+      {/* Subtab Switcher */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div className={styles.tabButtonGroup}>
+          <button
+            type="button"
+            className={`${styles.tabButtonItem} ${mode === 'sort' ? styles.tabButtonItemActive : ''}`}
+            onClick={() => setMode('sort')}
+          >
+            Sort & Normalize
+          </button>
+          <button
+            type="button"
+            className={`${styles.tabButtonItem} ${mode === 'compare' ? styles.tabButtonItemActive : ''}`}
+            onClick={() => setMode('compare')}
+          >
+            3-Way Compare
+          </button>
+        </div>
+      </div>
+
+      {mode === 'sort' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                Input Change Lists (CLs)
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSortInput('32451000 31998945, 32451000, 31887200\n32011223')}
+                >
+                  Contoh Data
+                </Button>
+                {sortInput && (
+                  <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setSortInput('')}>
+                    Bersihkan
+                  </Button>
+                )}
+              </div>
+            </div>
+            <textarea
+              className={styles.toolTextarea}
+              rows={5}
+              placeholder="Tempelkan daftar CL di sini (bisa dipisah spasi, koma, baris baru, atau teks acak)..."
+              value={sortInput}
+              onChange={(e) => setSortInput(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.outputColumn}>
+            <div className={styles.columnHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span>Hasil Normalisasi & Urutan Ascending</span>
+                <span
+                  className={styles.counterBadge}
+                  style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent)' }}
+                >
+                  {sortedCLs.length} CLs
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <select
+                  className={styles.selectInput}
+                  value={sortDelimiter}
+                  onChange={(e) => setSortDelimiter(e.target.value)}
+                  style={{ padding: '3px 8px', fontSize: '12px' }}
+                >
+                  <option value="comma">Pemisah Koma (,)</option>
+                  <option value="newline">Baris Baru (\n)</option>
+                </select>
+                <Button
+                  variant={sortCopied ? 'success' : 'primary'}
+                  size="sm"
+                  icon={sortCopied ? Check : Copy}
+                  disabled={sortedCLs.length === 0}
+                  onClick={handleCopySort}
+                >
+                  {sortCopied ? 'Tersalin!' : 'Salin Hasil'}
+                </Button>
+              </div>
+            </div>
+            <textarea
+              className={styles.toolTextarea}
+              rows={5}
+              readOnly
+              placeholder="Hasil CL yang sudah disortir dan dinormalisasi akan muncul di sini..."
+              value={sortedOutput}
+            />
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Inputs Grid */}
+          <div className={styles.compareGrid2}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Input CL Left
+                </label>
+                <span className={styles.counterBadge} style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                  {preprocessCL(leftInput).length} CLs
+                </span>
+              </div>
+              <textarea
+                className={styles.toolTextarea}
+                rows={5}
+                placeholder="Tempelkan CL sisi Kiri..."
+                value={leftInput}
+                onChange={(e) => setLeftInput(e.target.value)}
+              />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Input CL Right
+                </label>
+                <span className={styles.counterBadge} style={{ backgroundColor: 'rgba(168, 85, 247, 0.15)', color: '#a855f7' }}>
+                  {preprocessCL(rightInput).length} CLs
+                </span>
+              </div>
+              <textarea
+                className={styles.toolTextarea}
+                rows={5}
+                placeholder="Tempelkan CL sisi Kanan..."
+                value={rightInput}
+                onChange={(e) => setRightInput(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setLeftInput('31998945, 32001000, 32011223, 32451000');
+                  setRightInput('32001000, 32451000, 32550100, 32660200');
+                }}
+              >
+                Muat Contoh Komparasi
+              </Button>
+              {(leftInput || rightInput) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  onClick={() => {
+                    setLeftInput('');
+                    setRightInput('');
+                  }}
+                >
+                  Bersihkan Keduanya
+                </Button>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Format:</span>
+              <select
+                className={styles.selectInput}
+                value={compareDelimiter}
+                onChange={(e) => setCompareDelimiter(e.target.value)}
+                style={{ padding: '3px 8px', fontSize: '12px' }}
+              >
+                <option value="comma">Koma (,)</option>
+                <option value="newline">Baris Baru (\n)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 3 Output Columns */}
+          <div className={styles.compareGrid3}>
+            {/* Left Only */}
+            <div className={styles.outputColumn}>
+              <div className={styles.columnHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Left Only</span>
+                  <span className={styles.counterBadge} style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                    {leftOnly.length}
+                  </span>
+                </div>
+                <Button
+                  variant={copiedColumn === 'left' ? 'success' : 'ghost'}
+                  size="sm"
+                  icon={copiedColumn === 'left' ? Check : Copy}
+                  disabled={leftOnly.length === 0}
+                  onClick={() => handleCopyColumn('left', formatList(leftOnly))}
+                >
+                  {copiedColumn === 'left' ? 'Tersalin' : 'Salin'}
+                </Button>
+              </div>
+              <textarea
+                className={styles.toolTextarea}
+                rows={7}
+                readOnly
+                placeholder="CL yang hanya ada di Left..."
+                value={formatList(leftOnly)}
+              />
+            </div>
+
+            {/* Common */}
+            <div className={styles.outputColumn}>
+              <div className={styles.columnHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Common (Keduanya)</span>
+                  <span className={styles.counterBadge} style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                    {common.length}
+                  </span>
+                </div>
+                <Button
+                  variant={copiedColumn === 'common' ? 'success' : 'ghost'}
+                  size="sm"
+                  icon={copiedColumn === 'common' ? Check : Copy}
+                  disabled={common.length === 0}
+                  onClick={() => handleCopyColumn('common', formatList(common))}
+                >
+                  {copiedColumn === 'common' ? 'Tersalin' : 'Salin'}
+                </Button>
+              </div>
+              <textarea
+                className={styles.toolTextarea}
+                rows={7}
+                readOnly
+                placeholder="CL yang ada di Left & Right..."
+                value={formatList(common)}
+              />
+            </div>
+
+            {/* Right Only */}
+            <div className={styles.outputColumn}>
+              <div className={styles.columnHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Right Only</span>
+                  <span className={styles.counterBadge} style={{ backgroundColor: 'rgba(168, 85, 247, 0.15)', color: '#a855f7' }}>
+                    {rightOnly.length}
+                  </span>
+                </div>
+                <Button
+                  variant={copiedColumn === 'right' ? 'success' : 'ghost'}
+                  size="sm"
+                  icon={copiedColumn === 'right' ? Check : Copy}
+                  disabled={rightOnly.length === 0}
+                  onClick={() => handleCopyColumn('right', formatList(rightOnly))}
+                >
+                  {copiedColumn === 'right' ? 'Tersalin' : 'Salin'}
+                </Button>
+              </div>
+              <textarea
+                className={styles.toolTextarea}
+                rows={7}
+                readOnly
+                placeholder="CL yang hanya ada di Right..."
+                value={formatList(rightOnly)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// 6. BUILD COMMAND CONVERTER TAB
+// ============================================================================
+const DEFAULT_BUILD_CMD =
+  './build -oa -tuser -ma -i A336EDXUEGYH7 -j EGYH7 -B -Wt --sssi-build system -d low -s -r31998945 a33x_sea_open OLM OJM OLM_SUP OJM_SUP';
+
+const BuildCommandTab = () => {
+  const [baseCmd, setBaseCmd] = useState(DEFAULT_BUILD_CMD);
+  const [copiedType, setCopiedType] = useState(null); // 'user' | 'eng'
+
+  const conversion = React.useMemo(() => {
+    if (!baseCmd.trim()) {
+      return {
+        userText: '',
+        userHtml: '',
+        userChanges: [],
+        engText: '',
+        engHtml: '',
+        engChanges: [],
+      };
+    }
+
+    const customerBlockRegex = /(\w+_(?:sea|swa|eur|cis|mea|gbl)_\w+)\s+([A-Z_ ]+?)(\s*)$/;
+
+    // 1. Process USER Command
+    let userChanges = [];
+    let userHtml = baseCmd;
+    let userText = baseCmd;
+
+    if (baseCmd.includes(' -ma ')) {
+      userChanges.push({ from: '-ma', to: '-mc', color: styles.highlightMc });
+      userHtml = userHtml.replace(' -ma ', ` <span class="${styles.highlightMc}">-mc</span> `);
+      userText = userText.replace(' -ma ', ' -mc ');
+    }
+
+    const userMatch = baseCmd.match(customerBlockRegex);
+    if (userMatch) {
+      const allCustomerCodes = userMatch[2];
+      if (/OXT/.test(allCustomerCodes)) {
+        userChanges.push({ from: 'Customer Code', to: 'OLP', color: styles.highlightRegion });
+        userHtml = userHtml.replace(customerBlockRegex, `$1 <span class="${styles.highlightRegion}">OLP</span>$3`);
+        userText = userText.replace(customerBlockRegex, `$1 OLP$3`);
+      } else if (/OLM|OJM|OXM|OXE|ODM|OLE/.test(allCustomerCodes)) {
+        userChanges.push({ from: 'Customer Code', to: 'OLE', color: styles.highlightRegion });
+        userHtml = userHtml.replace(customerBlockRegex, `$1 <span class="${styles.highlightRegion}">OLE</span>$3`);
+        userText = userText.replace(customerBlockRegex, `$1 OLE$3`);
+      }
+    }
+
+    // 2. Process ENG Command
+    let engChanges = [];
+    let engHtml = baseCmd;
+    let engText = baseCmd;
+
+    if (baseCmd.includes(' -ma ')) {
+      engChanges.push({ from: '-ma', to: '-mc', color: styles.highlightMc });
+      engHtml = engHtml.replace(' -ma ', ` <span class="${styles.highlightMc}">-mc</span> `);
+      engText = engText.replace(' -ma ', ' -mc ');
+    }
+
+    const engMatch = baseCmd.match(customerBlockRegex);
+    if (engMatch) {
+      const allCustomerCodes = engMatch[2];
+      if (/OXT/.test(allCustomerCodes)) {
+        engChanges.push({ from: 'Customer Code', to: 'OLP', color: styles.highlightRegion });
+        engHtml = engHtml.replace(customerBlockRegex, `$1 <span class="${styles.highlightRegion}">OLP</span>$3`);
+        engText = engText.replace(customerBlockRegex, `$1 OLP$3`);
+      } else if (/OLM|OJM|OXM|OXE|ODM|OLE/.test(allCustomerCodes)) {
+        engChanges.push({ from: 'Customer Code', to: 'OLE', color: styles.highlightRegion });
+        engHtml = engHtml.replace(customerBlockRegex, `$1 <span class="${styles.highlightRegion}">OLE</span>$3`);
+        engText = engText.replace(customerBlockRegex, `$1 OLE$3`);
+      }
+    }
+
+    if (baseCmd.includes(' -tuser ')) {
+      engChanges.push({ from: '-tuser', to: '-teng', color: styles.highlightTeng });
+      engHtml = engHtml.replace(' -tuser ', ` <span class="${styles.highlightTeng}">-teng</span> `);
+      engText = engText.replace(' -tuser ', ' -teng ');
+    }
+
+    if (baseCmd.match(/\s-d\s+(low)\s/)) {
+      engChanges.push({ from: '-d low', to: '-d mid', color: styles.highlightMid });
+    }
+    engHtml = engHtml.replace(/\s-d\s+(low|mid)\s/, ` <span class="${styles.highlightMid}">-d mid</span> `);
+    engText = engText.replace(/\s-d\s+(low|mid)\s/, ' -d mid ');
+
+    if (baseCmd.includes(' -s ')) {
+      engChanges.push({ from: '-s', to: '(Hapus)', color: styles.highlightMid });
+      engHtml = engHtml.replace(' -s ', ' ');
+      engText = engText.replace(' -s ', ' ');
+    }
+
+    return {
+      userText,
+      userHtml,
+      userChanges,
+      engText,
+      engHtml,
+      engChanges,
+    };
+  }, [baseCmd]);
+
+  const handleCopy = (type, text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedType(type);
+    setTimeout(() => setCopiedType(null), 1500);
+  };
+
+  return (
+    <div className={styles.toolCard}>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            BASE SYSTEM_BUILD_CMD
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button variant="ghost" size="sm" onClick={() => setBaseCmd(DEFAULT_BUILD_CMD)}>
+              Reset Contoh
+            </Button>
+            {baseCmd && (
+              <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setBaseCmd('')}>
+                Bersihkan
+              </Button>
+            )}
+          </div>
+        </div>
+        <textarea
+          className={styles.toolTextarea}
+          rows={3}
+          value={baseCmd}
+          onChange={(e) => setBaseCmd(e.target.value)}
+          placeholder="Masukkan perintah build dasar di sini..."
+        />
+      </div>
+
+      <div className={styles.compareGrid2}>
+        {/* User Build Output */}
+        <div className={styles.outputColumn}>
+          <div className={styles.columnHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>INDONESIA SYSTEM_BUILD_CMD USER</span>
+            </div>
+            <Button
+              variant={copiedType === 'user' ? 'success' : 'primary'}
+              size="sm"
+              icon={copiedType === 'user' ? Check : Copy}
+              disabled={!conversion.userText}
+              onClick={() => handleCopy('user', conversion.userText)}
+            >
+              {copiedType === 'user' ? 'Tersalin!' : 'Salin Perintah'}
+            </Button>
+          </div>
+
+          <div
+            className={styles.commandBox}
+            dangerouslySetInnerHTML={{ __html: conversion.userHtml || '<em>Belum ada perintah yang dihasilkan...</em>' }}
+            onClick={() => handleCopy('user', conversion.userText)}
+            title="Klik untuk menyalin"
+            style={{ cursor: 'pointer' }}
+          />
+
+          <div style={{ marginTop: '4px' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Perubahan:</span>
+            {conversion.userChanges.length > 0 ? (
+              <div className={styles.summaryList}>
+                {conversion.userChanges.map((ch, idx) => (
+                  <span key={idx} className={styles.summaryTag}>
+                    <code>{ch.from}</code> &rarr; <span className={ch.color}>{ch.to}</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                <em>Tidak ada perubahan dari BASE</em>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Eng Build Output */}
+        <div className={styles.outputColumn}>
+          <div className={styles.columnHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>INDONESIA SYSTEM_BUILD_CMD ENG</span>
+            </div>
+            <Button
+              variant={copiedType === 'eng' ? 'success' : 'primary'}
+              size="sm"
+              icon={copiedType === 'eng' ? Check : Copy}
+              disabled={!conversion.engText}
+              onClick={() => handleCopy('eng', conversion.engText)}
+            >
+              {copiedType === 'eng' ? 'Tersalin!' : 'Salin Perintah'}
+            </Button>
+          </div>
+
+          <div
+            className={styles.commandBox}
+            dangerouslySetInnerHTML={{ __html: conversion.engHtml || '<em>Belum ada perintah yang dihasilkan...</em>' }}
+            onClick={() => handleCopy('eng', conversion.engText)}
+            title="Klik untuk menyalin"
+            style={{ cursor: 'pointer' }}
+          />
+
+          <div style={{ marginTop: '4px' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Perubahan:</span>
+            {conversion.engChanges.length > 0 ? (
+              <div className={styles.summaryList}>
+                {conversion.engChanges.map((ch, idx) => (
+                  <span key={idx} className={styles.summaryTag}>
+                    <code>{ch.from}</code> &rarr; <span className={ch.color}>{ch.to}</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                <em>Tidak ada perubahan dari BASE</em>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
