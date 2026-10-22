@@ -96,7 +96,6 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 	}
 
 	// 4. Map or sync into local users table
-	localAuth := NewLocalAuthProvider(l.pool)
 	user, err := localAuth.Authenticate(ctx, username, password)
 	if err == nil {
 		return user, nil

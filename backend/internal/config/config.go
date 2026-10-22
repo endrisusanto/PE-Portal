@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -33,11 +34,23 @@ func Load() *Config {
 	// ponytail: support both PORT and BACKEND_PORT with 8085 default for bare-metal
 	port := getEnv("PORT", getEnv("BACKEND_PORT", "8085"))
 	dbURL := getEnv("DATABASE_URL", "")
+	// ponytail: if DATABASE_URL points to docker container 'postgres' on bare metal, auto-fallback to localhost
+	if strings.Contains(dbURL, "@postgres:") {
+		if _, err := os.Stat("/.dockerenv"); err != nil {
+			dbURL = strings.Replace(dbURL, "@postgres:", "@localhost:", 1)
+		}
+	}
 	if dbURL == "" {
 		dbURL = getEnv("LOCAL_DATABASE_URL", "postgres://pe_portal:sein_pe_portal_secret_2026@localhost:5432/pe_portal?sslmode=disable")
 	}
 
 	redisURL := getEnv("REDIS_URL", "")
+	// ponytail: if REDIS_URL points to docker container 'redis' on bare metal, auto-fallback to localhost
+	if strings.Contains(redisURL, "redis://redis:") {
+		if _, err := os.Stat("/.dockerenv"); err != nil {
+			redisURL = strings.Replace(redisURL, "redis://redis:", "redis://localhost:", 1)
+		}
+	}
 	if redisURL == "" {
 		redisURL = getEnv("LOCAL_REDIS_URL", "redis://localhost:6379")
 	}
