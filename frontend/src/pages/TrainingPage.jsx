@@ -17,8 +17,11 @@ import {
   KeyRound,
   FileCheck,
   ShieldCheck,
+  Pencil,
+  Trash2,
   X
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
 import api from '../api/client';
 import styles from './TrainingPage.module.css';
@@ -34,6 +37,8 @@ const CATEGORIES = [
 
 export const TrainingPage = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
   const [trainings, setTrainings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +76,12 @@ export const TrainingPage = () => {
   });
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // Edit Training Modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState('');
 
   // Current timestamp for live countdown
   const [now, setNow] = useState(Date.now());
@@ -168,6 +179,63 @@ export const TrainingPage = () => {
     }
   };
 
+  // Open Edit Training Modal with existing course data
+  const handleOpenEditModal = (tItem) => {
+    setEditForm({
+      id: tItem.id,
+      title: tItem.title || '',
+      category: tItem.category || 'EHS & Safety',
+      description: tItem.description || '',
+      link_url: tItem.link_url || '',
+      deadline: tItem.deadline ? tItem.deadline.split('T')[0] : '',
+      is_mandatory: Boolean(tItem.is_mandatory),
+      banner_image: tItem.banner_image || '/training-assets/training.png',
+      has_answer_key: Boolean(tItem.has_answer_key),
+      answer_key_password: '', // leave empty to keep existing password
+      answer_key_images: tItem.answer_key_images || ['/training-assets/1759219281_jawaban.png'],
+      answer_key_notes: tItem.answer_key_notes || ''
+    });
+    setEditError('');
+    setIsEditModalOpen(true);
+  };
+
+  // Submit Edit Training
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editForm || !editForm.title.trim()) {
+      setEditError('Judul training wajib diisi.');
+      return;
+    }
+
+    setEditSubmitting(true);
+    setEditError('');
+
+    try {
+      await api.put(`/trainings/${editForm.id}`, editForm);
+      setIsEditModalOpen(false);
+      setEditForm(null);
+      fetchTrainings();
+    } catch (err) {
+      setEditError(err.response?.data?.message || 'Gagal memperbarui modul training.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // Delete Training
+  const handleDeleteTraining = async (tItem) => {
+    if (!window.confirm(`Hapus modul training "${tItem.title}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/trainings/${tItem.id}`);
+      fetchTrainings();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal menghapus modul training.');
+    }
+  };
+
   // Format countdown string
   const getCountdownDisplay = (deadlineStr) => {
     if (!deadlineStr) return null;
@@ -213,30 +281,32 @@ export const TrainingPage = () => {
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
 
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => {
-              setCreateForm({
-                title: '',
-                category: 'EHS & Safety',
-                description: '',
-                link_url: 'https://samsungu.csod.com/LMS/UserTranscript/MainView.aspx',
-                deadline: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().split('T')[0],
-                is_mandatory: true,
-                banner_image: '/training-assets/training.png',
-                has_answer_key: true,
-                answer_key_password: '2025',
-                answer_key_images: ['/training-assets/1759219281_jawaban.png'],
-                answer_key_notes: '1. A, 2. C, 3. D, 4. B, 5. A'
-              });
-              setCreateError('');
-              setIsCreateModalOpen(true);
-            }}
-          >
-            <Plus size={16} />
-            <span>Tambah Training</span>
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => {
+                setCreateForm({
+                  title: '',
+                  category: 'EHS & Safety',
+                  description: '',
+                  link_url: 'https://samsungu.csod.com/LMS/UserTranscript/MainView.aspx',
+                  deadline: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().split('T')[0],
+                  is_mandatory: true,
+                  banner_image: '/training-assets/training.png',
+                  has_answer_key: true,
+                  answer_key_password: '2025',
+                  answer_key_images: ['/training-assets/1759219281_jawaban.png'],
+                  answer_key_notes: '1. A, 2. C, 3. D, 4. B, 5. A'
+                });
+                setCreateError('');
+                setIsCreateModalOpen(true);
+              }}
+            >
+              <Plus size={16} />
+              <span>Tambah Training</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -375,6 +445,30 @@ export const TrainingPage = () => {
                     ) : (
                       <div className={styles.noKeyBadge}>
                         Tidak Ada Kunci Jawaban Post-Test
+                      </div>
+                    )}
+
+                    {/* Admin Access: Edit & Delete (ponytail) */}
+                    {isAdmin && (
+                      <div className={styles.adminCardActions}>
+                        <button
+                          type="button"
+                          className={styles.editCardBtn}
+                          onClick={() => handleOpenEditModal(tItem)}
+                          title="Edit Modul Training"
+                        >
+                          <Pencil size={13} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.deleteCardBtn}
+                          onClick={() => handleDeleteTraining(tItem)}
+                          title="Hapus Modul Training"
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -677,6 +771,148 @@ export const TrainingPage = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit Training Modal */}
+      <Modal
+        isOpen={isEditModalOpen && Boolean(editForm)}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditForm(null);
+        }}
+        title="Edit Modul Training Online"
+        maxWidth="680px"
+      >
+        {editForm && (
+          <form onSubmit={handleEditSubmit}>
+            {editError && (
+              <div className={styles.errorBanner} style={{ marginBottom: '1rem' }}>
+                <AlertCircle size={16} />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <div className={styles.formGroup}>
+              <label>Judul Pelatihan</label>
+              <input
+                type="text"
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                placeholder="Contoh: 2026 Global Quality & Safety Standard"
+                required
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className={styles.formGroup}>
+                <label>Kategori</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                >
+                  <option value="EHS & Safety">EHS & Safety</option>
+                  <option value="Information Security">Information Security</option>
+                  <option value="Technical & AI">Technical & AI</option>
+                  <option value="Compliance">Compliance</option>
+                  <option value="Quality & Standards">Quality & Standards</option>
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Batas Waktu (Deadline)</label>
+                <input
+                  type="date"
+                  value={editForm.deadline}
+                  onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Link Kursus / LMS URL</label>
+              <input
+                type="url"
+                value={editForm.link_url}
+                onChange={(e) => setEditForm({ ...editForm, link_url: e.target.value })}
+                placeholder="https://samsungu.csod.com/..."
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Deskripsi Pelatihan</label>
+              <textarea
+                rows={3}
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="Rincian kompetensi dan materi pelatihan..."
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input
+                  type="checkbox"
+                  checked={editForm.is_mandatory}
+                  onChange={(e) => setEditForm({ ...editForm, is_mandatory: e.target.checked })}
+                />
+                Wajib bagi seluruh karyawan (Mandatory)
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input
+                  type="checkbox"
+                  checked={editForm.has_answer_key}
+                  onChange={(e) => setEditForm({ ...editForm, has_answer_key: e.target.checked })}
+                />
+                Sediakan Kunci Jawaban Post-Test (Protected)
+              </label>
+            </div>
+
+            {editForm.has_answer_key && (
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color, rgba(255,255,255,0.08))', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                <div className={styles.formGroup}>
+                  <label>Password Kunci Jawaban (Kosongkan bila tidak ingin diubah)</label>
+                  <input
+                    type="text"
+                    value={editForm.answer_key_password}
+                    onChange={(e) => setEditForm({ ...editForm, answer_key_password: e.target.value })}
+                    placeholder="Kosongkan jika tetap menggunakan password lama"
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Catatan / Ringkasan Kunci Jawaban</label>
+                  <textarea
+                    rows={2}
+                    value={editForm.answer_key_notes}
+                    onChange={(e) => setEditForm({ ...editForm, answer_key_notes: e.target.value })}
+                    placeholder="Contoh: 1.A, 2.C, 3.B..."
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditForm(null);
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className={styles.primaryButton}
+                disabled={editSubmitting}
+              >
+                {editSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );
