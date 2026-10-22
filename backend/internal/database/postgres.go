@@ -63,6 +63,7 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		"007_sample_management.sql",
 		"008_software_mr.sql",
 		"009_dhl_tracker.sql",
+		"010_gmes_and_training.sql",
 	}
 	for _, file := range files {
 		var alreadyApplied bool

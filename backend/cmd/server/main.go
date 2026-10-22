@@ -101,6 +101,10 @@ func main() {
 	utilityHandler := handler.NewUtilityHandler()
 	dhlRepo := repository.NewDHLRepository(pgPool.Pool)
 	dhlHandler := handler.NewDHLHandler(dhlRepo)
+	gmesRepo := repository.NewGmesRepository(pgPool.Pool)
+	gmesHandler := handler.NewGmesHandler(gmesRepo)
+	trainingRepo := repository.NewTrainingRepository(pgPool.Pool)
+	trainingHandler := handler.NewTrainingHandler(trainingRepo)
 
 	// Echo App
 	e := echo.New()
@@ -306,6 +310,22 @@ func main() {
 	api.POST("/dhl/shipments/:id/refresh", dhlHandler.RefreshShipment)
 	api.PUT("/dhl/shipments/:id", dhlHandler.UpdateShipment)
 	api.DELETE("/dhl/shipments/:id", dhlHandler.DeleteShipment)
+
+	// GMES Production Line Monitoring Routes
+	api.GET("/gmes/issues", gmesHandler.List)
+	api.GET("/gmes/stats", gmesHandler.GetStats)
+	api.GET("/gmes/measurements", gmesHandler.GetMeasurements)
+	api.POST("/gmes/issues", gmesHandler.Create)
+	api.PUT("/gmes/issues/:id", gmesHandler.Update)
+	api.DELETE("/gmes/issues/:id", gmesHandler.Delete, middleware.RequireRole("admin", "manager"))
+
+	// Online Employee Training & Locked Answer Keys Routes
+	api.GET("/trainings", trainingHandler.List)
+	api.GET("/trainings/:id", trainingHandler.Get)
+	api.POST("/trainings/:id/unlock", trainingHandler.Unlock)
+	api.POST("/trainings", trainingHandler.Create, middleware.RequireRole("admin", "manager"))
+	api.PUT("/trainings/:id", trainingHandler.Update, middleware.RequireRole("admin", "manager"))
+	api.DELETE("/trainings/:id", trainingHandler.Delete, middleware.RequireRole("admin", "manager"))
 
 	// Graceful shutdown handling
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)

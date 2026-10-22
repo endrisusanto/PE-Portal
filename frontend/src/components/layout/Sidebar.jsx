@@ -25,6 +25,8 @@ import {
   Scissors,
   FileStack,
   Truck,
+  Activity,
+  GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Sidebar.module.css';
@@ -35,26 +37,39 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const location = useLocation();
   const isAdmin = user?.role === 'admin';
 
-  // Check if any Software Team route is active
+  // Check active routes
   const isSoftwareTeamActive =
     location.pathname.startsWith('/software-mr') || location.pathname.startsWith('/gba-tasks');
+  const isToolsActive = location.pathname.startsWith('/tools') || location.pathname.startsWith('/utility');
+  const isSampleManagementActive = location.pathname.startsWith('/samples');
 
-  // Multi-level state for Software Team
-  const [softwareTeamOpen, setSoftwareTeamOpen] = useState(() => {
-    return isSoftwareTeamActive || localStorage.getItem('pe_sidebar_sw_team') === 'true';
+  // Single open group state (accordion pattern: max 1 multilevel menu open at any time)
+  const [openGroupKey, setOpenGroupKey] = useState(() => {
+    if (isSampleManagementActive) return 'sample-management';
+    if (isSoftwareTeamActive) return 'software-team';
+    if (isToolsActive) return 'tools';
+    return localStorage.getItem('pe_sidebar_open_group') || null;
   });
 
-  // Auto-expand if user navigates to a software team route
+  // Auto-switch open group when route changes to an active section
   useEffect(() => {
-    if (isSoftwareTeamActive) {
-      setSoftwareTeamOpen(true);
+    if (isSampleManagementActive) {
+      setOpenGroupKey('sample-management');
+    } else if (isSoftwareTeamActive) {
+      setOpenGroupKey('software-team');
+    } else if (isToolsActive) {
+      setOpenGroupKey('tools');
     }
-  }, [isSoftwareTeamActive]);
+  }, [isSampleManagementActive, isSoftwareTeamActive, isToolsActive]);
 
-  const handleToggleSoftwareTeam = () => {
-    setSoftwareTeamOpen((prev) => {
-      const next = !prev;
-      localStorage.setItem('pe_sidebar_sw_team', String(next));
+  const handleToggleGroup = (groupKey) => {
+    setOpenGroupKey((prev) => {
+      const next = prev === groupKey ? null : groupKey;
+      if (next) {
+        localStorage.setItem('pe_sidebar_open_group', next);
+      } else {
+        localStorage.removeItem('pe_sidebar_open_group');
+      }
       return next;
     });
   };
@@ -64,56 +79,12 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
   ].sort((a, b) => a.label.localeCompare(b.label));
 
-  // Check if any Tools route is active
-  const isToolsActive = location.pathname.startsWith('/tools') || location.pathname.startsWith('/utility');
-
-  // Multi-level state for Tools
-  const [toolsOpen, setToolsOpen] = useState(() => {
-    return isToolsActive || localStorage.getItem('pe_sidebar_tools') === 'true';
-  });
-
-  useEffect(() => {
-    if (isToolsActive) {
-      setToolsOpen(true);
-    }
-  }, [isToolsActive]);
-
-  const handleToggleTools = () => {
-    setToolsOpen((prev) => {
-      const next = !prev;
-      localStorage.setItem('pe_sidebar_tools', String(next));
-      return next;
-    });
-  };
-
   const toolsSubItems = [
     { to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
     { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
     { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
     { to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
   ].sort((a, b) => a.label.localeCompare(b.label));
-
-  // Check if any Sample Management route is active
-  const isSampleManagementActive = location.pathname.startsWith('/samples');
-
-  // Multi-level state for Sample Management
-  const [sampleManagementOpen, setSampleManagementOpen] = useState(() => {
-    return isSampleManagementActive || localStorage.getItem('pe_sidebar_sample_mgmt') === 'true';
-  });
-
-  useEffect(() => {
-    if (isSampleManagementActive) {
-      setSampleManagementOpen(true);
-    }
-  }, [isSampleManagementActive]);
-
-  const handleToggleSampleManagement = () => {
-    setSampleManagementOpen((prev) => {
-      const next = !prev;
-      localStorage.setItem('pe_sidebar_sample_mgmt', String(next));
-      return next;
-    });
-  };
 
   const sampleManagementSubItems = [
     { to: '/samples', label: t('nav.samples_database', 'Database Sample PE'), icon: PackageCheck, end: true },
@@ -129,14 +100,16 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
     { to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
     { to: '/models', label: t('nav.models'), icon: Cpu },
+    { to: '/gmes', label: t('nav.gmes', 'GMES Monitor'), icon: Activity },
+    { to: '/training', label: t('nav.training', 'Online Training'), icon: GraduationCap },
     {
       isGroup: true,
       key: 'sample-management',
       label: t('nav.sample_management', 'Sample Management'),
       icon: PackageCheck,
       isActive: isSampleManagementActive,
-      isOpen: sampleManagementOpen,
-      onToggle: handleToggleSampleManagement,
+      isOpen: openGroupKey === 'sample-management',
+      onToggle: () => handleToggleGroup('sample-management'),
       children: sampleManagementSubItems,
     },
     {
@@ -145,8 +118,8 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       label: t('nav.software_team', 'Software Team'),
       icon: Code2,
       isActive: isSoftwareTeamActive,
-      isOpen: softwareTeamOpen,
-      onToggle: handleToggleSoftwareTeam,
+      isOpen: openGroupKey === 'software-team',
+      onToggle: () => handleToggleGroup('software-team'),
       children: softwareTeamSubItems,
     },
     { to: '/projects', label: t('nav.projects', 'Task Analyst'), icon: FolderKanban },
@@ -157,8 +130,8 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       label: t('nav.tools', 'Tools'),
       icon: Wrench,
       isActive: isToolsActive,
-      isOpen: toolsOpen,
-      onToggle: handleToggleTools,
+      isOpen: openGroupKey === 'tools',
+      onToggle: () => handleToggleGroup('tools'),
       children: toolsSubItems,
     },
     { to: '/reports', label: t('nav.reports'), icon: FileText },

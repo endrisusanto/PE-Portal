@@ -26,6 +26,8 @@ import { ReportEditorPage } from './pages/ReportEditorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { UtilityPage } from './pages/UtilityPage';
+import { GmesMonitoringPage } from './pages/GmesMonitoringPage';
+import { TrainingPage } from './pages/TrainingPage';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -78,6 +80,8 @@ export function App() {
                 <Route path="samples" element={<SampleManagementPage />} />
                 <Route path="samples/dhl-tracker" element={<DhlTrackerPage />} />
                 <Route path="software-mr" element={<SoftwareMRPage />} />
+                <Route path="gmes" element={<GmesMonitoringPage />} />
+                <Route path="training" element={<TrainingPage />} />
                 <Route path="models" element={<ModelsPage />} />
                 <Route path="imei" element={<ImeiArticlesPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
