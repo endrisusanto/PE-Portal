@@ -9,6 +9,7 @@ export const Modal = ({
   children,
   footer,
   maxWidth = 'min(1080px, 94vw)', // ponytail: generous full-width modal for comfortable input & navigation
+  zIndex = 1000,
 }) => {
   const onCloseRef = useRef(onClose);
 
@@ -41,7 +42,14 @@ export const Modal = ({
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div
+      className={styles.overlay}
+      style={{ zIndex }}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
       <div
         className={styles.modal}
         style={{ maxWidth }}

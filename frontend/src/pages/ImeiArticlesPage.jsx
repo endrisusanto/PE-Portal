@@ -33,6 +33,7 @@ export const ImeiArticlesPage = () => {
   // Edit Form State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState(null);
+  const [returnToViewModal, setReturnToViewModal] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [editModelId, setEditModelId] = useState('');
@@ -91,12 +92,16 @@ export const ImeiArticlesPage = () => {
     }
   };
 
-  const handleOpenEdit = (art) => {
+  const handleOpenEdit = (art, fromView = false) => {
     setEditingArticle(art);
     setEditTitle(art.title || '');
     setEditContent(art.content || '');
     setEditModelId(art.model_id || '');
     setEditIsPinned(!!art.is_pinned);
+    setReturnToViewModal(fromView);
+    if (fromView) {
+      setIsViewModalOpen(false);
+    }
     setIsEditModalOpen(true);
   };
 
@@ -134,6 +139,12 @@ export const ImeiArticlesPage = () => {
 
       setIsEditModalOpen(false);
       setEditingArticle(null);
+
+      // Seamlessly return to View Detail modal if user opened edit from view
+      if (returnToViewModal) {
+        setIsViewModalOpen(true);
+        setReturnToViewModal(false);
+      }
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -410,9 +421,14 @@ export const ImeiArticlesPage = () => {
       {/* Edit Article Modal */}
       <Modal
         isOpen={isEditModalOpen}
+        zIndex={1050}
         onClose={() => {
           setIsEditModalOpen(false);
           setEditingArticle(null);
+          if (returnToViewModal) {
+            setIsViewModalOpen(true);
+            setReturnToViewModal(false);
+          }
         }}
         title={`Edit Article: ${editingArticle?.title || ''}`}
         footer={
@@ -422,6 +438,10 @@ export const ImeiArticlesPage = () => {
               onClick={() => {
                 setIsEditModalOpen(false);
                 setEditingArticle(null);
+                if (returnToViewModal) {
+                  setIsViewModalOpen(true);
+                  setReturnToViewModal(false);
+                }
               }}
             >
               {t('common.cancel')}
@@ -498,7 +518,7 @@ export const ImeiArticlesPage = () => {
               size="sm"
               icon={Edit2}
               onClick={() => {
-                if (viewingArticle) handleOpenEdit(viewingArticle);
+                if (viewingArticle) handleOpenEdit(viewingArticle, true);
               }}
             >
               Edit Artikel
