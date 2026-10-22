@@ -31,8 +31,9 @@ Write-Host "Menyiapkan role dan database 'pe_portal' (Password: Sein2016!)..." -
 Write-Host "Catatan: Jika diminta password, masukkan password user 'postgres' laptop Anda." -ForegroundColor Gray
 Write-Host ""
 
-# 2. Buat Role pe_portal
-& $psqlCmd -U postgres -h localhost -c "DO `$do`$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pe_portal') THEN CREATE ROLE pe_portal WITH LOGIN PASSWORD 'Sein2016!' SUPERUSER; ELSE ALTER ROLE pe_portal WITH PASSWORD 'Sein2016!'; END IF; END `$do`$;"
+# 2. Buat / Update Role pe_portal
+& $psqlCmd -U postgres -h localhost -c "CREATE ROLE pe_portal WITH LOGIN PASSWORD 'Sein2016!' SUPERUSER;" 2>$null
+& $psqlCmd -U postgres -h localhost -c "ALTER ROLE pe_portal WITH PASSWORD 'Sein2016!' SUPERUSER;" 2>$null
 
 # 3. Buat Database pe_portal
 & $psqlCmd -U postgres -h localhost -c "CREATE DATABASE pe_portal OWNER pe_portal;" 2>$null
