@@ -39,11 +39,14 @@ const downloadBlob = (content, filename, mimeType = 'text/plain') => {
 };
 
 // ----------------------------------------------------------------------------
-// 1. LIVE SVG BLOCK COMPONENT
+// 1. LIVE SVG BLOCK COMPONENT (With PNG Export, Zoom & Styling)
 // ----------------------------------------------------------------------------
 const SvgBlock = ({ rawSvg, id }) => {
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [canvasBg, setCanvasBg] = useState('dark'); // 'dark' | 'grid' | 'light'
+  const svgWrapperRef = useRef(null);
 
   // Clean SVG code by stripping markdown fences if any
   const cleanSvg = useMemo(() => {
@@ -61,18 +64,81 @@ const SvgBlock = ({ rawSvg, id }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = () => {
-    downloadBlob(cleanSvg, `sein_pe_diagram_${id || Date.now()}.svg`, 'image/svg+xml');
+  const handleDownloadSvg = () => {
+    downloadBlob(cleanSvg, `sein_pe_chart_${id || Date.now()}.svg`, 'image/svg+xml');
   };
+
+  const handleDownloadPng = () => {
+    try {
+      const svgEl = svgWrapperRef.current?.querySelector('svg');
+      if (!svgEl) return handleDownloadSvg();
+
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const DOMURL = window.URL || window.webkitURL || window;
+      const url = DOMURL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const viewBox = svgEl.viewBox?.baseVal;
+        const width = (viewBox?.width || svgEl.clientWidth || 740) * 2;
+        const height = (viewBox?.height || svgEl.clientHeight || 420) * 2;
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const pngUrl = canvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = pngUrl;
+          a.download = `sein_pe_chart_${id || Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        DOMURL.revokeObjectURL(url);
+      };
+      img.src = url;
+    } catch (err) {
+      console.error('Failed to export PNG:', err);
+      handleDownloadSvg();
+    }
+  };
+
+  const bgStyle =
+    canvasBg === 'light'
+      ? { backgroundColor: '#ffffff', color: '#0f172a' }
+      : canvasBg === 'grid'
+      ? { backgroundColor: '#0b0f19', backgroundImage: 'radial-gradient(#1e293b 1px, transparent 1px)', backgroundSize: '16px 16px' }
+      : { backgroundColor: '#090d16' };
 
   return (
     <div className={styles.svgContainer}>
       <div className={styles.svgToolbar}>
         <div className={styles.svgTitle}>
           <Layers size={14} color="#3b82f6" />
-          <span>Interactive SVG Diagram</span>
+          <span>Professional SVG Chart</span>
         </div>
         <div className={styles.svgActions}>
+          <button
+            type="button"
+            className={styles.svgActionBtn}
+            onClick={() => setCanvasBg((prev) => (prev === 'dark' ? 'grid' : prev === 'grid' ? 'light' : 'dark'))}
+            title="Ganti Tema Latar Canvas (Dark/Grid/Light)"
+          >
+            <span>{canvasBg === 'dark' ? '🌙 Dark' : canvasBg === 'grid' ? '🔲 Grid' : '☀️ Light'}</span>
+          </button>
+          <button
+            type="button"
+            className={styles.svgActionBtn}
+            onClick={() => setIsZoomed((prev) => !prev)}
+            title="Perbesar Tampilan Diagram"
+          >
+            {isZoomed ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            <span>{isZoomed ? 'Kecilkan' : 'Zoom'}</span>
+          </button>
           <button
             type="button"
             className={styles.svgActionBtn}
@@ -80,7 +146,7 @@ const SvgBlock = ({ rawSvg, id }) => {
             title="Toggle Code / Preview"
           >
             {showCode ? <Eye size={12} /> : <Code2 size={12} />}
-            <span>{showCode ? 'Lihat Preview' : 'Kode SVG'}</span>
+            <span>{showCode ? 'Preview' : 'Code'}</span>
           </button>
           <button
             type="button"
@@ -94,11 +160,20 @@ const SvgBlock = ({ rawSvg, id }) => {
           <button
             type="button"
             className={styles.svgActionBtn}
-            onClick={handleDownload}
-            title="Download file .svg"
+            onClick={handleDownloadSvg}
+            title="Download file .svg vektor murni"
           >
             <Download size={12} />
-            <span>Download</span>
+            <span>SVG</span>
+          </button>
+          <button
+            type="button"
+            className={styles.svgActionBtn}
+            onClick={handleDownloadPng}
+            title="Download gambar .png resolusi tinggi"
+          >
+            <Download size={12} />
+            <span>PNG</span>
           </button>
         </div>
       </div>
@@ -107,7 +182,14 @@ const SvgBlock = ({ rawSvg, id }) => {
         <pre className={styles.svgRawCode}>{cleanSvg}</pre>
       ) : (
         <div
+          ref={svgWrapperRef}
           className={styles.svgPreviewBox}
+          style={{
+            ...bgStyle,
+            minHeight: isZoomed ? '500px' : '220px',
+            maxHeight: isZoomed ? '800px' : '420px',
+            transition: 'all 0.2s ease',
+          }}
           dangerouslySetInnerHTML={{ __html: cleanSvg }}
         />
       )}
@@ -429,6 +511,28 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSending]);
 
+  // Ensure textarea retains cursor focus on mount and whenever response finishes
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!isSending) {
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isSending]);
+
+  // Quick prompt handler for stunning charts
+  const handleInsertQuickChart = (promptText) => {
+    setInputVal(promptText);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 50);
+  };
+
   // Handle Detach to Standalone Window
   const handleDetachWindow = () => {
     const width = 1100;
@@ -599,6 +703,9 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
       ]);
     } finally {
       setIsSending(false);
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
     }
   };
 
@@ -775,6 +882,40 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
         </div>
       )}
 
+      {/* Quick Chart & Diagram Suggestions */}
+      {messages.length <= 1 && (
+        <div style={{ display: 'flex', gap: '6px', padding: '6px 14px', overflowX: 'auto', backgroundColor: 'var(--color-bg-primary)', borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
+          <button
+            type="button"
+            className={styles.suggestionChip}
+            onClick={() => handleInsertQuickChart('Buatkan Bar Chart SVG modern bertema dark card untuk perbandingan status GBA Tasks (Pending, In Progress, Approved, Batal)')}
+          >
+            📊 Bar Chart GBA Tasks
+          </button>
+          <button
+            type="button"
+            className={styles.suggestionChip}
+            onClick={() => handleInsertQuickChart('Buatkan Line Curve Chart SVG profesional untuk tren approval bulanan vs deadline')}
+          >
+            📈 Line Chart Tren Approval
+          </button>
+          <button
+            type="button"
+            className={styles.suggestionChip}
+            onClick={() => handleInsertQuickChart('Buatkan Donut Chart SVG dengan glowing gradient untuk persentase kelulusan testing model S26')}
+          >
+            🥧 Donut Chart Kinerja
+          </button>
+          <button
+            type="button"
+            className={styles.suggestionChip}
+            onClick={() => handleInsertQuickChart('Buatkan Diagram Alir (Flowchart) SVG alur verifikasi JIG CAD dari drafting sampai sign-off')}
+          >
+            🔄 Flowchart JIG Verification
+          </button>
+        </div>
+      )}
+
       {/* Input Bar */}
       <form onSubmit={handleSendMessage} className={styles.inputForm}>
         {/* Hidden File Input */}
@@ -813,7 +954,8 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             }}
             placeholder="Tanyakan analisis log, cek BOM, buat diagram SVG, atau format tabel..."
             className={styles.chatTextarea}
-            disabled={isSending}
+            readOnly={isSending}
+            style={{ opacity: isSending ? 0.7 : 1 }}
           />
         </div>
 
