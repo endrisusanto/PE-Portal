@@ -11,11 +11,14 @@ import {
   Layers,
   Smile,
   X,
+  Paperclip,
+  Loader2,
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
+import { AttachmentViewer } from './AttachmentViewer';
 import styles from './CommentTimelineSection.module.css';
 
 const EMOJI_LIST = [
@@ -58,9 +61,12 @@ export const CommentTimelineSection = ({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const streamEndRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -80,6 +86,27 @@ export const CommentTimelineSection = ({
     setNewComment((prev) => prev + emoji);
     if (textareaRef.current) {
       textareaRef.current.focus();
+    }
+  };
+
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingAttachment(true);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/comments/upload-attachment', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        setPendingAttachments((prev) => [...prev, res.data]);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengunggah lampiran file');
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -110,17 +137,19 @@ export const CommentTimelineSection = ({
   const handlePostComment = async (e) => {
     if (e) e.preventDefault();
     const trimmed = newComment.trim();
-    if (!trimmed || submitting) return;
+    if ((!trimmed && pendingAttachments.length === 0) || submitting) return;
 
     setSubmitting(true);
     try {
       const res = await api.post('/comments', {
-        content: trimmed,
+        content: trimmed || (pendingAttachments.length > 0 ? 'Mengunggah lampiran' : ''),
         entity_type: entityType,
         entity_id: entityId,
+        attachments: pendingAttachments,
       });
       setItems((prev) => [...prev, res.data]);
       setNewComment('');
+      setPendingAttachments([]);
       // Scroll smoothly to bottom
       setTimeout(() => {
         streamEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -304,6 +333,9 @@ export const CommentTimelineSection = ({
                     </div>
                   </div>
                   <div className={styles.commentText}>{item.content}</div>
+                  {item.attachments && (
+                    <AttachmentViewer attachments={item.attachments} readonly={true} />
+                  )}
                 </div>
               </div>
             );
@@ -323,11 +355,46 @@ export const CommentTimelineSection = ({
           placeholder="Tulis komentar, catatan investigasi teknis, atau temuan verifikasi di sini..."
           disabled={submitting}
         />
+
+        {/* Pending Attachments List */}
+        {pendingAttachments.length > 0 && (
+          <div style={{ padding: '6px 12px', background: 'var(--color-bg-primary)', borderTop: '1px solid var(--color-border-subtle)' }}>
+            <AttachmentViewer
+              attachments={pendingAttachments}
+              readonly={false}
+              onRemove={(idx) => setPendingAttachments((prev) => prev.filter((_, i) => i !== idx))}
+            />
+          </div>
+        )}
+
         <div className={styles.formFooter}>
           <span className={styles.formHint}>
             Tekan <kbd style={{ padding: '1px 4px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '3px' }}>Ctrl + Enter</kbd> untuk kirim cepat
           </span>
           <div className={styles.formActionsRow}>
+            {/* Attachment Button */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleFileSelect}
+              multiple
+            />
+            <button
+              type="button"
+              className={`${styles.emojiTriggerBtn} ${uploadingAttachment ? styles.emojiTriggerBtnActive : ''}`}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAttachment || submitting}
+              title="Lampirkan File / Gambar / Dokumen"
+            >
+              {uploadingAttachment ? (
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <Paperclip size={14} />
+              )}
+              <span>{uploadingAttachment ? 'Mengunggah...' : 'Lampirkan'}</span>
+            </button>
+
             {/* Emoji Picker Popover */}
             <div className={styles.emojiPickerContainer} ref={emojiPickerRef}>
               <button
@@ -375,7 +442,7 @@ export const CommentTimelineSection = ({
               variant="primary"
               size="sm"
               icon={Send}
-              disabled={!newComment.trim() || submitting}
+              disabled={(!newComment.trim() && pendingAttachments.length === 0) || submitting || uploadingAttachment}
             >
               {submitting ? 'Mengirim...' : 'Kirim Komentar'}
             </Button>

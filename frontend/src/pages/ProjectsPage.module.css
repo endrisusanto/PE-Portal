@@ -887,4 +887,59 @@
   min-height: 50px;
 }
 
+/* Quick Attachment Button & Upload Box */
+.attachBtnQuick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs, 4px);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.attachBtnQuick:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.attachmentDropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.attachmentDropzone:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.attachmentDropzoneText {
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+}
+
+.attachmentDropzoneHint {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Plus,
@@ -26,6 +26,9 @@ import {
   Eye,
   Clock,
   FileText,
+  Paperclip,
+  Loader2,
+  Upload,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -37,6 +40,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { Table } from '../components/common/Table';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
+import { AttachmentViewer } from '../components/common/AttachmentViewer';
 import styles from './ProjectsPage.module.css';
 
 // 5 Milestone Problem Solving & Process Stages for PE
@@ -95,6 +99,9 @@ export const ProjectsPage = () => {
   const [startDate, setStartDate] = useState(new Date().toISOString().substring(0, 10));
   const [targetDate, setTargetDate] = useState('');
   const [description, setDescription] = useState('');
+  const [createAttachments, setCreateAttachments] = useState([]);
+  const [uploadingCreateAttachment, setUploadingCreateAttachment] = useState(false);
+  const createFileInputRef = useRef(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Edit Modal State
@@ -109,6 +116,111 @@ export const ProjectsPage = () => {
   const [editStartDate, setEditStartDate] = useState('');
   const [editTargetDate, setEditTargetDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editAttachments, setEditAttachments] = useState([]);
+  const [uploadingEditAttachment, setUploadingEditAttachment] = useState(false);
+  const editFileInputRef = useRef(null);
+
+  // Detail Modal Quick Attachment State
+  const [uploadingDetailAttachment, setUploadingDetailAttachment] = useState(false);
+  const detailFileInputRef = useRef(null);
+
+  // Upload Helpers for Milestone Task Attachments
+  const handleCreateAttachmentUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingCreateAttachment(true);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/comments/upload-attachment', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        setCreateAttachments((prev) => [...prev, res.data]);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengunggah lampiran');
+    } finally {
+      setUploadingCreateAttachment(false);
+      if (createFileInputRef.current) createFileInputRef.current.value = '';
+    }
+  };
+
+  const handleEditAttachmentUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingEditAttachment(true);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/comments/upload-attachment', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        setEditAttachments((prev) => [...prev, res.data]);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengunggah lampiran');
+    } finally {
+      setUploadingEditAttachment(false);
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
+    }
+  };
+
+  const handleDetailAttachmentUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !viewingProject) return;
+    setUploadingDetailAttachment(true);
+    try {
+      const newItems = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/comments/upload-attachment', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        newItems.push(res.data);
+      }
+      let currentAttachments = [];
+      if (Array.isArray(viewingProject.attachments)) {
+        currentAttachments = viewingProject.attachments;
+      } else if (typeof viewingProject.attachments === 'string') {
+        try {
+          currentAttachments = JSON.parse(viewingProject.attachments);
+        } catch {
+          currentAttachments = [];
+        }
+      }
+      const updatedAttachments = [...currentAttachments, ...newItems];
+
+      const res = await api.put(`/projects/${viewingProject.id}`, {
+        title: viewingProject.title,
+        project_type: viewingProject.project_type,
+        status: viewingProject.status,
+        priority: viewingProject.priority,
+        owner_id: viewingProject.owner_id || undefined,
+        progress: viewingProject.progress,
+        start_date: viewingProject.start_date || undefined,
+        target_date: viewingProject.target_date || undefined,
+        description: viewingProject.description || undefined,
+        attachments: updatedAttachments,
+      });
+
+      const updatedItem = { ...viewingProject, ...res.data, attachments: updatedAttachments };
+      setViewingProject(updatedItem);
+      setProjects((prev) => prev.map((item) => (item.id === viewingProject.id ? updatedItem : item)));
+      showToast(`${newItems.length} lampiran berhasil ditambahkan ke task!`);
+
+      const fileNames = newItems.map((n) => n.name).join(', ');
+      await logTimelineEvent('project', viewingProject.id, `Lampiran baru diunggah ke task body: ${fileNames}`);
+      setTimelineRefreshKey((k) => k + 1);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengunggah lampiran');
+    } finally {
+      setUploadingDetailAttachment(false);
+      if (detailFileInputRef.current) detailFileInputRef.current.value = '';
+    }
+  };
 
   // Fetch Projects & Active Users
   const fetchData = async () => {
@@ -153,6 +265,7 @@ export const ProjectsPage = () => {
         start_date: startDate || undefined,
         target_date: targetDate || undefined,
         description: description || undefined,
+        attachments: createAttachments,
         send_email: sendEmail,
       };
 
@@ -169,6 +282,7 @@ export const ProjectsPage = () => {
       setSendEmail(true);
       setDescription('');
       setTargetDate('');
+      setCreateAttachments([]);
 
       const picUser = users.find((u) => u.id === ownerId);
       const picName = picUser?.full_name || 'Unassigned';
@@ -203,6 +317,19 @@ export const ProjectsPage = () => {
     setEditStartDate(p.start_date ? p.start_date.substring(0, 10) : '');
     setEditTargetDate(p.target_date ? p.target_date.substring(0, 10) : '');
     setEditDescription(p.description || '');
+
+    let initialAttachments = [];
+    if (Array.isArray(p.attachments)) {
+      initialAttachments = p.attachments;
+    } else if (typeof p.attachments === 'string') {
+      try {
+        initialAttachments = JSON.parse(p.attachments);
+      } catch {
+        initialAttachments = [];
+      }
+    }
+    setEditAttachments(initialAttachments);
+
     setIsEditModalOpen(true);
   };
 
@@ -222,6 +349,7 @@ export const ProjectsPage = () => {
         start_date: editStartDate || undefined,
         target_date: editTargetDate || undefined,
         description: editDescription || undefined,
+        attachments: editAttachments,
       };
 
       const res = await api.put(`/projects/${editingProject.id}`, payload);
@@ -245,6 +373,9 @@ export const ProjectsPage = () => {
       }
       if (editDescription !== (editingProject.description || '')) {
         changes.push('Catatan analisis/investigasi diperbarui');
+      }
+      if (editAttachments.length !== (editingProject.attachments?.length || 0)) {
+        changes.push(`Lampiran berkas diperbarui (${editAttachments.length} file)`);
       }
       const logMsg = changes.length > 0 ? changes.join('; ') : 'Task Analyst diperbarui';
       await logTimelineEvent('project', editingProject.id, logMsg);
@@ -1202,6 +1333,43 @@ export const ProjectsPage = () => {
               />
             </div>
 
+            {/* Lampiran / Dokumen Investigasi */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Paperclip size={13} color="var(--color-accent)" />
+                  Lampiran Berkas / Dokumen Investigasi
+                </label>
+                <input
+                  type="file"
+                  ref={createFileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleCreateAttachmentUpload}
+                  multiple
+                />
+                <button
+                  type="button"
+                  className={styles.attachBtnQuick}
+                  onClick={() => createFileInputRef.current?.click()}
+                  disabled={uploadingCreateAttachment}
+                >
+                  {uploadingCreateAttachment ? (
+                    <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <Upload size={12} />
+                  )}
+                  <span>{uploadingCreateAttachment ? 'Mengunggah...' : 'Pilih File'}</span>
+                </button>
+              </div>
+              {createAttachments.length > 0 && (
+                <AttachmentViewer
+                  attachments={createAttachments}
+                  readonly={false}
+                  onRemove={(idx) => setCreateAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                />
+              )}
+            </div>
+
             {/* SMTP Checkbox */}
             <div style={{
               display: 'flex',
@@ -1392,6 +1560,43 @@ export const ProjectsPage = () => {
               />
             </div>
 
+            {/* Lampiran / Dokumen Investigasi */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Paperclip size={13} color="var(--color-accent)" />
+                  Lampiran Berkas / Dokumen Investigasi ({editAttachments.length})
+                </label>
+                <input
+                  type="file"
+                  ref={editFileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleEditAttachmentUpload}
+                  multiple
+                />
+                <button
+                  type="button"
+                  className={styles.attachBtnQuick}
+                  onClick={() => editFileInputRef.current?.click()}
+                  disabled={uploadingEditAttachment}
+                >
+                  {uploadingEditAttachment ? (
+                    <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <Upload size={12} />
+                  )}
+                  <span>{uploadingEditAttachment ? 'Mengunggah...' : 'Tambah File'}</span>
+                </button>
+              </div>
+              {editAttachments.length > 0 && (
+                <AttachmentViewer
+                  attachments={editAttachments}
+                  readonly={false}
+                  onRemove={(idx) => setEditAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                />
+              )}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
               <Button
                 variant="secondary"
@@ -1554,9 +1759,34 @@ export const ProjectsPage = () => {
 
             {/* Catatan Analisis / Investigasi Card */}
             <div className={styles.viewNotesCard}>
-              <div className={styles.viewNotesHeader}>
-                <FileText size={14} color="var(--color-accent)" />
-                <span>Catatan Analisis / Investigasi Teknis</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className={styles.viewNotesHeader}>
+                  <FileText size={14} color="var(--color-accent)" />
+                  <span>Catatan Analisis / Investigasi Teknis</span>
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    ref={detailFileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleDetailAttachmentUpload}
+                    multiple
+                  />
+                  <button
+                    type="button"
+                    className={styles.attachBtnQuick}
+                    onClick={() => detailFileInputRef.current?.click()}
+                    disabled={uploadingDetailAttachment}
+                    title="Tambah lampiran bukti foto atau file dokumen ke task ini"
+                  >
+                    {uploadingDetailAttachment ? (
+                      <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Paperclip size={12} />
+                    )}
+                    <span>{uploadingDetailAttachment ? 'Mengunggah...' : 'Tambah Lampiran'}</span>
+                  </button>
+                </div>
               </div>
               <div className={styles.viewNotesBody}>
                 {viewingProject.description ? (
@@ -1566,6 +1796,22 @@ export const ProjectsPage = () => {
                     Belum ada catatan investigasi atau countermeasure yang dicatat untuk task ini.
                   </span>
                 )}
+
+                {/* Task Body Attachments */}
+                <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Lampiran Bukti & Dokumen Investigasi ({(Array.isArray(viewingProject.attachments) ? viewingProject.attachments.length : 0)})
+                    </span>
+                  </div>
+                  {viewingProject.attachments && (Array.isArray(viewingProject.attachments) ? viewingProject.attachments.length > 0 : viewingProject.attachments !== '[]') ? (
+                    <AttachmentViewer attachments={viewingProject.attachments} readonly={true} />
+                  ) : (
+                    <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                      Belum ada file lampiran pada task ini. Klik tombol "Tambah Lampiran" di atas untuk melampirkan screenshot, dokumen, atau log.
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

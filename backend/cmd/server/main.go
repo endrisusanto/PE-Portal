@@ -90,7 +90,7 @@ func main() {
 	modelHandler := handler.NewNewModelHandler(modelRepo)
 	articleHandler := handler.NewArticleHandler(articleRepo)
 	docHandler := handler.NewDocumentHandler(docRepo, cfg.FileStoragePath, jwtService)
-	commentHandler := handler.NewCommentHandler(commentRepo)
+	commentHandler := handler.NewCommentHandler(commentRepo, cfg.FileStoragePath)
 	mcpHandler := handler.NewMCPHandler(mcpRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo, pgPool.Pool)
 	reportHandler := handler.NewReportHandler(reportRepo, smtpService, reportScheduler)
@@ -259,8 +259,10 @@ func main() {
 	// Comments & Reactions
 	api.GET("/comments", commentHandler.List)
 	api.POST("/comments", commentHandler.Create)
+	api.POST("/comments/upload-attachment", commentHandler.UploadAttachment)
 	api.POST("/comments/:id/reactions", commentHandler.ToggleReaction)
 	api.DELETE("/comments/:id", commentHandler.Delete)
+	e.GET("/api/v1/comments/attachments/:filename", commentHandler.ServeAttachment)
 
 	// MCP Server Registry & Proxy
 	api.GET("/mcp/servers", mcpHandler.List)

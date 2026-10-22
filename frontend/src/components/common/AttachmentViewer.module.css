@@ -1,0 +1,242 @@
+.attachmentsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.attachmentsGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+
+/* Individual File Attachment Card */
+.attachmentCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  max-width: 280px;
+  font-size: 11.5px;
+  text-decoration: none;
+  color: var(--color-text-primary);
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.attachmentCard:hover {
+  background: var(--color-bg-hover, var(--color-bg-tertiary));
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.iconImage {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.iconPdf {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.iconExcel {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.iconWord {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+.iconCode {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.iconFile {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+
+.metaCol {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.fileName {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+}
+
+.fileSize {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.actionBtn:hover {
+  color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.downloadBtn {
+  color: var(--color-text-secondary);
+}
+
+.downloadBtn:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+/* Image Thumbnail Grid */
+.imageCard {
+  position: relative;
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  max-width: 130px;
+  height: 90px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.imageCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.thumbnailImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.imageOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.75) 100%);
+  display: flex;
+  align-items: flex-end;
+  padding: 4px 6px;
+  opacity: 0.9;
+}
+
+.imageCaption {
+  font-size: 9.5px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.removeFloatingBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+  z-index: 2;
+}
+
+.removeFloatingBtn:hover {
+  background: #ef4444;
+}
+
+/* Modal lightbox preview */
+.lightboxBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 150ms ease;
+}
+
+.lightboxHeader {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lightboxImg {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.lightboxTitle {
+  position: absolute;
+  bottom: 16px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

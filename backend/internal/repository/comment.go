@@ -23,7 +23,7 @@ func (r *CommentRepository) ListByEntity(ctx context.Context, entityType string,
 	query := `
 		SELECT c.id, c.content, c.entity_type, c.entity_id,
 		       c.author_id, u.full_name as author_name,
-		       c.parent_id, c.reactions, c.created_at, c.updated_at
+		       c.parent_id, c.reactions, COALESCE(c.attachments, '[]'::jsonb), c.created_at, c.updated_at
 		FROM comments c
 		LEFT JOIN users u ON c.author_id = u.id
 		WHERE c.entity_type = $1 AND c.entity_id = $2 AND c.deleted_at IS NULL
@@ -42,7 +42,7 @@ func (r *CommentRepository) ListByEntity(ctx context.Context, entityType string,
 		err := rows.Scan(
 			&c.ID, &c.Content, &c.EntityType, &c.EntityID,
 			&c.AuthorID, &c.AuthorName,
-			&c.ParentID, &c.Reactions, &c.CreatedAt, &c.UpdatedAt,
+			&c.ParentID, &c.Reactions, &c.Attachments, &c.CreatedAt, &c.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -59,15 +59,18 @@ func (r *CommentRepository) Create(ctx context.Context, c *model.Comment) (*mode
 	if len(c.Reactions) == 0 {
 		c.Reactions = json.RawMessage("{}")
 	}
+	if len(c.Attachments) == 0 {
+		c.Attachments = json.RawMessage("[]")
+	}
 
 	query := `
-		INSERT INTO comments (id, content, entity_type, entity_id, author_id, parent_id, reactions)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO comments (id, content, entity_type, entity_id, author_id, parent_id, reactions, attachments)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING created_at, updated_at
 	`
 
 	err := r.pool.QueryRow(ctx, query,
-		c.ID, c.Content, c.EntityType, c.EntityID, c.AuthorID, c.ParentID, c.Reactions,
+		c.ID, c.Content, c.EntityType, c.EntityID, c.AuthorID, c.ParentID, c.Reactions, c.Attachments,
 	).Scan(&c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create comment: %w", err)

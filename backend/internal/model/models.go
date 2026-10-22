@@ -148,6 +148,7 @@ type Project struct {
 	CompletionDate *string         `json:"completion_date"`
 	Progress       int             `json:"progress"`
 	Metadata       json.RawMessage `json:"metadata"`
+	Attachments    json.RawMessage `json:"attachments"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
@@ -278,6 +279,7 @@ type Comment struct {
 	AuthorName *string         `json:"author_name,omitempty"`
 	ParentID   *uuid.UUID      `json:"parent_id"`
 	Reactions  json.RawMessage `json:"reactions"` // e.g. {"👍":["user-1"]}
+	Attachments json.RawMessage `json:"attachments"`
 	CreatedAt  time.Time       `json:"created_at"`
 	UpdatedAt  time.Time       `json:"updated_at"`
 }

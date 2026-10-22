@@ -81,6 +81,7 @@ type CreateProjectRequest struct {
 	CompletionDate *string         `json:"completion_date"`
 	Progress       int             `json:"progress"`
 	Metadata       json.RawMessage `json:"metadata"`
+	Attachments    json.RawMessage `json:"attachments"`
 	SendEmail      bool            `json:"send_email"`
 }
 
@@ -120,6 +121,7 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 		TargetDate:  req.TargetDate,
 		Progress:    req.Progress,
 		Metadata:    req.Metadata,
+		Attachments: req.Attachments,
 	}
 
 	created, err := h.repo.Create(c.Request().Context(), &p)
@@ -249,6 +251,7 @@ func (h *ProjectHandler) Update(c echo.Context) error {
 		CompletionDate: req.CompletionDate,
 		Progress:       req.Progress,
 		Metadata:       req.Metadata,
+		Attachments:    req.Attachments,
 	}
 
 	updated, err := h.repo.Update(c.Request().Context(), &p)

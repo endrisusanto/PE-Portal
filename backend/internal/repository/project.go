@@ -25,7 +25,7 @@ func (r *ProjectRepository) List(ctx context.Context, projectType, status string
 		       p.owner_id, u.full_name as owner_name,
 		       p.group_part_id, gp.name as group_part_name,
 		       p.start_date::text, p.target_date::text, p.completion_date::text,
-		       p.progress, p.metadata, p.created_at, p.updated_at
+		       p.progress, p.metadata, COALESCE(p.attachments, '[]'::jsonb), p.created_at, p.updated_at
 		FROM projects p
 		LEFT JOIN users u ON p.owner_id = u.id
 		LEFT JOIN group_parts gp ON p.group_part_id = gp.id
@@ -50,7 +50,7 @@ func (r *ProjectRepository) List(ctx context.Context, projectType, status string
 			&p.OwnerID, &p.OwnerName,
 			&p.GroupPartID, &p.GroupPartName,
 			&p.StartDate, &p.TargetDate, &p.CompletionDate,
-			&p.Progress, &p.Metadata, &p.CreatedAt, &p.UpdatedAt,
+			&p.Progress, &p.Metadata, &p.Attachments, &p.CreatedAt, &p.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -66,7 +66,7 @@ func (r *ProjectRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.P
 		       p.owner_id, u.full_name as owner_name,
 		       p.group_part_id, gp.name as group_part_name,
 		       p.start_date::text, p.target_date::text, p.completion_date::text,
-		       p.progress, p.metadata, p.created_at, p.updated_at
+		       p.progress, p.metadata, COALESCE(p.attachments, '[]'::jsonb), p.created_at, p.updated_at
 		FROM projects p
 		LEFT JOIN users u ON p.owner_id = u.id
 		LEFT JOIN group_parts gp ON p.group_part_id = gp.id
@@ -79,7 +79,7 @@ func (r *ProjectRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.P
 		&p.OwnerID, &p.OwnerName,
 		&p.GroupPartID, &p.GroupPartName,
 		&p.StartDate, &p.TargetDate, &p.CompletionDate,
-		&p.Progress, &p.Metadata, &p.CreatedAt, &p.UpdatedAt,
+		&p.Progress, &p.Metadata, &p.Attachments, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -100,10 +100,13 @@ func (r *ProjectRepository) Create(ctx context.Context, p *model.Project) (*mode
 	if len(p.Metadata) == 0 {
 		p.Metadata = json.RawMessage("{}")
 	}
+	if len(p.Attachments) == 0 {
+		p.Attachments = json.RawMessage("[]")
+	}
 
 	query := `
-		INSERT INTO projects (id, title, description, project_type, status, priority, owner_id, group_part_id, start_date, target_date, progress, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::date, NULLIF($10, '')::date, $11, $12)
+		INSERT INTO projects (id, title, description, project_type, status, priority, owner_id, group_part_id, start_date, target_date, progress, metadata, attachments)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::date, NULLIF($10, '')::date, $11, $12, $13)
 		RETURNING created_at, updated_at
 	`
 
@@ -117,7 +120,7 @@ func (r *ProjectRepository) Create(ctx context.Context, p *model.Project) (*mode
 
 	err := r.pool.QueryRow(ctx, query,
 		p.ID, p.Title, p.Description, p.ProjectType, p.Status, p.Priority,
-		p.OwnerID, p.GroupPartID, startDate, targetDate, p.Progress, p.Metadata,
+		p.OwnerID, p.GroupPartID, startDate, targetDate, p.Progress, p.Metadata, p.Attachments,
 	).Scan(&p.CreatedAt, &p.UpdatedAt)
 
 	if err != nil {
@@ -144,6 +147,11 @@ func (r *ProjectRepository) Update(ctx context.Context, p *model.Project) (*mode
 		metadataParam = p.Metadata
 	}
 
+	var attachmentsParam any = nil
+	if len(p.Attachments) > 0 && string(p.Attachments) != "null" {
+		attachmentsParam = p.Attachments
+	}
+
 	query := `
 		UPDATE projects
 		SET title = $1, description = $2, project_type = $3,
@@ -153,13 +161,14 @@ func (r *ProjectRepository) Update(ctx context.Context, p *model.Project) (*mode
 		    completion_date = NULLIF($9, '')::date, progress = $10,
 		    metadata = COALESCE($11::jsonb, metadata),
 		    owner_id = COALESCE($12::uuid, owner_id),
+		    attachments = COALESCE($13::jsonb, attachments),
 		    updated_at = NOW()
-		WHERE id = $13 AND deleted_at IS NULL
+		WHERE id = $14 AND deleted_at IS NULL
 	`
 
 	_, err := r.pool.Exec(ctx, query,
 		p.Title, p.Description, p.ProjectType, p.Status, p.Priority,
-		p.GroupPartID, startDate, targetDate, completionDate, p.Progress, metadataParam, p.OwnerID, p.ID,
+		p.GroupPartID, startDate, targetDate, completionDate, p.Progress, metadataParam, p.OwnerID, attachmentsParam, p.ID,
 	)
 	if err != nil {
 		return nil, err
