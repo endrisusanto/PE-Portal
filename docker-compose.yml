@@ -32,6 +32,8 @@ services:
       - SOFTWARE_MR_API_URL=${SOFTWARE_MR_API_URL:-http://107.102.39.55/companion-release-cheatsheet/api_releases.php}
     volumes:
       - file_storage:/data/files
+    devices:
+      - /dev/dri:/dev/dri
     depends_on:
       postgres:
         condition: service_healthy

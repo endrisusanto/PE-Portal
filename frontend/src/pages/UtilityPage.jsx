@@ -29,6 +29,10 @@ import {
   Terminal,
   Copy,
   Check,
+  Video as VideoIcon,
+  Zap,
+  Film,
+  Gauge,
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import api from '../api/client';
@@ -116,6 +120,11 @@ export const UtilityPage = () => {
       subtitle: 'Konversi otomatis perintah BASE SYSTEM_BUILD_CMD ke versi INDONESIA USER & ENG build command dengan sentuhan cerdas.',
       icon: Terminal,
     },
+    'video-compress': {
+      title: t('nav.tools_video_compress', 'Video Compressor (VAAPI)'),
+      subtitle: 'Kompresi file video cepat dengan akselerasi perangkat keras H.264 VAAPI (Linux GPU) atau CPU high-efficiency.',
+      icon: VideoIcon,
+    },
   };
 
   const currentTool = toolMeta[activeTab] || toolMeta.images;
@@ -160,6 +169,7 @@ export const UtilityPage = () => {
       {activeTab === 'pdf-merge-split' && <PdfMergeSplitTab />}
       {activeTab === 'cl-compare' && <CLCompareTab />}
       {activeTab === 'build-command' && <BuildCommandTab />}
+      {activeTab === 'video-compress' && <VideoCompressTab />}
     </div>
   );
 };
@@ -2706,6 +2716,485 @@ const BuildCommandTab = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// 7. VIDEO COMPRESSOR TAB (Hardware VAAPI / Fast CPU Accelerated)
+// ============================================================================
+const VideoCompressTab = () => {
+  const [file, setFile] = useState(null);
+  const [videoSrc, setVideoSrc] = useState('');
+  const [videoMeta, setVideoMeta] = useState(null); // { name, size, duration, width, height }
+  const [quality, setQuality] = useState('medium'); // 'high' | 'medium' | 'low'
+  const [resolution, setResolution] = useState('original'); // 'original' | '1080p' | '720p' | '480p'
+  const [encoder, setEncoder] = useState('auto'); // 'auto' | 'vaapi' | 'cpu'
+  const [muteAudio, setMuteAudio] = useState(false);
+  const [compressing, setCompressing] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null); // { blob, url, originalSize, compressedSize, encoderUsed, filename }
+
+  const timerRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (videoSrc) URL.revokeObjectURL(videoSrc);
+      if (result?.url) URL.revokeObjectURL(result.url);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const handleSelectFile = (selected) => {
+    if (!selected) return;
+    if (videoSrc) URL.revokeObjectURL(videoSrc);
+    if (result?.url) URL.revokeObjectURL(result.url);
+
+    setResult(null);
+    setError('');
+    setFile(selected);
+
+    const objectUrl = URL.createObjectURL(selected);
+    setVideoSrc(objectUrl);
+
+    // Extract metadata using a temporary video element
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => {
+      setVideoMeta({
+        name: selected.name,
+        size: selected.size,
+        duration: v.duration,
+        width: v.videoWidth,
+        height: v.videoHeight,
+      });
+    };
+    v.src = objectUrl;
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleSelectFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  const formatDuration = (secs) => {
+    if (!secs || isNaN(secs)) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const handleCompress = async () => {
+    if (!file) return;
+
+    setCompressing(true);
+    setError('');
+    setResult(null);
+    setElapsedSeconds(0);
+
+    const startTime = Date.now();
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+
+    try {
+      const formData = new FormData();
+      formData.append('video', file);
+      formData.append('quality', quality);
+      formData.append('resolution', resolution);
+      formData.append('encoder', encoder);
+      formData.append('mute_audio', muteAudio ? 'true' : 'false');
+
+      const response = await api.post('/utility/compress-video', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        responseType: 'blob',
+      });
+
+      const blob = response.data;
+      const encoderUsed = response.headers['x-encoder-used'] || (encoder === 'cpu' ? 'libx264' : 'h264_vaapi');
+      const originalSize = parseInt(response.headers['x-original-size'], 10) || file.size;
+      const compressedSize = parseInt(response.headers['x-compressed-size'], 10) || blob.size;
+
+      const cleanName = file.name.replace(/\.[^/.]+$/, '');
+      const downloadName = `${cleanName}_compressed.mp4`;
+
+      const resultUrl = URL.createObjectURL(blob);
+      setResult({
+        blob,
+        url: resultUrl,
+        filename: downloadName,
+        originalSize,
+        compressedSize,
+        encoderUsed,
+      });
+    } catch (err) {
+      console.error('Compression failed:', err);
+      let errMsg = 'Gagal melakukan kompresi video.';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          errMsg = json.message || errMsg;
+        } catch {
+          // keep default
+        }
+      } else if (err.response?.data?.message) {
+        errMsg = err.response.data.message;
+      }
+      setError(errMsg);
+    } finally {
+      setCompressing(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const handleDownloadResult = () => {
+    if (!result?.blob) return;
+    safeDownloadBlob(result.blob, result.filename);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Upload & Source Section */}
+      <div className={styles.toolCard}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
+              Pilih Berkas Video
+            </h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
+              Mendukung format MP4, MOV, MKV, WebM, AVI dengan akselerasi perangkat keras H.264 VAAPI.
+            </p>
+          </div>
+          {file && (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Trash2}
+              onClick={() => {
+                setFile(null);
+                setVideoMeta(null);
+                setResult(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+            >
+              Ganti Video
+            </Button>
+          )}
+        </div>
+
+        {!file ? (
+          <div
+            className={styles.dropzone}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="video/*,.mp4,.mov,.mkv,.webm,.avi"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleSelectFile(e.target.files[0]);
+                }
+              }}
+            />
+            <div className={styles.dropzoneIcon}>
+              <VideoIcon size={36} color="var(--color-accent)" />
+            </div>
+            <div className={styles.dropzoneTitle}>
+              Tarik & Letakkan Video di Sini atau Klik untuk Telusuri
+            </div>
+            <div className={styles.dropzoneSubtitle}>
+              Maksimal ukuran video fleksibel. Pemrosesan dilakukan dengan encoding H.264 VAAPI.
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Video metadata bar */}
+            {videoMeta && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                background: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <VideoIcon size={20} color="var(--color-accent)" />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '13.5px' }}>{videoMeta.name}</div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                      {formatFileSize(videoMeta.size)} • {videoMeta.width}x{videoMeta.height} px • Durasi: {formatDuration(videoMeta.duration)}
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  color: 'var(--color-accent)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                }}>
+                  Siap Dicompress
+                </div>
+              </div>
+            )}
+
+            {/* Video Compression Settings Grid */}
+            <div className={styles.videoSettingsGrid}>
+              {/* Setting 1: Quality Preset */}
+              <div className={styles.videoSettingBlock}>
+                <div className={styles.videoSettingTitle}>
+                  <Sliders size={15} color="var(--color-accent)" />
+                  <span>Kualitas & Efisiensi</span>
+                </div>
+                <div className={styles.optionCardList}>
+                  {[
+                    { id: 'medium', name: 'Medium (Rekomendasi)', desc: 'Keseimbangan terbaik, hemat ~60-70% ukuran.', badge: 'Optimal' },
+                    { id: 'high', name: 'High (Kualitas Tinggi)', desc: 'Visual tajam & jernih, hemat ~35-45% ukuran.', badge: 'Jernih' },
+                    { id: 'low', name: 'Low (Ukuran Ringkas)', desc: 'Ukuran paling kecil, hemat hingga ~80% ukuran.', badge: 'Kecil' },
+                  ].map((opt) => (
+                    <div
+                      key={opt.id}
+                      className={`${styles.optionCard} ${quality === opt.id ? styles.optionCardSelected : ''}`}
+                      onClick={() => setQuality(opt.id)}
+                    >
+                      <div className={styles.optionCardText}>
+                        <span className={styles.optionCardName}>{opt.name}</span>
+                        <span className={styles.optionCardDesc}>{opt.desc}</span>
+                      </div>
+                      <span
+                        className={styles.optionCardBadge}
+                        style={{
+                          background: quality === opt.id ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                          color: '#ffffff',
+                        }}
+                      >
+                        {opt.badge}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Setting 2: Resolution Scale */}
+              <div className={styles.videoSettingBlock}>
+                <div className={styles.videoSettingTitle}>
+                  <Gauge size={15} color="var(--color-accent)" />
+                  <span>Resolusi Target</span>
+                </div>
+                <div className={styles.optionCardList}>
+                  {[
+                    { id: 'original', name: 'Resolusi Asli', desc: 'Pertahankan dimensi video asli.', badge: 'Original' },
+                    { id: '1080p', name: '1080p Full HD', desc: 'Downscale ke maksimal tinggi 1080px.', badge: '1080p' },
+                    { id: '720p', name: '720p HD (Cocok Berbagi)', desc: 'Sangat ideal untuk dikirim lewat chat atau email.', badge: '720p' },
+                    { id: '480p', name: '480p SD (Kecil)', desc: 'Resolusi hemat data untuk pratinjau cepat.', badge: '480p' },
+                  ].map((opt) => (
+                    <div
+                      key={opt.id}
+                      className={`${styles.optionCard} ${resolution === opt.id ? styles.optionCardSelected : ''}`}
+                      onClick={() => setResolution(opt.id)}
+                    >
+                      <div className={styles.optionCardText}>
+                        <span className={styles.optionCardName}>{opt.name}</span>
+                        <span className={styles.optionCardDesc}>{opt.desc}</span>
+                      </div>
+                      <span
+                        className={styles.optionCardBadge}
+                        style={{
+                          background: resolution === opt.id ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                          color: '#ffffff',
+                        }}
+                      >
+                        {opt.badge}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Setting 3: Hardware Encoder Mode */}
+              <div className={styles.videoSettingBlock}>
+                <div className={styles.videoSettingTitle}>
+                  <Zap size={15} color="#eab308" />
+                  <span>Akselerasi Perangkat Keras</span>
+                </div>
+                <div className={styles.optionCardList}>
+                  {[
+                    { id: 'auto', name: 'Auto (H.264 VAAPI / GPU)', desc: 'Otomatis gunakan akselerasi VAAPI, fallback CPU bila perlu.', badge: 'Auto' },
+                    { id: 'vaapi', name: 'H.264 VAAPI (Linux GPU)', desc: 'Prioritas akselerasi perangkat keras Intel/AMD/NVIDIA VAAPI.', badge: 'VAAPI' },
+                    { id: 'cpu', name: 'CPU Software (H.264 Veryfast)', desc: 'Kompresi software CPU murni (kompatibilitas tinggi).', badge: 'CPU' },
+                  ].map((opt) => (
+                    <div
+                      key={opt.id}
+                      className={`${styles.optionCard} ${encoder === opt.id ? styles.optionCardSelected : ''}`}
+                      onClick={() => setEncoder(opt.id)}
+                    >
+                      <div className={styles.optionCardText}>
+                        <span className={styles.optionCardName}>{opt.name}</span>
+                        <span className={styles.optionCardDesc}>{opt.desc}</span>
+                      </div>
+                      <span
+                        className={styles.optionCardBadge}
+                        style={{
+                          background: encoder === opt.id ? '#eab308' : 'var(--color-bg-tertiary)',
+                          color: encoder === opt.id ? '#000000' : '#ffffff',
+                        }}
+                      >
+                        {opt.badge}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Audio Mute Checkbox */}
+                <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--color-border)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={muteAudio}
+                      onChange={(e) => setMuteAudio(e.target.checked)}
+                    />
+                    <span>Hilangkan Audio (Mute) untuk ukuran lebih kecil</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                color: '#ef4444',
+                fontSize: '13px',
+              }}>
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Action Bar */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
+              {compressing && (
+                <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <RefreshCw size={14} className="spin" />
+                  <span>Memproses dengan {encoder === 'cpu' ? 'CPU Software' : 'Akselerasi H.264 VAAPI'} ({elapsedSeconds}s)...</span>
+                </div>
+              )}
+              <Button
+                variant="primary"
+                icon={Zap}
+                onClick={handleCompress}
+                disabled={compressing}
+              >
+                {compressing ? 'Sedang Mengompres Video...' : 'Mulai Kompresi Video'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Result Section */}
+      {result && (
+        <div className={styles.toolCard}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle2 size={20} color="#10b981" />
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
+                Video Berhasil Dikompresi
+              </h3>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: '4px',
+              background: result.encoderUsed.includes('vaapi') ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+              color: result.encoderUsed.includes('vaapi') ? '#10b981' : '#3b82f6',
+            }}>
+              Engine: {result.encoderUsed.toUpperCase()}
+            </span>
+          </div>
+
+          {/* Stats Comparison */}
+          <div className={styles.statsComparisonBox}>
+            <div className={styles.statItem}>
+              <span className={styles.statItemLabel}>Ukuran Awal</span>
+              <span className={styles.statItemValue}>{formatFileSize(result.originalSize)}</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statItemLabel}>Ukuran Baru</span>
+              <span className={styles.statItemValue} style={{ color: '#10b981' }}>
+                {formatFileSize(result.compressedSize)}
+              </span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statItemLabel}>Penghematan</span>
+              <span className={styles.statItemValue} style={{ color: '#10b981' }}>
+                {result.originalSize > 0
+                  ? `-${Math.max(0, Math.round(((result.originalSize - result.compressedSize) / result.originalSize) * 100))}%`
+                  : '0%'}
+              </span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statItemLabel}>Akselerasi</span>
+              <span className={styles.statItemValue} style={{ fontSize: '15px' }}>
+                {result.encoderUsed.includes('vaapi') ? 'H.264 VAAPI (GPU)' : 'CPU Veryfast'}
+              </span>
+            </div>
+          </div>
+
+          {/* Embedded Video Player */}
+          <div className={styles.videoPlayerContainer}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+              Pratinjau Hasil Kompresi:
+            </span>
+            <video
+              src={result.url}
+              controls
+              className={styles.videoElement}
+            />
+          </div>
+
+          {/* Download Action */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <Button
+              variant="primary"
+              icon={Download}
+              onClick={handleDownloadResult}
+            >
+              Unduh Video ({formatFileSize(result.compressedSize)})
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

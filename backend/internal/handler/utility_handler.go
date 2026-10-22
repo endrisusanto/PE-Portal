@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -19,18 +20,24 @@ func NewUtilityHandler() *UtilityHandler {
 	return &UtilityHandler{}
 }
 
-// GetStatus checks if local Python and Ghostscript utilities are available
+// GetStatus checks if local Python, Ghostscript, and FFmpeg VAAPI utilities are available
 func (h *UtilityHandler) GetStatus(c echo.Context) error {
 	pythonPath, errPy := exec.LookPath("python3")
 	gsPath, errGs := exec.LookPath("gs")
+	ffmpegPath, errFfmpeg := exec.LookPath("ffmpeg")
 
 	// Check if Pillow is available in python3
 	hasPillow := false
 	if errPy == nil {
 		cmd := exec.Command("python3", "-c", "import PIL; print('OK')")
-		if out, err := cmd.Output(); err == nil && string(out)[:2] == "OK" {
+		if out, err := cmd.Output(); err == nil && len(out) >= 2 && string(out)[:2] == "OK" {
 			hasPillow = true
 		}
+	}
+
+	hasVaapi := false
+	if _, err := os.Stat("/dev/dri/renderD128"); err == nil && errFfmpeg == nil {
+		hasVaapi = true
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -39,6 +46,9 @@ func (h *UtilityHandler) GetStatus(c echo.Context) error {
 		"pillow_available":      hasPillow,
 		"ghostscript_available": errGs == nil,
 		"ghostscript_path":      gsPath,
+		"ffmpeg_available":      errFfmpeg == nil,
+		"ffmpeg_path":           ffmpegPath,
+		"vaapi_available":       hasVaapi,
 		"local_engine":          "SEIN Local Offline Engine",
 	})
 }
@@ -288,5 +298,177 @@ func (h *UtilityHandler) SplitPDF(c echo.Context) error {
 	}
 
 	return c.Attachment(outPath, fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename))
+}
+
+// CompressVideo compresses uploaded video using h264_vaapi hardware acceleration or fast CPU fallback
+func (h *UtilityHandler) CompressVideo(c echo.Context) error {
+	file, err := c.FormFile("video")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No video file provided"})
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to open video file"})
+	}
+	defer src.Close()
+
+	quality := c.FormValue("quality") // "high", "medium", "low"
+	if quality == "" {
+		quality = "medium"
+	}
+	resolution := c.FormValue("resolution") // "original", "1080p", "720p", "480p"
+	if resolution == "" {
+		resolution = "original"
+	}
+	encoderMode := c.FormValue("encoder") // "auto", "vaapi", "cpu"
+	if encoderMode == "" {
+		encoderMode = "auto"
+	}
+	muteAudio := c.FormValue("mute_audio") == "true"
+
+	// Create temp directory for processing
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	inExt := strings.ToLower(filepath.Ext(file.Filename))
+	if inExt == "" {
+		inExt = ".mp4"
+	}
+	inPath := filepath.Join(tempDir, fmt.Sprintf("vin_%d%s", now, inExt))
+	outPath := filepath.Join(tempDir, fmt.Sprintf("vout_%d.mp4", now))
+	defer os.Remove(inPath)
+	defer os.Remove(outPath)
+
+	dst, err := os.Create(inPath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create temp input file"})
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save input video"})
+	}
+	dst.Close()
+
+	// Determine resolution filter
+	var scaleFilter string
+	switch resolution {
+	case "1080p":
+		scaleFilter = "scale=-2:1080"
+	case "720p":
+		scaleFilter = "scale=-2:720"
+	case "480p":
+		scaleFilter = "scale=-2:480"
+	default:
+		scaleFilter = ""
+	}
+
+	// Determine QP/CRF based on quality
+	var qpVaapi, crfX264 string
+	switch quality {
+	case "high":
+		qpVaapi = "24"
+		crfX264 = "23"
+	case "low":
+		qpVaapi = "33"
+		crfX264 = "32"
+	default: // medium
+		qpVaapi = "28"
+		crfX264 = "28"
+	}
+
+	usedEncoder := "libx264"
+
+	// Attempt VAAPI hardware acceleration first if requested or auto
+	if encoderMode == "auto" || encoderMode == "vaapi" {
+		if _, err := os.Stat("/dev/dri/renderD128"); err == nil {
+			var vfParts []string
+			if scaleFilter != "" {
+				vfParts = append(vfParts, scaleFilter)
+			}
+			vfParts = append(vfParts, "format=nv12", "hwupload")
+			vfStr := strings.Join(vfParts, ",")
+
+			args := []string{
+				"-y",
+				"-vaapi_device", "/dev/dri/renderD128",
+				"-i", inPath,
+				"-vf", vfStr,
+				"-c:v", "h264_vaapi",
+				"-qp", qpVaapi,
+			}
+
+			if muteAudio {
+				args = append(args, "-an")
+			} else {
+				args = append(args, "-c:a", "aac", "-b:a", "128k")
+			}
+			args = append(args, outPath)
+
+			cmd := exec.Command("ffmpeg", args...)
+			output, err := cmd.CombinedOutput()
+			if err == nil {
+				if fi, statErr := os.Stat(outPath); statErr == nil && fi.Size() > 0 {
+					usedEncoder = "h264_vaapi"
+				}
+			} else {
+				fmt.Printf("[VideoCompress] VAAPI encoding notice: %v (output: %s)\n", err, string(output))
+			}
+		}
+	}
+
+	// Fallback to CPU libx264 veryfast if VAAPI wasn't used or failed
+	if usedEncoder != "h264_vaapi" {
+		var args []string
+		args = append(args, "-y", "-i", inPath)
+
+		if scaleFilter != "" {
+			args = append(args, "-vf", scaleFilter)
+		}
+
+		args = append(args,
+			"-c:v", "libx264",
+			"-preset", "veryfast",
+			"-crf", crfX264,
+			"-pix_fmt", "yuv420p",
+		)
+
+		if muteAudio {
+			args = append(args, "-an")
+		} else {
+			args = append(args, "-c:a", "aac", "-b:a", "128k")
+		}
+		args = append(args, outPath)
+
+		cmd := exec.Command("ffmpeg", args...)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": fmt.Sprintf("Video compression failed: %v", err),
+				"details": string(output),
+			})
+		}
+		usedEncoder = "libx264"
+	}
+
+	// Calculate statistics
+	inInfo, _ := os.Stat(inPath)
+	outInfo, _ := os.Stat(outPath)
+	var inSize, outSize int64
+	if inInfo != nil {
+		inSize = inInfo.Size()
+	}
+	if outInfo != nil {
+		outSize = outInfo.Size()
+	}
+
+	c.Response().Header().Set("X-Encoder-Used", usedEncoder)
+	c.Response().Header().Set("X-Original-Size", fmt.Sprintf("%d", inSize))
+	c.Response().Header().Set("X-Compressed-Size", fmt.Sprintf("%d", outSize))
+	c.Response().Header().Set("Access-Control-Expose-Headers", "X-Encoder-Used, X-Original-Size, X-Compressed-Size")
+
+	cleanBaseName := strings.TrimSuffix(file.Filename, filepath.Ext(file.Filename))
+	downloadName := fmt.Sprintf("%s_compressed.mp4", cleanBaseName)
+
+	return c.Attachment(outPath, downloadName)
 }
 

@@ -317,6 +317,7 @@ func main() {
 	api.POST("/utility/compress-pdf", utilityHandler.CompressPDF)
 	api.POST("/utility/merge-pdf", utilityHandler.MergePDF)
 	api.POST("/utility/split-pdf", utilityHandler.SplitPDF)
+	api.POST("/utility/compress-video", utilityHandler.CompressVideo)
 
 	// DHL Express Tracking Routes
 	api.GET("/dhl/status", dhlHandler.CheckAPIStatus)

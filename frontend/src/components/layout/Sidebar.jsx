@@ -28,6 +28,7 @@ import {
   Activity,
   GraduationCap,
   Terminal,
+  Video,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Sidebar.module.css';
@@ -49,6 +50,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const isToolsMediaActive =
     location.pathname === '/tools/images' ||
     location.pathname === '/tools/remove-bg' ||
+    location.pathname === '/tools/video-compress' ||
     location.pathname === '/utility/remove-bg';
   const isToolsSwActive = location.pathname === '/tools/cl-compare' || location.pathname === '/tools/build-command';
 
@@ -129,6 +131,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       children: [
         { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
         { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
+        { to: '/tools/video-compress', label: t('nav.tools_video_compress', 'Video Compressor (VAAPI)'), icon: Video },
       ].sort((a, b) => a.label.localeCompare(b.label)),
     },
     {
