@@ -1420,12 +1420,12 @@ export const ProjectsPage = () => {
             setViewingProject(null);
           }}
           title={
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 <FolderKanban size={17} color="var(--color-accent)" />
                 <span style={{ fontSize: '15px', fontWeight: 700 }}>Detail Milestone Task Analyst</span>
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginRight: '8px' }}>
                 <Button
                   variant="outline"
                   size="sm"
