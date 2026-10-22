@@ -562,6 +562,15 @@ const DocumentCompressTab = () => {
           errorMsg = err.response.data.message;
         }
       }
+      if (
+        errorMsg.includes('invalid xref table') ||
+        errorMsg.includes('Cannot find') ||
+        errorMsg.includes('not a PDF file') ||
+        errorMsg.includes('exit status 1') ||
+        errorMsg.includes('PDF compression failed')
+      ) {
+        errorMsg = 'Dokumen gagal diproses karena terenkripsi oleh sistem keamanan korporat (Samsung NASCA / DRM). Solusi: Buka di Adobe Reader / MS Office, tekan Ctrl+P, pilih printer "Microsoft Print to PDF", lalu simpan file hasil cetak tersebut.';
+      }
       return {
         ...item,
         status: 'error',
@@ -616,6 +625,28 @@ const DocumentCompressTab = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Informative Tip for Samsung NASCA / Corporate DRM */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '10px',
+        padding: '10px 14px',
+        borderRadius: 'var(--radius-sm, 6px)',
+        background: 'rgba(59, 130, 246, 0.08)',
+        border: '1px solid rgba(59, 130, 246, 0.2)',
+        fontSize: '12px',
+        color: 'var(--color-text-secondary)',
+        lineHeight: 1.5,
+      }}>
+        <AlertCircle size={16} color="#3b82f6" style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div>
+          <strong style={{ color: 'var(--color-text-primary)' }}>Tips Dokumen Terenkripsi NASCA (Samsung Corporate DRM):</strong>
+          <p style={{ margin: '3px 0 0 0' }}>
+            Jika dokumen di PC kantor terproteksi enkripsi NASCA, buka file di <strong>Adobe Acrobat Reader</strong> / <strong>MS Office</strong>, tekan <strong>Ctrl + P</strong>, pilih printer <strong>"Microsoft Print to PDF"</strong>, lalu simpan. PDF hasil cetak tersebut otomatis terdekripsi dan siap diolah tanpa kendala.
+          </p>
+        </div>
+      </div>
+
       {/* Control Bar */}
       <div className={styles.controlPanel}>
         <div className={styles.controlGroup}>
@@ -1468,9 +1499,18 @@ const PdfMergeSplitTab = () => {
 
     setMergeSuccess(null);
     const loadedItems = [];
+    const nascaFiles = [];
+
     for (const file of pdfFiles) {
       try {
         const arrayBuffer = await file.arrayBuffer();
+        // Check magic bytes %PDF- (NASCA encrypted files do not have standard PDF header)
+        const header = new TextDecoder('ascii').decode(arrayBuffer.slice(0, 5));
+        if (header !== '%PDF-') {
+          nascaFiles.push(file.name);
+          continue;
+        }
+
         const pdfDoc = await PDFDocument.load(arrayBuffer);
         const pageCount = pdfDoc.getPageCount();
         loadedItems.push({
@@ -1483,9 +1523,21 @@ const PdfMergeSplitTab = () => {
         });
       } catch (err) {
         console.error('Failed to parse PDF:', file.name, err);
+        nascaFiles.push(file.name);
       }
     }
-    setMergeFiles((prev) => [...prev, ...loadedItems]);
+
+    if (nascaFiles.length > 0) {
+      alert(
+        `Peringatan Dokumen Terenkripsi NASCA / DRM:\n\n` +
+        `Dokumen berikut tidak dapat dibaca karena terproteksi enkripsi korporat:\n- ${nascaFiles.join('\n- ')}\n\n` +
+        `Solusi Praktis:\nBuka file di Adobe Acrobat Reader, tekan Ctrl+P, pilih printer "Microsoft Print to PDF", lalu simpan PDF baru.`
+      );
+    }
+
+    if (loadedItems.length > 0) {
+      setMergeFiles((prev) => [...prev, ...loadedItems]);
+    }
   };
 
   const handleMoveFile = (index, direction) => {
@@ -1556,6 +1608,11 @@ const PdfMergeSplitTab = () => {
     setSplitSuccess(null);
     try {
       const arrayBuffer = await selectedFile.arrayBuffer();
+      const header = new TextDecoder('ascii').decode(arrayBuffer.slice(0, 5));
+      if (header !== '%PDF-') {
+        throw new Error('Dokumen terdeteksi terenkripsi oleh sistem korporat (Samsung NASCA / DRM).\n\nSolusi: Buka file di Adobe Acrobat Reader, tekan Ctrl+P, pilih printer "Microsoft Print to PDF", lalu simpan.');
+      }
+
       const pdfDoc = await PDFDocument.load(arrayBuffer);
       const pageCount = pdfDoc.getPageCount();
 
@@ -1671,6 +1728,28 @@ const PdfMergeSplitTab = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/* Informative Tip for Samsung NASCA / Corporate DRM */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '10px',
+        padding: '10px 14px',
+        borderRadius: 'var(--radius-sm, 6px)',
+        background: 'rgba(59, 130, 246, 0.08)',
+        border: '1px solid rgba(59, 130, 246, 0.2)',
+        fontSize: '12px',
+        color: 'var(--color-text-secondary)',
+        lineHeight: 1.5,
+      }}>
+        <AlertCircle size={16} color="#3b82f6" style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div>
+          <strong style={{ color: 'var(--color-text-primary)' }}>Tips Dokumen Terenkripsi NASCA (Samsung Corporate DRM):</strong>
+          <p style={{ margin: '3px 0 0 0' }}>
+            Jika dokumen terproteksi enkripsi NASCA, buka file di <strong>Adobe Acrobat Reader</strong>, tekan <strong>Ctrl + P</strong>, pilih printer <strong>"Microsoft Print to PDF"</strong>, lalu simpan. PDF hasil cetak tersebut otomatis terdekripsi dan siap digabung (Merge) atau dipisah (Split) tanpa kendala.
+          </p>
+        </div>
+      </div>
+
       {/* Top Mode Selector */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div className={styles.modeToggle}>

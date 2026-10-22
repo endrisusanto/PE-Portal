@@ -120,6 +120,18 @@ func (h *UtilityHandler) RemoveBackground(c echo.Context) error {
 	return c.Attachment(outPath, fmt.Sprintf("nobg_%s.png", file.Filename))
 }
 
+func formatPDFErrorMessage(action string, output string, err error) string {
+	lower := strings.ToLower(output)
+	if strings.Contains(lower, "invalid xref table") ||
+		strings.Contains(lower, "cannot find") ||
+		strings.Contains(lower, "not a pdf file") ||
+		strings.Contains(lower, "syntaxerror") ||
+		strings.Contains(lower, "undefined") {
+		return "Dokumen tidak dapat diproses karena terdeteksi terenkripsi oleh sistem keamanan korporat (Samsung NASCA / DRM). Solusi: Buka dokumen di Adobe Acrobat Reader atau MS Office, tekan Ctrl+P, pilih printer 'Microsoft Print to PDF', lalu simpan sebagai file PDF baru."
+	}
+	return fmt.Sprintf("PDF %s failed: %v", action, err)
+}
+
 // CompressPDF executes local Ghostscript compression
 func (h *UtilityHandler) CompressPDF(c echo.Context) error {
 	file, err := c.FormFile("document")
@@ -174,7 +186,7 @@ func (h *UtilityHandler) CompressPDF(c echo.Context) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": fmt.Sprintf("PDF compression failed: %v", err),
+			"message": formatPDFErrorMessage("compression", string(output), err),
 			"details": string(output),
 		})
 	}
@@ -236,7 +248,7 @@ func (h *UtilityHandler) MergePDF(c echo.Context) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": fmt.Sprintf("PDF merge failed: %v", err),
+			"message": formatPDFErrorMessage("merge", string(output), err),
 			"details": string(output),
 		})
 	}
@@ -292,7 +304,7 @@ func (h *UtilityHandler) SplitPDF(c echo.Context) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": fmt.Sprintf("PDF split failed: %v", err),
+			"message": formatPDFErrorMessage("split", string(output), err),
 			"details": string(output),
 		})
 	}
