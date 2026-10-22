@@ -29,6 +29,7 @@ import { UtilityPage } from './pages/UtilityPage';
 import { GmesMonitoringPage } from './pages/GmesMonitoringPage';
 import { TrainingPage } from './pages/TrainingPage';
 import { SharedDocumentPage } from './pages/SharedDocumentPage';
+import { AiChatPage } from './pages/AiChatPage';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -65,6 +66,14 @@ export function App() {
               {/* Public Login Route */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/share/:token" element={<SharedDocumentPage />} />
+              <Route
+                path="/chat"
+                element={
+                  <ProtectedRoute>
+                    <AiChatPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected Application Routes */}
               <Route

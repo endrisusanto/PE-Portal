@@ -40,3 +40,4 @@ logs/
 # Scratch & temporary agent logs
 scratch/
 .tempmediaStorage/
+.codegraph/
