@@ -19,6 +19,8 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/client';
@@ -49,6 +51,8 @@ export const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [memberFilter, setMemberFilter] = useState('all'); // 'all' | 'online' | 'away' | 'offline'
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [updatesOpen, setUpdatesOpen] = useState(true);
+  const [logsOpen, setLogsOpen] = useState(true);
 
   // Real-time clock for production shift tracking
   useEffect(() => {
@@ -285,7 +289,7 @@ export const DashboardPage = () => {
               {t('dashboard.welcome', 'Selamat Datang')}, {user?.full_name || 'Engineer'}
             </h1>
             <p className={styles.heroSubtitle}>
-              Platform Kolaborasi & Pemantauan Operasional Divisi SEIN PE Group
+              {t('dashboard.subtitle', 'Platform Kolaborasi & Pemantauan Operasional Divisi SEIN PE Group')}
             </p>
           </div>
         </div>
@@ -305,7 +309,7 @@ export const DashboardPage = () => {
               {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
             </span>
           </div>
-          <span className={styles.shiftHours}>Jadwal Produksi: {currentShift.time}</span>
+          <span className={styles.shiftHours}>{t('dashboard.shift_schedule', 'Jadwal Produksi')}: {currentShift.time}</span>
         </div>
       </div>
 
@@ -315,177 +319,72 @@ export const DashboardPage = () => {
       <div className={styles.statsRow}>
         <div className={styles.kpiCard} onClick={() => navigate('/projects')}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>Task Analyst</span>
+            <span className={styles.kpiLabel}>{t('dashboard.stats.task_analyst', 'Task Analyst')}</span>
           </div>
           <div className={styles.kpiValue}>{stats?.projects_count ?? 0}</div>
           <div className={styles.kpiFooter}>
-            <span>{projects.filter((p) => p.status === 'completed').length} Selesai • {projects.filter((p) => p.status !== 'completed').length} Berjalan</span>
+            <span>
+              {t('dashboard.stats.completed_running', {
+                completed: projects.filter((p) => p.status === 'completed').length,
+                running: projects.filter((p) => p.status !== 'completed').length,
+                defaultValue: `${projects.filter((p) => p.status === 'completed').length} Selesai • ${projects.filter((p) => p.status !== 'completed').length} Berjalan`,
+              })}
+            </span>
           </div>
         </div>
 
         <div className={styles.kpiCard} onClick={() => navigate('/innovations')}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>Inovasi & Kaizen</span>
+            <span className={styles.kpiLabel}>{t('dashboard.stats.innovations', 'Inovasi & Kaizen')}</span>
           </div>
           <div className={styles.kpiValue}>{stats?.innovations_count ?? 0}</div>
           <div className={styles.kpiFooter}>
-            <span>Best Practice Terverifikasi</span>
+            <span>{t('dashboard.stats.verified_bp', 'Best Practice Terverifikasi')}</span>
           </div>
         </div>
 
         <div className={styles.kpiCard} onClick={() => navigate('/training')}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>Online Training</span>
+            <span className={styles.kpiLabel}>{t('dashboard.stats.online_training', 'Online Training')}</span>
           </div>
           <div className={styles.kpiValue}>{stats?.trainings_count ?? 0}</div>
           <div className={styles.kpiFooter}>
-            <span>Modul & Kursus Interaktif</span>
+            <span>{t('dashboard.stats.training_sub', 'Modul & Kursus Interaktif')}</span>
           </div>
         </div>
 
         <div className={styles.kpiCard} onClick={() => navigate('/models')}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>New Models</span>
+            <span className={styles.kpiLabel}>{t('dashboard.stats.new_models', 'New Models')}</span>
           </div>
           <div className={styles.kpiValue}>{stats?.models_count ?? 0}</div>
           <div className={styles.kpiFooter}>
-            <span>Parameter Line & Setting</span>
+            <span>{t('dashboard.stats.model_param', 'Parameter Line & Setting')}</span>
           </div>
         </div>
 
         <div className={styles.kpiCard} onClick={() => navigate('/documents')}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiLabel}>Dokumen Teknik</span>
+            <span className={styles.kpiLabel}>{t('dashboard.stats.documents', 'Dokumen Teknik')}</span>
           </div>
           <div className={styles.kpiValue}>{stats?.documents_count ?? 0}</div>
           <div className={styles.kpiFooter}>
-            <span>Protected File Sharing</span>
+            <span>{t('dashboard.stats.protected_sharing', 'Protected File Sharing')}</span>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. FEATURE SPOTLIGHTS: HIGHLIGHT FITUR TERBARU                            */}
-      {/* ponytail: clear functional differentiation, purposeful actions            */}
-      {/* ========================================================================= */}
-      <div className={styles.spotlightSection}>
-        <div className={styles.spotlightHeader}>
-          <div className={styles.spotlightTitleGroup}>
-            <h2 className={styles.spotlightTitle}>Pembaruan Fitur Terbaru</h2>
-            <span className={styles.spotlightTag}>Baru Rilis</span>
-          </div>
-          <span className={styles.spotlightSubtitle}>
-            Peningkatan kapabilitas performa media, materi pelatihan, dan sekuriti dokumen
-          </span>
-        </div>
-
-        <div className={styles.spotlightGrid}>
-          {/* Card 1: Video Compressor VAAPI */}
-          <div className={styles.spotlightCard}>
-            <div className={styles.spotlightTop}>
-              <div className={`${styles.spotlightIconBox} ${styles.iconBlue}`}>
-                <Video size={22} />
-              </div>
-              <span className={`${styles.spotlightBadge} ${styles.badgeBlue}`}>
-                Hardware Accelerated
-              </span>
-            </div>
-            <div className={styles.spotlightBody}>
-              <h3 className={styles.spotlightCardTitle}>Video Compressor (VAAPI)</h3>
-              <p className={styles.spotlightCardDesc}>
-                Kompresi video berkecepatan tinggi bertenaga Linux GPU H.264 VAAPI dengan CPU fallback aman. Mendukung resolusi 1080p, 720p, 480p, dan ukuran berkas hingga 1 GB.
-              </p>
-              <div className={styles.spotlightPills}>
-                <span className={styles.spotlightPill}>H.264 VAAPI</span>
-                <span className={styles.spotlightPill}>Batas 1 GB</span>
-                <span className={styles.spotlightPill}>Preview & Download</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className={styles.spotlightActionBtn}
-              onClick={() => navigate('/tools/video-compress')}
-            >
-              <span>Buka Video Compressor</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-
-          {/* Card 2: Online Training */}
-          <div className={styles.spotlightCard}>
-            <div className={styles.spotlightTop}>
-              <div className={`${styles.spotlightIconBox} ${styles.iconGreen}`}>
-                <GraduationCap size={22} />
-              </div>
-              <span className={`${styles.spotlightBadge} ${styles.badgeGreen}`}>
-                Admin Management
-              </span>
-            </div>
-            <div className={styles.spotlightBody}>
-              <h3 className={styles.spotlightCardTitle}>Online Training Platform</h3>
-              <p className={styles.spotlightCardDesc}>
-                Katalog kursus dan modul pelatihan teknis engineer interaktif lengkap dengan video panduan. Didukung hak akses penuh Administrator untuk mengedit dan menghapus modul.
-              </p>
-              <div className={styles.spotlightPills}>
-                <span className={styles.spotlightPill}>Video Pembelajaran</span>
-                <span className={styles.spotlightPill}>Role Admin Edit & Hapus</span>
-                <span className={styles.spotlightPill}>Tracking Deadline</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className={styles.spotlightActionBtn}
-              onClick={() => navigate('/training')}
-            >
-              <span>Jelajahi Training Online</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-
-          {/* Card 3: Protected Document Sharing */}
-          <div className={styles.spotlightCard}>
-            <div className={styles.spotlightTop}>
-              <div className={`${styles.spotlightIconBox} ${styles.iconViolet}`}>
-                <Share2 size={22} />
-              </div>
-              <span className={`${styles.spotlightBadge} ${styles.badgePurple}`}>
-                Custom Access Rules
-              </span>
-            </div>
-            <div className={styles.spotlightBody}>
-              <h3 className={styles.spotlightCardTitle}>Document Sharing & Vault</h3>
-              <p className={styles.spotlightCardDesc}>
-                Penyimpanan dan pembagian berkas teknik terpusat dengan aturan fleksibel: Open Public, Login Required, atau Proteksi Kata Sandi, serta generator tautan berbagi instan.
-              </p>
-              <div className={styles.spotlightPills}>
-                <span className={styles.spotlightPill}>Open Public</span>
-                <span className={styles.spotlightPill}>Login Required</span>
-                <span className={styles.spotlightPill}>Password Lock</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className={styles.spotlightActionBtn}
-              onClick={() => navigate('/documents')}
-            >
-              <span>Buka Document Vault</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 4. TOOLS MEDIA & OFFLINE AI QUICK LAUNCH TRAY                            */}
+      {/* 3. TOOLS MEDIA & OFFLINE AI QUICK LAUNCH TRAY                            */}
       {/* ponytail: lightweight horizontal access to offline tools                  */}
       {/* ========================================================================= */}
       <div className={styles.quickLaunchSection}>
         <div className={styles.quickLaunchHeader}>
           <h3 className={styles.quickLaunchTitle}>
             <Zap size={16} style={{ color: 'var(--color-accent)' }} />
-            <span>Tools Media & Offline AI Quick Launch</span>
+            <span>{t('dashboard.quick_launch_title', 'Tools Media & Offline AI Quick Launch')}</span>
           </h3>
-          <span className={styles.quickLaunchSub}>Pemrosesan cepat tanpa pihak ketiga</span>
+          <span className={styles.quickLaunchSub}>{t('dashboard.quick_launch_sub', 'Pemrosesan cepat tanpa pihak ketiga')}</span>
         </div>
         <div className={styles.quickLaunchGrid}>
           <div
@@ -560,9 +459,9 @@ export const DashboardPage = () => {
           <div className={styles.bentoSection}>
             <div className={styles.sectionHeader}>
               <div className={styles.sectionTitleGroup}>
-                <h2 className={styles.sectionTitle}>Hub Operasional & Fitur Kerja</h2>
+                <h2 className={styles.sectionTitle}>{t('dashboard.operations_hub', 'Hub Operasional & Fitur Kerja')}</h2>
               </div>
-              <span className={styles.sectionSub}>Akses cepat modul dan tooling teknis PE</span>
+              <span className={styles.sectionSub}>{t('dashboard.operations_sub', 'Akses cepat modul dan tooling teknis PE')}</span>
             </div>
 
             <div className={styles.tilesGrid}>
@@ -599,9 +498,9 @@ export const DashboardPage = () => {
           <div className={styles.bentoSection}>
             <div className={styles.sectionHeader}>
               <div className={styles.sectionTitleGroup}>
-                <h2 className={styles.sectionTitle}>Milestone Problem Solving (5-Tahap)</h2>
+                <h2 className={styles.sectionTitle}>{t('dashboard.milestone_title', 'Milestone Problem Solving (5-Tahap)')}</h2>
               </div>
-              <span className={styles.sectionSub}>Distribusi penyelesaian issue teknis produksi</span>
+              <span className={styles.sectionSub}>{t('dashboard.milestone_sub', 'Distribusi penyelesaian issue teknis produksi')}</span>
             </div>
 
             <div className={styles.milestoneGrid}>
@@ -635,14 +534,14 @@ export const DashboardPage = () => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Team Presence Card & Recent Logs */}
+        {/* RIGHT COLUMN: Team Presence Card & Integrated Dual Accordion */}
         <div className={styles.rightCol}>
           {/* Team Presence & Active Sessions Card */}
           <div className={styles.bentoSection}>
             <div className={styles.sectionHeaderCol}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <div className={styles.sectionTitleGroup}>
-                  <h2 className={styles.sectionTitle}>Status Sesi Anggota Tim</h2>
+                  <h2 className={styles.sectionTitle}>{t('dashboard.team_presence_title', 'Status Sesi Anggota Tim')}</h2>
                 </div>
                 <button
                   type="button"
@@ -650,7 +549,7 @@ export const DashboardPage = () => {
                   onClick={() => navigate('/team')}
                   title="Lihat Struktur Tim Lengkap"
                 >
-                  Lihat Semua
+                  {t('dashboard.view_all', 'Lihat Semua')}
                 </button>
               </div>
 
@@ -674,28 +573,28 @@ export const DashboardPage = () => {
                   className={`${styles.presenceTabBtn} ${memberFilter === 'all' ? styles.presenceTabActive : ''}`}
                   onClick={() => setMemberFilter('all')}
                 >
-                  Semua ({presenceCounts.total})
+                  {t('dashboard.filter_all', 'Semua')} ({presenceCounts.total})
                 </button>
                 <button
                   type="button"
                   className={`${styles.presenceTabBtn} ${memberFilter === 'online' ? styles.presenceTabActive : ''}`}
                   onClick={() => setMemberFilter('online')}
                 >
-                  Online ({presenceCounts.online})
+                  {t('dashboard.filter_online', 'Online')} ({presenceCounts.online})
                 </button>
                 <button
                   type="button"
                   className={`${styles.presenceTabBtn} ${memberFilter === 'away' ? styles.presenceTabActive : ''}`}
                   onClick={() => setMemberFilter('away')}
                 >
-                  Away ({presenceCounts.away})
+                  {t('dashboard.filter_away', 'Away')} ({presenceCounts.away})
                 </button>
                 <button
                   type="button"
                   className={`${styles.presenceTabBtn} ${memberFilter === 'offline' ? styles.presenceTabActive : ''}`}
                   onClick={() => setMemberFilter('offline')}
                 >
-                  Offline ({presenceCounts.offline})
+                  {t('dashboard.filter_offline', 'Offline')} ({presenceCounts.offline})
                 </button>
               </div>
             </div>
@@ -703,7 +602,7 @@ export const DashboardPage = () => {
             {/* Member List with Presence Status Badges */}
             <div className={styles.memberList}>
               {filteredMembers.length === 0 ? (
-                <div className={styles.emptyMembers}>Tidak ada anggota di kategori ini</div>
+                <div className={styles.emptyMembers}>{t('common.empty', 'Tidak ada data ditemukan')}</div>
               ) : (
                 filteredMembers.map((m) => (
                   <div key={m.id} className={styles.memberRow}>
@@ -725,7 +624,7 @@ export const DashboardPage = () => {
                       <div className={styles.memberNameLine}>
                         <span className={styles.memberFullName}>{m.full_name || m.username}</span>
                         {user && String(user.id) === String(m.id) && (
-                          <span className={styles.youBadge}>Anda</span>
+                          <span className={styles.youBadge}>{t('dashboard.you_badge', 'Anda')}</span>
                         )}
                       </div>
                       <span className={styles.memberGroupPart}>{m.groupName}</span>
@@ -750,42 +649,172 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Recent Activity Logs */}
-          <div className={styles.bentoSection}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionTitleGroup}>
-                <h2 className={styles.sectionTitle}>{t('dashboard.recent_activity', 'Aktivitas Terkini')}</h2>
-              </div>
-            </div>
+          {/* Dual Accordion Card: Pembaruan Fitur Terbaru + Aktivitas Sistem Terkini */}
+          <div className={styles.accordionCard}>
+            {/* Section 1: Pembaruan Fitur Terbaru */}
+            <div className={styles.accordionSection}>
+              <button
+                type="button"
+                className={styles.accordionHeaderBtn}
+                onClick={() => setUpdatesOpen((prev) => !prev)}
+                aria-expanded={updatesOpen}
+              >
+                <div className={styles.accordionHeaderLeft}>
+                  <Sparkles size={16} style={{ color: 'var(--color-accent)' }} />
+                  <span className={styles.accordionHeaderTitle}>
+                    {t('dashboard.feature_updates_title', 'Pembaruan Fitur')}
+                  </span>
+                  <span className={`${styles.accordionBadge} ${styles.badgeNew}`}>
+                    {t('dashboard.feature_updates_badge', '3 Baru')}
+                  </span>
+                </div>
+                {updatesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
 
-            {stats?.recent_logs && stats.recent_logs.length > 0 ? (
-              <div className={styles.activityFeed}>
-                {stats.recent_logs.slice(0, 5).map((log) => (
-                  <div key={log.id} className={styles.activityRow}>
-                    <div className={styles.activityIconWrap}>
-                      <Activity size={12} />
-                    </div>
-                    <div className={styles.activityContent}>
-                      <div className={styles.activityLine}>
-                        <strong className={styles.actUser}>{log.user_name || 'System User'}</strong>
-                        <span className={styles.actAction}>{log.action}</span>
+              {updatesOpen && (
+                <div className={styles.accordionBody}>
+                  <div className={styles.compactSpotlightList}>
+                    {/* Feature 1: Video Compressor */}
+                    <div className={styles.compactSpotlightItem}>
+                      <div className={styles.compactSpotlightTop}>
+                        <div className={styles.compactSpotlightTitleWrap}>
+                          <div className={`${styles.compactSpotlightIconBox} ${styles.iconBlue}`}>
+                            <Video size={15} />
+                          </div>
+                          <h3 className={styles.compactSpotlightTitle}>
+                            {t('dashboard.spotlights.video_title', 'Video Compressor (VAAPI)')}
+                          </h3>
+                        </div>
+                        <span className={`${styles.spotlightBadge} ${styles.badgeBlue}`}>
+                          {t('dashboard.spotlights.video_badge', 'Hardware Accelerated')}
+                        </span>
                       </div>
-                      <span className={styles.actTime}>
-                        <Clock size={10} style={{ opacity: 0.6 }} />
-                        {new Date(log.created_at).toLocaleString('id-ID', {
-                          day: '2-digit',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
+                      <p className={styles.compactSpotlightDesc}>
+                        {t('dashboard.spotlights.video_desc')}
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.compactSpotlightBtn}
+                        onClick={() => navigate('/tools/video-compress')}
+                      >
+                        <span>{t('dashboard.spotlights.video_btn', 'Buka Video Compressor')}</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    </div>
+
+                    {/* Feature 2: Online Training */}
+                    <div className={styles.compactSpotlightItem}>
+                      <div className={styles.compactSpotlightTop}>
+                        <div className={styles.compactSpotlightTitleWrap}>
+                          <div className={`${styles.compactSpotlightIconBox} ${styles.iconGreen}`}>
+                            <GraduationCap size={15} />
+                          </div>
+                          <h3 className={styles.compactSpotlightTitle}>
+                            {t('dashboard.spotlights.training_title', 'Online Training Platform')}
+                          </h3>
+                        </div>
+                        <span className={`${styles.spotlightBadge} ${styles.badgeGreen}`}>
+                          {t('dashboard.spotlights.training_badge', 'Admin Management')}
+                        </span>
+                      </div>
+                      <p className={styles.compactSpotlightDesc}>
+                        {t('dashboard.spotlights.training_desc')}
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.compactSpotlightBtn}
+                        onClick={() => navigate('/training')}
+                      >
+                        <span>{t('dashboard.spotlights.training_btn', 'Jelajahi Training Online')}</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    </div>
+
+                    {/* Feature 3: Document Vault */}
+                    <div className={styles.compactSpotlightItem}>
+                      <div className={styles.compactSpotlightTop}>
+                        <div className={styles.compactSpotlightTitleWrap}>
+                          <div className={`${styles.compactSpotlightIconBox} ${styles.iconViolet}`}>
+                            <Share2 size={15} />
+                          </div>
+                          <h3 className={styles.compactSpotlightTitle}>
+                            {t('dashboard.spotlights.doc_title', 'Document Sharing & Vault')}
+                          </h3>
+                        </div>
+                        <span className={`${styles.spotlightBadge} ${styles.badgePurple}`}>
+                          {t('dashboard.spotlights.doc_badge', 'Custom Access Rules')}
+                        </span>
+                      </div>
+                      <p className={styles.compactSpotlightDesc}>
+                        {t('dashboard.spotlights.doc_desc')}
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.compactSpotlightBtn}
+                        onClick={() => navigate('/documents')}
+                      >
+                        <span>{t('dashboard.spotlights.doc_btn', 'Buka Document Vault')}</span>
+                        <ArrowRight size={13} />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.emptyActivity}>{t('dashboard.no_activity', 'Belum ada aktivitas tercatat.')}</p>
-            )}
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Aktivitas Sistem Terkini */}
+            <div className={styles.accordionSection}>
+              <button
+                type="button"
+                className={styles.accordionHeaderBtn}
+                onClick={() => setLogsOpen((prev) => !prev)}
+                aria-expanded={logsOpen}
+              >
+                <div className={styles.accordionHeaderLeft}>
+                  <Activity size={16} style={{ color: 'var(--color-accent)' }} />
+                  <span className={styles.accordionHeaderTitle}>
+                    {t('dashboard.recent_activity', 'Aktivitas Terkini')}
+                  </span>
+                  <span className={`${styles.accordionBadge} ${styles.badgeCount}`}>
+                    {stats?.recent_logs?.length || 0}
+                  </span>
+                </div>
+                {logsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+
+              {logsOpen && (
+                <div className={styles.accordionBody}>
+                  {stats?.recent_logs && stats.recent_logs.length > 0 ? (
+                    <div className={styles.activityFeed}>
+                      {stats.recent_logs.slice(0, 5).map((log) => (
+                        <div key={log.id} className={styles.activityRow}>
+                          <div className={styles.activityIconWrap}>
+                            <Activity size={12} />
+                          </div>
+                          <div className={styles.activityContent}>
+                            <div className={styles.activityLine}>
+                              <strong className={styles.actUser}>{log.user_name || 'System User'}</strong>
+                              <span className={styles.actAction}>{log.action}</span>
+                            </div>
+                            <span className={styles.actTime}>
+                              <Clock size={10} style={{ opacity: 0.6 }} />
+                              {new Date(log.created_at).toLocaleString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={styles.emptyActivity}>{t('dashboard.no_activity', 'Belum ada aktivitas tercatat.')}</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

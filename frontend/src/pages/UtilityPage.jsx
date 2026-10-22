@@ -2724,6 +2724,7 @@ const BuildCommandTab = () => {
 // 7. VIDEO COMPRESSOR TAB (Hardware VAAPI / Fast CPU Accelerated)
 // ============================================================================
 const VideoCompressTab = () => {
+  const { t } = useTranslation();
   const [file, setFile] = useState(null);
   const [videoSrc, setVideoSrc] = useState('');
   const [videoMeta, setVideoMeta] = useState(null); // { name, size, duration, width, height }
@@ -2842,9 +2843,9 @@ const VideoCompressTab = () => {
       });
     } catch (err) {
       console.error('Compression failed:', err);
-      let errMsg = 'Gagal melakukan kompresi video.';
+      let errMsg = t('common.error', 'Gagal melakukan kompresi video.');
       if (err.response?.status === 413) {
-        errMsg = 'Ukuran berkas video melebihi batas upload server (Maksimal 1 GB).';
+        errMsg = t('video_compress.drop_desc', 'Ukuran berkas video melebihi batas upload server (Maksimal 1 GB).');
       } else if (err.response?.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
@@ -2875,10 +2876,10 @@ const VideoCompressTab = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-              Pilih Berkas Video
+              {t('video_compress.select_title', 'Pilih Berkas Video')}
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
-              Mendukung format MP4, MOV, MKV, WebM, AVI dengan akselerasi perangkat keras H.264 VAAPI.
+              {t('video_compress.select_desc', 'Mendukung format MP4, MOV, MKV, WebM, AVI dengan akselerasi perangkat keras H.264 VAAPI.')}
             </p>
           </div>
           {file && (
@@ -2893,7 +2894,7 @@ const VideoCompressTab = () => {
                 if (fileInputRef.current) fileInputRef.current.value = '';
               }}
             >
-              Ganti Video
+              {t('video_compress.change_video', 'Ganti Video')}
             </Button>
           )}
         </div>
@@ -2920,10 +2921,10 @@ const VideoCompressTab = () => {
               <VideoIcon size={36} color="var(--color-accent)" />
             </div>
             <div className={styles.dropzoneTitle}>
-              Tarik & Letakkan Video di Sini atau Klik untuk Telusuri
+              {t('video_compress.drop_title', 'Tarik & Letakkan Video di Sini atau Klik untuk Telusuri')}
             </div>
             <div className={styles.dropzoneSubtitle}>
-              Maksimal ukuran video fleksibel. Pemrosesan dilakukan dengan encoding H.264 VAAPI.
+              {t('video_compress.drop_desc', 'Maksimal ukuran video fleksibel (hingga 1 GB). Pemrosesan dilakukan dengan encoding H.264 VAAPI.')}
             </div>
           </div>
         ) : (
@@ -2946,7 +2947,7 @@ const VideoCompressTab = () => {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '13.5px' }}>{videoMeta.name}</div>
                     <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                      {formatFileSize(videoMeta.size)} • {videoMeta.width}x{videoMeta.height} px • Durasi: {formatDuration(videoMeta.duration)}
+                      {formatFileSize(videoMeta.size)} • {videoMeta.width}x{videoMeta.height} px • {t('video_compress.duration', 'Durasi')}: {formatDuration(videoMeta.duration)}
                     </div>
                   </div>
                 </div>
@@ -2959,7 +2960,7 @@ const VideoCompressTab = () => {
                   fontWeight: 700,
                   textTransform: 'uppercase',
                 }}>
-                  Siap Dicompress
+                  {t('video_compress.ready_badge', 'Siap Dicompress')}
                 </div>
               </div>
             )}
@@ -2970,13 +2971,13 @@ const VideoCompressTab = () => {
               <div className={styles.videoSettingBlock}>
                 <div className={styles.videoSettingTitle}>
                   <Sliders size={15} color="var(--color-accent)" />
-                  <span>Kualitas & Efisiensi</span>
+                  <span>{t('video_compress.quality_title', 'Kualitas & Efisiensi')}</span>
                 </div>
                 <div className={styles.optionCardList}>
                   {[
-                    { id: 'medium', name: 'Medium (Rekomendasi)', desc: 'Keseimbangan terbaik, hemat ~60-70% ukuran.', badge: 'Optimal' },
-                    { id: 'high', name: 'High (Kualitas Tinggi)', desc: 'Visual tajam & jernih, hemat ~35-45% ukuran.', badge: 'Jernih' },
-                    { id: 'low', name: 'Low (Ukuran Ringkas)', desc: 'Ukuran paling kecil, hemat hingga ~80% ukuran.', badge: 'Kecil' },
+                    { id: 'medium', name: t('video_compress.quality_medium', 'Medium (Rekomendasi)'), desc: t('video_compress.quality_medium_desc', 'Keseimbangan terbaik, hemat ~60-70% ukuran.'), badge: t('video_compress.optimal_badge', 'Optimal') },
+                    { id: 'high', name: t('video_compress.quality_high', 'High (Kualitas Tinggi)'), desc: t('video_compress.quality_high_desc', 'Visual tajam & jernih, hemat ~35-45% ukuran.'), badge: t('video_compress.sharp_badge', 'Jernih') },
+                    { id: 'low', name: t('video_compress.quality_low', 'Low (Ukuran Ringkas)'), desc: t('video_compress.quality_low_desc', 'Ukuran paling kecil, hemat hingga ~80% ukuran.'), badge: t('video_compress.small_badge', 'Kecil') },
                   ].map((opt) => (
                     <div
                       key={opt.id}
@@ -3005,14 +3006,14 @@ const VideoCompressTab = () => {
               <div className={styles.videoSettingBlock}>
                 <div className={styles.videoSettingTitle}>
                   <Gauge size={15} color="var(--color-accent)" />
-                  <span>Resolusi Target</span>
+                  <span>{t('video_compress.resolution_title', 'Resolusi Target')}</span>
                 </div>
                 <div className={styles.optionCardList}>
                   {[
-                    { id: 'original', name: 'Resolusi Asli', desc: 'Pertahankan dimensi video asli.', badge: 'Original' },
-                    { id: '1080p', name: '1080p Full HD', desc: 'Downscale ke maksimal tinggi 1080px.', badge: '1080p' },
-                    { id: '720p', name: '720p HD (Cocok Berbagi)', desc: 'Sangat ideal untuk dikirim lewat chat atau email.', badge: '720p' },
-                    { id: '480p', name: '480p SD (Kecil)', desc: 'Resolusi hemat data untuk pratinjau cepat.', badge: '480p' },
+                    { id: 'original', name: t('video_compress.res_original', 'Resolusi Asli'), desc: t('video_compress.res_original_desc', 'Pertahankan dimensi video asli.'), badge: 'Original' },
+                    { id: '1080p', name: t('video_compress.res_1080p', '1080p Full HD'), desc: t('video_compress.res_1080p_desc', 'Downscale ke maksimal tinggi 1080px.'), badge: '1080p' },
+                    { id: '720p', name: t('video_compress.res_720p', '720p HD (Cocok Berbagi)'), desc: t('video_compress.res_720p_desc', 'Sangat ideal untuk dikirim lewat chat atau email.'), badge: '720p' },
+                    { id: '480p', name: t('video_compress.res_480p', '480p SD (Kecil)'), desc: t('video_compress.res_480p_desc', 'Resolusi hemat data untuk pratinjau cepat.'), badge: '480p' },
                   ].map((opt) => (
                     <div
                       key={opt.id}
@@ -3041,13 +3042,13 @@ const VideoCompressTab = () => {
               <div className={styles.videoSettingBlock}>
                 <div className={styles.videoSettingTitle}>
                   <Zap size={15} color="#eab308" />
-                  <span>Akselerasi Perangkat Keras</span>
+                  <span>{t('video_compress.encoder_title', 'Akselerasi Perangkat Keras')}</span>
                 </div>
                 <div className={styles.optionCardList}>
                   {[
-                    { id: 'auto', name: 'Auto (H.264 VAAPI / GPU)', desc: 'Otomatis gunakan akselerasi VAAPI, fallback CPU bila perlu.', badge: 'Auto' },
-                    { id: 'vaapi', name: 'H.264 VAAPI (Linux GPU)', desc: 'Prioritas akselerasi perangkat keras Intel/AMD/NVIDIA VAAPI.', badge: 'VAAPI' },
-                    { id: 'cpu', name: 'CPU Software (H.264 Veryfast)', desc: 'Kompresi software CPU murni (kompatibilitas tinggi).', badge: 'CPU' },
+                    { id: 'auto', name: t('video_compress.enc_auto', 'Auto (H.264 VAAPI / GPU)'), desc: t('video_compress.enc_auto_desc', 'Otomatis gunakan akselerasi VAAPI, fallback CPU bila perlu.'), badge: 'Auto' },
+                    { id: 'vaapi', name: t('video_compress.enc_vaapi', 'H.264 VAAPI (Linux GPU)'), desc: t('video_compress.enc_vaapi_desc', 'Prioritas akselerasi perangkat keras Intel/AMD/NVIDIA VAAPI.'), badge: 'VAAPI' },
+                    { id: 'cpu', name: t('video_compress.enc_cpu', 'CPU Software (H.264 Veryfast)'), desc: t('video_compress.enc_cpu_desc', 'Kompresi software CPU murni (kompatibilitas tinggi).'), badge: 'CPU' },
                   ].map((opt) => (
                     <div
                       key={opt.id}
@@ -3079,7 +3080,7 @@ const VideoCompressTab = () => {
                       checked={muteAudio}
                       onChange={(e) => setMuteAudio(e.target.checked)}
                     />
-                    <span>Hilangkan Audio (Mute) untuk ukuran lebih kecil</span>
+                    <span>{t('video_compress.mute_label', 'Hilangkan Audio (Mute) untuk ukuran lebih kecil')}</span>
                   </label>
                 </div>
               </div>
@@ -3108,7 +3109,12 @@ const VideoCompressTab = () => {
               {compressing && (
                 <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <RefreshCw size={14} className="spin" />
-                  <span>Memproses dengan {encoder === 'cpu' ? 'CPU Software' : 'Akselerasi H.264 VAAPI'} ({elapsedSeconds}s)...</span>
+                  <span>
+                    {t('video_compress.processing', 'Memproses dengan {{encoder}} ({{time}}s)...', {
+                      encoder: encoder === 'cpu' ? 'CPU Software' : 'Akselerasi H.264 VAAPI',
+                      time: elapsedSeconds,
+                    })}
+                  </span>
                 </div>
               )}
               <Button
@@ -3117,7 +3123,9 @@ const VideoCompressTab = () => {
                 onClick={handleCompress}
                 disabled={compressing}
               >
-                {compressing ? 'Sedang Mengompres Video...' : 'Mulai Kompresi Video'}
+                {compressing
+                  ? t('video_compress.btn_compressing', 'Sedang Mengompres Video...')
+                  : t('video_compress.btn_compress', 'Mulai Kompresi Video')}
               </Button>
             </div>
           </div>
@@ -3131,7 +3139,7 @@ const VideoCompressTab = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckCircle2 size={20} color="#10b981" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-                Video Berhasil Dikompresi
+                {t('video_compress.success_title', 'Video Berhasil Dikompresi')}
               </h3>
             </div>
             <span style={{
@@ -3142,24 +3150,24 @@ const VideoCompressTab = () => {
               background: result.encoderUsed.includes('vaapi') ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
               color: result.encoderUsed.includes('vaapi') ? '#10b981' : '#3b82f6',
             }}>
-              Engine: {result.encoderUsed.toUpperCase()}
+              {t('video_compress.engine', 'Engine')}: {result.encoderUsed.toUpperCase()}
             </span>
           </div>
 
           {/* Stats Comparison */}
           <div className={styles.statsComparisonBox}>
             <div className={styles.statItem}>
-              <span className={styles.statItemLabel}>Ukuran Awal</span>
+              <span className={styles.statItemLabel}>{t('video_compress.original_size', 'Ukuran Awal')}</span>
               <span className={styles.statItemValue}>{formatFileSize(result.originalSize)}</span>
             </div>
             <div className={styles.statItem}>
-              <span className={styles.statItemLabel}>Ukuran Baru</span>
+              <span className={styles.statItemLabel}>{t('video_compress.new_size', 'Ukuran Baru')}</span>
               <span className={styles.statItemValue} style={{ color: '#10b981' }}>
                 {formatFileSize(result.compressedSize)}
               </span>
             </div>
             <div className={styles.statItem}>
-              <span className={styles.statItemLabel}>Penghematan</span>
+              <span className={styles.statItemLabel}>{t('video_compress.space_saved', 'Penghematan')}</span>
               <span className={styles.statItemValue} style={{ color: '#10b981' }}>
                 {result.originalSize > 0
                   ? `-${Math.max(0, Math.round(((result.originalSize - result.compressedSize) / result.originalSize) * 100))}%`
@@ -3167,7 +3175,7 @@ const VideoCompressTab = () => {
               </span>
             </div>
             <div className={styles.statItem}>
-              <span className={styles.statItemLabel}>Akselerasi</span>
+              <span className={styles.statItemLabel}>{t('video_compress.encoder_title', 'Akselerasi')}</span>
               <span className={styles.statItemValue} style={{ fontSize: '15px' }}>
                 {result.encoderUsed.includes('vaapi') ? 'H.264 VAAPI (GPU)' : 'CPU Veryfast'}
               </span>
@@ -3177,7 +3185,7 @@ const VideoCompressTab = () => {
           {/* Embedded Video Player */}
           <div className={styles.videoPlayerContainer}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-              Pratinjau Hasil Kompresi:
+              {t('video_compress.preview_title', 'Pratinjau Video Terkompresi')}:
             </span>
             <video
               src={result.url}
@@ -3193,7 +3201,7 @@ const VideoCompressTab = () => {
               icon={Download}
               onClick={handleDownloadResult}
             >
-              Unduh Video ({formatFileSize(result.compressedSize)})
+              {t('video_compress.download_btn', 'Unduh Video Terkompresi')} ({formatFileSize(result.compressedSize)})
             </Button>
           </div>
         </div>
