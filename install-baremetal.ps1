@@ -101,7 +101,7 @@ if (-not $psqlCmd) {
 if ($psqlCmd) {
     Write-Host "Mengonfigurasi Role & Database 'pe_portal'..." -ForegroundColor Yellow
     try {
-        & $psqlCmd -U postgres -h localhost -c "CREATE ROLE pe_portal WITH LOGIN PASSWORD 'Sein2016!' SUPERUSER;" 2>$null
+        & $psqlCmd -U postgres -h localhost -c "DO \`$do\`$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pe_portal') THEN CREATE ROLE pe_portal WITH LOGIN PASSWORD 'Sein2016!' SUPERUSER; ELSE ALTER ROLE pe_portal WITH PASSWORD 'Sein2016!'; END IF; END \`$do\`$;" 2>$null
         & $psqlCmd -U postgres -h localhost -c "CREATE DATABASE pe_portal OWNER pe_portal;" 2>$null
         Write-Host "[OK] Database dan Role 'pe_portal' siap." -ForegroundColor Green
     } catch {
