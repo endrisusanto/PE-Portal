@@ -439,6 +439,15 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
     }
   }, [isSending]);
 
+  // Auto-expand textarea height as user types or adds newlines (up to 160px)
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const targetHeight = Math.min(Math.max(el.scrollHeight, 36), 160);
+    el.style.height = `${targetHeight}px`;
+  }, [inputVal]);
+
   // Handle Detach to Standalone Window
   const handleDetachWindow = () => {
     const width = 1100;
@@ -757,36 +766,8 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Attachments Tray */}
-      {attachments.length > 0 && (
-        <div className={styles.attachmentsTray}>
-          {attachments.map((a) => (
-            <div key={a.id} className={styles.attachmentChip}>
-              {a.type.includes('csv') ? (
-                <FileSpreadsheet size={13} color="#10b981" />
-              ) : a.type.startsWith('image/') ? (
-                <ImageIcon size={13} color="#f59e0b" />
-              ) : (
-                <FileText size={13} color="#3b82f6" />
-              )}
-              <span className={styles.attachmentChipText}>
-                {a.name} ({(a.size / 1024).toFixed(1)} KB)
-              </span>
-              <button
-                type="button"
-                className={styles.attachmentRemoveBtn}
-                onClick={() => handleRemoveAttachment(a.id)}
-                title="Hapus Lampiran"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Input Bar */}
-      <form onSubmit={handleSendMessage} className={styles.inputForm}>
+      {/* Unified Input Composer */}
+      <form onSubmit={handleSendMessage} className={styles.composerForm}>
         {/* Hidden File Input */}
         <input
           ref={fileInputRef}
@@ -800,16 +781,36 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
           }}
         />
 
-        <button
-          type="button"
-          className={styles.attachBtn}
-          onClick={() => fileInputRef.current?.click()}
-          title="Lampirkan Dokumen (TXT, CSV, JSON, Log, Source Code, PDF)"
-        >
-          <Paperclip size={18} />
-        </button>
+        <div className={styles.composerContainer}>
+          {/* Attachments Inside Composer */}
+          {attachments.length > 0 && (
+            <div className={styles.composerAttachments}>
+              {attachments.map((a) => (
+                <div key={a.id} className={styles.attachmentChip}>
+                  {a.type.includes('csv') ? (
+                    <FileSpreadsheet size={13} color="#10b981" />
+                  ) : a.type.startsWith('image/') ? (
+                    <ImageIcon size={13} color="#f59e0b" />
+                  ) : (
+                    <FileText size={13} color="#3b82f6" />
+                  )}
+                  <span className={styles.attachmentChipText}>
+                    {a.name} ({(a.size / 1024).toFixed(1)} KB)
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.attachmentRemoveBtn}
+                    onClick={() => handleRemoveAttachment(a.id)}
+                    title="Hapus Lampiran"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-        <div className={styles.textareaWrapper}>
+          {/* Auto-expanding Textarea */}
           <textarea
             ref={textareaRef}
             rows={1}
@@ -822,20 +823,41 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
               }
             }}
             placeholder="Tanya apa saja ke AI..."
-            className={styles.chatTextarea}
+            className={styles.composerTextarea}
             disabled={isSending}
             autoFocus
           />
-        </div>
 
-        <button
-          type="submit"
-          disabled={isSending || (!inputVal.trim() && attachments.length === 0)}
-          className={styles.sendBtn}
-          title="Kirim Pesan (Enter)"
-        >
-          <Send size={16} />
-        </button>
+          {/* Bottom Action Toolbar */}
+          <div className={styles.composerToolbar}>
+            <div className={styles.toolbarLeft}>
+              <button
+                type="button"
+                className={styles.attachBtn}
+                onClick={() => fileInputRef.current?.click()}
+                title="Lampirkan Dokumen (TXT, CSV, JSON, Log, PDF, Image)"
+              >
+                <Paperclip size={17} />
+              </button>
+              {attachments.length > 0 && (
+                <span className={styles.attachmentsCount}>
+                  {attachments.length} lampiran
+                </span>
+              )}
+            </div>
+
+            <div className={styles.toolbarRight}>
+              <button
+                type="submit"
+                disabled={isSending || (!inputVal.trim() && attachments.length === 0)}
+                className={styles.sendBtn}
+                title="Kirim Pesan (Enter)"
+              >
+                <Send size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
       </form>
     </div>
   );

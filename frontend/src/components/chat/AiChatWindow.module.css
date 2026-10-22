@@ -461,14 +461,38 @@
   white-space: pre;
 }
 
-/* Attachment Drop Tray / Selected Chips */
-.attachmentsTray {
+/* Unified Composer Form */
+.composerForm {
+  padding: 10px 14px 12px;
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  box-sizing: border-box;
+}
+
+.composerContainer {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 10px 10px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.composerContainer:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent), 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Attached Files Inside Composer */
+.composerAttachments {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 14px;
-  background-color: var(--color-bg-primary);
-  border-top: 1px solid var(--color-border);
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
 }
 
 .attachmentChip {
@@ -477,11 +501,11 @@
   gap: 6px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--color-text-primary);
-  max-width: 260px;
+  max-width: 220px;
 }
 
 .attachmentChipText {
@@ -493,75 +517,39 @@
 .attachmentRemoveBtn {
   background: transparent;
   border: none;
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, var(--color-text-secondary));
   cursor: pointer;
   padding: 2px;
   display: flex;
   align-items: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
 }
 
 .attachmentRemoveBtn:hover {
   color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
 }
 
-/* Chat Input Bar */
-.inputForm {
-  padding: 10px 14px;
-  background-color: var(--color-bg-secondary);
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
-
-.attachBtn {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm, 6px);
-  color: var(--color-text-secondary);
-  width: 38px;
-  height: 38px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.attachBtn:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-  background: rgba(59, 130, 246, 0.05);
-}
-
-.textareaWrapper {
-  flex: 1;
-  position: relative;
-}
-
-.chatTextarea {
+/* Auto-expanding Textarea */
+.composerTextarea {
   width: 100%;
-  min-height: 38px;
-  max-height: 120px;
-  padding: 9px 12px;
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm, 6px);
-  color: var(--color-text-primary);
-  font-size: 12.5px;
-  line-height: 1.4;
+  min-height: 36px;
+  max-height: 160px;
+  padding: 2px 2px 4px 2px;
+  background: transparent;
+  border: none;
   outline: none;
   resize: none;
   font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-primary);
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
-.chatTextarea:focus {
-  border-color: var(--color-accent);
-}
-
-.chatTextarea::placeholder {
+.composerTextarea::placeholder {
   color: var(--color-text-secondary);
   opacity: 0.75;
   white-space: nowrap;
@@ -569,24 +557,93 @@
   text-overflow: ellipsis;
 }
 
+.composerTextarea::-webkit-scrollbar {
+  width: 4px;
+}
+
+.composerTextarea::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+/* Composer Bottom Toolbar */
+.composerToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachmentsCount {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.attachBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-secondary);
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.attachBtn:hover {
+  color: var(--color-accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.attachBtn:active {
+  transform: scale(0.95);
+}
+
 .sendBtn {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-sm, 6px);
   background-color: var(--color-accent);
   color: #ffffff;
   border: none;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s ease;
-  flex-shrink: 0;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.sendBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sendBtn:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .sendBtn:disabled {
-  opacity: 0.45;
+  opacity: 0.35;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Drag overlay */
