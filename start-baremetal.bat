@@ -4,11 +4,16 @@
 :: Mode: /ponytail (Minimalist, Native Process Launcher)
 :: ============================================================================
 chcp 65001 >nul
+cd /d "%~dp0"
+
 echo.
 echo ========================================================
 echo   Starting SEIN PE-Portal Services (Bare Metal)
 echo ========================================================
 echo.
+
+:: Add PostgreSQL to PATH if present
+if exist "C:\Program Files\PostgreSQL\16\bin" set "PATH=C:\Program Files\PostgreSQL\16\bin;%PATH%"
 
 :: Check & ensure PostgreSQL and Redis services are running if registered
 sc query postgresql-x64-16 >nul 2>&1
@@ -23,7 +28,7 @@ if %errorlevel% equ 0 net start redis >nul 2>&1
 if not exist "bin\pe-portal-backend.exe" (
     echo Compiling backend binary...
     cd backend
-    call go build -o "..\bin\pe-portal-backend.exe" cmd\server\main.go
+    call go build -ldflags="-w -s" -o "..\bin\pe-portal-backend.exe" ./cmd/server
     cd ..
 )
 
@@ -32,10 +37,10 @@ start "PE-Portal Backend (Port 8085)" /min "bin\pe-portal-backend.exe"
 
 echo Starting Frontend Preview on port 3025...
 cd frontend
-start "PE-Portal Frontend (Port 3025)" /min cmd /c "npm run preview -- --port 3025 --host"
+start "PE-Portal Frontend (Port 3025)" /min cmd /c "npm.cmd run preview -- --port 3025 --host 0.0.0.0"
 cd ..
 
-timeout /t 3 >nul
+ping 127.0.0.1 -n 4 >nul
 echo.
 echo ========================================================
 echo   PE-Portal is now running natively:

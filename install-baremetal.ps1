@@ -13,16 +13,47 @@ Write-Host ""
 $RootPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $RootPath
 
-function Check-And-Install ($cmd, $packageId, $name) {
+# Tambahkan path PostgreSQL & tools jika ada di Program Files tapi belum ada di PATH
+$candidatePaths = @(
+    "C:\Program Files\PostgreSQL\16\bin",
+    "C:\Program Files\PostgreSQL\15\bin",
+    "C:\Program Files\PostgreSQL\14\bin",
+    "C:\Program Files\Memurai",
+    "C:\Program Files\Redis",
+    "C:\Program Files\Git\cmd",
+    "C:\Program Files\Go\bin",
+    "C:\Program Files\nodejs"
+)
+
+foreach ($dir in $candidatePaths) {
+    if (Test-Path $dir) {
+        if ($env:Path -notlike "*$dir*") {
+            $env:Path = "$dir;" + $env:Path
+        }
+    }
+}
+
+function Check-And-Install ($cmd, $packageId, $name, [switch]$Optional) {
     if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
-        Write-Host "[!] $name belum terdeteksi. Menginstal otomatis via winget..." -ForegroundColor Yellow
+        Write-Host "[!] $name belum terdeteksi. Mencoba instalasi otomatis via winget..." -ForegroundColor Yellow
         try {
-            winget install --id $packageId -e --silent --accept-package-agreements --accept-source-agreements
-            Write-Host "[+] $name berhasil diinstal." -ForegroundColor Green
-            # Refresh PATH in current session
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            $proc = Start-Process winget -ArgumentList "install --id $packageId -e --silent --accept-package-agreements --accept-source-agreements" -NoNewWindow -Wait -PassThru -ErrorAction SilentlyContinue
+            if ($proc.ExitCode -eq 0) {
+                Write-Host "[+] $name berhasil diinstal." -ForegroundColor Green
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            } else {
+                if ($Optional) {
+                    Write-Host "[i] $name dilewati (opsional untuk mode bare-metal)." -ForegroundColor DarkGray
+                } else {
+                    Write-Host "[-] Gagal menginstal $name otomatis. Silakan instal manual: $packageId" -ForegroundColor Yellow
+                }
+            }
         } catch {
-            Write-Host "[-] Gagal menginstal $name otomatis. Silakan instal manual: $packageId" -ForegroundColor Red
+            if ($Optional) {
+                Write-Host "[i] $name dilewati (opsional)." -ForegroundColor DarkGray
+            } else {
+                Write-Host "[-] Gagal menginstal $name otomatis: $_" -ForegroundColor Red
+            }
         }
     } else {
         Write-Host "[OK] $name terdeteksi ($cmd)." -ForegroundColor Green
@@ -34,13 +65,13 @@ Write-Host "--- [1/6] Memeriksa & Menginstal Runtimes ---" -ForegroundColor Cyan
 Check-And-Install "git" "Git.Git" "Git for Windows"
 Check-And-Install "go" "GoLang.Go" "Go Compiler (1.22+)"
 Check-And-Install "node" "OpenJS.NodeJS.LTS" "Node.js LTS (20+)"
-Check-And-Install "ffmpeg" "Gyan.FFmpeg" "FFmpeg Media Tool"
+Check-And-Install "ffmpeg" "Gyan.FFmpeg.Essentials" "FFmpeg Media Tool" -Optional
 
 # 2. Database & Redis Services
 Write-Host ""
 Write-Host "--- [2/6] Memeriksa PostgreSQL & Redis ---" -ForegroundColor Cyan
 Check-And-Install "psql" "PostgreSQL.PostgreSQL.16" "PostgreSQL 16 Server"
-Check-And-Install "memurai-cli" "Memurai.Developer" "Memurai (Native Windows Redis)"
+Check-And-Install "memurai-cli" "Memurai.MemuraiDeveloper" "Memurai (Native Windows Redis)" -Optional
 
 # Start services if registered as Windows Service
 $pgServices = @("postgresql-x64-16", "postgresql-x64-15", "postgresql-x64-14", "postgresql")
@@ -48,16 +79,24 @@ foreach ($svc in $pgServices) {
     if (Get-Service -Name $svc -ErrorAction SilentlyContinue) {
         if ((Get-Service -Name $svc).Status -ne "Running") {
             Write-Host "Memulai Windows Service $svc..." -ForegroundColor Yellow
-            Start-Service -Name $svc
+            Start-Service -Name $svc -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "[OK] Service $svc sedang berjalan." -ForegroundColor Green
         }
         break
     }
 }
 
-if (Get-Service -Name "memurai" -ErrorAction SilentlyContinue) {
-    if ((Get-Service -Name "memurai").Status -ne "Running") {
-        Write-Host "Memulai Windows Service memurai..." -ForegroundColor Yellow
-        Start-Service -Name "memurai"
+$redisServices = @("memurai", "redis")
+foreach ($rsvc in $redisServices) {
+    if (Get-Service -Name $rsvc -ErrorAction SilentlyContinue) {
+        if ((Get-Service -Name $rsvc).Status -ne "Running") {
+            Write-Host "Memulai Windows Service $rsvc..." -ForegroundColor Yellow
+            Start-Service -Name $rsvc -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "[OK] Service $rsvc sedang berjalan." -ForegroundColor Green
+        }
+        break
     }
 }
 
@@ -84,31 +123,52 @@ foreach ($d in $dirs) {
 # 4. Inisialisasi Database PostgreSQL
 Write-Host ""
 Write-Host "--- [4/6] Inisialisasi Database PostgreSQL ---" -ForegroundColor Cyan
-
-# ponytail: auto-locate psql.exe if not directly in PATH
-$psqlCmd = Get-Command "psql" -ErrorAction SilentlyContinue
-if (-not $psqlCmd) {
-    $foundPsql = Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\psql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($foundPsql) {
-        $psqlBinDir = Split-Path -Parent $foundPsql.FullName
-        $env:Path = "$psqlBinDir;$env:Path"
-        $psqlCmd = $foundPsql.FullName
+try {
+    # Ambil DB_PASSWORD dari .env jika ada
+    $dbPass = "Sein2016!"
+    if (Test-Path ".env") {
+        $lines = Get-Content ".env"
+        foreach ($l in $lines) {
+            if ($l -match "^\s*DB_PASSWORD\s*=\s*(.+)") {
+                $dbPass = $matches[1].Trim()
+            }
+        }
     }
-} else {
+
+    $env:PGPASSWORD = $dbPass
+    $initSql = @"
+DO `$do`$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pe_portal') THEN
+      CREATE ROLE pe_portal WITH LOGIN PASSWORD '$dbPass' SUPERUSER;
+   ELSE
+      ALTER ROLE pe_portal WITH PASSWORD '$dbPass';
+   END IF;
+END
+`$do`$;
+SELECT 'CREATE DATABASE pe_portal OWNER pe_portal' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'pe_portal')\gexec
+"@
+    $initSqlPath = Join-Path $RootPath "data\init_portal_db.sql"
+    Set-Content -Path $initSqlPath -Value $initSql -Encoding UTF8
+    
     $psqlCmd = "psql"
-}
-
-if ($psqlCmd) {
-    Write-Host "Mengonfigurasi Role & Database 'pe_portal'..." -ForegroundColor Yellow
-    try {
-        & $psqlCmd -U postgres -h localhost -c "DO \`$do\`$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pe_portal') THEN CREATE ROLE pe_portal WITH LOGIN PASSWORD 'Sein2016!' SUPERUSER; ELSE ALTER ROLE pe_portal WITH PASSWORD 'Sein2016!'; END IF; END \`$do\`$;" 2>$null
-        & $psqlCmd -U postgres -h localhost -c "CREATE DATABASE pe_portal OWNER pe_portal;" 2>$null
-        Write-Host "[OK] Database dan Role 'pe_portal' siap." -ForegroundColor Green
-    } catch {
-        Write-Host "[Note] Jalankan manual jika postgres meminta password khusus: psql -U postgres" -ForegroundColor Yellow
+    if (-not (Get-Command "psql" -ErrorAction SilentlyContinue)) {
+        $potentialPsql = @("C:\Program Files\PostgreSQL\16\bin\psql.exe", "C:\Program Files\PostgreSQL\15\bin\psql.exe", "C:\Program Files\PostgreSQL\14\bin\psql.exe")
+        foreach ($cand in $potentialPsql) {
+            if (Test-Path $cand) {
+                $psqlCmd = $cand
+                $psqlDir = Split-Path -Parent $cand
+                if ($env:Path -notlike "*$psqlDir*") { $env:Path = "$psqlDir;" + $env:Path }
+                break
+            }
+        }
     }
-} else {
-    Write-Host "[Note] psql belum terdeteksi di PATH. Pastikan DB 'pe_portal' dapat diakses via .env." -ForegroundColor Yellow
+    
+    & $psqlCmd -U postgres -h 127.0.0.1 -f $initSqlPath *>$null
+    Remove-Item -Force $initSqlPath -ErrorAction SilentlyContinue
+    Write-Host "[OK] Database dan Role 'pe_portal' siap." -ForegroundColor Green
+} catch {
+    Write-Host "[Note] Inisialisasi DB otomatis: $_ (melanjutkan ke kompilasi)." -ForegroundColor Yellow
 }
 
 # 5. Build Backend & Frontend
@@ -131,16 +191,20 @@ Write-Host "[OK] Frontend build selesai: frontend\dist" -ForegroundColor Green
 # 6. Registrasi Windows Auto-Start (Opsional Shortcut Startup)
 Write-Host ""
 Write-Host "--- [6/6] Konfigurasi Auto-Start Windows ---" -ForegroundColor Cyan
-$StartupFolder = [Environment]::GetFolderPath("Startup")
-$ShortcutPath = Join-Path $StartupFolder "SEIN-PE-Portal.lnk"
-$WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-$Shortcut.TargetPath = (Join-Path $RootPath "start-baremetal.bat")
-$Shortcut.WorkingDirectory = $RootPath
-$Shortcut.WindowStyle = 7 # Minimized
-$Shortcut.Description = "SEIN Production Engineer Portal Auto-Start"
-$Shortcut.Save()
-Write-Host "[OK] Shortcut Auto-Start dibuat di: $ShortcutPath" -ForegroundColor Green
+try {
+    $StartupFolder = [Environment]::GetFolderPath("Startup")
+    $ShortcutPath = Join-Path $StartupFolder "SEIN-PE-Portal.lnk"
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+    $Shortcut.TargetPath = (Join-Path $RootPath "start-baremetal.bat")
+    $Shortcut.WorkingDirectory = $RootPath
+    $Shortcut.WindowStyle = 7 # Minimized
+    $Shortcut.Description = "SEIN Production Engineer Portal Auto-Start"
+    $Shortcut.Save()
+    Write-Host "[OK] Shortcut Auto-Start dibuat di: $ShortcutPath" -ForegroundColor Green
+} catch {
+    Write-Host "[Note] Shortcut auto-start dilewati." -ForegroundColor DarkGray
+}
 
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Cyan

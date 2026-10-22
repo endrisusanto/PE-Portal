@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,6 +15,7 @@ import (
 )
 
 // LDAPAuthProvider authenticates against Corporate Active Directory via LDAP
+// with fallback to local accounts (admin) and JIT auto-registration for new LDAP users.
 type LDAPAuthProvider struct {
 	cfg  *config.Config
 	pool *pgxpool.Pool
@@ -28,14 +30,22 @@ func (l *LDAPAuthProvider) Type() string {
 	return "ldap"
 }
 
-// Authenticate verifies user credentials with the Active Directory LDAP server
+// Authenticate verifies user credentials with local accounts first (e.g. admin),
+// and falls back to Active Directory LDAP with auto-registration for new users.
 func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password string) (*model.User, error) {
-	// ponytail: allow local admin / break-glass accounts to login even when LDAP is enabled
+	// 1. Try local authentication first
+	// This ensures built-in accounts (like 'admin') can always log in even if they do not exist in LDAP
 	localAuth := NewLocalAuthProvider(l.pool)
-	if user, err := localAuth.Authenticate(ctx, username, password); err == nil {
-		return user, nil
+	if localUser, localErr := localAuth.Authenticate(ctx, username, password); localErr == nil {
+		return localUser, nil
 	}
 
+	// 2. If username is "admin" and local auth failed with bad password, do not search LDAP
+	if username == "admin" {
+		return nil, errors.New("invalid credentials for admin account")
+	}
+
+	// 3. Connect to LDAP server
 	if l.cfg.LDAPHost == "" {
 		return nil, errors.New("LDAP host is not configured; check settings or environment variables")
 	}
@@ -59,20 +69,20 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 	}
 	defer conn.Close()
 
-	// 1. Service Bind
+	// 4. Service Bind
 	if l.cfg.LDAPBindDN != "" {
 		if err := conn.Bind(l.cfg.LDAPBindDN, l.cfg.LDAPBindPassword); err != nil {
 			return nil, fmt.Errorf("service bind to LDAP failed: %w", err)
 		}
 	}
 
-	// 2. Search user
+	// 5. Search user in LDAP directory
 	searchFilter := fmt.Sprintf("(sAMAccountName=%s)", ldap.EscapeFilter(username))
 	searchRequest := ldap.NewSearchRequest(
 		l.cfg.LDAPBaseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		searchFilter,
-		[]string{"dn", "cn", "mail", "sAMAccountName", "employeeID"},
+		[]string{"dn", "cn", "displayName", "mail", "userPrincipalName", "sAMAccountName", "employeeID", "employeeNumber"},
 		nil,
 	)
 
@@ -84,7 +94,7 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 	userEntry := sr.Entries[0]
 	userDN := userEntry.DN
 
-	// 3. User Bind (Authenticate password)
+	// 6. User Bind (Authenticate user with LDAP password)
 	userConn, err := ldap.Dial("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect for user bind: %w", err)
@@ -95,19 +105,13 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 		return nil, errors.New("invalid LDAP credentials")
 	}
 
-	// 4. Map or sync into local users table
-	user, err := localAuth.Authenticate(ctx, username, password)
-	if err == nil {
-		return user, nil
-	}
-
-	// ponytail: if local user entry already exists with matching username, return it
+	// 7. Check if local user already exists
 	query := `
 		SELECT u.id, u.employee_id, u.username, u.email,
 		       u.full_name, u.avatar_path, u.preferred_lang, u.group_part_id,
 		       u.role, u.auth_provider, u.is_active, u.created_at, u.updated_at
 		FROM users u
-		WHERE u.username = $1 AND u.deleted_at IS NULL
+		WHERE (u.username = $1 OR LOWER(u.username) = LOWER($1)) AND u.deleted_at IS NULL
 	`
 	var existing model.User
 	err = l.pool.QueryRow(ctx, query, username).Scan(
@@ -116,8 +120,85 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 		&existing.Role, &existing.AuthProvider, &existing.IsActive, &existing.CreatedAt, &existing.UpdatedAt,
 	)
 	if err == nil {
+		if !existing.IsActive {
+			return nil, errors.New("user account is deactivated")
+		}
+		// Update last login timestamp asynchronously
+		go func(uid string) {
+			_, _ = l.pool.Exec(context.Background(), "UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1", uid)
+		}(existing.ID.String())
 		return &existing, nil
 	}
 
-	return nil, errors.New("LDAP authentication succeeded but user has no PE-Portal account assigned")
+	// 8. Auto-provision (JIT Register) new user from LDAP
+	fullName := userEntry.GetAttributeValue("cn")
+	if fullName == "" {
+		fullName = userEntry.GetAttributeValue("displayName")
+	}
+	if fullName == "" {
+		fullName = username
+	}
+
+	email := userEntry.GetAttributeValue("mail")
+	if email == "" {
+		email = userEntry.GetAttributeValue("userPrincipalName")
+	}
+	if email == "" {
+		email = fmt.Sprintf("%s@samsungelectronics.net", username)
+	}
+
+	employeeID := userEntry.GetAttributeValue("employeeID")
+	if employeeID == "" {
+		employeeID = userEntry.GetAttributeValue("employeeNumber")
+	}
+	if employeeID == "" {
+		employeeID = username
+	}
+	if len(employeeID) > 20 {
+		employeeID = employeeID[:20]
+	}
+
+	// Set initial role: 'admin' for endri.s, 'member' for all others
+	role := "member"
+	if username == "endri.s" {
+		role = "admin"
+	}
+
+	insertQuery := `
+		INSERT INTO users (
+			id, employee_id, username, email, full_name,
+			preferred_lang, role, auth_provider, is_active,
+			last_login_at, created_at, updated_at
+		) VALUES (
+			gen_random_uuid(), $1, $2, $3, $4,
+			'en', $5, 'ldap', true,
+			NOW(), NOW(), NOW()
+		)
+		ON CONFLICT (username) DO UPDATE
+		SET full_name = EXCLUDED.full_name,
+		    email = EXCLUDED.email,
+		    last_login_at = NOW(),
+		    updated_at = NOW()
+		RETURNING id, employee_id, username, email, full_name, avatar_path, preferred_lang, group_part_id, role, auth_provider, is_active, created_at, updated_at
+	`
+	var newUser model.User
+	err = l.pool.QueryRow(ctx, insertQuery, employeeID, username, email, fullName, role).Scan(
+		&newUser.ID, &newUser.EmployeeID, &newUser.Username, &newUser.Email,
+		&newUser.FullName, &newUser.AvatarPath, &newUser.PreferredLang, &newUser.GroupPartID,
+		&newUser.Role, &newUser.AuthProvider, &newUser.IsActive, &newUser.CreatedAt, &newUser.UpdatedAt,
+	)
+	if err != nil {
+		// Fallback if employeeID conflicted with another row
+		fallbackEmpID := fmt.Sprintf("LDAP_%d", time.Now().Unix()%1000000000)
+		err = l.pool.QueryRow(ctx, insertQuery, fallbackEmpID, username, email, fullName, role).Scan(
+			&newUser.ID, &newUser.EmployeeID, &newUser.Username, &newUser.Email,
+			&newUser.FullName, &newUser.AvatarPath, &newUser.PreferredLang, &newUser.GroupPartID,
+			&newUser.Role, &newUser.AuthProvider, &newUser.IsActive, &newUser.CreatedAt, &newUser.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to auto-register LDAP user: %w", err)
+		}
+	}
+
+	return &newUser, nil
 }
