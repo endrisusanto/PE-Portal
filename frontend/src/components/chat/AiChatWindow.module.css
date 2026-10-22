@@ -561,6 +561,14 @@
   border-color: var(--color-accent);
 }
 
+.chatTextarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sendBtn {
   width: 38px;
   height: 38px;

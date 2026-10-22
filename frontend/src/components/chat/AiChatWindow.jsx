@@ -821,7 +821,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 handleSendMessage();
               }
             }}
-            placeholder="Tanyakan analisis log, cek BOM, buat diagram SVG, atau format tabel..."
+            placeholder="Tanya apa saja ke AI..."
             className={styles.chatTextarea}
             disabled={isSending}
             autoFocus
