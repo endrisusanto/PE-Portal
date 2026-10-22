@@ -67,6 +67,7 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		"011_menu_permissions.sql",
 		"012_menu_permissions_specific_users.sql",
 		"013_task_and_comment_attachments.sql",
+		"014_menu_permissions_blacklist_and_settings.sql",
 	}
 	for _, file := range files {
 		var alreadyApplied bool

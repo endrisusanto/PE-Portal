@@ -126,17 +126,27 @@ export const TrainingPage = () => {
     // 1. Master toggle
     if (perm.is_visible === false) return false;
 
-    // 2. Specific user restriction check
-    if (perm.allowed_users && perm.allowed_users.length > 0) {
-      const uName = (user?.username || '').toLowerCase();
-      const uEmp = (user?.employee_id || '').toLowerCase();
-      const uEmail = (user?.email || '').toLowerCase();
-      const uId = (user?.id || '').toLowerCase();
-      const match = perm.allowed_users.some((u) => {
+    const uName = (user?.username || '').toLowerCase();
+    const uEmp = (user?.employee_id || '').toLowerCase();
+    const uEmail = (user?.email || '').toLowerCase();
+    const uId = (user?.id || '').toLowerCase();
+
+    // 2. Blacklist Specific User check (if blacklisted, immediately deny)
+    if (perm.blocked_users && perm.blocked_users.length > 0) {
+      const isBlacklisted = perm.blocked_users.some((u) => {
         const t = (u || '').toLowerCase().trim();
         return t && (t === uName || t === uEmp || t === uEmail || t === uId);
       });
-      if (!match) return false;
+      if (isBlacklisted) return false;
+    }
+
+    // 3. Whitelist Specific User check (if configured, only whitelisted users can access)
+    if (perm.allowed_users && perm.allowed_users.length > 0) {
+      const isWhitelisted = perm.allowed_users.some((u) => {
+        const t = (u || '').toLowerCase().trim();
+        return t && (t === uName || t === uEmp || t === uEmail || t === uId);
+      });
+      if (!isWhitelisted) return false;
     }
 
     // 3. Role check

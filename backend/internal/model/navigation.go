@@ -17,6 +17,7 @@ type MenuPermission struct {
 	AllowedRoles  []string  `json:"allowed_roles"`
 	AllowedGroups []string  `json:"allowed_groups"`
 	AllowedUsers  []string  `json:"allowed_users"`
+	BlockedUsers  []string  `json:"blocked_users"`
 	SortOrder     int       `json:"sort_order"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
@@ -28,4 +29,5 @@ type UpdateMenuPermissionRequest struct {
 	AllowedRoles  []string `json:"allowed_roles"`
 	AllowedGroups []string `json:"allowed_groups"`
 	AllowedUsers  []string `json:"allowed_users"`
+	BlockedUsers  []string `json:"blocked_users"`
 }

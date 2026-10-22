@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Plus,
   Shield,
-  UserCheck,
   History,
   SlidersHorizontal,
   Eye,
@@ -14,8 +13,9 @@ import {
   Search,
   Check,
   Layers,
-  Sparkles,
   User,
+  UserCheck,
+  UserX,
   X,
 } from 'lucide-react';
 import api from '../api/client';
@@ -108,24 +108,56 @@ export const AdminPage = () => {
     );
   };
 
-  const handleAddUserToMenu = (menuKey, userIdentifier) => {
+  const handleAddWhitelistUser = (menuKey, userIdentifier) => {
     if (!userIdentifier) return;
     setMenuPermissions((prev) =>
       prev.map((item) => {
         if (item.menu_key !== menuKey) return item;
         const currentUsers = item.allowed_users || [];
         if (currentUsers.includes(userIdentifier)) return item;
-        return { ...item, allowed_users: [...currentUsers, userIdentifier] };
+        const currentBlocked = (item.blocked_users || []).filter((u) => u !== userIdentifier);
+        return {
+          ...item,
+          allowed_users: [...currentUsers, userIdentifier],
+          blocked_users: currentBlocked,
+        };
       })
     );
   };
 
-  const handleRemoveUserFromMenu = (menuKey, userIdentifier) => {
+  const handleRemoveWhitelistUser = (menuKey, userIdentifier) => {
     setMenuPermissions((prev) =>
       prev.map((item) => {
         if (item.menu_key !== menuKey) return item;
         const currentUsers = item.allowed_users || [];
         return { ...item, allowed_users: currentUsers.filter((u) => u !== userIdentifier) };
+      })
+    );
+  };
+
+  const handleAddBlacklistUser = (menuKey, userIdentifier) => {
+    if (!userIdentifier) return;
+    setMenuPermissions((prev) =>
+      prev.map((item) => {
+        if (item.menu_key !== menuKey) return item;
+        const currentBlocked = item.blocked_users || [];
+        if (currentBlocked.includes(userIdentifier)) return item;
+        const currentAllowed = (item.allowed_users || []).filter((u) => u !== userIdentifier);
+        return {
+          ...item,
+          blocked_users: [...currentBlocked, userIdentifier],
+          allowed_users: currentAllowed,
+        };
+      })
+    );
+  };
+
+  const handleRemoveBlacklistUser = (menuKey, userIdentifier) => {
+    setMenuPermissions((prev) =>
+      prev.map((item) => {
+        if (item.menu_key !== menuKey) return item;
+        const currentBlocked = item.blocked_users || [];
+        return { ...item, blocked_users: currentBlocked.filter((u) => u !== userIdentifier) };
       })
     );
   };
@@ -151,9 +183,10 @@ export const AdminPage = () => {
       prev.map((item) => ({
         ...item,
         is_visible: true,
-        allowed_roles: ['admin', 'manager', 'member', 'guest'],
+        allowed_roles: item.menu_key === 'admin' || item.menu_key === 'settings' ? ['admin'] : ['admin', 'manager', 'member', 'guest'],
         allowed_groups: [],
         allowed_users: [],
+        blocked_users: [],
       }))
     );
   };
@@ -435,7 +468,8 @@ export const AdminPage = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 600, width: '140px' }}>Visibilitas</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Akses Role (Siapa yang bisa lihat?)</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Akses Part / Bagian</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Akses Specific User</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, minWidth: '190px' }}>Whitelist User (Diizinkan)</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, minWidth: '190px' }}>Blacklist User (Diblokir)</th>
                 </tr>
               </thead>
               <tbody>
@@ -608,8 +642,8 @@ export const AdminPage = () => {
                           </div>
                         </td>
 
-                        {/* 5. Specific User Access */}
-                        <td style={{ padding: '14px 16px', minWidth: '220px' }}>
+                        {/* 5. Whitelist User Access */}
+                        <td style={{ padding: '14px 16px', minWidth: '190px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
                               {(item.allowed_users || []).map((u) => {
@@ -631,26 +665,26 @@ export const AdminPage = () => {
                                       borderRadius: 'var(--radius-sm)',
                                       fontSize: '11px',
                                       fontWeight: 600,
-                                      backgroundColor: 'rgba(234, 179, 8, 0.15)',
-                                      color: '#eab308',
-                                      border: '1px solid rgba(234, 179, 8, 0.4)',
+                                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                      color: '#10b981',
+                                      border: '1px solid rgba(16, 185, 129, 0.35)',
                                     }}
                                   >
-                                    <User size={11} />
+                                    <UserCheck size={11} />
                                     <span>{displayName}</span>
                                     <button
                                       type="button"
-                                      onClick={() => handleRemoveUserFromMenu(item.menu_key, u)}
+                                      onClick={() => handleRemoveWhitelistUser(item.menu_key, u)}
                                       style={{
                                         border: 'none',
                                         background: 'transparent',
                                         cursor: 'pointer',
-                                        color: '#eab308',
+                                        color: '#10b981',
                                         padding: 0,
                                         display: 'flex',
                                         alignItems: 'center',
                                       }}
-                                      title="Hapus user ini"
+                                      title="Hapus dari whitelist"
                                     >
                                       <X size={12} />
                                     </button>
@@ -666,18 +700,18 @@ export const AdminPage = () => {
                                     fontStyle: 'italic',
                                   }}
                                 >
-                                  (Semua User / No Restriction)
+                                  (Semua / Bebas)
                                 </span>
                               )}
                             </div>
 
-                            {/* Dropdown to add specific user */}
+                            {/* Dropdown to add whitelist user */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <select
                                 defaultValue=""
                                 onChange={(e) => {
                                   if (e.target.value) {
-                                    handleAddUserToMenu(item.menu_key, e.target.value);
+                                    handleAddWhitelistUser(item.menu_key, e.target.value);
                                     e.target.value = '';
                                   }
                                 }}
@@ -689,12 +723,109 @@ export const AdminPage = () => {
                                   backgroundColor: 'var(--color-bg-primary)',
                                   color: 'var(--color-text-secondary)',
                                   cursor: 'pointer',
-                                  maxWidth: '220px',
+                                  maxWidth: '200px',
                                 }}
                               >
-                                <option value="">+ Tambah User Khusus...</option>
+                                <option value="">+ Whitelist User...</option>
                                 {users
                                   .filter((u) => !(item.allowed_users || []).includes(u.username))
+                                  .map((u) => (
+                                    <option key={u.id} value={u.username}>
+                                      {u.full_name} (@{u.username})
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 6. Blacklist User Access */}
+                        <td style={{ padding: '14px 16px', minWidth: '190px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                              {(item.blocked_users || []).map((u) => {
+                                const matchedUser = users.find(
+                                  (usr) => usr.username === u || usr.employee_id === u || usr.id === u
+                                );
+                                const displayName = matchedUser
+                                  ? `${matchedUser.full_name} (@${matchedUser.username})`
+                                  : u;
+
+                                return (
+                                  <span
+                                    key={u}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '2px 6px',
+                                      borderRadius: 'var(--radius-sm)',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                      color: '#ef4444',
+                                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                                    }}
+                                  >
+                                    <UserX size={11} />
+                                    <span>{displayName}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveBlacklistUser(item.menu_key, u)}
+                                      style={{
+                                        border: 'none',
+                                        background: 'transparent',
+                                        cursor: 'pointer',
+                                        color: '#ef4444',
+                                        padding: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                      }}
+                                      title="Hapus dari blacklist"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </span>
+                                );
+                              })}
+
+                              {(!item.blocked_users || item.blocked_users.length === 0) && (
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    color: 'var(--color-text-secondary)',
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  (Tidak Ada / Bebas Blokir)
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Dropdown to add blacklist user */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <select
+                                defaultValue=""
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    handleAddBlacklistUser(item.menu_key, e.target.value);
+                                    e.target.value = '';
+                                  }
+                                }}
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '2px 6px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: '1px solid var(--color-border)',
+                                  backgroundColor: 'var(--color-bg-primary)',
+                                  color: 'var(--color-text-secondary)',
+                                  cursor: 'pointer',
+                                  maxWidth: '200px',
+                                }}
+                              >
+                                <option value="">+ Blacklist User...</option>
+                                {users
+                                  .filter((u) => !(item.blocked_users || []).includes(u.username))
                                   .map((u) => (
                                     <option key={u.id} value={u.username}>
                                       {u.full_name} (@{u.username})

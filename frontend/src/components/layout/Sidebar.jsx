@@ -127,20 +127,30 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     // 1. Master enable/disable toggle
     if (perm.is_visible === false) return false;
 
-    // 2. Specific User restriction check
-    if (perm.allowed_users && perm.allowed_users.length > 0) {
-      const uName = (user?.username || '').toLowerCase();
-      const uEmp = (user?.employee_id || '').toLowerCase();
-      const uEmail = (user?.email || '').toLowerCase();
-      const uId = (user?.id || '').toLowerCase();
-      const match = perm.allowed_users.some((u) => {
+    const uName = (user?.username || '').toLowerCase();
+    const uEmp = (user?.employee_id || '').toLowerCase();
+    const uEmail = (user?.email || '').toLowerCase();
+    const uId = (user?.id || '').toLowerCase();
+
+    // 2. Blacklist Specific User check (if blacklisted, immediately deny)
+    if (perm.blocked_users && perm.blocked_users.length > 0) {
+      const isBlacklisted = perm.blocked_users.some((u) => {
         const t = (u || '').toLowerCase().trim();
         return t && (t === uName || t === uEmp || t === uEmail || t === uId);
       });
-      if (!match) return false;
+      if (isBlacklisted) return false;
     }
 
-    // 3. Role-based check
+    // 3. Whitelist Specific User check (if configured, only whitelisted users can access)
+    if (perm.allowed_users && perm.allowed_users.length > 0) {
+      const isWhitelisted = perm.allowed_users.some((u) => {
+        const t = (u || '').toLowerCase().trim();
+        return t && (t === uName || t === uEmp || t === uEmail || t === uId);
+      });
+      if (!isWhitelisted) return false;
+    }
+
+    // 4. Role-based check
     if (perm.allowed_roles && perm.allowed_roles.length > 0) {
       const userRole = user?.role || 'member';
       if (!perm.allowed_roles.includes(userRole)) {
@@ -148,7 +158,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       }
     }
 
-    // 4. Department / Part-based check
+    // 5. Department / Part-based check
     if (perm.allowed_groups && perm.allowed_groups.length > 0) {
       const userParentGroup = user?.parent_group || '';
       const userGroupId = user?.group_part_id || '';
@@ -283,7 +293,9 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     ...(isAdmin ? [{ key: 'admin', to: '/admin', label: t('nav.admin'), icon: ShieldCheck }] : []),
     { key: 'profile', to: '/profile', label: t('nav.profile'), icon: UserCircle },
     { key: 'settings', to: '/settings', label: t('nav.settings'), icon: Settings },
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  ]
+    .filter((item) => isMenuAllowed(item.key))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
