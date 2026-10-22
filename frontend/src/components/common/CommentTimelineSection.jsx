@@ -9,12 +9,21 @@ import {
   AlertCircle,
   Activity,
   Layers,
+  Smile,
+  X,
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 import styles from './CommentTimelineSection.module.css';
+
+const EMOJI_LIST = [
+  '👍', '👎', '✅', '❌', '⚠️', '🚀', '🔥',
+  '💡', '🔍', '📌', '🎯', '🔧', '🛠️', '📝',
+  '📊', '📈', '👏', '🙌', '🎉', '✨', '💯',
+  '😊', '😄', '🤔', '😅', '👀', '💬', '☕',
+];
 
 /**
  * Utility helper to record a timeline change log event for an entity.
@@ -48,7 +57,31 @@ export const CommentTimelineSection = ({
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const streamEndRef = useRef(null);
+  const emojiPickerRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
+  const handleSelectEmoji = (emoji) => {
+    setNewComment((prev) => prev + emoji);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
 
   const fetchTimeline = async () => {
     if (!entityType || !entityId) return;
@@ -282,6 +315,7 @@ export const CommentTimelineSection = ({
       {/* Comment Input Box */}
       <form onSubmit={handlePostComment} className={styles.formBox}>
         <textarea
+          ref={textareaRef}
           className={styles.textarea}
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
@@ -293,15 +327,59 @@ export const CommentTimelineSection = ({
           <span className={styles.formHint}>
             Tekan <kbd style={{ padding: '1px 4px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '3px' }}>Ctrl + Enter</kbd> untuk kirim cepat
           </span>
-          <Button
-            type="submit"
-            variant="primary"
-            size="sm"
-            icon={Send}
-            disabled={!newComment.trim() || submitting}
-          >
-            {submitting ? 'Mengirim...' : 'Kirim Komentar'}
-          </Button>
+          <div className={styles.formActionsRow}>
+            {/* Emoji Picker Popover */}
+            <div className={styles.emojiPickerContainer} ref={emojiPickerRef}>
+              <button
+                type="button"
+                className={`${styles.emojiTriggerBtn} ${showEmojiPicker ? styles.emojiTriggerBtnActive : ''}`}
+                onClick={() => setShowEmojiPicker((v) => !v)}
+                title="Pilih Emoji"
+              >
+                <Smile size={15} />
+                <span>Emoji</span>
+              </button>
+
+              {showEmojiPicker && (
+                <div className={styles.emojiPopover}>
+                  <div className={styles.emojiHeader}>
+                    <span className={styles.emojiHeaderTitle}>Pilih Emoji</span>
+                    <button
+                      type="button"
+                      className={styles.emojiCloseBtn}
+                      onClick={() => setShowEmojiPicker(false)}
+                      title="Tutup"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className={styles.emojiGrid}>
+                    {EMOJI_LIST.map((emoji, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={styles.emojiBtn}
+                        onClick={() => handleSelectEmoji(emoji)}
+                        title={emoji}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              icon={Send}
+              disabled={!newComment.trim() || submitting}
+            >
+              {submitting ? 'Mengirim...' : 'Kirim Komentar'}
+            </Button>
+          </div>
         </div>
       </form>
     </div>

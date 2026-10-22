@@ -533,7 +533,7 @@
   border-radius: var(--radius-xs);
 }
 
-/* ponytail: unified full-width breadcrumb navigation with smooth rounded pill styling */
+/* ponytail: unified full-width breadcrumb navigation with rounded-boxy left and tapered-arrow right */
 .breadcrumbNav {
   display: flex;
   align-items: center;
@@ -559,10 +559,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 16px;
-  border-radius: 6px 0 0 6px; /* ponytail: sisi kiri rounded, sisi kanan tetap boxy */
+  padding: 0 18px 0 14px;
   background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-subtle);
+  border: none;
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 600;
@@ -570,6 +569,16 @@
   white-space: nowrap;
   transition: all 0.15s ease;
   box-sizing: border-box;
+  /* ponytail: sisi kiri rounded boxy (chamfer 6px), sisi kanan mengerucut (tapered chevron 13px) */
+  clip-path: polygon(
+    6px 0%,
+    calc(100% - 13px) 0%,
+    100% 50%,
+    calc(100% - 13px) 100%,
+    6px 100%,
+    0% calc(100% - 6px),
+    0% 6px
+  );
 }
 
 .breadcrumbNode:hover {
@@ -582,20 +591,18 @@
 }
 
 .breadcrumbNodeCompleted {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(16, 185, 129, 0.15);
   color: #10b981;
-  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .breadcrumbNodeCompleted:hover {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.25);
 }
 
 .breadcrumbNodeCurrent {
   background: var(--color-accent);
   color: #ffffff;
   font-weight: 700;
-  border-color: var(--color-accent);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
