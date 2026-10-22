@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -45,6 +46,13 @@ func Load() *Config {
 	storagePath := getEnv("FILE_STORAGE_PATH", "./data/files")
 	authProvider := getEnv("AUTH_PROVIDER", "local")
 
+	ldapPort := 389
+	if p := getEnv("LDAP_PORT", ""); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			ldapPort = val
+		}
+	}
+
 	return &Config{
 		Port:            port,
 		DatabaseURL:     dbURL,
@@ -53,6 +61,7 @@ func Load() *Config {
 		FileStoragePath: storagePath,
 		AuthProvider:    authProvider,
 		LDAPHost:        getEnv("LDAP_HOST", ""),
+		LDAPPort:        ldapPort,
 		LDAPBaseDN:      getEnv("LDAP_BASE_DN", ""),
 		LDAPBindDN:      getEnv("LDAP_BIND_DN", ""),
 		LDAPBindPassword: getEnv("LDAP_BIND_PASSWORD", ""),

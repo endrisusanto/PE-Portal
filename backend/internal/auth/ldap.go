@@ -34,11 +34,15 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 		return nil, errors.New("LDAP host is not configured; check settings or environment variables")
 	}
 
-	addr := fmt.Sprintf("%s:%d", l.cfg.LDAPHost, l.cfg.LDAPPort)
+	port := l.cfg.LDAPPort
+	if port <= 0 {
+		port = 389
+	}
+	addr := fmt.Sprintf("%s:%d", l.cfg.LDAPHost, port)
 	var conn *ldap.Conn
 	var err error
 
-	if l.cfg.LDAPPort == 636 {
+	if port == 636 {
 		conn, err = ldap.DialTLS("tcp", addr, &tls.Config{InsecureSkipVerify: true})
 	} else {
 		conn, err = ldap.Dial("tcp", addr)
