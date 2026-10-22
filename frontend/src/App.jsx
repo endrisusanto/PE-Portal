@@ -17,7 +17,7 @@ import { SampleManagementPage } from './pages/SampleManagementPage';
 import { DhlTrackerPage } from './pages/DhlTrackerPage';
 import { SoftwareMRPage } from './pages/SoftwareMRPage';
 import { ModelsPage } from './pages/ModelsPage';
-import { ImeiArticlesPage } from './pages/ImeiArticlesPage';
+import { ArticlesPage } from './pages/ArticlesPage';
 import { DocumentsPage } from './pages/DocumentsPage';
 import { TeamPage } from './pages/TeamPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -83,7 +83,8 @@ export function App() {
                 <Route path="gmes" element={<GmesMonitoringPage />} />
                 <Route path="training" element={<TrainingPage />} />
                 <Route path="models" element={<ModelsPage />} />
-                <Route path="imei" element={<ImeiArticlesPage />} />
+                <Route path="articles" element={<ArticlesPage />} />
+                <Route path="imei" element={<Navigate to="/articles" replace />} />
                 <Route path="documents" element={<DocumentsPage />} />
                 <Route path="tools" element={<UtilityPage />} />
                 <Route path="tools/:tab" element={<UtilityPage />} />

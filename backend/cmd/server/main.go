@@ -52,7 +52,7 @@ func main() {
 	innovationRepo := repository.NewInnovationRepository(pgPool.Pool)
 	projectRepo := repository.NewProjectRepository(pgPool.Pool)
 	modelRepo := repository.NewNewModelRepository(pgPool.Pool)
-	imeiRepo := repository.NewImeiRepository(pgPool.Pool)
+	articleRepo := repository.NewArticleRepository(pgPool.Pool)
 	docRepo := repository.NewDocumentRepository(pgPool.Pool)
 	commentRepo := repository.NewCommentRepository(pgPool.Pool)
 	mcpRepo := repository.NewMCPRepository(pgPool.Pool)
@@ -88,7 +88,7 @@ func main() {
 	innovationHandler := handler.NewInnovationHandler(innovationRepo)
 	projectHandler := handler.NewProjectHandler(projectRepo, userRepo, reportRepo, smtpService)
 	modelHandler := handler.NewNewModelHandler(modelRepo)
-	imeiHandler := handler.NewImeiHandler(imeiRepo)
+	articleHandler := handler.NewArticleHandler(articleRepo)
 	docHandler := handler.NewDocumentHandler(docRepo, cfg.FileStoragePath)
 	commentHandler := handler.NewCommentHandler(commentRepo)
 	mcpHandler := handler.NewMCPHandler(mcpRepo)
@@ -223,12 +223,19 @@ func main() {
 	api.GET("/software-mr/:id", softwareMRHandler.Get)
 	api.POST("/software-mr/sync", softwareMRHandler.SyncFromIntranet)
 
-	// IMEI Articles
-	api.GET("/imei/articles", imeiHandler.List)
-	api.POST("/imei/articles", imeiHandler.Create)
-	api.GET("/imei/articles/:id", imeiHandler.Get)
-	api.PUT("/imei/articles/:id", imeiHandler.Update)
-	api.DELETE("/imei/articles/:id", imeiHandler.Delete)
+	// Articles (Engineering Notes & Technical Articles)
+	api.GET("/articles", articleHandler.List)
+	api.POST("/articles", articleHandler.Create)
+	api.GET("/articles/:id", articleHandler.Get)
+	api.PUT("/articles/:id", articleHandler.Update)
+	api.DELETE("/articles/:id", articleHandler.Delete)
+
+	// Legacy IMEI Articles alias for backward compatibility
+	api.GET("/imei/articles", articleHandler.List)
+	api.POST("/imei/articles", articleHandler.Create)
+	api.GET("/imei/articles/:id", articleHandler.Get)
+	api.PUT("/imei/articles/:id", articleHandler.Update)
+	api.DELETE("/imei/articles/:id", articleHandler.Delete)
 
 	// Documents / File Archive
 	api.GET("/documents", docHandler.List)

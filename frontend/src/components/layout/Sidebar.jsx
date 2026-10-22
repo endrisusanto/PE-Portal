@@ -155,7 +155,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
 
   // Operations items sorted alphabetically ASC
   const operationItems = [
-    { to: '/imei', label: t('nav.imei', 'Articles'), icon: Newspaper },
+    { to: '/articles', label: t('nav.articles', t('nav.imei', 'Articles')), icon: Newspaper },
     { to: '/documents', label: t('nav.documents'), icon: FolderArchive },
     { to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
     { to: '/models', label: t('nav.models'), icon: Cpu },

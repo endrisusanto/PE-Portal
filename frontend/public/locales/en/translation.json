@@ -18,6 +18,7 @@
     "gmes": "GMES Monitor",
     "training": "Online Training",
     "imei": "Articles",
+    "articles": "Articles",
     "documents": "Documents",
     "tools": "Tools",
     "tools_category_docs": "Documents",
@@ -123,6 +124,13 @@
     "new_task": "Create New Task"
   },
   "imei": {
+    "title": "Articles & Engineering Notes",
+    "subtitle": "PE team shared notes & technical articles: post engineering updates, issue investigations, and work guides",
+    "new_post": "Post New Article",
+    "search_placeholder": "Search articles, topics, or keywords...",
+    "all_models": "All Models / Categories"
+  },
+  "articles": {
     "title": "Articles & Engineering Notes",
     "subtitle": "PE team shared notes & technical articles: post engineering updates, issue investigations, and work guides",
     "new_post": "Post New Article",

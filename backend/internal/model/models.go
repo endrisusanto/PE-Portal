@@ -213,6 +213,9 @@ type ImeiArticle struct {
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
+// Article is the clean canonical alias for ImeiArticle
+type Article = ImeiArticle
+
 // Document represents an archived document in the portal
 type Document struct {
 	ID            uuid.UUID       `json:"id"`

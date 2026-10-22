@@ -18,6 +18,7 @@
     "gmes": "GMES 모니터링",
     "training": "온라인 교육",
     "imei": "아티클",
+    "articles": "아티클",
     "documents": "문서 아카이브",
     "tools": "도구",
     "tools_category_docs": "문서",
@@ -123,6 +124,13 @@
     "new_task": "신규 과제 생성"
   },
   "imei": {
+    "title": "아티클 및 기술 노트",
+    "subtitle": "생산기술팀 공유 노트 및 기술 아티클: 기술 업데이트, 이슈 분석, 공정 노하우 및 업무 가이드",
+    "new_post": "새 아티클 작성",
+    "search_placeholder": "아티클, 주제 또는 키워드 검색...",
+    "all_models": "전체 모델 / 카테고리"
+  },
+  "articles": {
     "title": "아티클 및 기술 노트",
     "subtitle": "생산기술팀 공유 노트 및 기술 아티클: 기술 업데이트, 이슈 분석, 공정 노하우 및 업무 가이드",
     "new_post": "새 아티클 작성",

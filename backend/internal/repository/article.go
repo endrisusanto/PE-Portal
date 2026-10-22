@@ -11,15 +11,22 @@ import (
 	"pe-portal/internal/model"
 )
 
-type ImeiRepository struct {
+type ArticleRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewImeiRepository(pool *pgxpool.Pool) *ImeiRepository {
-	return &ImeiRepository{pool: pool}
+func NewArticleRepository(pool *pgxpool.Pool) *ArticleRepository {
+	return &ArticleRepository{pool: pool}
 }
 
-func (r *ImeiRepository) List(ctx context.Context, modelID, projectID *uuid.UUID, search string) ([]model.ImeiArticle, error) {
+// Backward compatibility alias
+type ImeiRepository = ArticleRepository
+
+func NewImeiRepository(pool *pgxpool.Pool) *ImeiRepository {
+	return NewArticleRepository(pool)
+}
+
+func (r *ArticleRepository) List(ctx context.Context, modelID, projectID *uuid.UUID, search string) ([]model.ImeiArticle, error) {
 	query := `
 		SELECT a.id, a.title, a.content, a.model_id, nm.model_name,
 		       a.project_id, a.author_id, u.full_name as author_name,
@@ -36,7 +43,7 @@ func (r *ImeiRepository) List(ctx context.Context, modelID, projectID *uuid.UUID
 
 	rows, err := r.pool.Query(ctx, query, modelID, projectID, search)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list imei articles: %w", err)
+		return nil, fmt.Errorf("failed to list articles: %w", err)
 	}
 	defer rows.Close()
 
@@ -56,7 +63,7 @@ func (r *ImeiRepository) List(ctx context.Context, modelID, projectID *uuid.UUID
 	return articles, nil
 }
 
-func (r *ImeiRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.ImeiArticle, error) {
+func (r *ArticleRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.ImeiArticle, error) {
 	query := `
 		SELECT a.id, a.title, a.content, a.model_id, nm.model_name,
 		       a.project_id, a.author_id, u.full_name as author_name,
@@ -79,7 +86,7 @@ func (r *ImeiRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Imei
 	return &a, nil
 }
 
-func (r *ImeiRepository) Create(ctx context.Context, a *model.ImeiArticle) (*model.ImeiArticle, error) {
+func (r *ArticleRepository) Create(ctx context.Context, a *model.ImeiArticle) (*model.ImeiArticle, error) {
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
 	}
@@ -97,13 +104,13 @@ func (r *ImeiRepository) Create(ctx context.Context, a *model.ImeiArticle) (*mod
 		a.ID, a.Title, a.Content, a.ModelID, a.ProjectID, a.AuthorID, a.Tags, a.IsPinned,
 	).Scan(&a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create imei article: %w", err)
+		return nil, fmt.Errorf("failed to create article: %w", err)
 	}
 
 	return r.GetByID(ctx, a.ID)
 }
 
-func (r *ImeiRepository) Update(ctx context.Context, a *model.ImeiArticle) (*model.ImeiArticle, error) {
+func (r *ArticleRepository) Update(ctx context.Context, a *model.ImeiArticle) (*model.ImeiArticle, error) {
 	query := `
 		UPDATE imei_articles
 		SET title = $1, content = $2, model_id = $3, project_id = $4,
@@ -119,7 +126,7 @@ func (r *ImeiRepository) Update(ctx context.Context, a *model.ImeiArticle) (*mod
 	return r.GetByID(ctx, a.ID)
 }
 
-func (r *ImeiRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *ArticleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE imei_articles SET deleted_at = NOW() WHERE id = $1`
 	_, err := r.pool.Exec(ctx, query, id)
 	return err

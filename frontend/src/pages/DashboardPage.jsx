@@ -205,10 +205,10 @@ export const DashboardPage = () => {
       accentColor: '#10b981',
     },
     {
-      title: 'Artikel & IMEI Wiki',
+      title: 'Artikel & Catatan Teknis',
       subtitle: 'Troubleshooting & Panduan Standar',
       icon: Newspaper,
-      link: '/imei',
+      link: '/articles',
       badge: 'Solusi',
       accentColor: '#6366f1',
     },

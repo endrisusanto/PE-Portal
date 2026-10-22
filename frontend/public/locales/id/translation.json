@@ -18,6 +18,7 @@
     "gmes": "Monitoring GMES",
     "training": "Training Online",
     "imei": "Artikel",
+    "articles": "Artikel",
     "documents": "Dokumen",
     "tools": "Tools",
     "tools_category_docs": "Dokumen",
@@ -123,6 +124,13 @@
     "new_task": "Tambah Task Baru"
   },
   "imei": {
+    "title": "Artikel & Catatan Teknis",
+    "subtitle": "Catatan & artikel bersama tim PE: posting update teknis, investigasi issue, tips proses, dan panduan kerja",
+    "new_post": "Post Artikel Baru",
+    "search_placeholder": "Cari artikel, topik, atau kata kunci...",
+    "all_models": "Semua Model / Kategori"
+  },
+  "articles": {
     "title": "Artikel & Catatan Teknis",
     "subtitle": "Catatan & artikel bersama tim PE: posting update teknis, investigasi issue, tips proses, dan panduan kerja",
     "new_post": "Post Artikel Baru",

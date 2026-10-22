@@ -12,15 +12,22 @@ import (
 	"pe-portal/internal/repository"
 )
 
-type ImeiHandler struct {
-	repo *repository.ImeiRepository
+type ArticleHandler struct {
+	repo *repository.ArticleRepository
 }
+
+func NewArticleHandler(repo *repository.ArticleRepository) *ArticleHandler {
+	return &ArticleHandler{repo: repo}
+}
+
+// Backward compatibility alias
+type ImeiHandler = ArticleHandler
 
 func NewImeiHandler(repo *repository.ImeiRepository) *ImeiHandler {
-	return &ImeiHandler{repo: repo}
+	return NewArticleHandler(repo)
 }
 
-func (h *ImeiHandler) List(c echo.Context) error {
+func (h *ArticleHandler) List(c echo.Context) error {
 	var modelID, projectID *uuid.UUID
 	if mStr := c.QueryParam("model_id"); mStr != "" {
 		if id, err := uuid.Parse(mStr); err == nil {
@@ -41,7 +48,7 @@ func (h *ImeiHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, articles)
 }
 
-func (h *ImeiHandler) Get(c echo.Context) error {
+func (h *ArticleHandler) Get(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid article id")
@@ -54,7 +61,7 @@ func (h *ImeiHandler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, a)
 }
 
-type CreateImeiRequest struct {
+type CreateArticleRequest struct {
 	Title     string          `json:"title"`
 	Content   string          `json:"content"`
 	ModelID   *uuid.UUID      `json:"model_id"`
@@ -63,8 +70,11 @@ type CreateImeiRequest struct {
 	IsPinned  bool            `json:"is_pinned"`
 }
 
-func (h *ImeiHandler) Create(c echo.Context) error {
-	var req CreateImeiRequest
+// Backward compatibility alias
+type CreateImeiRequest = CreateArticleRequest
+
+func (h *ArticleHandler) Create(c echo.Context) error {
+	var req CreateArticleRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
 	}
@@ -98,13 +108,13 @@ func (h *ImeiHandler) Create(c echo.Context) error {
 	return c.JSON(http.StatusCreated, created)
 }
 
-func (h *ImeiHandler) Update(c echo.Context) error {
+func (h *ArticleHandler) Update(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid article id")
 	}
 
-	var req CreateImeiRequest
+	var req CreateArticleRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
 	}
@@ -127,7 +137,7 @@ func (h *ImeiHandler) Update(c echo.Context) error {
 	return c.JSON(http.StatusOK, updated)
 }
 
-func (h *ImeiHandler) Delete(c echo.Context) error {
+func (h *ArticleHandler) Delete(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid article id")
