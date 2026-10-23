@@ -471,7 +471,14 @@ export const AdminPage = () => {
     {
       title: 'IP Address',
       key: 'ip_address',
-      render: (val) => <span>{val || 'Internal'}</span>,
+      render: (val) => {
+        const clean = (val || '').replace(/\/(32|128)$/, '').trim();
+        return (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
+            {clean || 'Internal'}
+          </span>
+        );
+      },
     },
   ];
 

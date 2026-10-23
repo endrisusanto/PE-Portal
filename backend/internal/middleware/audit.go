@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +12,39 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 )
+
+// CleanIP normalizes IPv4, IPv6, strips ports, brackets, and ::ffff: prefixes
+func CleanIP(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if host, _, err := net.SplitHostPort(raw); err == nil {
+		raw = host
+	}
+	raw = strings.TrimPrefix(raw, "[")
+	raw = strings.TrimSuffix(raw, "]")
+	raw = strings.TrimPrefix(raw, "::ffff:")
+	return raw
+}
+
+// ExtractClientIP extracts real client IP inspecting X-Real-IP, X-Forwarded-For, and c.RealIP()
+func ExtractClientIP(c echo.Context) string {
+	req := c.Request()
+	if realIP := req.Header.Get("X-Real-IP"); realIP != "" {
+		if cleaned := CleanIP(realIP); cleaned != "" && cleaned != "127.0.0.1" && cleaned != "::1" {
+			return cleaned
+		}
+	}
+
+	if xff := req.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		for _, p := range parts {
+			if cleaned := CleanIP(p); cleaned != "" && cleaned != "127.0.0.1" && cleaned != "::1" {
+				return cleaned
+			}
+		}
+	}
+
+	return CleanIP(c.RealIP())
+}
 
 // AuditMiddleware records modifying HTTP requests (POST, PUT, PATCH, DELETE) to audit_logs
 // ponytail: records asynchronously without adding latency to requests
@@ -31,7 +65,7 @@ func AuditMiddleware(pool *pgxpool.Pool) echo.MiddlewareFunc {
 					}
 
 					path := c.Request().URL.Path
-					ip := c.RealIP()
+					ip := ExtractClientIP(c)
 					action := strings.ToLower(method) + ":" + path
 
 					go func() {

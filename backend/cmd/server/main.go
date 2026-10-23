@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -111,6 +112,22 @@ func main() {
 	// Echo App
 	e := echo.New()
 	e.HideBanner = true
+	// ponytail: robust client IP extraction (handles Vite/Nginx reverse proxy, X-Real-IP, and multi-hop X-Forwarded-For)
+	e.IPExtractor = func(req *http.Request) string {
+		if realIP := req.Header.Get("X-Real-IP"); realIP != "" {
+			if cleaned := middleware.CleanIP(realIP); cleaned != "" && cleaned != "127.0.0.1" && cleaned != "::1" {
+				return cleaned
+			}
+		}
+		if xff := req.Header.Get("X-Forwarded-For"); xff != "" {
+			for _, p := range strings.Split(xff, ",") {
+				if cleaned := middleware.CleanIP(p); cleaned != "" && cleaned != "127.0.0.1" && cleaned != "::1" {
+					return cleaned
+				}
+			}
+		}
+		return middleware.CleanIP(req.RemoteAddr)
+	}
 
 	// Standard middlewares
 	e.Use(echoMiddleware.Recover())

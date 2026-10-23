@@ -58,7 +58,7 @@ func (r *SettingsRepository) ListAuditLogs(ctx context.Context, limit int) ([]mo
 	}
 	query := `
 		SELECT a.id, a.user_id, u.full_name as user_name, a.action,
-		       a.entity_type, a.entity_id, a.details, a.ip_address::text, a.created_at
+		       a.entity_type, a.entity_id, a.details, COALESCE(host(a.ip_address), a.ip_address::text, ''), a.created_at
 		FROM audit_logs a
 		LEFT JOIN users u ON a.user_id = u.id
 		ORDER BY a.created_at DESC
