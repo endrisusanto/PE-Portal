@@ -57,14 +57,15 @@ func (h *UserHandler) GetUser(c echo.Context) error {
 }
 
 type CreateUserRequest struct {
-	EmployeeID    string     `json:"employee_id"`
-	Username      string     `json:"username"`
-	Email         string     `json:"email"`
-	Password      string     `json:"password"`
-	FullName      string     `json:"full_name"`
-	GroupPartID   *uuid.UUID `json:"group_part_id"`
-	Role          string     `json:"role"`
-	PreferredLang string     `json:"preferred_lang"`
+	EmployeeID    string      `json:"employee_id"`
+	Username      string      `json:"username"`
+	Email         string      `json:"email"`
+	Password      string      `json:"password"`
+	FullName      string      `json:"full_name"`
+	GroupPartID   *uuid.UUID  `json:"group_part_id"`
+	GroupPartIDs  []uuid.UUID `json:"group_part_ids"`
+	Role          string      `json:"role"`
+	PreferredLang string      `json:"preferred_lang"`
 }
 
 func (h *UserHandler) CreateUser(c echo.Context) error {
@@ -77,12 +78,21 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "employee_id, username, email, and full_name are required")
 	}
 
+	groupPartIDs := req.GroupPartIDs
+	groupPartID := req.GroupPartID
+	if len(groupPartIDs) > 0 && groupPartID == nil {
+		groupPartID = &groupPartIDs[0]
+	} else if groupPartID != nil && len(groupPartIDs) == 0 {
+		groupPartIDs = []uuid.UUID{*groupPartID}
+	}
+
 	user := model.User{
 		EmployeeID:    req.EmployeeID,
 		Username:      req.Username,
 		Email:         req.Email,
 		FullName:      req.FullName,
-		GroupPartID:   req.GroupPartID,
+		GroupPartID:   groupPartID,
+		GroupPartIDs:  groupPartIDs,
 		Role:          req.Role,
 		PreferredLang: req.PreferredLang,
 	}
@@ -96,13 +106,14 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 }
 
 type UpdateUserRequest struct {
-	EmployeeID  string     `json:"employee_id"`
-	Email       string     `json:"email"`
-	FullName    string     `json:"full_name"`
-	GroupPartID *uuid.UUID `json:"group_part_id"`
-	Role        string     `json:"role"`
-	IsActive    bool       `json:"is_active"`
-	NewPassword string     `json:"new_password,omitempty"`
+	EmployeeID   string      `json:"employee_id"`
+	Email        string      `json:"email"`
+	FullName     string      `json:"full_name"`
+	GroupPartID  *uuid.UUID  `json:"group_part_id"`
+	GroupPartIDs []uuid.UUID `json:"group_part_ids"`
+	Role         string      `json:"role"`
+	IsActive     bool        `json:"is_active"`
+	NewPassword  string      `json:"new_password,omitempty"`
 }
 
 func (h *UserHandler) UpdateUser(c echo.Context) error {
@@ -116,14 +127,23 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
 	}
 
+	groupPartIDs := req.GroupPartIDs
+	groupPartID := req.GroupPartID
+	if len(groupPartIDs) > 0 && groupPartID == nil {
+		groupPartID = &groupPartIDs[0]
+	} else if groupPartID != nil && len(groupPartIDs) == 0 {
+		groupPartIDs = []uuid.UUID{*groupPartID}
+	}
+
 	user := model.User{
-		ID:          id,
-		EmployeeID:  req.EmployeeID,
-		Email:       req.Email,
-		FullName:    req.FullName,
-		GroupPartID: req.GroupPartID,
-		Role:        req.Role,
-		IsActive:    req.IsActive,
+		ID:           id,
+		EmployeeID:   req.EmployeeID,
+		Email:        req.Email,
+		FullName:     req.FullName,
+		GroupPartID:  groupPartID,
+		GroupPartIDs: groupPartIDs,
+		Role:         req.Role,
+		IsActive:     req.IsActive,
 	}
 
 	updated, err := h.userRepo.UpdateUser(c.Request().Context(), &user, req.NewPassword)

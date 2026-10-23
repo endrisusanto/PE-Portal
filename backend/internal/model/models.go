@@ -18,9 +18,11 @@ type User struct {
 	FullName      string     `json:"full_name"`
 	AvatarPath    *string    `json:"avatar_path"`
 	PreferredLang string     `json:"preferred_lang"`
-	GroupPartID   *uuid.UUID `json:"group_part_id"`
-	GroupPartName *string    `json:"group_part_name,omitempty"`
-	ParentGroup   *string    `json:"parent_group,omitempty"`
+	GroupPartID    *uuid.UUID  `json:"group_part_id"`
+	GroupPartName  *string     `json:"group_part_name,omitempty"`
+	GroupPartIDs   []uuid.UUID `json:"group_part_ids,omitempty"`
+	GroupPartNames []string    `json:"group_part_names,omitempty"`
+	ParentGroup    *string     `json:"parent_group,omitempty"`
 	Role          string     `json:"role"` // admin, manager, member
 	AuthProvider  string     `json:"auth_provider"`
 	IsActive      bool       `json:"is_active"`

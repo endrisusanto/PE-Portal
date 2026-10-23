@@ -49,6 +49,7 @@ export const AdminPage = () => {
   const [password, setPassword] = useState('sein1234');
   const [role, setRole] = useState('member');
   const [groupPartId, setGroupPartId] = useState('');
+  const [createGroupPartIds, setCreateGroupPartIds] = useState([]);
 
   // Edit user modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -58,6 +59,7 @@ export const AdminPage = () => {
   const [editFullName, setEditFullName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editGroupPartId, setEditGroupPartId] = useState('');
+  const [editGroupPartIds, setEditGroupPartIds] = useState([]);
   const [editRole, setEditRole] = useState('member');
   const [editIsActive, setEditIsActive] = useState(true);
   const [editNewPassword, setEditNewPassword] = useState('');
@@ -206,6 +208,18 @@ export const AdminPage = () => {
     );
   };
 
+  const toggleCreateGroupPart = (id) => {
+    setCreateGroupPartIds((prev) =>
+      prev.includes(id) ? prev.filter((gid) => gid !== id) : [...prev, id]
+    );
+  };
+
+  const toggleEditGroupPart = (id) => {
+    setEditGroupPartIds((prev) =>
+      prev.includes(id) ? prev.filter((gid) => gid !== id) : [...prev, id]
+    );
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
@@ -216,7 +230,8 @@ export const AdminPage = () => {
         full_name: fullName,
         password,
         role,
-        group_part_id: groupPartId || undefined,
+        group_part_id: createGroupPartIds[0] || undefined,
+        group_part_ids: createGroupPartIds,
         preferred_lang: 'en',
       });
       setUsers((prev) => [...prev, res.data]);
@@ -225,6 +240,7 @@ export const AdminPage = () => {
       setUsername('');
       setEmail('');
       setFullName('');
+      setCreateGroupPartIds([]);
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -247,6 +263,10 @@ export const AdminPage = () => {
     setEditUsername(u.username || '');
     setEditFullName(u.full_name || '');
     setEditEmail(u.email || '');
+    const initialGroupPartIds = u.group_part_ids && u.group_part_ids.length > 0
+      ? u.group_part_ids
+      : (u.group_part_id ? [u.group_part_id] : []);
+    setEditGroupPartIds(initialGroupPartIds);
     setEditGroupPartId(u.group_part_id || '');
     setEditRole(u.role || 'member');
     setEditIsActive(u.is_active !== false);
@@ -263,7 +283,8 @@ export const AdminPage = () => {
         employee_id: editEmployeeId,
         full_name: editFullName,
         email: editEmail,
-        group_part_id: editGroupPartId || null,
+        group_part_id: editGroupPartIds[0] || null,
+        group_part_ids: editGroupPartIds,
         role: editRole,
         is_active: editIsActive,
       };
@@ -273,14 +294,19 @@ export const AdminPage = () => {
       const res = await api.put(`/users/${editingUserId}`, payload);
       const updatedUser = res.data;
 
+      const matchedGroupNames = editGroupPartIds
+        .map((gid) => groups.find((g) => g.id === gid)?.name)
+        .filter(Boolean);
+
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id !== editingUserId) return u;
-          const matchedGroup = groups.find((g) => g.id === editGroupPartId);
           return {
             ...u,
             ...updatedUser,
-            group_part_name: matchedGroup ? matchedGroup.name : (editGroupPartId ? u.group_part_name : 'General PE'),
+            group_part_ids: editGroupPartIds,
+            group_part_names: matchedGroupNames,
+            group_part_name: matchedGroupNames.join(', ') || 'General PE',
           };
         })
       );
@@ -334,7 +360,36 @@ export const AdminPage = () => {
     {
       title: 'Group Part',
       key: 'group_part_name',
-      render: (val) => <span>{val || 'General PE'}</span>,
+      render: (val, row) => {
+        const names = row.group_part_names && row.group_part_names.length > 0
+          ? row.group_part_names
+          : (val && val !== 'General PE' ? [val] : []);
+        if (names.length === 0) {
+          return <span style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>General PE</span>;
+        }
+        return (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            {names.map((name, idx) => (
+              <span
+                key={idx}
+                style={{
+                  display: 'inline-block',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {name}
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
     {
       title: 'Role',
@@ -1010,29 +1065,6 @@ export const AdminPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                Group Part
-              </label>
-              <select
-                value={groupPartId}
-                onChange={(e) => setGroupPartId(e.target.value)}
-                style={{
-                  height: '36px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: 'var(--color-text-primary)',
-                }}
-              >
-                <option value="">Select Group Part...</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name} ({g.parent_group})</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Role Access
               </label>
               <select
@@ -1052,15 +1084,73 @@ export const AdminPage = () => {
                 <option value="admin">Administrator</option>
               </select>
             </div>
+
+            <Input
+              label="Initial Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
 
-          <Input
-            label="Initial Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Group Part (Bisa Pilih Lebih Dari 1 / Multi-Jobdesk)
+              </label>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                {createGroupPartIds.length} dipilih
+              </span>
+            </div>
+            <div
+              style={{
+                maxHeight: '140px',
+                overflowY: 'auto',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--color-bg-secondary)',
+                padding: '8px 10px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: '6px',
+              }}
+            >
+              {groups.map((g) => {
+                const isChecked = createGroupPartIds.includes(g.id);
+                return (
+                  <label
+                    key={g.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                      border: isChecked ? '1px solid #3b82f6' : '1px solid transparent',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleCreateGroupPart(g.id)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: isChecked ? 600 : 400, color: 'var(--color-text-primary)' }}>
+                      {g.name}
+                    </span>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                      {g.parent_group}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         </form>
       </Modal>
 
@@ -1134,30 +1224,6 @@ export const AdminPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                Group Part
-              </label>
-              <select
-                value={editGroupPartId}
-                onChange={(e) => setEditGroupPartId(e.target.value)}
-                style={{
-                  height: '36px',
-                  padding: '0 12px',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: 'var(--font-size-sm)',
-                }}
-              >
-                <option value="">General PE (No Group)</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name} ({g.parent_group})</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Role Access
               </label>
               <select
@@ -1178,9 +1244,7 @@ export const AdminPage = () => {
                 <option value="admin">Administrator</option>
               </select>
             </div>
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Account Status
@@ -1203,15 +1267,73 @@ export const AdminPage = () => {
                 <option value="disabled">Disabled (Diblokir)</option>
               </select>
             </div>
-
-            <Input
-              label="Reset Password (Opsional)"
-              type="password"
-              value={editNewPassword}
-              onChange={(e) => setEditNewPassword(e.target.value)}
-              placeholder="Kosongkan jika tidak diubah"
-            />
           </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Group Part (Bisa Pilih Lebih Dari 1 / Multi-Jobdesk)
+              </label>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                {editGroupPartIds.length} dipilih
+              </span>
+            </div>
+            <div
+              style={{
+                maxHeight: '140px',
+                overflowY: 'auto',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--color-bg-secondary)',
+                padding: '8px 10px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: '6px',
+              }}
+            >
+              {groups.map((g) => {
+                const isChecked = editGroupPartIds.includes(g.id);
+                return (
+                  <label
+                    key={g.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                      border: isChecked ? '1px solid #3b82f6' : '1px solid transparent',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleEditGroupPart(g.id)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: isChecked ? 600 : 400, color: 'var(--color-text-primary)' }}>
+                      {g.name}
+                    </span>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                      {g.parent_group}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <Input
+            label="Reset Password (Opsional)"
+            type="password"
+            value={editNewPassword}
+            onChange={(e) => setEditNewPassword(e.target.value)}
+            placeholder="Kosongkan jika tidak diubah"
+          />
         </form>
       </Modal>
     </div>
