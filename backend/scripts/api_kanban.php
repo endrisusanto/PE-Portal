@@ -6,18 +6,19 @@
  * Target: Intranet PC (107.102.39.55 / Local XAMPP Server)
  * Mode: /ponytail (Zero-dependency, high resilience, full database fetch)
  * ==============================================================================
- * Description:
- *   Exposes GBA Task Manager database records as standard JSON for PE-Portal.
- *   - Auto-scans databases: tkdn, project_manager_db, gba, task_manager
- *   - Auto-scans tables: gba_tasks, new_tasks, tasks
- *   - Retrieves the COMPLETE database (supports optional ?limit= parameter, default: all)
+ * Database: project_manager_db (Priority #1)
+ * Features:
+ *   - Prioritizes project_manager_db as the primary GBA database
+ *   - Auto-discovers tables: tasks, project_tasks, gba_tasks, projects, etc.
  *   - Maps all 8 Kanban columns expected by GbaTasksPage.jsx
+ *   - ?debug=1 parameter to inspect databases and tables
+ *   - ?db=... and ?table=... overrides
+ *   - Safe memory limit (512M) & timeout (120s)
  * ==============================================================================
  */
 
-// Safe limits for full database transfer
 ini_set('memory_limit', '512M');
-set_time_limit(60);
+set_time_limit(120);
 
 // 1. CORS Headers
 header('Access-Control-Allow-Origin: *');
@@ -36,10 +37,12 @@ $DB_PORT = getenv('DB_PORT') ?: '3306';
 $DB_USER = getenv('DB_USER') ?: 'root';
 $DB_PASS = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 
+// Prioritize project_manager_db as requested by user
 $dbCandidates = array_unique(array_filter([
+    $_GET['db'] ?? '',
     getenv('DB_NAME') ?: '',
-    'tkdn',
     'project_manager_db',
+    'tkdn',
     'gba',
     'task_manager',
 ]));
@@ -76,30 +79,74 @@ foreach ($dbCandidates as $dbName) {
             $connectedDb = $dbName;
             break 2;
         } catch (Exception $e) {
+            $dbError = $e->getMessage();
             continue;
         }
     }
 }
 
-// If no existing candidate connected, try creating default db
-if (!$pdo) {
+// 4. Debug Diagnostic Endpoint: ?debug=1 or ?info=1
+if (isset($_GET['debug']) || isset($_GET['info'])) {
+    $info = [
+        'status'        => $pdo ? 'connected' : 'failed',
+        'connected_db'  => $connectedDb,
+        'db_candidates' => $dbCandidates,
+        'db_error'      => $dbError,
+        'databases'     => [],
+        'tables_in_db'  => [],
+    ];
+    if ($pdo) {
+        try {
+            $info['databases'] = $pdo->query("SHOW DATABASES")->fetchAll(PDO::FETCH_COLUMN);
+            $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($tables as $t) {
+                $count = (int)$pdo->query("SELECT COUNT(*) FROM `{$t}`")->fetchColumn();
+                $columns = $pdo->query("SHOW COLUMNS FROM `{$t}`")->fetchAll(PDO::FETCH_COLUMN);
+                $info['tables_in_db'][$t] = [
+                    'rows'    => $count,
+                    'columns' => $columns,
+                ];
+            }
+        } catch (Exception $ex) {
+            $info['query_error'] = $ex->getMessage();
+        }
+    }
+    echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// 5. Detect Target Table in Connected Database
+$targetTable = $_GET['table'] ?? null;
+if ($pdo && !$targetTable) {
     try {
-        $defaultDb = $dbCandidates[0] ?? 'tkdn';
-        $dsnNoDb = "mysql:host={$DB_HOST};port={$DB_PORT};charset=utf8mb4";
-        $pdoInit = new PDO($dsnNoDb, $DB_USER, $DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-        $pdoInit->exec("CREATE DATABASE IF NOT EXISTS `{$defaultDb}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        $pdo = new PDO("mysql:host={$DB_HOST};port={$DB_PORT};dbname={$defaultDb};charset=utf8mb4", $DB_USER, $DB_PASS, [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-        $connectedDb = $defaultDb;
+        $tableCandidates = ['tasks', 'project_tasks', 'gba_tasks', 'projects', 'new_tasks', 'kanban_tasks', 'issues', 'tickets'];
+        foreach ($tableCandidates as $tbl) {
+            $check = $pdo->query("SHOW TABLES LIKE '{$tbl}'")->fetch();
+            if ($check) {
+                $targetTable = $tbl;
+                break;
+            }
+        }
+
+        // If candidate names not found, find the table in DB with the most rows
+        if (!$targetTable) {
+            $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+            $maxRows = -1;
+            foreach ($allTables as $tbl) {
+                $cnt = (int)$pdo->query("SELECT COUNT(*) FROM `{$tbl}`")->fetchColumn();
+                if ($cnt > $maxRows) {
+                    $maxRows = $cnt;
+                    $targetTable = $tbl;
+                }
+            }
+        }
     } catch (Exception $e) {
         $dbError = $e->getMessage();
     }
 }
 
-// 4. Handle POST Updates (Status transition from PE-Portal)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo) {
+// 6. Handle POST Updates (Status transition from PE-Portal)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo && $targetTable) {
     $rawInput = file_get_contents('php://input');
     $postData = json_decode($rawInput, true) ?: $_POST;
     $action = $_GET['action'] ?? ($postData['action'] ?? '');
@@ -109,56 +156,111 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo) {
         $newStatus = trim($postData['status'] ?? '');
 
         if ($taskId > 0 && in_array($newStatus, $KANBAN_STATUSES, true)) {
-            $targetTable = 'gba_tasks';
-            $check = $pdo->query("SHOW TABLES LIKE 'gba_tasks'")->fetch();
-            if (!$check) {
-                $checkAlt = $pdo->query("SHOW TABLES LIKE 'tasks'")->fetch();
-                if ($checkAlt) $targetTable = 'tasks';
-            }
-            $stmt = $pdo->prepare("UPDATE `{$targetTable}` SET `progress_status` = :st WHERE `id` = :id");
+            // Find status column name
+            $cols = $pdo->query("SHOW COLUMNS FROM `{$targetTable}`")->fetchAll(PDO::FETCH_COLUMN);
+            $stCol = in_array('progress_status', $cols, true) ? 'progress_status' : (in_array('status', $cols, true) ? 'status' : 'progress_status');
+
+            $stmt = $pdo->prepare("UPDATE `{$targetTable}` SET `{$stCol}` = :st WHERE `id` = :id");
             $stmt->execute([':st' => $newStatus, ':id' => $taskId]);
             echo json_encode([
                 'status'  => 'success',
-                'message' => "Task #{$taskId} status updated to '{$newStatus}'"
+                'message' => "Task #{$taskId} status updated to '{$newStatus}' in {$targetTable}"
             ]);
             exit;
         }
     }
 }
 
-// 5. Fetch Full Records from Database
+// 7. Fetch Full Records from Database
 $tasks = [];
 $sourceType = 'mysql';
 
-if ($pdo) {
+if ($pdo && $targetTable) {
     try {
-        $tableCandidates = ['gba_tasks', 'tasks', 'new_tasks'];
-        $targetTable = null;
+        $limitParam = isset($_GET['limit']) ? (int)$_GET['limit'] : 0;
+        $limitClause = $limitParam > 0 ? "LIMIT {$limitParam}" : "";
 
-        foreach ($tableCandidates as $tbl) {
-            $check = $pdo->query("SHOW TABLES LIKE '{$tbl}'")->fetch();
-            if ($check) {
-                $targetTable = $tbl;
-                break;
+        $cols = $pdo->query("SHOW COLUMNS FROM `{$targetTable}`")->fetchAll(PDO::FETCH_COLUMN);
+        $orderCol = in_array('id', $cols, true) ? 'id' : ($cols[0] ?? '');
+        $orderClause = $orderCol ? "ORDER BY `{$orderCol}` DESC" : "";
+
+        $query = "SELECT * FROM `{$targetTable}` {$orderClause} {$limitClause}";
+        $rawRows = $pdo->query($query)->fetchAll();
+
+        foreach ($rawRows as $idx => $r) {
+            $id = $r['id'] ?? ($idx + 1);
+            $modelName = $r['model_name'] ?? ($r['model'] ?? ($r['device'] ?? ($r['device_model'] ?? '')));
+            $projectName = $r['project_name'] ?? ($r['project'] ?? ($r['title'] ?? ($r['name'] ?? '')));
+            $ap = $r['ap'] ?? ($r['ap_version'] ?? '');
+            $cp = $r['cp'] ?? ($r['cp_version'] ?? '');
+            $csc = $r['csc'] ?? ($r['csc_version'] ?? '');
+            $planType = $r['test_plan_type'] ?? ($r['type'] ?? ($r['plan_type'] ?? 'MR'));
+
+            // Status normalization
+            $rawStatus = trim($r['progress_status'] ?? ($r['status'] ?? ($r['state'] ?? 'Task Baru')));
+            $status = 'Task Baru';
+            if (in_array($rawStatus, $KANBAN_STATUSES, true)) {
+                $status = $rawStatus;
+            } elseif (stripos($rawStatus, 'ongoing') !== false || stripos($rawStatus, 'test') !== false || stripos($rawStatus, 'progress') !== false) {
+                $status = 'Test Ongoing';
+            } elseif (stripos($rawStatus, 'down') !== false) {
+                $status = 'Downloaded';
+            } elseif (stripos($rawStatus, 'done') !== false || stripos($rawStatus, 'approve') !== false || stripos($rawStatus, 'finish') !== false || stripos($rawStatus, 'pass') !== false) {
+                $status = 'Approved';
+            } elseif (stripos($rawStatus, 'submit') !== false) {
+                $status = 'Submitted';
+            } elseif (stripos($rawStatus, 'feedback') !== false) {
+                $status = 'Pending Feedback';
+            } elseif (stripos($rawStatus, 'cancel') !== false || stripos($rawStatus, 'batal') !== false || stripos($rawStatus, 'reject') !== false) {
+                $status = 'Batal';
             }
-        }
 
-        if ($targetTable) {
-            // Optional ?limit= parameter. If omitted or 0, retrieves the ENTIRE table
-            $limitParam = isset($_GET['limit']) ? (int)$_GET['limit'] : 0;
-            $limitClause = $limitParam > 0 ? "LIMIT {$limitParam}" : "";
+            // Priority / Is Urgent
+            $isUrgent = 0;
+            if (isset($r['is_urgent'])) {
+                $isUrgent = (int)$r['is_urgent'];
+            } elseif (isset($r['priority'])) {
+                $p = strtolower((string)$r['priority']);
+                $isUrgent = ($p === 'urgent' || $p === 'high' || $p === 'critical' || $p === '1') ? 1 : 0;
+            }
 
-            // Query full database records
-            $query = "SELECT * FROM `{$targetTable}` ORDER BY is_urgent DESC, deadline ASC, id DESC {$limitClause}";
-            $tasks = $pdo->query($query)->fetchAll();
+            $pic = $r['pic_email'] ?? ($r['pic'] ?? ($r['assignee'] ?? ($r['engineer'] ?? '')));
+            $reviewer = $r['reviewer_email'] ?? ($r['reviewer'] ?? ($r['manager'] ?? ''));
+            $subId = $r['submission_id'] ?? ($r['sub_id'] ?? ('SUB-' . $id));
+            $reqDate = $r['request_date'] ?? ($r['req_date'] ?? ($r['created_at'] ?? date('Y-m-d')));
+            $deadline = $r['deadline'] ?? ($r['due_date'] ?? ($r['target_date'] ?? date('Y-m-d', strtotime('+3 days'))));
+
+            $normalized = [
+                'id'              => is_numeric($id) ? (int)$id : $id,
+                'model_name'      => (string)$modelName,
+                'project_name'    => (string)$projectName,
+                'ap'              => (string)$ap,
+                'cp'              => (string)$cp,
+                'csc'             => (string)$csc,
+                'test_plan_type'  => (string)$planType,
+                'progress_status' => (string)$status,
+                'is_urgent'       => $isUrgent,
+                'pic_email'       => (string)$pic,
+                'reviewer_email'  => (string)$reviewer,
+                'submission_id'   => (string)$subId,
+                'request_date'    => (string)$reqDate,
+                'deadline'        => (string)$deadline,
+                'qb_user'         => (string)($r['qb_user'] ?? ''),
+                'qb_userdebug'    => (string)($r['qb_userdebug'] ?? ''),
+                'qb_eng'          => (string)($r['qb_eng'] ?? ''),
+                'remarks'         => (string)($r['remarks'] ?? ($r['note'] ?? ($r['description'] ?? ''))),
+            ];
+
+            // Merge so all raw DB fields are preserved
+            $tasks[] = array_merge($r, $normalized);
         }
     } catch (Exception $e) {
         $dbError = $e->getMessage();
     }
 }
 
-// 6. Fallback Mock Data ONLY if database is completely empty or offline
-if (empty($tasks)) {
+// 8. Fallback Mock Data ONLY if database completely failed and has zero rows
+if (empty($tasks) && !$pdo) {
     $sourceType = 'mock_fallback';
     $today = date('Y-m-d');
     $tasks = [
@@ -178,133 +280,37 @@ if (empty($tasks)) {
             'request_date'    => $today,
             'deadline'        => date('Y-m-d', strtotime('+2 days')),
             'qb_user'         => 'http://quickbuild/build/10492',
-        ],
-        [
-            'id'              => 102,
-            'model_name'      => 'SM-A556E',
-            'project_name'    => 'Galaxy A55 5G',
-            'ap'              => 'A556EXXU2BXA1',
-            'cp'              => 'A556EXXU2BXA1',
-            'csc'             => 'A556EOLE2BXA1',
-            'test_plan_type'  => 'Initial Release',
-            'progress_status' => 'Downloaded',
-            'is_urgent'       => 0,
-            'pic_email'       => 'apta.p@samsung.com',
-            'reviewer_email'  => 'manager.pe@samsung.com',
-            'submission_id'   => 'SUB-2026-002',
-            'request_date'    => $today,
-            'deadline'        => date('Y-m-d', strtotime('+3 days')),
-            'qb_user'         => 'http://quickbuild/build/10493',
-        ],
-        [
-            'id'              => 103,
-            'model_name'      => 'SM-A356E',
-            'project_name'    => 'Galaxy A35 5G',
-            'ap'              => 'A356EXXU1AXC2',
-            'cp'              => 'A356EXXU1AXC2',
-            'csc'             => 'A356EOLE1AXC2',
-            'test_plan_type'  => 'FOTA',
-            'progress_status' => 'Test Ongoing',
-            'is_urgent'       => 0,
-            'pic_email'       => 'taufik.h@samsung.com',
-            'reviewer_email'  => 'manager.pe@samsung.com',
-            'submission_id'   => 'SUB-2026-003',
-            'request_date'    => $today,
-            'deadline'        => date('Y-m-d', strtotime('+4 days')),
-        ],
-        [
-            'id'              => 104,
-            'model_name'      => 'SM-S921B',
-            'project_name'    => 'Galaxy S24',
-            'ap'              => 'S921BXXU1AXB1',
-            'cp'              => 'S921BXXU1AXB1',
-            'csc'             => 'S921BOLE1AXB1',
-            'test_plan_type'  => 'Security Patch',
-            'progress_status' => 'Pending Feedback',
-            'is_urgent'       => 1,
-            'pic_email'       => 'dimas.w@samsung.com',
-            'reviewer_email'  => 'manager.pe@samsung.com',
-            'submission_id'   => 'SUB-2026-004',
-            'request_date'    => $today,
-            'deadline'        => date('Y-m-d', strtotime('+1 day')),
-        ],
-        [
-            'id'              => 105,
-            'model_name'      => 'SM-A155F',
-            'project_name'    => 'Galaxy A15 LTE',
-            'ap'              => 'A155FXXU1AXA2',
-            'cp'              => 'A155FXXU1AXA2',
-            'csc'             => 'A155FOLE1AXA2',
-            'test_plan_type'  => 'MR',
-            'progress_status' => 'Submitted',
-            'is_urgent'       => 0,
-            'pic_email'       => 'endri.s@samsung.com',
-            'reviewer_email'  => 'manager.pe@samsung.com',
-            'submission_id'   => 'SUB-2026-005',
-            'request_date'    => $today,
-            'deadline'        => date('Y-m-d', strtotime('+2 days')),
-        ],
-        [
-            'id'              => 106,
-            'model_name'      => 'SM-S926B',
-            'project_name'    => 'Galaxy S24+',
-            'ap'              => 'S926BXXU1AXB5',
-            'cp'              => 'S926BXXU1AXB5',
-            'csc'             => 'S926BOLE1AXB5',
-            'test_plan_type'  => 'MR',
-            'progress_status' => 'Approved',
-            'is_urgent'       => 0,
-            'pic_email'       => 'bayu.p@samsung.com',
-            'reviewer_email'  => 'manager.pe@samsung.com',
-            'submission_id'   => 'SUB-2026-006',
-            'request_date'    => $today,
-            'deadline'        => date('Y-m-d', strtotime('+5 days')),
-            'approved_date'   => $today,
-        ],
+        ]
     ];
 }
 
-// 7. Group Tasks into Standard 8 Kanban Columns
+// 9. Group Tasks into Standard 8 Kanban Columns
 $columns = [];
 foreach ($KANBAN_STATUSES as $statusName) {
     $columns[$statusName] = [];
 }
 
 foreach ($tasks as $t) {
-    $t['id'] = (int)($t['id'] ?? 0);
-    $t['is_urgent'] = (int)($t['is_urgent'] ?? 0);
-    $status = trim($t['progress_status'] ?? 'Task Baru');
-
-    if (!array_key_exists($status, $columns)) {
-        if (stripos($status, 'ongoing') !== false || stripos($status, 'test') !== false) {
-            $status = 'Test Ongoing';
-        } elseif (stripos($status, 'done') !== false || stripos($status, 'pass') !== false || stripos($status, 'approve') !== false) {
-            $status = 'Approved';
-        } elseif (stripos($status, 'submit') !== false) {
-            $status = 'Submitted';
-        } elseif (stripos($status, 'cancel') !== false || stripos($status, 'reject') !== false) {
-            $status = 'Batal';
-        } else {
-            $status = 'Task Baru';
-        }
-        $t['progress_status'] = $status;
+    $st = $t['progress_status'] ?? 'Task Baru';
+    if (!array_key_exists($st, $columns)) {
+        $st = 'Task Baru';
     }
-
-    $columns[$status][] = $t;
+    $columns[$st][] = $t;
 }
 
-// 8. Output Final JSON Response
+// 10. Output Final JSON Response
 $response = [
     'status'     => 'success',
     'source'     => $sourceType,
     'total'      => count($tasks),
     'db_status'  => $pdo ? 'connected' : 'offline',
     'database'   => $connectedDb,
+    'table'      => $targetTable,
     'columns'    => $columns,
     'timestamp'  => date('c'),
 ];
 
-if ($dbError && $sourceType === 'mock_fallback') {
+if ($dbError && empty($tasks)) {
     $response['db_warning'] = $dbError;
 }
 
