@@ -274,6 +274,26 @@ select option, select optgroup {
   color: var(--color-text-primary);
 }
 
+/* Light Mode Overrides for Form Controls & Native Elements */
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="light"] select,
+[data-theme="light"] input,
+[data-theme="light"] textarea {
+  color-scheme: light;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+[data-theme="light"] select option,
+[data-theme="light"] select optgroup {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
 /* Dark Mode Overrides for Form Controls & Native Elements */
 [data-theme="dark"] {
   color-scheme: dark;
