@@ -131,8 +131,13 @@ export const DashboardPage = () => {
       }
 
       // Find group part name
-      const grp = groups.find((g) => g.id === u.group_part_id);
-      const groupName = grp ? grp.name : u.role === 'admin' ? 'System Administrator' : 'Production Engineer';
+      let groupName = u.role === 'admin' ? 'System Administrator' : 'Production Engineer';
+      if (Array.isArray(u.group_part_names) && u.group_part_names.length > 0) {
+        groupName = u.group_part_names.join(', ');
+      } else if (u.group_part_id) {
+        const grp = groups.find((g) => g.id === u.group_part_id);
+        if (grp) groupName = grp.name;
+      }
 
       return {
         ...u,

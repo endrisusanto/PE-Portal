@@ -85,7 +85,12 @@ export const TeamPage = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
             {parts.map((p) => {
-              const partMembers = users.filter((u) => u.group_part_id === p.id);
+              const partMembers = users.filter((u) => {
+                if (Array.isArray(u.group_part_ids) && u.group_part_ids.length > 0) {
+                  return u.group_part_ids.includes(p.id);
+                }
+                return u.group_part_id === p.id;
+              });
               return (
                 <div
                   key={p.id}
@@ -124,6 +129,23 @@ export const TeamPage = () => {
                           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-xs)' }}>
                             <Avatar name={m.full_name} src={m.avatar_path} size="sm" />
                             <span style={{ fontWeight: 500 }}>{m.full_name}</span>
+                            {m.group_part_ids && m.group_part_ids.length > 1 && (
+                              <span
+                                title={`Multi-Jobdesk: ${m.group_part_names?.join(', ') || `${m.group_part_ids.length} parts`}`}
+                                style={{
+                                  fontSize: '9px',
+                                  padding: '1px 5px',
+                                  borderRadius: '8px',
+                                  backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                                  color: '#3b82f6',
+                                  fontWeight: 600,
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Multi-Jobdesk
+                              </span>
+                            )}
                             <StatusBadge status={m.role} />
                           </div>
                         ))}

@@ -158,9 +158,11 @@ export const TrainingPage = () => {
     // 4. Department / Part check
     if (perm.allowed_groups && perm.allowed_groups.length > 0) {
       const userParentGroup = user?.parent_group || '';
-      const userGroupId = user?.group_part_id || '';
+      const userGroupIds = Array.isArray(user?.group_part_ids) && user.group_part_ids.length > 0
+        ? user.group_part_ids
+        : (user?.group_part_id ? [user.group_part_id] : []);
       const match = perm.allowed_groups.some(
-        (g) => g === userParentGroup || g === userGroupId
+        (g) => g === userParentGroup || userGroupIds.includes(g)
       );
       if (!match) return false;
     }
