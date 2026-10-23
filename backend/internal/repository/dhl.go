@@ -26,8 +26,9 @@ type DHLShipmentRecord struct {
 	CollectedAt       *time.Time      `json:"collected_at"`
 	Notes             string          `json:"notes"`
 	ShipmentData      json.RawMessage `json:"shipment_data"`
-	CreatedAt         time.Time       `json:"created_at"`
-	UpdatedAt         time.Time       `json:"updated_at"`
+	DeliveredNotifiedAt *time.Time      `json:"delivered_notified_at"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
 type DHLRepository struct {
@@ -43,7 +44,7 @@ func (r *DHLRepository) List(ctx context.Context, search string, statusCode stri
 	query := `
 		SELECT id, service_name, origin_country, origin_city, dest_country, dest_city,
 		       status_code, status_label, status_description, last_event_time, last_location,
-		       pic, is_collected, collected_at, notes, shipment_data, created_at, updated_at
+		       pic, is_collected, collected_at, notes, shipment_data, delivered_notified_at, created_at, updated_at
 		FROM dhl_shipments
 		WHERE 1=1
 	`
@@ -83,7 +84,7 @@ func (r *DHLRepository) List(ctx context.Context, search string, statusCode stri
 		err := rows.Scan(
 			&s.ID, &s.ServiceName, &s.OriginCountry, &s.OriginCity, &s.DestCountry, &s.DestCity,
 			&s.StatusCode, &s.StatusLabel, &s.StatusDescription, &s.LastEventTime, &s.LastLocation,
-			&s.PIC, &s.IsCollected, &s.CollectedAt, &s.Notes, &rawData, &s.CreatedAt, &s.UpdatedAt,
+			&s.PIC, &s.IsCollected, &s.CollectedAt, &s.Notes, &rawData, &s.DeliveredNotifiedAt, &s.CreatedAt, &s.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan dhl shipment row: %w", err)
@@ -102,7 +103,7 @@ func (r *DHLRepository) GetByID(ctx context.Context, id string) (*DHLShipmentRec
 	query := `
 		SELECT id, service_name, origin_country, origin_city, dest_country, dest_city,
 		       status_code, status_label, status_description, last_event_time, last_location,
-		       pic, is_collected, collected_at, notes, shipment_data, created_at, updated_at
+		       pic, is_collected, collected_at, notes, shipment_data, delivered_notified_at, created_at, updated_at
 		FROM dhl_shipments
 		WHERE id = $1
 	`
@@ -111,7 +112,7 @@ func (r *DHLRepository) GetByID(ctx context.Context, id string) (*DHLShipmentRec
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&s.ID, &s.ServiceName, &s.OriginCountry, &s.OriginCity, &s.DestCountry, &s.DestCity,
 		&s.StatusCode, &s.StatusLabel, &s.StatusDescription, &s.LastEventTime, &s.LastLocation,
-		&s.PIC, &s.IsCollected, &s.CollectedAt, &s.Notes, &rawData, &s.CreatedAt, &s.UpdatedAt,
+		&s.PIC, &s.IsCollected, &s.CollectedAt, &s.Notes, &rawData, &s.DeliveredNotifiedAt, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -153,6 +154,18 @@ func (r *DHLRepository) Upsert(ctx context.Context, s *DHLShipmentRecord) error 
 		s.StatusCode, s.StatusLabel, s.StatusDescription, s.LastEventTime, s.LastLocation,
 		s.PIC, s.IsCollected, s.CollectedAt, s.Notes, []byte(s.ShipmentData),
 	)
+	return err
+}
+
+// MarkDeliveredNotified records the timestamp when delivered email was sent
+func (r *DHLRepository) MarkDeliveredNotified(ctx context.Context, id string) error {
+	query := `
+		UPDATE dhl_shipments
+		SET delivered_notified_at = NOW(),
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := r.pool.Exec(ctx, query, id)
 	return err
 }
 

@@ -100,7 +100,7 @@ func main() {
 	softwareMRHandler := handler.NewSoftwareMRHandler(softwareMRRepo)
 	utilityHandler := handler.NewUtilityHandler()
 	dhlRepo := repository.NewDHLRepository(pgPool.Pool)
-	dhlHandler := handler.NewDHLHandler(dhlRepo)
+	dhlHandler := handler.NewDHLHandler(dhlRepo, userRepo, reportRepo, smtpService)
 	gmesRepo := repository.NewGmesRepository(pgPool.Pool)
 	gmesHandler := handler.NewGmesHandler(gmesRepo)
 	navRepo := repository.NewNavigationRepository(pgPool.Pool)
@@ -332,6 +332,7 @@ func main() {
 	api.POST("/dhl/shipments/:id/refresh", dhlHandler.RefreshShipment)
 	api.PUT("/dhl/shipments/:id", dhlHandler.UpdateShipment)
 	api.DELETE("/dhl/shipments/:id", dhlHandler.DeleteShipment)
+	api.POST("/dhl/shipments/:id/send-delivered-email", dhlHandler.SendDeliveredEmail)
 
 	// GMES Production Line Monitoring Routes
 	api.GET("/gmes/issues", gmesHandler.List)

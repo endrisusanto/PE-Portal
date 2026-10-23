@@ -28,6 +28,7 @@ import {
   Table as TableIcon,
   Eye,
   PackageCheck,
+  Mail,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -66,10 +67,15 @@ export const DhlTrackerPage = () => {
   const [activeShipment, setActiveShipment] = useState(null);
   const [copiedId, setCopiedId] = useState('');
 
+  // PIC Option Users
+  const [users, setUsers] = useState([]);
+  const [addPicMode, setAddPicMode] = useState('registered'); // 'registered' | 'custom'
+  const [editPicMode, setEditPicMode] = useState('registered'); // 'registered' | 'custom'
+
   // DHL API Connectivity Status
   const [apiStatus, setApiStatus] = useState({ valid: true, status: 'checking', message: '' });
 
-  // Add Form
+  // Add Form (supports multiple AWB comma/newline/space separated)
   const [addForm, setAddForm] = useState({
     tracking_number: '',
     pic: '',
@@ -84,6 +90,15 @@ export const DhlTrackerPage = () => {
     is_collected: false,
     notes: '',
   });
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const { data } = await api.get('/users');
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to fetch registered users for PIC dropdown:', err);
+    }
+  }, []);
 
   const fetchShipments = useCallback(async () => {
     try {
@@ -117,7 +132,8 @@ export const DhlTrackerPage = () => {
   useEffect(() => {
     fetchShipments();
     checkDHLStatus();
-  }, [fetchShipments, checkDHLStatus]);
+    fetchUsers();
+  }, [fetchShipments, checkDHLStatus, fetchUsers]);
 
   // Flash message auto dismiss
   useEffect(() => {
@@ -203,7 +219,7 @@ export const DhlTrackerPage = () => {
     ];
   }, [shipments, t]);
 
-  // Handle Create / Track New AWB
+  // Handle Create / Track New AWB (Supports single or multiple AWB values)
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     if (!addForm.tracking_number.trim()) return;
@@ -216,8 +232,13 @@ export const DhlTrackerPage = () => {
         pic: addForm.pic.trim(),
         notes: addForm.notes.trim(),
       };
-      await api.post('/dhl/shipments', payload);
-      setSuccessMsg(t('dhl.success_added', { id: payload.tracking_number, defaultValue: `AWB #${payload.tracking_number} berhasil dilacak & disimpan.` }));
+      const { data } = await api.post('/dhl/shipments', payload);
+      const totalCount = data?.total || 1;
+      setSuccessMsg(
+        totalCount > 1
+          ? `${totalCount} nomor AWB berhasil diproses & dilacak.`
+          : t('dhl.success_added', { id: payload.tracking_number, defaultValue: `AWB berhasil dilacak & disimpan.` })
+      );
       setIsAddModalOpen(false);
       setAddForm({ tracking_number: '', pic: '', notes: '' });
       fetchShipments();
@@ -243,6 +264,22 @@ export const DhlTrackerPage = () => {
     } catch (err) {
       console.error('Refresh error:', err);
       setErrorMsg(err.response?.data?.message || t('common.error'));
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Handle Manual Trigger Email Notification for Delivered Shipment
+  const handleSendDeliveredEmail = async (id) => {
+    try {
+      setActionLoadingId(id);
+      setErrorMsg('');
+      const { data } = await api.post(`/dhl/shipments/${id}/send-delivered-email`);
+      setSuccessMsg(data?.message || `Notifikasi email untuk AWB #${id} berhasil dikirim.`);
+      fetchShipments();
+    } catch (err) {
+      console.error('Send delivered email error:', err);
+      setErrorMsg(err.response?.data?.message || 'Gagal mengirim email notifikasi');
     } finally {
       setActionLoadingId(null);
     }
@@ -280,6 +317,10 @@ export const DhlTrackerPage = () => {
 
   // Open Edit Modal
   const handleOpenEdit = (shipment) => {
+    const isMatchingUser = users.some(
+      (u) => u.full_name === shipment.pic || u.username === shipment.pic
+    );
+    setEditPicMode(isMatchingUser || !shipment.pic ? 'registered' : 'custom');
     setEditForm({
       id: shipment.id,
       pic: shipment.pic || '',
@@ -780,6 +821,17 @@ export const DhlTrackerPage = () => {
                           </button>
 
                           <div className={styles.cardActionGroup}>
+                            {isDelivered && (
+                              <button
+                                type="button"
+                                className={`${styles.smallActionBtn} ${styles.btnEmail}`}
+                                title={t('dhl.send_email_now', 'Kirim Email Notifikasi Kedatangan Sample')}
+                                onClick={() => handleSendDeliveredEmail(item.id)}
+                                disabled={isActionLoading}
+                              >
+                                <Mail size={12} className={isActionLoading ? styles.spin : ''} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               className={styles.smallActionBtn}
@@ -920,6 +972,17 @@ export const DhlTrackerPage = () => {
                           >
                             <Eye size={13} />
                           </button>
+                          {isDelivered && (
+                            <button
+                              type="button"
+                              className={`${styles.smallActionBtn} ${styles.btnEmail}`}
+                              title={t('dhl.send_email_now', 'Kirim Email Notifikasi Kedatangan Sample')}
+                              onClick={() => handleSendDeliveredEmail(item.id)}
+                              disabled={isActionLoading}
+                            >
+                              <Mail size={13} className={isActionLoading ? styles.spin : ''} />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className={styles.smallActionBtn}
@@ -1091,6 +1154,17 @@ export const DhlTrackerPage = () => {
                   </button>
 
                   <div className={styles.cardActionGroup}>
+                    {isDelivered && (
+                      <button
+                        type="button"
+                        className={`${styles.smallActionBtn} ${styles.btnEmail}`}
+                        title={t('dhl.send_email_now', 'Kirim Email Notifikasi Kedatangan Sample')}
+                        onClick={() => handleSendDeliveredEmail(item.id)}
+                        disabled={isActionLoading}
+                      >
+                        <Mail size={14} className={isActionLoading ? styles.spin : ''} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={styles.smallActionBtn}
@@ -1136,27 +1210,69 @@ export const DhlTrackerPage = () => {
             <label className={styles.formLabel}>
               {t('dhl.awb_number_label', 'Nomor Resi / AWB DHL')} <span className={styles.req}>*</span>
             </label>
-            <Input
-              type="text"
-              placeholder="Contoh: 1234567890"
+            <textarea
+              className={styles.textareaInput}
+              rows={2}
+              placeholder="Contoh: 1234567890, 9876543210 (bisa multi AWB pisahkan dengan koma/baris baru)"
               value={addForm.tracking_number}
               onChange={(e) => setAddForm({ ...addForm, tracking_number: e.target.value })}
               required
               autoFocus
             />
             <span className={styles.formHint}>
-              {t('dhl.awb_number_hint', 'Masukkan 10 digit AWB DHL Express. Data checkpoint otomatis diambil dari API resmi DHL.')}
+              Mendukung input banyak AWB sekaligus (pisahkan spasi, koma, titik koma, atau baris baru).
             </span>
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
-            <Input
-              type="text"
-              placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
-              value={addForm.pic}
-              onChange={(e) => setAddForm({ ...addForm, pic: e.target.value })}
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label className={styles.formLabel} style={{ margin: 0 }}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
+              <div className={styles.picModeToggle}>
+                <label className={styles.picRadioLabel}>
+                  <input
+                    type="radio"
+                    name="add_pic_mode"
+                    value="registered"
+                    checked={addPicMode === 'registered'}
+                    onChange={() => setAddPicMode('registered')}
+                  />
+                  <span>User Terdaftar</span>
+                </label>
+                <label className={styles.picRadioLabel}>
+                  <input
+                    type="radio"
+                    name="add_pic_mode"
+                    value="custom"
+                    checked={addPicMode === 'custom'}
+                    onChange={() => setAddPicMode('custom')}
+                  />
+                  <span>Custom Input</span>
+                </label>
+              </div>
+            </div>
+
+            {addPicMode === 'registered' ? (
+              <select
+                className={styles.selectInput}
+                style={{ width: '100%', height: '40px' }}
+                value={addForm.pic}
+                onChange={(e) => setAddForm({ ...addForm, pic: e.target.value })}
+              >
+                <option value="">-- Pilih PIC dari Akun Terdaftar --</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.full_name || u.username}>
+                    {u.full_name || u.username} ({u.email || u.role})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                type="text"
+                placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
+                value={addForm.pic}
+                onChange={(e) => setAddForm({ ...addForm, pic: e.target.value })}
+              />
+            )}
           </div>
 
           <div className={styles.formGroup}>
@@ -1190,13 +1306,54 @@ export const DhlTrackerPage = () => {
       >
         <form onSubmit={handleEditSubmit} className={styles.modalForm}>
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
-            <Input
-              type="text"
-              placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
-              value={editForm.pic}
-              onChange={(e) => setEditForm({ ...editForm, pic: e.target.value })}
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label className={styles.formLabel} style={{ margin: 0 }}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
+              <div className={styles.picModeToggle}>
+                <label className={styles.picRadioLabel}>
+                  <input
+                    type="radio"
+                    name="edit_pic_mode"
+                    value="registered"
+                    checked={editPicMode === 'registered'}
+                    onChange={() => setEditPicMode('registered')}
+                  />
+                  <span>User Terdaftar</span>
+                </label>
+                <label className={styles.picRadioLabel}>
+                  <input
+                    type="radio"
+                    name="edit_pic_mode"
+                    value="custom"
+                    checked={editPicMode === 'custom'}
+                    onChange={() => setEditPicMode('custom')}
+                  />
+                  <span>Custom Input</span>
+                </label>
+              </div>
+            </div>
+
+            {editPicMode === 'registered' ? (
+              <select
+                className={styles.selectInput}
+                style={{ width: '100%', height: '40px' }}
+                value={editForm.pic}
+                onChange={(e) => setEditForm({ ...editForm, pic: e.target.value })}
+              >
+                <option value="">-- Pilih PIC dari Akun Terdaftar --</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.full_name || u.username}>
+                    {u.full_name || u.username} ({u.email || u.role})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                type="text"
+                placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
+                value={editForm.pic}
+                onChange={(e) => setEditForm({ ...editForm, pic: e.target.value })}
+              />
+            )}
           </div>
 
           <div className={styles.checkboxGroup}>
