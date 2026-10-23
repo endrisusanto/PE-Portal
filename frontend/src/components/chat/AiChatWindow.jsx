@@ -477,7 +477,93 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
     }
   };
 
-  // Handle Document Attachment
+  // Helper: Resize and convert image to Base64 Data URL for Vision LLMs (9router/OpenAI)
+  const processImageForVision = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX_DIM = 1600;
+          let w = img.width;
+          let h = img.height;
+          if (w > MAX_DIM || h > MAX_DIM) {
+            if (w > h) {
+              h = Math.round((h * MAX_DIM) / w);
+              w = MAX_DIM;
+            } else {
+              w = Math.round((w * MAX_DIM) / h);
+              h = MAX_DIM;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Helper: Extract text from PDF files natively in the browser
+  const extractPdfText = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const textDecoder = new TextDecoder('utf-8', { fatal: false });
+      const rawStr = textDecoder.decode(bytes);
+
+      const words = [];
+      const tjRegex = /\(([^)]+)\)\s*(?:Tj|'|")/g;
+      let match;
+      while ((match = tjRegex.exec(rawStr)) !== null) {
+        const cleaned = match[1].replace(/\\([()\\])/g, '$1').trim();
+        if (cleaned.length > 0) words.push(cleaned);
+      }
+
+      const arrayTjRegex = /\[([^\]]+)\]\s*TJ/g;
+      while ((match = arrayTjRegex.exec(rawStr)) !== null) {
+        const inner = match[1];
+        const partRegex = /\(([^)]+)\)/g;
+        let partMatch;
+        let lineParts = '';
+        while ((partMatch = partRegex.exec(inner)) !== null) {
+          lineParts += partMatch[1].replace(/\\([()\\])/g, '$1') + ' ';
+        }
+        if (lineParts.trim()) words.push(lineParts.trim());
+      }
+
+      if (words.length > 10) {
+        return words.join(' ');
+      }
+
+      const printableMatches = rawStr.match(/[\x20-\x7E\s]{6,}/g) || [];
+      const filtered = printableMatches.filter(
+        (s) =>
+          !s.includes('obj') &&
+          !s.includes('endobj') &&
+          !s.includes('xref') &&
+          !s.includes('Font') &&
+          !s.includes('MediaBox')
+      );
+      if (filtered.length > 0) {
+        return filtered.join('\n').trim();
+      }
+
+      return `[Dokumen PDF: ${file.name} - Ukuran ${(file.size / 1024).toFixed(1)} KB]`;
+    } catch (err) {
+      return `[Dokumen PDF: ${file.name} - Gagal ekstrak teks]`;
+    }
+  };
+
+  // Handle Document & Image Attachment
   const handleAttachFiles = async (filesList) => {
     const files = Array.from(filesList);
     if (files.length === 0) return;
@@ -487,10 +573,22 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
     for (const file of files) {
       try {
         let textContent = '';
+        let isImage = false;
+        let dataUrl = null;
         const ext = file.name.split('.').pop().toLowerCase();
 
-        // 1. Plain text / Code / Logs / CSV / JSON
-        if (
+        // 1. Image Files (Vision Multimodal for 9router / GPT-4o / Claude)
+        if (file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(ext)) {
+          isImage = true;
+          dataUrl = await processImageForVision(file);
+          textContent = `[Foto/Gambar: ${file.name} (${(file.size / 1024).toFixed(1)} KB)]`;
+        }
+        // 2. PDF Documents
+        else if (ext === 'pdf' || file.type === 'application/pdf') {
+          textContent = await extractPdfText(file);
+        }
+        // 3. Plain text / Code / Logs / CSV / JSON
+        else if (
           [
             'txt',
             'csv',
@@ -510,22 +608,21 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             'env',
             'php',
             'css',
+            'tsv',
           ].includes(ext) ||
           file.type.startsWith('text/')
         ) {
           textContent = await file.text();
-        } else if (file.type.startsWith('image/')) {
-          textContent = `[Gambar: ${file.name} - Ukuran: ${(file.size / 1024).toFixed(1)} KB]`;
         } else {
-          // Fallback slice text reading
+          // Fallback text reading
           textContent = await file.text().catch(() => `[Dokumen Binary: ${file.name}]`);
         }
 
-        // Truncate overly massive documents to ~30,000 characters to fit LLM context cleanly
-        if (textContent.length > 30000) {
+        // Generous limit for 9router / modern LLMs (up to 80,000 characters)
+        if (textContent.length > 80000) {
           textContent =
-            textContent.substring(0, 30000) +
-            `\n... [Sisa ${textContent.length - 30000} karakter dipangkas untuk keamanan konteks LLM]`;
+            textContent.substring(0, 80000) +
+            `\n... [Sisa ${textContent.length - 80000} karakter dipangkas untuk optimasi token LLM]`;
         }
 
         newAttachments.push({
@@ -533,6 +630,8 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
           name: file.name,
           size: file.size,
           type: file.type || ext,
+          isImage,
+          dataUrl,
           content: textContent,
         });
       } catch (err) {
@@ -572,10 +671,13 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
     const text = inputVal.trim();
     if ((!text && attachments.length === 0) || isSending) return;
 
-    // Build user message with attachment summary
+    const imageAttachments = attachments.filter((a) => a.isImage && a.dataUrl);
+    const docAttachments = attachments.filter((a) => !a.isImage);
+
+    // Build text context for attached documents
     let combinedPrompt = text;
-    if (attachments.length > 0) {
-      const attachmentsContext = attachments
+    if (docAttachments.length > 0) {
+      const attachmentsContext = docAttachments
         .map(
           (a) =>
             `\n\n--- DOKUMEN LAMPIRAN: ${a.name} (${(a.size / 1024).toFixed(1)} KB) ---\n${a.content}\n--- AKHIR DOKUMEN ---`
@@ -584,13 +686,34 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
       combinedPrompt = text ? `${text}\n${attachmentsContext}` : `Tolong analisa dokumen lampiran berikut:${attachmentsContext}`;
     }
 
+    // Determine message payload: string or OpenAI Multimodal Vision content parts
+    let messageContent = combinedPrompt;
+    if (imageAttachments.length > 0) {
+      const parts = [];
+      const promptText = combinedPrompt || 'Tolong analisa foto/gambar lampiran berikut secara teliti.';
+      parts.push({ type: 'text', text: promptText });
+
+      for (const img of imageAttachments) {
+        parts.push({
+          type: 'image_url',
+          image_url: {
+            url: img.dataUrl,
+            detail: 'auto',
+          },
+        });
+      }
+      messageContent = parts;
+    }
+
     const currentAttachedPills = [...attachments];
+    const displayLabel = text || (imageAttachments.length > 0 ? 'Analisa foto terlampir' : 'Analisa dokumen terlampir');
+
     const newMessages = [
       ...messages,
       {
         role: 'user',
-        content: combinedPrompt,
-        displayContent: text || 'Analisa dokumen terlampir',
+        content: messageContent,
+        displayContent: displayLabel,
         attachedFiles: currentAttachedPills,
       },
     ];
@@ -614,7 +737,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
       const errorMsg = err.response?.data?.message || err.message || 'Gagal memanggil endpoint AI.';
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: `⚠️ **Gagal terhubung ke AI Model:** ${errorMsg}\n\nPastikan service LM Studio atau API LLM aktif di menu Settings.` },
+        { role: 'assistant', content: `⚠️ **Gagal terhubung ke AI Model:** ${errorMsg}\n\nPastikan service LM Studio, 9router, atau API LLM aktif di menu Settings.` },
       ]);
     } finally {
       setIsSending(false);
@@ -730,21 +853,43 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 m.role === 'user' ? styles.userBubble : styles.assistantBubble
               }`}
             >
-              {/* Show attached pills in user bubble */}
+              {/* Show attached pills / images in user bubble */}
               {m.attachedFiles && m.attachedFiles.length > 0 && (
                 <div className={styles.attachedPills}>
                   {m.attachedFiles.map((att) => (
-                    <span key={att.id} className={styles.attachedPill}>
-                      <FileText size={12} />
-                      {att.name} ({(att.size / 1024).toFixed(1)} KB)
-                    </span>
+                    <div key={att.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {att.isImage && att.dataUrl ? (
+                        <div style={{ position: 'relative', width: 'fit-content' }}>
+                          <img
+                            src={att.dataUrl}
+                            alt={att.name}
+                            style={{
+                              maxWidth: '220px',
+                              maxHeight: '160px',
+                              objectFit: 'cover',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              display: 'block',
+                            }}
+                          />
+                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginTop: '2px', display: 'block' }}>
+                            {att.name} ({(att.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                      ) : (
+                        <span className={styles.attachedPill}>
+                          <FileText size={12} />
+                          {att.name} ({(att.size / 1024).toFixed(1)} KB)
+                        </span>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
 
               {/* Message Content with Markdown & Table & SVG parsing */}
               {m.role === 'user' ? (
-                <div>{m.displayContent || m.content}</div>
+                <div>{typeof m.displayContent === 'string' ? m.displayContent : (typeof m.content === 'string' ? m.content : 'Analisa foto/dokumen')}</div>
               ) : (
                 <RichMessageContent content={m.content} />
               )}
@@ -773,7 +918,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".txt,.csv,.json,.log,.md,.sql,.js,.jsx,.py,.go,.html,.xml,.yaml,.yml,.ini,.env,.php,.css,.pdf,image/*"
+          accept=".txt,.csv,.json,.log,.md,.sql,.js,.jsx,.py,.go,.html,.xml,.yaml,.yml,.ini,.env,.php,.css,.tsv,.pdf,image/*"
           style={{ display: 'none' }}
           onChange={(e) => {
             if (e.target.files) handleAttachFiles(e.target.files);
@@ -787,10 +932,12 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             <div className={styles.composerAttachments}>
               {attachments.map((a) => (
                 <div key={a.id} className={styles.attachmentChip}>
-                  {a.type.includes('csv') ? (
+                  {a.isImage && a.dataUrl ? (
+                    <img src={a.dataUrl} alt={a.name} style={{ width: 18, height: 18, objectFit: 'cover', borderRadius: '3px' }} />
+                  ) : a.type.includes('csv') ? (
                     <FileSpreadsheet size={13} color="#10b981" />
-                  ) : a.type.startsWith('image/') ? (
-                    <ImageIcon size={13} color="#f59e0b" />
+                  ) : a.type.includes('pdf') ? (
+                    <FileText size={13} color="#ef4444" />
                   ) : (
                     <FileText size={13} color="#3b82f6" />
                   )}

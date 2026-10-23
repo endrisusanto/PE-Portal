@@ -430,10 +430,10 @@ type LLMConfig struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
-// ChatMessage represents a single turn in LLM conversation
+// ChatMessage represents a single turn in LLM conversation (supports text and multimodal vision parts)
 type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string      `json:"role"`
+	Content interface{} `json:"content"`
 }
 
 // AIChatRequest defines the payload sent to PE AI Assistant
