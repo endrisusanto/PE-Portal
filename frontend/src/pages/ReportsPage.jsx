@@ -428,7 +428,7 @@ export const ReportsPage = () => {
                           icon={ExternalLink}
                           onClick={() => navigate(`/reports/editor/${rep.id}`)}
                         >
-                          Open Editor
+                          {t('reports.open_editor', 'Open Editor')}
                         </Button>
                         <Button
                           variant="primary"
@@ -437,7 +437,7 @@ export const ReportsPage = () => {
                           loading={sendingReportId === rep.id}
                           onClick={() => handleSendReport(rep.id)}
                         >
-                          Send Email
+                          {t('reports.send_email', 'Send Email')}
                         </Button>
                       </div>
 
@@ -479,7 +479,7 @@ export const ReportsPage = () => {
                   <div className={styles.cardHeader}>
                     <div className={styles.cardTitle}>{tmpl.title}</div>
                     <span className={tmpl.is_shared ? styles.badgeShared : styles.badgePrivate}>
-                      {tmpl.is_shared ? 'Shared with Team' : 'Personal'}
+                      {tmpl.is_shared ? t('reports.shared_team', 'Shared with Team') : t('reports.personal', 'Personal')}
                     </span>
                   </div>
                   {tmpl.description && <div className={styles.cardDesc}>{tmpl.description}</div>}
@@ -496,7 +496,7 @@ export const ReportsPage = () => {
                     icon={Plus}
                     onClick={() => navigate(`/reports/new?templateId=${tmpl.id}`)}
                   >
-                    Use This Template
+                    {t('reports.use_template', 'Use This Template')}
                   </Button>
 
                   <Button
@@ -588,7 +588,7 @@ export const ReportsPage = () => {
                         loading={triggeringScheduleId === sch.id}
                         onClick={() => handleTriggerSchedule(sch.id)}
                       >
-                        Run Now
+                        {t('reports.run_now', 'Run Now')}
                       </Button>
 
                       <Button
@@ -613,17 +613,17 @@ export const ReportsPage = () => {
         <Table
           columns={[
             {
-              title: 'Dispatched At',
+              title: t('reports.col_dispatched_at', 'Dispatched At'),
               key: 'sent_at',
               render: (val) => <span style={{ whiteSpace: 'nowrap' }}>{new Date(val).toLocaleString()}</span>,
             },
             {
-              title: 'Subject',
+              title: t('reports.col_subject', 'Subject'),
               key: 'subject',
               render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>,
             },
             {
-              title: 'Recipients',
+              title: t('reports.col_recipients', 'Recipients'),
               key: 'recipients',
               render: (val) => {
                 let recDisplay = '-';
@@ -635,7 +635,7 @@ export const ReportsPage = () => {
               },
             },
             {
-              title: 'Status',
+              title: t('common.status', 'Status'),
               key: 'status',
               render: (val) => (
                 <StatusBadge
@@ -645,7 +645,7 @@ export const ReportsPage = () => {
               ),
             },
             {
-              title: 'Details',
+              title: t('reports.col_details', 'Details'),
               key: 'error_message',
               sortable: false,
               render: (val) => (

@@ -436,7 +436,7 @@ export const InnovationsPage = () => {
   // Table Columns for tabular view mode
   const columns = [
     {
-      title: 'Class Type',
+      title: t('innovations.col_class', 'Class Type'),
       key: 'class_type',
       render: (val) => (
         <span className={`${styles.badgeClassBase} ${getClassBadgeClass(val || 'Class 4')}`}>
@@ -445,7 +445,7 @@ export const InnovationsPage = () => {
       ),
     },
     {
-      title: 'Innovation / BP Title',
+      title: t('innovations.col_title', 'Innovation / BP Title'),
       key: 'title',
       render: (val, row) => (
         <div style={{ cursor: 'pointer' }} onClick={() => handleViewArticle(row)}>
@@ -459,12 +459,12 @@ export const InnovationsPage = () => {
       ),
     },
     {
-      title: 'Status',
+      title: t('common.status', 'Status'),
       key: 'status',
       render: (val) => <StatusBadge status={val} />,
     },
     {
-      title: 'Impact',
+      title: t('innovations.col_impact', 'Impact'),
       key: 'impact_score',
       render: (val) => (
         <span style={{ fontWeight: 600, color: 'var(--color-warning)' }}>
@@ -473,12 +473,12 @@ export const InnovationsPage = () => {
       ),
     },
     {
-      title: 'Proposer',
+      title: t('innovations.col_proposer', 'Proposer'),
       key: 'author_name',
       render: (val) => <span style={{ fontSize: '12px' }}>{val || 'Engineer'}</span>,
     },
     {
-      title: 'Actions',
+      title: t('common.actions', 'Actions'),
       key: 'id',
       render: (_, row) => (
         <div style={{ display: 'flex', gap: '6px' }}>

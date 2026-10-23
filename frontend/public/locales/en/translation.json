@@ -66,7 +66,20 @@
     "date": "Date",
     "all": "All",
     "view": "View",
-    "back": "Back"
+    "back": "Back",
+    "time": "Time",
+    "copy": "Copy",
+    "copied": "Copied",
+    "refresh": "Refresh",
+    "saving": "Saving...",
+    "reset_default": "Reset Default",
+    "showing_count": "Showing {{count}} of {{total}} items",
+    "prev": "Previous",
+    "next": "Next",
+    "all_models": "All Models",
+    "all_pics": "All PICs",
+    "all_status": "All Statuses",
+    "close": "Close"
   },
   "auth": {
     "login_title": "Sign in to PE-Portal",
@@ -145,7 +158,11 @@
     "kpi_class3": "CLASS 3 (TOP TIER)",
     "kpi_adopted_rate": "ADOPTED RATE",
     "kpi_under_review": "UNDER REVIEW",
-    "kpi_non_adopt": "NON ADOPT"
+    "kpi_non_adopt": "NON ADOPT",
+    "col_class": "Class Type",
+    "col_title": "Innovation / BP Title",
+    "col_impact": "Impact",
+    "col_proposer": "Proposer"
   },
   "projects": {
     "title": "Milestone Task Analyst",
@@ -153,7 +170,11 @@
     "view_matrix": "Matrix Card",
     "view_kanban": "Kanban",
     "view_table": "Table",
-    "new_task": "Create New Task"
+    "new_task": "Create New Task",
+    "col_task": "Issue / Task Analysis",
+    "col_pic": "Assigned PIC",
+    "col_milestone": "Milestone Progress",
+    "col_target_date": "Target Date"
   },
   "imei": {
     "title": "Articles & Engineering Notes",
@@ -296,7 +317,18 @@
     "empty_reports": "No digital reports created yet",
     "empty_templates": "No templates available",
     "empty_schedules": "No automated delivery schedules configured",
-    "empty_logs": "No email delivery logs recorded"
+    "empty_logs": "No email delivery logs recorded",
+    "open_editor": "Open Editor",
+    "send_email": "Send Email",
+    "shared_team": "Shared with Team",
+    "personal": "Personal",
+    "use_template": "Use This Template",
+    "run_now": "Run Now",
+    "col_dispatched_at": "Dispatched At",
+    "col_subject": "Subject",
+    "col_recipients": "Recipients",
+    "col_status": "Status",
+    "col_details": "Details"
   },
   "dhl": {
     "title": "DHL Shipment Tracker",
@@ -452,7 +484,13 @@
     "col_updated": "Last Updated",
     "view_details": "View Details",
     "details_modal_title": "MR Release & Binary Mapping Details",
-    "close": "Close"
+    "close": "Close",
+    "all_models": "All Models",
+    "all_pics": "All PICs",
+    "releases_found": "Releases Found",
+    "releases_count_suffix": "Firmware Releases",
+    "col_release_date": "Release Date",
+    "col_cheatsheet": "Cheatsheet"
   },
   "training": {
     "title": "Online Training & Post-Test Portal",
@@ -471,12 +509,21 @@
     "min_score": "Minimum Passing Grade",
     "status_completed": "Completed",
     "status_in_progress": "In Progress",
-    "status_not_started": "Not Started"
+    "status_not_started": "Not Started",
+    "btn_add_training": "Add Training",
+    "unlock_password": "Answer Key Passcode",
+    "unlock_placeholder": "Enter passcode (default: 2025)...",
+    "unlock_btn": "Unlock Answer Key",
+    "placeholder_title": "e.g., 2026 Global Quality & Safety Standard",
+    "placeholder_passcode": "e.g., 2025",
+    "placeholder_passcode_edit": "Leave blank to keep existing password",
+    "placeholder_answer_notes": "e.g., 1.A, 2.C, 3.B... or answer summary",
+    "save_module": "Save Training Module"
   },
   "samples": {
     "title": "PE Sample Management",
     "subtitle": "Engineering unit inventory, barcode scanning, borrowing, and disposal tracking",
-    "scan_placeholder": "Scan Barcode / Enter Serial Number...",
+    "scan_placeholder": "Scan Asset / Serial No. (e.g. AS10001)...",
     "tab_inventory": "Sample Inventory",
     "tab_borrowing": "Loan & Return History",
     "tab_scrap": "Scrapped Samples",
@@ -494,7 +541,30 @@
     "modal_borrow_title": "Borrow Engineering Sample",
     "modal_return_title": "Return Engineering Sample",
     "select_borrower": "Select Borrower Engineer",
-    "select_condition": "Select Unit Condition"
+    "select_condition": "Select Unit Condition",
+    "view_matrix": "Matrix Card View",
+    "view_table": "Table View",
+    "kpi_total": "Total Samples",
+    "kpi_borrowed": "Currently Borrowed",
+    "kpi_available": "Available (Ready)",
+    "kpi_defects": "Defect / Repair",
+    "scan_header": "Scan / Register Sample Loan & Return",
+    "borrower_placeholder": "Borrower Name / PIC...",
+    "scan_auto": "Auto Toggle (Borrow / Return)",
+    "scan_force_borrow": "Force BORROW Status",
+    "scan_force_return": "Force RETURN Status",
+    "submit_tx": "Submit Transaction",
+    "active_borrowers_title": "Active Borrowers & Checked-out Samples",
+    "borrowers_count": "Engineers Borrowing Samples",
+    "all_available": "All samples are currently available in rack / no active loans.",
+    "btn_add_sample": "Add Sample",
+    "btn_bulk_add": "Bulk Add / TSV",
+    "col_asset_no": "Asset No",
+    "col_serial_no": "Serial Number",
+    "col_loan_status": "Loan Status",
+    "col_location": "Location",
+    "available": "Available (Ready)",
+    "normal": "Normal"
   },
   "documents": {
     "title": "Documents Archive",
@@ -525,7 +595,16 @@
     "views_count": "Views",
     "downloads_count": "Downloads",
     "input_password_label": "Passcode Protection",
-    "input_password_placeholder": "Enter 4-16 alphanumeric passcode"
+    "input_password_placeholder": "Enter 4-16 alphanumeric passcode",
+    "col_file_title": "File & Title",
+    "col_format": "Format",
+    "col_category": "Category",
+    "col_uploaded_by": "Uploaded By",
+    "col_sharing": "Sharing Status",
+    "preview_file": "Preview File",
+    "share_link": "Share Link",
+    "download_file": "Download",
+    "delete_file": "Delete"
   },
   "shared_doc": {
     "password_prompt_title": "Passcode Required",
@@ -538,7 +617,11 @@
     "preview_title": "Document Preview",
     "download_disabled_notice": "Original file download is disabled for this link.",
     "link_expired_title": "Link Expired",
-    "link_expired_desc": "This document sharing link has expired or has been deactivated by the owner."
+    "link_expired_desc": "This document sharing link has expired or has been deactivated by the owner.",
+    "open_new_tab": "Open in New Tab",
+    "office_preview_title": "Office / Binary File Preview",
+    "office_preview_desc": "It is recommended to download the original file to view the spreadsheet or presentation fully.",
+    "download_file": "Download"
   },
   "gmes": {
     "title": "GMES Production Line Issue Monitoring",
@@ -554,7 +637,46 @@
     "failure_rate": "Failure Rate",
     "line_name": "Line",
     "station_name": "Station",
-    "no_data": "No GMES defect issues detected"
+    "no_data": "No GMES defect issues detected",
+    "total_defect_units": "Total Defect Units",
+    "across_active_lines": "Across all active lines",
+    "active_open_issues": "Active Open Issues",
+    "requires_action": "Requires action / investigation",
+    "top_defect_process": "Top Defect Process",
+    "highest_fail_contrib": "Highest fail contribution",
+    "most_impacted_line": "Most Impacted Line",
+    "assembly_bottleneck": "Assembly Line bottleneck",
+    "report_issue": "Report Line Issue",
+    "report_issue_title": "Report New GMES Line Issue",
+    "search_placeholder": "Search item / PIC / line...",
+    "rank": "Rank",
+    "process": "Process",
+    "model": "Model",
+    "status": "Status",
+    "countermeasure": "PIC & Countermeasure",
+    "no_pic": "Unassigned PIC",
+    "no_countermeasure": "No countermeasure logged",
+    "telemetry_history": "Station Measurement History",
+    "sn": "SN (Serial Number)",
+    "port_station": "Port / Station",
+    "test_item": "Test Item",
+    "measure_value": "Measure Value",
+    "equip_no": "Equipment No",
+    "remark": "Remark",
+    "no_measurements": "No measurement history for this process.",
+    "label_model": "Device Model",
+    "placeholder_model": "e.g. SM-S928B",
+    "label_fail_qty": "Fail Qty (Units)",
+    "label_test_item": "Test Item / Defect Name",
+    "placeholder_test_item": "e.g. Main Camera OIS Tilt Fail",
+    "label_share": "Defect Share (%)",
+    "placeholder_share": "e.g. 24.5%",
+    "label_pic": "PIC Engineer",
+    "placeholder_pic": "PIC engineer name",
+    "label_countermeasure": "Corrective Action / Countermeasure",
+    "placeholder_countermeasure": "Describe investigation steps and corrective actions...",
+    "save_issue": "Save Issue",
+    "edit_issue_title": "Update Issue Countermeasure"
   },
   "gba_tasks": {
     "title": "GBA Kanban Tasks",
@@ -572,7 +694,8 @@
     "priority_urgent": "URGENT",
     "priority_high": "HIGH",
     "priority_medium": "MEDIUM",
-    "priority_low": "LOW"
+    "priority_low": "LOW",
+    "search_placeholder": "Search model, AP, PIC..."
   },
   "team": {
     "title": "PE Team Directory",
@@ -600,7 +723,12 @@
     "col_timestamp": "Timestamp",
     "col_ip": "IP Address",
     "whitelist_select_user": "+ Whitelist User...",
-    "whitelist_select_group": "+ Add Allowed Group..."
+    "whitelist_select_group": "+ Add Allowed Group...",
+    "save_permissions": "Save Permissions",
+    "col_email": "Email",
+    "col_actions": "Actions",
+    "no_restriction_groups": "All Groups / No Restriction",
+    "no_restriction_users": "All Users / Unrestricted"
   },
   "ai_chat": {
     "title": "AI Engineering Assistant",
@@ -615,6 +743,10 @@
     "quick_prompt_1": "Analyze PCB defect symptoms",
     "quick_prompt_2": "Summarize this PDF SOP guide",
     "quick_prompt_3": "Draft daily engineering work report",
-    "quick_prompt_4": "Compare AP/CP software binary versions"
+    "quick_prompt_4": "Compare AP/CP software binary versions",
+    "drop_files": "Drop files here to attach",
+    "open_standalone": "Open in New Window (Standalone Mode)",
+    "confirm_clear": "Clear AI Assistant conversation history?",
+    "history_cleared": "Conversation history cleared. Feel free to ask a new question or attach documents!"
   }
 }

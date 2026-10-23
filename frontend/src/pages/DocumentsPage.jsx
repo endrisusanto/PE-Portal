@@ -214,7 +214,7 @@ export const DocumentsPage = () => {
 
   const columns = [
     {
-      title: 'File & Title',
+      title: t('documents.col_file_title', 'File & Title'),
       key: 'title',
       render: (val, row) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -229,7 +229,7 @@ export const DocumentsPage = () => {
       ),
     },
     {
-      title: 'Format',
+      title: t('documents.col_format', 'Format'),
       key: 'file_type',
       render: (val) => (
         <span style={{
@@ -246,22 +246,22 @@ export const DocumentsPage = () => {
       ),
     },
     {
-      title: 'Category',
+      title: t('documents.col_category', 'Category'),
       key: 'category',
       render: (val) => <span>{val || 'General'}</span>,
     },
     {
-      title: 'Uploader',
+      title: t('documents.col_uploader', 'Uploader'),
       key: 'uploader_name',
       render: (val) => <span>{val || 'Engineer'}</span>,
     },
     {
-      title: 'Uploaded At',
+      title: t('documents.col_uploaded_at', 'Uploaded At'),
       key: 'created_at',
       render: (val) => <span>{new Date(val).toLocaleDateString()}</span>,
     },
     {
-      title: 'Actions',
+      title: t('common.actions', 'Actions'),
       key: 'id',
       render: (val, row) => (
         <div style={{ display: 'flex', gap: '4px' }}>
@@ -269,7 +269,7 @@ export const DocumentsPage = () => {
             variant="ghost"
             size="sm"
             onClick={() => setPreviewDoc(row)}
-            title="Preview file"
+            title={t('documents.preview_file', 'Preview file')}
           >
             <Eye size={14} />
           </Button>
@@ -277,7 +277,7 @@ export const DocumentsPage = () => {
             variant="ghost"
             size="sm"
             onClick={() => handleOpenShare(row)}
-            title="Bagikan Tautan (Share link)"
+            title={t('documents.share_link', 'Bagikan Tautan (Share link)')}
           >
             <Share2 size={14} color="var(--color-accent)" />
           </Button>
@@ -287,7 +287,7 @@ export const DocumentsPage = () => {
             rel="noreferrer"
             download
             style={{ display: 'inline-flex', alignItems: 'center', padding: '0 6px', color: 'var(--color-accent)' }}
-            title="Download file"
+            title={t('documents.download_file', 'Download file')}
           >
             <Download size={14} />
           </a>
@@ -295,7 +295,7 @@ export const DocumentsPage = () => {
             variant="ghost"
             size="sm"
             onClick={() => handleDelete(val)}
-            title="Delete file"
+            title={t('documents.delete_file', 'Delete file')}
           >
             <Trash2 size={14} color="var(--color-error)" />
           </Button>
@@ -312,11 +312,11 @@ export const DocumentsPage = () => {
             {t('nav.documents')}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-            Centralized engineering archive with in-browser view-only support
+            {t('documents.subtitle', 'Centralized engineering archive with in-browser view-only support')}
           </p>
         </div>
         <Button variant="primary" icon={Upload} onClick={() => setIsUploadOpen(true)}>
-          Upload File
+          {t('documents.upload_btn', 'Upload File')}
         </Button>
       </div>
 

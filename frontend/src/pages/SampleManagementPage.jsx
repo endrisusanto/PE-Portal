@@ -557,7 +557,7 @@ export const SampleManagementPage = () => {
             <div className={styles.scannerHeader}>
               <span className={styles.scannerTitle}>
                 <PackageCheck size={18} color="var(--color-accent)" />
-                Scan / Input Peminjaman & Pengembalian Sample
+                {t('samples.scan_header', 'Scan / Input Peminjaman & Pengembalian Sample')}
               </span>
               <span className={styles.userBadge}>
                 <UserCheck size={14} />
@@ -572,7 +572,7 @@ export const SampleManagementPage = () => {
                 <input
                   type="text"
                   className={styles.inputField}
-                  placeholder="Nama Peminjam / PIC..."
+                  placeholder={t('samples.borrower_placeholder', 'Nama Peminjam / PIC...')}
                   value={scanBorrower}
                   onChange={(e) => setScanBorrower(e.target.value)}
                   required
@@ -585,7 +585,7 @@ export const SampleManagementPage = () => {
                 <input
                   type="text"
                   className={styles.inputField}
-                  placeholder="Scan No. Asset / Serial (misal: AS10001)..."
+                  placeholder={t('samples.scan_placeholder', 'Scan No. Asset / Serial (misal: AS10001)...')}
                   value={scanAsset}
                   onChange={(e) => setScanAsset(e.target.value)}
                   autoFocus
@@ -599,15 +599,15 @@ export const SampleManagementPage = () => {
                 value={scanAction}
                 onChange={(e) => setScanAction(e.target.value)}
               >
-                <option value="">Auto Toggle (Pinjam / Kembali)</option>
-                <option value="PINJAM">Paksa Status PINJAM</option>
-                <option value="KEMBALI">Paksa Status KEMBALI</option>
+                <option value="">{t('samples.scan_auto', 'Auto Toggle (Pinjam / Kembali)')}</option>
+                <option value="PINJAM">{t('samples.scan_force_borrow', 'Paksa Status PINJAM')}</option>
+                <option value="KEMBALI">{t('samples.scan_force_return', 'Paksa Status KEMBALI')}</option>
               </select>
 
               {/* Submit */}
               <button type="submit" className={styles.btnSubmit} disabled={scanLoading}>
                 {scanLoading ? <RefreshCw size={15} className="spin" /> : <RotateCcw size={15} />}
-                Submit Transaksi
+                {t('samples.submit_tx', 'Submit Transaksi')}
               </button>
             </form>
 
@@ -630,21 +630,21 @@ export const SampleManagementPage = () => {
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>
               <Users size={20} color="#f87171" />
-              Daftar Peminjam Aktif & Sample yang Sedang Dipinjam
+              {t('samples.active_borrowers_title', 'Daftar Peminjam Aktif & Sample yang Sedang Dipinjam')}
             </h2>
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-              {borrowers.length} PIC Meminjam Sample
+              {borrowers.length} {t('samples.borrowers_count', 'PIC Meminjam Sample')}
             </span>
           </div>
 
           {loadingBorrowers ? (
             <div style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--color-text-muted)' }}>
-              Memuat data kartu peminjaman...
+              {t('common.loading', 'Memuat data kartu peminjaman...')}
             </div>
           ) : borrowers.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--color-text-muted)' }}>
               <CheckCircle2 size={36} color="#34d399" style={{ marginBottom: 8 }} />
-              <p>Semua sample saat ini tersedia di rak / tidak ada peminjaman aktif.</p>
+              <p>{t('samples.all_available', 'Semua sample saat ini tersedia di rak / tidak ada peminjaman aktif.')}</p>
             </div>
           ) : (
             <div className={styles.borrowerGrid}>
@@ -656,7 +656,7 @@ export const SampleManagementPage = () => {
                       {b.borrower_name}
                     </span>
                     <span className={styles.borrowerCountBadge}>
-                      {b.count} Dipinjam
+                      {b.count} {t('samples.kpi_borrowed', 'Dipinjam')}
                     </span>
                   </div>
 
@@ -665,10 +665,10 @@ export const SampleManagementPage = () => {
                       <thead>
                         <tr>
                           <th>#</th>
-                          <th>No. Asset</th>
-                          <th>Model</th>
-                          <th>Durasi</th>
-                          <th style={{ textAlign: 'right' }}>Aksi</th>
+                          <th>{t('samples.col_asset_no', 'No. Asset')}</th>
+                          <th>{t('samples.col_model', 'Model')}</th>
+                          <th>{t('common.time', 'Durasi')}</th>
+                          <th style={{ textAlign: 'right' }}>{t('common.actions', 'Aksi')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -688,9 +688,9 @@ export const SampleManagementPage = () => {
                                   e.stopPropagation();
                                   handleQuickReturn(it.asset_number, b.borrower_name);
                                 }}
-                                title="Kembalikan unit ini"
+                                title={t('samples.btn_return', 'Kembalikan unit ini')}
                               >
-                                Return
+                                {t('samples.btn_return', 'Return')}
                               </button>
                             </td>
                           </tr>
@@ -708,7 +708,7 @@ export const SampleManagementPage = () => {
                       className={styles.btnReturnCard}
                       onClick={() => handleOpenBorrowerModal(b)}
                     >
-                      Lihat Semua & Bulk Return
+                      {t('samples.view_all_bulk_return', 'Lihat Semua & Bulk Return')}
                     </button>
                   </div>
                 </div>
@@ -729,28 +729,28 @@ export const SampleManagementPage = () => {
                 className={`${styles.chip} ${matrixFilter === 'all' ? styles.chipActive : ''}`}
                 onClick={() => setMatrixFilter('all')}
               >
-                Semua Model
+                {t('common.all_models', 'Semua Model')}
               </button>
               <button
                 type="button"
                 className={`${styles.chip} ${matrixFilter === 'borrowed' ? styles.chipActive : ''}`}
                 onClick={() => setMatrixFilter('borrowed')}
               >
-                Ada yang Dipinjam
+                {t('samples.filter_borrowed', 'Ada yang Dipinjam')}
               </button>
               <button
                 type="button"
                 className={`${styles.chip} ${matrixFilter === 'ready' ? styles.chipActive : ''}`}
                 onClick={() => setMatrixFilter('ready')}
               >
-                Semua Ready (Tersedia)
+                {t('samples.filter_ready', 'Semua Ready (Tersedia)')}
               </button>
               <button
                 type="button"
                 className={`${styles.chip} ${matrixFilter === 'defects' ? styles.chipActive : ''}`}
                 onClick={() => setMatrixFilter('defects')}
               >
-                Ada Defect
+                {t('samples.filter_defects', 'Ada Defect')}
               </button>
             </div>
 
@@ -857,7 +857,7 @@ export const SampleManagementPage = () => {
               <input
                 type="text"
                 className={styles.filterInput}
-                placeholder="Cari asset, serial, model, peminjam..."
+                placeholder={t('samples.search_table_placeholder', 'Cari asset, serial, model, peminjam...')}
                 value={tableSearch}
                 onChange={(e) => {
                   setTableSearch(e.target.value);
@@ -873,9 +873,9 @@ export const SampleManagementPage = () => {
                   setTablePage(1);
                 }}
               >
-                <option value="">Semua Status</option>
-                <option value="AVAILABLE">Tersedia (Ready)</option>
-                <option value="PINJAM">Sedang Dipinjam</option>
+                <option value="">{t('common.all_status', 'Semua Status')}</option>
+                <option value="AVAILABLE">{t('samples.available', 'Tersedia (Ready)')}</option>
+                <option value="PINJAM">{t('samples.kpi_borrowed', 'Sedang Dipinjam')}</option>
               </select>
 
               <select
@@ -886,9 +886,9 @@ export const SampleManagementPage = () => {
                   setTablePage(1);
                 }}
               >
-                <option value="">Semua Kondisi</option>
-                <option value="Normal">Normal Saja</option>
-                <option value="Defect">Ada Defect / Kerusakan</option>
+                <option value="">{t('samples.all_conditions', 'Semua Kondisi')}</option>
+                <option value="Normal">{t('samples.normal_only', 'Normal Saja')}</option>
+                <option value="Defect">{t('samples.kpi_defects', 'Ada Defect / Kerusakan')}</option>
               </select>
             </div>
 
@@ -912,7 +912,7 @@ export const SampleManagementPage = () => {
                 }}
               >
                 <Plus size={14} />
-                Tambah Sample
+                {t('samples.btn_add_sample', 'Tambah Sample')}
               </Button>
 
               <Button
@@ -921,7 +921,7 @@ export const SampleManagementPage = () => {
                 onClick={() => setBulkModalOpen(true)}
               >
                 <FileSpreadsheet size={14} />
-                Bulk Add / TSV
+                {t('samples.btn_bulk_add', 'Bulk Add / TSV')}
               </Button>
             </div>
           </div>
@@ -932,19 +932,19 @@ export const SampleManagementPage = () => {
                 <tr>
                   <th style={{ width: 40 }}>#</th>
                   {[
-                    { key: 'asset_number', label: 'No. Asset' },
-                    { key: 'model', label: 'Model' },
-                    { key: 'serial_number', label: 'Serial Number' },
-                    { key: 'status_pinjam', label: 'Status Pinjam' },
-                    { key: 'condition_status', label: 'Kondisi Fisik' },
-                    { key: 'location', label: 'Lokasi' },
-                    { key: 'pic_sample', label: 'PIC Sample' },
+                    { key: 'asset_number', label: t('samples.col_asset_no', 'No. Asset') },
+                    { key: 'model', label: t('samples.col_model', 'Model') },
+                    { key: 'serial_number', label: t('samples.col_serial_no', 'Serial Number') },
+                    { key: 'status_pinjam', label: t('samples.col_loan_status', 'Status Pinjam') },
+                    { key: 'condition_status', label: t('samples.col_condition', 'Kondisi Fisik') },
+                    { key: 'location', label: t('samples.col_location', 'Lokasi') },
+                    { key: 'pic_sample', label: t('samples.col_pic_sample', 'PIC Sample') },
                   ].map((col) => (
                     <th
                       key={col.key}
                       onClick={() => handleTableSort(col.key)}
                       style={{ cursor: 'pointer', userSelect: 'none' }}
-                      title={`Klik untuk mengurutkan ${col.label}`}
+                      title={col.label}
                     >
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <span>{col.label}</span>
@@ -962,20 +962,20 @@ export const SampleManagementPage = () => {
                       </div>
                     </th>
                   ))}
-                  <th style={{ textAlign: 'center' }}>Aksi</th>
+                  <th style={{ textAlign: 'center' }}>{t('common.actions', 'Aksi')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingTable ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>
-                      Memuat daftar sample...
+                      {t('common.loading', 'Memuat daftar sample...')}
                     </td>
                   </tr>
                 ) : sortedTableData.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>
-                      Tidak ada sample yang cocok dengan kriteria pencarian.
+                      {t('samples.empty_search', 'Tidak ada sample yang cocok dengan kriteria pencarian.')}
                     </td>
                   </tr>
                 ) : (
@@ -1000,7 +1000,7 @@ export const SampleManagementPage = () => {
                         ) : (
                           <div className={styles.statusPillAvailable}>
                             <CheckCircle2 size={12} />
-                            <span>Tersedia (Ready)</span>
+                            <span>{t('samples.available', 'Tersedia (Ready)')}</span>
                           </div>
                         )}
                       </td>
@@ -1008,7 +1008,7 @@ export const SampleManagementPage = () => {
                         {s.condition_status === 'Normal' || !s.condition_status ? (
                           <div className={styles.conditionBadgeNormal}>
                             <ShieldCheck size={13} />
-                            <span>Normal</span>
+                            <span>{t('samples.normal', 'Normal')}</span>
                           </div>
                         ) : (
                           <div className={styles.conditionBadgeDefect}>
@@ -1033,17 +1033,17 @@ export const SampleManagementPage = () => {
                               handleQuickReturn(s.asset_number, bName);
                               fetchTable();
                             }}
-                            title={s.status_pinjam === 'PINJAM' ? 'Kembalikan Sample' : 'Pinjam Sample'}
+                            title={s.status_pinjam === 'PINJAM' ? t('samples.btn_return', 'Kembalikan Sample') : t('samples.btn_borrow', 'Pinjam Sample')}
                           >
                             <RotateCcw size={12} />
-                            {s.status_pinjam === 'PINJAM' ? 'Kembali' : 'Pinjam'}
+                            {s.status_pinjam === 'PINJAM' ? t('samples.btn_return', 'Kembali') : t('samples.btn_borrow', 'Pinjam')}
                           </button>
 
                           <button
                             type="button"
                             className={`${styles.btnAction} ${styles.btnEdit}`}
                             onClick={() => handleOpenEditSample(s)}
-                            title="Edit Sample"
+                            title={t('common.edit', 'Edit Sample')}
                           >
                             <Edit size={12} />
                           </button>
@@ -1053,7 +1053,7 @@ export const SampleManagementPage = () => {
                               type="button"
                               className={`${styles.btnAction} ${styles.btnDelete}`}
                               onClick={() => handleDeleteSample(s.id)}
-                              title="Hapus Sample"
+                              title={t('common.delete', 'Hapus Sample')}
                             >
                               <Trash2 size={12} />
                             </button>
@@ -1070,7 +1070,7 @@ export const SampleManagementPage = () => {
           {/* Table Pagination */}
           <div className={styles.pagination}>
             <span>
-              Menampilkan {tableData.length} dari {tableTotal} sample
+              {t('common.showing', 'Menampilkan')} {tableData.length} {t('common.of', 'dari')} {tableTotal} sample
             </span>
             <div style={{ display: 'flex', gap: 6 }}>
               <Button
@@ -1079,7 +1079,7 @@ export const SampleManagementPage = () => {
                 disabled={tablePage <= 1}
                 onClick={() => setTablePage(p => Math.max(1, p - 1))}
               >
-                Sebelumnya
+                {t('common.prev', 'Sebelumnya')}
               </Button>
               <Button
                 variant="secondary"
@@ -1087,7 +1087,7 @@ export const SampleManagementPage = () => {
                 disabled={tablePage * tableLimit >= tableTotal}
                 onClick={() => setTablePage(p => p + 1)}
               >
-                Selanjutnya
+                {t('common.next', 'Selanjutnya')}
               </Button>
             </div>
           </div>
@@ -1098,7 +1098,7 @@ export const SampleManagementPage = () => {
       <Modal
         isOpen={borrowerModalOpen}
         onClose={() => setBorrowerModalOpen(false)}
-        title={`Detail Sample Dipinjam: ${selectedBorrower?.borrower_name || ''}`}
+        title={`${t('samples.borrowed_detail', 'Detail Sample Dipinjam')}: ${selectedBorrower?.borrower_name || ''}`}
         maxWidth="min(960px, 92vw)"
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
@@ -1107,7 +1107,7 @@ export const SampleManagementPage = () => {
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="secondary" onClick={() => setBorrowerModalOpen(false)}>
-                Tutup
+                {t('common.close', 'Tutup')}
               </Button>
               <Button
                 variant="primary"
@@ -1138,19 +1138,19 @@ export const SampleManagementPage = () => {
                   }
                 }}
               >
-                {selectedBorrowerAssets.length === selectedBorrower.items.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                {selectedBorrowerAssets.length === selectedBorrower.items.length ? t('common.deselect_all', 'Batal Pilih Semua') : t('common.select_all', 'Pilih Semua')}
               </button>
             </div>
 
             <table className={styles.denseTable}>
               <thead>
                 <tr>
-                  <th style={{ width: 40 }}>Pilih</th>
-                  <th>No. Asset</th>
-                  <th>Model</th>
-                  <th>Serial</th>
-                  <th>Durasi Pinjam</th>
-                  <th style={{ textAlign: 'right' }}>Aksi Langsung</th>
+                  <th style={{ width: 40 }}>{t('common.select', 'Pilih')}</th>
+                  <th>{t('samples.col_asset_no', 'No. Asset')}</th>
+                  <th>{t('samples.col_model', 'Model')}</th>
+                  <th>{t('samples.col_serial_no', 'Serial')}</th>
+                  <th>{t('common.time', 'Durasi Pinjam')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('common.actions', 'Aksi Langsung')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1219,12 +1219,12 @@ export const SampleManagementPage = () => {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>No. Asset</th>
-                  <th>Serial</th>
+                  <th>{t('samples.col_asset_no', 'No. Asset')}</th>
+                  <th>{t('samples.col_serial_no', 'Serial')}</th>
                   <th>IMEI / UN</th>
-                  <th>Status Pinjam</th>
-                  <th>Kondisi Fisik</th>
-                  <th style={{ textAlign: 'right' }}>Aksi Cepat</th>
+                  <th>{t('samples.col_loan_status', 'Status Pinjam')}</th>
+                  <th>{t('samples.col_condition', 'Kondisi Fisik')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('common.actions', 'Aksi Cepat')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1289,16 +1289,16 @@ export const SampleManagementPage = () => {
       <Modal
         isOpen={sampleModalOpen}
         onClose={() => setSampleModalOpen(false)}
-        title={editingSample ? `Edit Sample: ${editingSample.asset_number}` : 'Tambah Sample Baru'}
+        title={editingSample ? `${t('common.edit', 'Edit')} Sample: ${editingSample.asset_number}` : t('samples.btn_add_sample', 'Tambah Sample Baru')}
         maxWidth="min(800px, 90vw)"
       >
         <form onSubmit={handleSampleFormSubmit} className={styles.formGrid}>
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Nomor Asset / Barcode *</label>
+            <label className={styles.formLabel}>{t('samples.col_asset_no', 'Nomor Asset / Barcode')} *</label>
             <input
               type="text"
               className={styles.formInput}
-              placeholder="Contoh: AS10444 atau OF0007510"
+              placeholder={t('samples.placeholder_asset_no', 'Contoh: AS10444 atau OF0007510')}
               value={sampleForm.asset_number}
               onChange={(e) => setSampleForm({ ...sampleForm, asset_number: e.target.value })}
               required
@@ -1306,11 +1306,11 @@ export const SampleManagementPage = () => {
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Model Perangkat *</label>
+            <label className={styles.formLabel}>{t('samples.col_model', 'Model Perangkat')} *</label>
             <input
               type="text"
               className={styles.formInput}
-              placeholder="Contoh: SM-S928B, Galaxy A55..."
+              placeholder={t('samples.placeholder_model', 'Contoh: SM-S928B, Galaxy A55...')}
               value={sampleForm.model}
               onChange={(e) => setSampleForm({ ...sampleForm, model: e.target.value })}
               required
@@ -1318,18 +1318,18 @@ export const SampleManagementPage = () => {
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Nomor Serial (SN)</label>
+            <label className={styles.formLabel}>{t('samples.col_serial_no', 'Nomor Serial (SN)')}</label>
             <input
               type="text"
               className={styles.formInput}
-              placeholder="Contoh: R58M123456"
+              placeholder={t('samples.placeholder_serial', 'Contoh: R58M123456')}
               value={sampleForm.serial_number}
               onChange={(e) => setSampleForm({ ...sampleForm, serial_number: e.target.value })}
             />
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Kategori Sample</label>
+            <label className={styles.formLabel}>{t('samples.category', 'Kategori Sample')}</label>
             <select
               className={styles.formSelect}
               value={sampleForm.category}
@@ -1343,39 +1343,39 @@ export const SampleManagementPage = () => {
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Status Kondisi Fisik</label>
+            <label className={styles.formLabel}>{t('samples.col_condition', 'Status Kondisi Fisik')}</label>
             <select
               className={styles.formSelect}
               value={sampleForm.condition_status}
               onChange={(e) => setSampleForm({ ...sampleForm, condition_status: e.target.value })}
             >
-              <option value="Normal">🟢 Normal (Siap Pakai)</option>
-              <option value="Defect (LCD / Layar Rusak)">🔴 Defect (LCD / Layar Rusak)</option>
-              <option value="Defect (Baterai / Charging)">🔴 Defect (Baterai / Charging)</option>
-              <option value="Defect (Touchscreen)">🔴 Defect (Touchscreen Rusak)</option>
-              <option value="Defect (Kamera)">🔴 Defect (Kamera Rusak)</option>
-              <option value="Defect (Mati Total / No Power)">🔴 Defect (Mati Total / No Power)</option>
-              <option value="Scratch / Fisik Lecet / Casing Pecah">🟡 Scratch / Fisik Lecet / Casing Pecah</option>
+              <option value="Normal">🟢 {t('samples.normal', 'Normal')}</option>
+              <option value="Defect (LCD / Layar Rusak)">🔴 Defect (LCD)</option>
+              <option value="Defect (Baterai / Charging)">🔴 Defect (Battery)</option>
+              <option value="Defect (Touchscreen)">🔴 Defect (Touchscreen)</option>
+              <option value="Defect (Kamera)">🔴 Defect (Camera)</option>
+              <option value="Defect (Mati Total / No Power)">🔴 Defect (No Power)</option>
+              <option value="Scratch / Fisik Lecet / Casing Pecah">🟡 Scratch</option>
             </select>
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Lokasi Rak / Penyimpanan</label>
+            <label className={styles.formLabel}>{t('samples.col_location', 'Lokasi Rak / Penyimpanan')}</label>
             <input
               type="text"
               className={styles.formInput}
-              placeholder="Contoh: Dynamics Building Lt 2 | PE Lab Rak A1"
+              placeholder={t('samples.placeholder_location', 'Contoh: Dynamics Building Lt 2 | PE Lab Rak A1')}
               value={sampleForm.location}
               onChange={(e) => setSampleForm({ ...sampleForm, location: e.target.value })}
             />
           </div>
 
           <div className={styles.formGroupFull}>
-            <label className={styles.formLabel}>PIC Sample / Pemilik</label>
+            <label className={styles.formLabel}>{t('samples.col_pic_sample', 'PIC Sample / Pemilik')}</label>
             <input
               type="text"
               className={styles.formInput}
-              placeholder="Contoh: Endri Susanto, Apta Prana..."
+              placeholder={t('samples.placeholder_pic', 'Contoh: Endri Susanto, Apta Prana...')}
               value={sampleForm.pic_sample}
               onChange={(e) => setSampleForm({ ...sampleForm, pic_sample: e.target.value })}
             />
@@ -1383,9 +1383,9 @@ export const SampleManagementPage = () => {
 
           <div className={styles.formGroupFull}>
             <FormattingTextarea
-              label="Catatan Tambahan"
+              label={t('samples.col_notes', 'Catatan Tambahan')}
               rows={3}
-              placeholder="Keterangan kondisi khusus perangkat..."
+              placeholder={t('samples.placeholder_notes', 'Keterangan kondisi khusus perangkat...')}
               value={sampleForm.notes}
               onChange={(e) => setSampleForm({ ...sampleForm, notes: e.target.value })}
               minHeight="90px"
@@ -1394,10 +1394,10 @@ export const SampleManagementPage = () => {
 
           <div className={styles.formGroupFull} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
             <Button variant="secondary" onClick={() => setSampleModalOpen(false)}>
-              Batal
+              {t('common.cancel', 'Batal')}
             </Button>
             <Button variant="primary" type="submit">
-              {editingSample ? 'Simpan Perubahan' : 'Tambah Sample'}
+              {editingSample ? t('common.save', 'Simpan Perubahan') : t('samples.btn_add_sample', 'Tambah Sample')}
             </Button>
           </div>
         </form>

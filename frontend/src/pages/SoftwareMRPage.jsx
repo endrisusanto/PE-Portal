@@ -27,7 +27,7 @@ import { Button } from '../components/common/Button';
 import styles from './SoftwareMRPage.module.css';
 
 export const SoftwareMRPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // State
   const [stats, setStats] = useState({
@@ -623,20 +623,20 @@ export const SoftwareMRPage = () => {
                     </div>
                   </th>
                 ))}
-                <th style={{ textAlign: 'center' }}>Cheatsheet</th>
+                <th style={{ textAlign: 'center' }}>{t('software_mr.col_cheatsheet', 'Cheatsheet')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>
-                    Memuat data rilis firmware...
+                    {t('common.loading', 'Memuat data rilis firmware...')}
                   </td>
                 </tr>
               ) : sortedReleases.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-muted)' }}>
-                    Tidak ada catatan rilis yang cocok dengan filter pencarian.
+                    {t('software_mr.empty_records', 'Tidak ada catatan rilis yang cocok dengan filter pencarian.')}
                   </td>
                 </tr>
               ) : (
@@ -673,7 +673,7 @@ export const SoftwareMRPage = () => {
                             e.stopPropagation();
                             handleCopy(rel.ap, `AP ${rel.ap}`);
                           }}
-                          title="Salin AP"
+                          title={`${t('common.copy', 'Salin')} AP`}
                         >
                           <Copy size={11} />
                         </button>
@@ -690,7 +690,7 @@ export const SoftwareMRPage = () => {
                             e.stopPropagation();
                             handleCopy(rel.cp, `CP ${rel.cp}`);
                           }}
-                          title="Salin CP"
+                          title={`${t('common.copy', 'Salin')} CP`}
                         >
                           <Copy size={11} />
                         </button>
@@ -707,7 +707,7 @@ export const SoftwareMRPage = () => {
                             e.stopPropagation();
                             handleCopy(rel.csc, `CSC ${rel.csc}`);
                           }}
-                          title="Salin CSC"
+                          title={`${t('common.copy', 'Salin')} CSC`}
                         >
                           <Copy size={11} />
                         </button>
@@ -721,7 +721,7 @@ export const SoftwareMRPage = () => {
                     </td>
 
                     <td style={{ fontSize: 11.5, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
-                      {new Date(rel.created_at).toLocaleDateString('id-ID', {
+                      {new Date(rel.created_at).toLocaleDateString(i18n.language === 'ko' ? 'ko-KR' : (i18n.language === 'en' ? 'en-US' : 'id-ID'), {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
@@ -745,7 +745,7 @@ export const SoftwareMRPage = () => {
                         }}
                       >
                         <Eye size={12} />
-                        Detail
+                        {t('common.view', 'Detail')}
                       </button>
                     </td>
                   </tr>

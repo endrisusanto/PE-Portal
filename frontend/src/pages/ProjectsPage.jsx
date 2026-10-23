@@ -495,7 +495,7 @@ export const ProjectsPage = () => {
   // Table Columns
   const columns = [
     {
-      title: 'Issue / Task Analisis',
+      title: t('projects.col_task', 'Issue / Task Analisis'),
       key: 'title',
       render: (val, row) => {
         const ms = getMilestone(row.progress || 0);
@@ -512,7 +512,7 @@ export const ProjectsPage = () => {
       },
     },
     {
-      title: 'PIC Assigned',
+      title: t('projects.col_pic', 'PIC Assigned'),
       key: 'owner_name',
       render: (val) => (
         <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -522,12 +522,12 @@ export const ProjectsPage = () => {
       ),
     },
     {
-      title: 'Priority',
+      title: t('common.priority', 'Priority'),
       key: 'priority',
       render: (val) => <StatusBadge status={val} />,
     },
     {
-      title: 'Milestone',
+      title: t('projects.col_milestone', 'Milestone'),
       key: 'progress',
       render: (val) => {
         const ms = getMilestone(val || 0);
@@ -549,7 +549,7 @@ export const ProjectsPage = () => {
       },
     },
     {
-      title: 'Target Date',
+      title: t('projects.col_target_date', 'Target Date'),
       key: 'target_date',
       render: (val) => (
         <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
@@ -558,15 +558,15 @@ export const ProjectsPage = () => {
       ),
     },
     {
-      title: 'Action',
+      title: t('common.actions', 'Action'),
       key: 'action',
       render: (_, row) => (
         <div style={{ display: 'flex', gap: '6px' }}>
           <Button variant="outline" size="xs" icon={Eye} onClick={() => openViewModal(row)}>
-            Lihat
+            {t('common.view', 'Lihat')}
           </Button>
           <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(row)}>
-            Edit
+            {t('common.edit', 'Edit')}
           </Button>
           <Button
             variant="outline"
@@ -574,9 +574,9 @@ export const ProjectsPage = () => {
             icon={Mail}
             loading={sendingEmailId === row.id}
             onClick={() => handleSendEmail(row)}
-            title="Kirim Notifikasi Milestone via Email"
+            title={t('projects.send_email_tooltip', 'Kirim Notifikasi Milestone via Email')}
           >
-            Email
+            {t('reports.send_email', 'Email')}
           </Button>
         </div>
       ),
@@ -741,7 +741,7 @@ export const ProjectsPage = () => {
             fontSize: '12.5px',
           }}
         >
-          <option value="">Semua Kategori Issue</option>
+          <option value="">{t('projects.all_categories', 'Semua Kategori Issue')}</option>
           {ISSUE_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
@@ -752,7 +752,7 @@ export const ProjectsPage = () => {
 
       {/* Main Content Area */}
       {loading ? (
-        <LoadingState message="Memuat Milestone Task Analyst..." />
+        <LoadingState message={t('projects.loading_milestones', 'Memuat Milestone Task Analyst...')} />
       ) : filteredProjects.length === 0 ? (
         <EmptyState
           icon={FolderKanban}
@@ -1394,10 +1394,10 @@ export const ProjectsPage = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
               <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
-                Batal
+                {t('common.cancel', 'Batal')}
               </Button>
               <Button variant="primary" type="submit" disabled={submitting}>
-                {submitting ? 'Menyimpan...' : 'Create & Assign Task'}
+                {submitting ? t('common.saving', 'Menyimpan...') : t('projects.create_assign_task', 'Create & Assign Task')}
               </Button>
             </div>
           </form>
@@ -1606,10 +1606,10 @@ export const ProjectsPage = () => {
                 }}
                 type="button"
               >
-                Batal
+                {t('common.cancel', 'Batal')}
               </Button>
               <Button variant="primary" type="submit">
-                Simpan Perubahan
+                {t('common.save', 'Simpan Perubahan')}
               </Button>
             </div>
           </form>

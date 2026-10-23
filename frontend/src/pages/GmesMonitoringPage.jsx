@@ -256,17 +256,17 @@ export const GmesMonitoringPage = () => {
             type="button"
             className={`${styles.cycleButton} ${isAutoSwitch ? styles.cycleActive : styles.cyclePaused}`}
             onClick={toggleAutoSwitch}
-            title={isAutoSwitch ? 'Pause Auto Cycle' : 'Start Auto Cycle'}
+            title={isAutoSwitch ? t('gmes.pause_cycle', 'Pause Auto Cycle') : t('gmes.start_cycle', 'Start Auto Cycle')}
           >
             {isAutoSwitch ? (
               <>
                 <Pause size={16} />
-                <span>Pause Auto Cycle ({countdown}s)</span>
+                <span>{t('gmes.pause_cycle', 'Pause Auto Cycle')} ({countdown}s)</span>
               </>
             ) : (
               <>
                 <Play size={16} />
-                <span>Start Auto Cycle</span>
+                <span>{t('gmes.start_cycle', 'Start Auto Cycle')}</span>
               </>
             )}
           </button>
@@ -533,10 +533,10 @@ export const GmesMonitoringPage = () => {
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                              {issue.pic || 'Belum ada PIC'}
+                              {issue.pic || t('gmes.no_pic', 'Belum ada PIC')}
                             </span>
                             <span className={styles.countermeasureText} title={issue.countermeasure}>
-                              {issue.countermeasure || 'Belum ada tindakan tercatat'}
+                              {issue.countermeasure || t('gmes.no_countermeasure', 'Belum ada tindakan tercatat')}
                             </span>
                           </div>
                         </td>
@@ -546,10 +546,10 @@ export const GmesMonitoringPage = () => {
                             onClick={() => handleOpenEditModal(issue)}
                             className={styles.secondaryButton}
                             style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                            title="Update Tindakan"
+                            title={t('gmes.edit_issue_title', 'Update Tindakan')}
                           >
                             <Edit2 size={13} style={{ display: 'inline', marginRight: '4px' }} />
-                            Edit
+                            {t('common.edit', 'Edit')}
                           </button>
                         </td>
                       </tr>
@@ -567,25 +567,25 @@ export const GmesMonitoringPage = () => {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Waktu</th>
-                  <th>Process</th>
-                  <th>Line</th>
-                  <th>Model</th>
-                  <th>SN (Serial Number)</th>
-                  <th>Port / Station</th>
-                  <th>Test Item</th>
+                  <th>{t('common.time', 'Waktu')}</th>
+                  <th>{t('gmes.process', 'Process')}</th>
+                  <th>{t('gmes.line_name', 'Line')}</th>
+                  <th>{t('gmes.model', 'Model')}</th>
+                  <th>{t('gmes.sn', 'SN (Serial Number)')}</th>
+                  <th>{t('gmes.port_station', 'Port / Station')}</th>
+                  <th>{t('gmes.test_item', 'Test Item')}</th>
                   <th>LSL</th>
-                  <th>Measure Value</th>
+                  <th>{t('gmes.measure_value', 'Measure Value')}</th>
                   <th>USL</th>
-                  <th>Equip No</th>
-                  <th>Remark</th>
+                  <th>{t('gmes.equip_no', 'Equip No')}</th>
+                  <th>{t('gmes.remark', 'Remark')}</th>
                 </tr>
               </thead>
               <tbody>
                 {measurements.length === 0 ? (
                   <tr>
                     <td colSpan={12} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                      Tidak ada riwayat pengukuran untuk proses ini.
+                      {t('gmes.no_measurements', 'Tidak ada riwayat pengukuran untuk proses ini.')}
                     </td>
                   </tr>
                 ) : (
@@ -617,10 +617,11 @@ export const GmesMonitoringPage = () => {
       </div>
 
       {/* Create Issue Modal */}
+      {/* Create Issue Modal */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Laporkan Issue Baru GMES Line"
+        title={t('gmes.report_issue', 'Laporkan Issue Baru GMES Line')}
         maxWidth="640px"
       >
         <form onSubmit={handleCreateSubmit}>
@@ -639,7 +640,7 @@ export const GmesMonitoringPage = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className={styles.formGroup}>
-              <label>Proses Produksi</label>
+              <label>{t('gmes.process', 'Proses Produksi')}</label>
               <select
                 value={modalForm.process}
                 onChange={(e) => setModalForm({ ...modalForm, process: e.target.value })}
@@ -652,12 +653,12 @@ export const GmesMonitoringPage = () => {
             </div>
 
             <div className={styles.formGroup}>
-              <label>Nama Line</label>
+              <label>{t('gmes.line_name', 'Nama Line')}</label>
               <input
                 type="text"
                 value={modalForm.line_name}
                 onChange={(e) => setModalForm({ ...modalForm, line_name: e.target.value })}
-                placeholder="Contoh: Line 02"
+                placeholder={t('gmes.placeholder_line', 'Contoh: Line 02')}
                 required
               />
             </div>
@@ -665,18 +666,18 @@ export const GmesMonitoringPage = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className={styles.formGroup}>
-              <label>Model Perangkat</label>
+              <label>{t('gmes.label_model', 'Model Perangkat')}</label>
               <input
                 type="text"
                 value={modalForm.model}
                 onChange={(e) => setModalForm({ ...modalForm, model: e.target.value })}
-                placeholder="Contoh: SM-S928B"
+                placeholder={t('gmes.placeholder_model', 'Contoh: SM-S928B')}
                 required
               />
             </div>
 
             <div className={styles.formGroup}>
-              <label>Fail Qty (Unit)</label>
+              <label>{t('gmes.label_fail_qty', 'Fail Qty (Unit)')}</label>
               <input
                 type="number"
                 value={modalForm.fail_qty}
@@ -688,45 +689,45 @@ export const GmesMonitoringPage = () => {
           </div>
 
           <div className={styles.formGroup}>
-            <label>Test Item / Defect Name</label>
+            <label>{t('gmes.label_test_item', 'Test Item / Defect Name')}</label>
             <input
               type="text"
               value={modalForm.test_item}
               onChange={(e) => setModalForm({ ...modalForm, test_item: e.target.value })}
-              placeholder="Contoh: Main Camera OIS Tilt Fail"
+              placeholder={t('gmes.placeholder_test_item', 'Contoh: Main Camera OIS Tilt Fail')}
               required
             />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className={styles.formGroup}>
-              <label>Share Defect (%)</label>
+              <label>{t('gmes.label_share', 'Share Defect (%)')}</label>
               <input
                 type="text"
                 value={modalForm.share}
                 onChange={(e) => setModalForm({ ...modalForm, share: e.target.value })}
-                placeholder="Contoh: 24.5%"
+                placeholder={t('gmes.placeholder_share', 'Contoh: 24.5%')}
               />
             </div>
 
             <div className={styles.formGroup}>
-              <label>PIC Engineer</label>
+              <label>{t('gmes.label_pic', 'PIC Engineer')}</label>
               <input
                 type="text"
                 value={modalForm.pic}
                 onChange={(e) => setModalForm({ ...modalForm, pic: e.target.value })}
-                placeholder="Nama PIC penanggung jawab"
+                placeholder={t('gmes.placeholder_pic', 'Nama PIC penanggung jawab')}
               />
             </div>
           </div>
 
           <div className={styles.formGroup}>
-            <label>Tindakan Perbaikan / Countermeasure</label>
+            <label>{t('gmes.label_countermeasure', 'Tindakan Perbaikan / Countermeasure')}</label>
             <textarea
               rows={3}
               value={modalForm.countermeasure}
               onChange={(e) => setModalForm({ ...modalForm, countermeasure: e.target.value })}
-              placeholder="Deskripsi langkah investigasi dan tindakan korektif..."
+              placeholder={t('gmes.placeholder_countermeasure', 'Deskripsi langkah investigasi dan tindakan korektif...')}
             />
           </div>
 
@@ -736,14 +737,14 @@ export const GmesMonitoringPage = () => {
               className={styles.secondaryButton}
               onClick={() => setIsCreateModalOpen(false)}
             >
-              Batal
+              {t('common.cancel', 'Batal')}
             </button>
             <button
               type="submit"
               className={styles.primaryButton}
               disabled={submitting}
             >
-              {submitting ? 'Menyimpan...' : 'Simpan Issue'}
+              {submitting ? t('common.saving', 'Menyimpan...') : t('gmes.save_issue', 'Simpan Issue')}
             </button>
           </div>
         </form>
@@ -753,7 +754,7 @@ export const GmesMonitoringPage = () => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title={`Update Tindakan Issue #${selectedIssue?.id} (${selectedIssue?.line_name} - ${selectedIssue?.model})`}
+        title={`${t('gmes.edit_issue_title', 'Update Tindakan Issue')} #${selectedIssue?.id} (${selectedIssue?.line_name} - ${selectedIssue?.model})`}
         maxWidth="640px"
       >
         <form onSubmit={handleEditSubmit}>
@@ -771,7 +772,7 @@ export const GmesMonitoringPage = () => {
           )}
 
           <div className={styles.formGroup}>
-            <label>Test Item / Defect</label>
+            <label>{t('gmes.label_test_item', 'Test Item / Defect')}</label>
             <input
               type="text"
               value={modalForm.test_item}
@@ -782,7 +783,7 @@ export const GmesMonitoringPage = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className={styles.formGroup}>
-              <label>Status Issue</label>
+              <label>{t('gmes.status', 'Status Issue')}</label>
               <select
                 value={modalForm.status}
                 onChange={(e) => setModalForm({ ...modalForm, status: e.target.value })}
@@ -795,23 +796,23 @@ export const GmesMonitoringPage = () => {
             </div>
 
             <div className={styles.formGroup}>
-              <label>PIC Engineer</label>
+              <label>{t('gmes.label_pic', 'PIC Engineer')}</label>
               <input
                 type="text"
                 value={modalForm.pic}
                 onChange={(e) => setModalForm({ ...modalForm, pic: e.target.value })}
-                placeholder="PIC penanggung jawab"
+                placeholder={t('gmes.placeholder_pic', 'PIC penanggung jawab')}
               />
             </div>
           </div>
 
           <div className={styles.formGroup}>
-            <label>Tindakan Perbaikan / Countermeasure</label>
+            <label>{t('gmes.label_countermeasure', 'Tindakan Perbaikan / Countermeasure')}</label>
             <textarea
               rows={4}
               value={modalForm.countermeasure}
               onChange={(e) => setModalForm({ ...modalForm, countermeasure: e.target.value })}
-              placeholder="Catatan update investigasi dan perbaikan station/part..."
+              placeholder={t('gmes.placeholder_countermeasure', 'Catatan update investigasi dan perbaikan station/part...')}
             />
           </div>
 
@@ -821,14 +822,14 @@ export const GmesMonitoringPage = () => {
               className={styles.secondaryButton}
               onClick={() => setIsEditModalOpen(false)}
             >
-              Batal
+              {t('common.cancel', 'Batal')}
             </button>
             <button
               type="submit"
               className={styles.primaryButton}
               disabled={submitting}
             >
-              {submitting ? 'Memperbarui...' : 'Simpan Perubahan'}
+              {submitting ? t('common.saving', 'Memperbarui...') : t('common.save', 'Simpan Perubahan')}
             </button>
           </div>
         </form>

@@ -692,21 +692,21 @@ export const TrainingPage = () => {
           )}
 
           <div className={styles.inputGroup}>
-            <label htmlFor="unlockPassword">Password Kunci Jawaban</label>
+            <label htmlFor="unlockPassword">{t('training.unlock_password', 'Password Kunci Jawaban')}</label>
             <div className={styles.passwordInputWrapper}>
               <input
                 id="unlockPassword"
                 type={showPassword ? 'text' : 'password'}
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Masukkan kata sandi (default: 2025)..."
+                placeholder={t('training.unlock_placeholder', 'Masukkan kata sandi (default: 2025)...')}
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                title={showPassword ? 'Sembunyikan' : 'Tampilkan'}
+                title={showPassword ? t('common.hide', 'Sembunyikan') : t('common.show', 'Tampilkan')}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -722,7 +722,7 @@ export const TrainingPage = () => {
               className={styles.secondaryButton}
               onClick={() => setUnlockTarget(null)}
             >
-              Batal
+              {t('common.cancel', 'Batal')}
             </button>
             <button
               type="submit"
@@ -732,12 +732,12 @@ export const TrainingPage = () => {
               {unlocking ? (
                 <>
                   <RefreshCw size={15} className="animate-spin" />
-                  <span>Memverifikasi...</span>
+                  <span>{t('common.loading', 'Memverifikasi...')}</span>
                 </>
               ) : (
                 <>
                   <Unlock size={15} />
-                  <span>Buka Kunci</span>
+                  <span>{t('training.unlock_btn', 'Buka Kunci')}</span>
                 </>
               )}
             </button>
@@ -845,7 +845,7 @@ export const TrainingPage = () => {
               type="text"
               value={createForm.title}
               onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-              placeholder="Contoh: 2026 Global Quality & Safety Standard"
+              placeholder={t('training.placeholder_title', 'Contoh: 2026 Global Quality & Safety Standard')}
               required
             />
           </div>
@@ -997,7 +997,7 @@ export const TrainingPage = () => {
                   type="text"
                   value={createForm.answer_key_password}
                   onChange={(e) => setCreateForm({ ...createForm, answer_key_password: e.target.value })}
-                  placeholder="Contoh: 2025"
+                  placeholder={t('training.placeholder_passcode', 'Contoh: 2025')}
                 />
               </div>
 
@@ -1007,7 +1007,7 @@ export const TrainingPage = () => {
                   rows={2}
                   value={createForm.answer_key_notes}
                   onChange={(e) => setCreateForm({ ...createForm, answer_key_notes: e.target.value })}
-                  placeholder="Contoh: 1.A, 2.C, 3.B... atau rangkuman jawaban"
+                  placeholder={t('training.placeholder_answer_notes', 'Contoh: 1.A, 2.C, 3.B... atau rangkuman jawaban')}
                 />
               </div>
 
@@ -1016,7 +1016,7 @@ export const TrainingPage = () => {
                   <span>Lampiran Screenshot Kunci Jawaban ({createForm.answer_key_images?.length || 0})</span>
                   <label className={styles.fileUploadLabel} style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
                     <Upload size={12} />
-                    <span>{uploadingAnswer === 'create' ? 'Mengupload...' : 'Upload Screenshot Kunci'}</span>
+                    <span>{uploadingAnswer === 'create' ? t('common.loading', 'Mengupload...') : 'Upload Screenshot Kunci'}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1068,14 +1068,14 @@ export const TrainingPage = () => {
               className={styles.secondaryButton}
               onClick={() => setIsCreateModalOpen(false)}
             >
-              Batal
+              {t('common.cancel', 'Batal')}
             </button>
             <button
               type="submit"
               className={styles.primaryButton}
               disabled={createSubmitting}
             >
-              {createSubmitting ? 'Menyimpan...' : 'Simpan Modul Training'}
+              {createSubmitting ? t('common.saving', 'Menyimpan...') : t('training.save_module', 'Simpan Modul Training')}
             </button>
           </div>
         </form>
@@ -1106,7 +1106,7 @@ export const TrainingPage = () => {
                 type="text"
                 value={editForm.title}
                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                placeholder="Contoh: 2026 Global Quality & Safety Standard"
+                placeholder={t('training.placeholder_title', 'Contoh: 2026 Global Quality & Safety Standard')}
                 required
               />
             </div>
@@ -1258,7 +1258,7 @@ export const TrainingPage = () => {
                     type="text"
                     value={editForm.answer_key_password}
                     onChange={(e) => setEditForm({ ...editForm, answer_key_password: e.target.value })}
-                    placeholder="Kosongkan jika tetap menggunakan password lama"
+                    placeholder={t('training.placeholder_passcode_edit', 'Kosongkan jika tetap menggunakan password lama')}
                   />
                 </div>
 
@@ -1268,7 +1268,7 @@ export const TrainingPage = () => {
                     rows={2}
                     value={editForm.answer_key_notes}
                     onChange={(e) => setEditForm({ ...editForm, answer_key_notes: e.target.value })}
-                    placeholder="Contoh: 1.A, 2.C, 3.B... atau rangkuman jawaban"
+                    placeholder={t('training.placeholder_answer_notes', 'Contoh: 1.A, 2.C, 3.B... atau rangkuman jawaban')}
                   />
                 </div>
 
@@ -1277,7 +1277,7 @@ export const TrainingPage = () => {
                     <span>Lampiran Screenshot Kunci Jawaban ({editForm.answer_key_images?.length || 0})</span>
                     <label className={styles.fileUploadLabel} style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>
                       <Upload size={12} />
-                      <span>{uploadingAnswer === 'edit' ? 'Mengupload...' : 'Upload Screenshot Kunci'}</span>
+                      <span>{uploadingAnswer === 'edit' ? t('common.loading', 'Mengupload...') : 'Upload Screenshot Kunci'}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1332,14 +1332,14 @@ export const TrainingPage = () => {
                   setEditForm(null);
                 }}
               >
-                Batal
+                {t('common.cancel', 'Batal')}
               </button>
               <button
                 type="submit"
                 className={styles.primaryButton}
                 disabled={editSubmitting}
               >
-                {editSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+                {editSubmitting ? t('common.saving', 'Menyimpan...') : t('common.save', 'Simpan Perubahan')}
               </button>
             </div>
           </form>

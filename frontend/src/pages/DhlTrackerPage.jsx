@@ -1213,14 +1213,14 @@ export const DhlTrackerPage = () => {
             <textarea
               className={styles.textareaInput}
               rows={2}
-              placeholder="Contoh: 1234567890, 9876543210 (bisa multi AWB pisahkan dengan koma/baris baru)"
+              placeholder={t('dhl.awb_input_placeholder', 'Contoh: 1234567890, 9876543210 (bisa multi AWB pisahkan dengan koma/baris baru)')}
               value={addForm.tracking_number}
               onChange={(e) => setAddForm({ ...addForm, tracking_number: e.target.value })}
               required
               autoFocus
             />
             <span className={styles.formHint}>
-              Mendukung input banyak AWB sekaligus (pisahkan spasi, koma, titik koma, atau baris baru).
+              {t('dhl.multi_awb_hint', 'Mendukung input banyak AWB sekaligus (pisahkan spasi, koma, titik koma, atau baris baru).')}
             </span>
           </div>
 

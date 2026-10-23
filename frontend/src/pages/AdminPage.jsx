@@ -339,12 +339,12 @@ export const AdminPage = () => {
 
   const userColumns = [
     {
-      title: 'Employee ID',
+      title: t('admin.col_username', 'Employee ID'),
       key: 'employee_id',
       render: (val) => <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{val}</span>,
     },
     {
-      title: 'Name & Username',
+      title: t('admin.col_full_name', 'Name & Username'),
       key: 'full_name',
       render: (val, row) => (
         <div>
@@ -354,11 +354,11 @@ export const AdminPage = () => {
       ),
     },
     {
-      title: 'Email',
+      title: t('admin.col_email', 'Email'),
       key: 'email',
     },
     {
-      title: 'Group Part',
+      title: t('admin.col_group', 'Group Part'),
       key: 'group_part_name',
       render: (val, row) => {
         const names = row.group_part_names && row.group_part_names.length > 0
@@ -392,7 +392,7 @@ export const AdminPage = () => {
       },
     },
     {
-      title: 'Role',
+      title: t('admin.col_role', 'Role'),
       key: 'role',
       render: (val, row) => (
         <select
@@ -416,12 +416,12 @@ export const AdminPage = () => {
       ),
     },
     {
-      title: 'Status',
+      title: t('common.status', 'Status'),
       key: 'is_active',
       render: (val) => <StatusBadge status={val ? 'healthy' : 'blocked'} label={val ? 'Active' : 'Disabled'} />,
     },
     {
-      title: 'Actions',
+      title: t('admin.col_actions', 'Actions'),
       key: 'actions',
       render: (_, row) => (
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -430,9 +430,9 @@ export const AdminPage = () => {
             variant="secondary"
             icon={Edit2}
             onClick={() => handleOpenEditUser(row)}
-            title="Edit User Data"
+            title={t('common.edit', 'Edit User Data')}
           >
-            Edit
+            {t('common.edit', 'Edit')}
           </Button>
           {row.username !== 'admin' && (
             <Button
@@ -440,7 +440,7 @@ export const AdminPage = () => {
               variant="danger"
               icon={Trash2}
               onClick={() => handleDeleteUser(row)}
-              title="Delete User"
+              title={t('common.delete', 'Delete User')}
             />
           )}
         </div>
@@ -450,17 +450,17 @@ export const AdminPage = () => {
 
   const auditColumns = [
     {
-      title: 'Timestamp',
+      title: t('admin.col_timestamp', 'Timestamp'),
       key: 'created_at',
       render: (val) => <span>{new Date(val).toLocaleString()}</span>,
     },
     {
-      title: 'User',
+      title: t('admin.col_username', 'User'),
       key: 'user_name',
       render: (val) => <span>{val || 'System'}</span>,
     },
     {
-      title: 'Action Code',
+      title: t('admin.col_action', 'Action Code'),
       key: 'action',
       render: (val) => (
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--color-accent)' }}>
@@ -469,7 +469,7 @@ export const AdminPage = () => {
       ),
     },
     {
-      title: 'IP Address',
+      title: t('admin.col_ip', 'IP Address'),
       key: 'ip_address',
       render: (val) => {
         const clean = (val || '').replace(/\/(32|128)$/, '').trim();
@@ -490,13 +490,13 @@ export const AdminPage = () => {
             {t('nav.admin')}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-            User provisioning, role access assignments, and corporate audit logs
+            {t('admin.subtitle', 'User provisioning, role access assignments, and corporate audit logs')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           {tab === 'users' && (
             <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
-              Add Engineer User
+              {t('admin.add_user_btn', 'Add Engineer User')}
             </Button>
           )}
           {tab === 'menu_access' && (
@@ -507,7 +507,7 @@ export const AdminPage = () => {
                 onClick={handleResetPermissions}
                 disabled={savingPermissions}
               >
-                Reset Default
+                {t('common.reset_default', 'Reset Default')}
               </Button>
               <Button
                 variant="primary"
@@ -515,7 +515,7 @@ export const AdminPage = () => {
                 onClick={handleSavePermissions}
                 disabled={savingPermissions}
               >
-                {savingPermissions ? 'Saving...' : 'Save Permissions'}
+                {savingPermissions ? t('common.saving', 'Saving...') : t('admin.save_permissions', 'Save Permissions')}
               </Button>
             </div>
           )}
@@ -530,7 +530,7 @@ export const AdminPage = () => {
           icon={UserCheck}
           onClick={() => setTab('users')}
         >
-          User Management ({users.length})
+          {t('admin.tab_users', 'User Management')} ({users.length})
         </Button>
         <Button
           variant={tab === 'menu_access' ? 'primary' : 'secondary'}
@@ -538,7 +538,7 @@ export const AdminPage = () => {
           icon={SlidersHorizontal}
           onClick={() => setTab('menu_access')}
         >
-          Side Menu & Access Matrix ({menuPermissions.length})
+          {t('admin.tab_menu', 'Side Menu & Access Matrix')} ({menuPermissions.length})
         </Button>
         <Button
           variant={tab === 'audit' ? 'primary' : 'secondary'}
@@ -546,7 +546,7 @@ export const AdminPage = () => {
           icon={History}
           onClick={() => setTab('audit')}
         >
-          Audit Logs
+          {t('admin.tab_audit', 'Audit Logs')}
         </Button>
       </div>
 
@@ -809,7 +809,7 @@ export const AdminPage = () => {
                                   fontStyle: 'italic',
                                 }}
                               >
-                                (Semua Part / No Restriction)
+                                ({t('admin.no_restriction_groups', 'Semua Part / No Restriction')})
                               </span>
                             )}
                           </div>
@@ -873,7 +873,7 @@ export const AdminPage = () => {
                                     fontStyle: 'italic',
                                   }}
                                 >
-                                  (Semua / Bebas)
+                                  ({t('admin.no_restriction_users', 'Semua / Bebas')})
                                 </span>
                               )}
                             </div>

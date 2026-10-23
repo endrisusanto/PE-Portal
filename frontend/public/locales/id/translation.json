@@ -66,7 +66,20 @@
     "date": "Tanggal",
     "all": "Semua",
     "view": "Lihat",
-    "back": "Kembali"
+    "back": "Kembali",
+    "time": "Waktu",
+    "copy": "Salin",
+    "copied": "Tersalin",
+    "refresh": "Segarkan",
+    "saving": "Menyimpan...",
+    "reset_default": "Reset Default",
+    "showing_count": "Menampilkan {{count}} dari {{total}} item",
+    "prev": "Sebelumnya",
+    "next": "Selanjutnya",
+    "all_models": "Semua Model",
+    "all_pics": "Semua PIC",
+    "all_status": "Semua Status",
+    "close": "Tutup"
   },
   "auth": {
     "login_title": "Masuk ke PE-Portal",
@@ -145,7 +158,11 @@
     "kpi_class3": "KELAS 3 (TINGKAT TINGGI)",
     "kpi_adopted_rate": "TINGKAT ADOPSI",
     "kpi_under_review": "DALAM PENINJAUAN",
-    "kpi_non_adopt": "TIDAK DIADOPSI"
+    "kpi_non_adopt": "TIDAK DIADOPSI",
+    "col_class": "Tipe Kelas",
+    "col_title": "Judul Inovasi / BP",
+    "col_impact": "Dampak (Impact)",
+    "col_proposer": "Pengusul"
   },
   "projects": {
     "title": "Milestone Analis Tugas",
@@ -153,7 +170,11 @@
     "view_matrix": "Kartu Matrix",
     "view_kanban": "Kanban",
     "view_table": "Tabel",
-    "new_task": "Tambah Task Baru"
+    "new_task": "Tambah Task Baru",
+    "col_task": "Issue / Task Analisis",
+    "col_pic": "PIC Ditugaskan",
+    "col_milestone": "Progress Milestone",
+    "col_target_date": "Target Tanggal"
   },
   "imei": {
     "title": "Artikel & Catatan Teknis",
@@ -296,7 +317,18 @@
     "empty_reports": "Belum ada laporan digital dibuat",
     "empty_templates": "Belum ada template tersedia",
     "empty_schedules": "Belum ada jadwal pengiriman otomatis",
-    "empty_logs": "Belum ada log pengiriman tercatat"
+    "empty_logs": "Belum ada log pengiriman tercatat",
+    "open_editor": "Buka Editor",
+    "send_email": "Kirim Email",
+    "shared_team": "Dibagikan ke Tim",
+    "personal": "Pribadi",
+    "use_template": "Gunakan Template Ini",
+    "run_now": "Jalankan Sekarang",
+    "col_dispatched_at": "Waktu Pengiriman",
+    "col_subject": "Subjek",
+    "col_recipients": "Penerima",
+    "col_status": "Status",
+    "col_details": "Rincian"
   },
   "dhl": {
     "title": "DHL Shipment Tracker",
@@ -452,7 +484,13 @@
     "col_updated": "Terakhir Diperbarui",
     "view_details": "Lihat Detail",
     "details_modal_title": "Detail Rilis MR & Pemetaan Binary",
-    "close": "Tutup"
+    "close": "Tutup",
+    "all_models": "Semua Model",
+    "all_pics": "Semua PIC",
+    "releases_found": "Rilis Ditemukan",
+    "releases_count_suffix": "Rilis Firmware",
+    "col_release_date": "Tanggal Rilis",
+    "col_cheatsheet": "Cheatsheet"
   },
   "training": {
     "title": "Portal Pelatihan Online & Post-Test",
@@ -471,12 +509,21 @@
     "min_score": "Batas Nilai Kelulusan",
     "status_completed": "Selesai",
     "status_in_progress": "Sedang Berjalan",
-    "status_not_started": "Belum Dimulai"
+    "status_not_started": "Belum Dimulai",
+    "btn_add_training": "Tambah Training",
+    "unlock_password": "Password Kunci Jawaban",
+    "unlock_placeholder": "Masukkan kata sandi (default: 2025)...",
+    "unlock_btn": "Buka Kunci Jawaban",
+    "placeholder_title": "Contoh: 2026 Global Quality & Safety Standard",
+    "placeholder_passcode": "Contoh: 2025",
+    "placeholder_passcode_edit": "Kosongkan jika tetap menggunakan password lama",
+    "placeholder_answer_notes": "Contoh: 1.A, 2.C, 3.B... atau rangkuman jawaban",
+    "save_module": "Simpan Modul Training"
   },
   "samples": {
     "title": "Manajemen Sample PE",
     "subtitle": "Inventaris unit engineering, pemindaian barcode, peminjaman, dan pelacakan pemusnahan",
-    "scan_placeholder": "Pindai Barcode / Masukkan Nomor Seri...",
+    "scan_placeholder": "Scan No. Asset / Serial (misal: AS10001)...",
     "tab_inventory": "Inventaris Sample",
     "tab_borrowing": "Riwayat Pinjam & Kembali",
     "tab_scrap": "Sample Dimusnahkan (Scrap)",
@@ -494,7 +541,30 @@
     "modal_borrow_title": "Pinjam Sample Engineering",
     "modal_return_title": "Kembalikan Sample Engineering",
     "select_borrower": "Pilih Engineer Peminjam",
-    "select_condition": "Pilih Kondisi Unit"
+    "select_condition": "Pilih Kondisi Unit",
+    "view_matrix": "Tampilan Kartu Matriks",
+    "view_table": "Tampilan Tabel",
+    "kpi_total": "Total Sample",
+    "kpi_borrowed": "Sedang Dipinjam",
+    "kpi_available": "Tersedia (Ready)",
+    "kpi_defects": "Kondisi Defect / Perbaikan",
+    "scan_header": "Scan / Input Peminjaman & Pengembalian Sample",
+    "borrower_placeholder": "Nama Peminjam / PIC...",
+    "scan_auto": "Auto Toggle (Pinjam / Kembali)",
+    "scan_force_borrow": "Paksa Status PINJAM",
+    "scan_force_return": "Paksa Status KEMBALI",
+    "submit_tx": "Submit Transaksi",
+    "active_borrowers_title": "Daftar Peminjam Aktif & Sample yang Sedang Dipinjam",
+    "borrowers_count": "PIC Meminjam Sample",
+    "all_available": "Semua sample saat ini tersedia di rak / tidak ada peminjaman aktif.",
+    "btn_add_sample": "Tambah Sample",
+    "btn_bulk_add": "Tambah Massal / TSV",
+    "col_asset_no": "No. Asset",
+    "col_serial_no": "Nomor Seri",
+    "col_loan_status": "Status Pinjam",
+    "col_location": "Lokasi",
+    "available": "Tersedia (Ready)",
+    "normal": "Normal"
   },
   "documents": {
     "title": "Arsip Dokumen",
@@ -525,7 +595,16 @@
     "views_count": "Dilihat",
     "downloads_count": "Diunduh",
     "input_password_label": "Perlindungan Kata Sandi",
-    "input_password_placeholder": "Masukkan 4-16 karakter alfanumerik"
+    "input_password_placeholder": "Masukkan 4-16 karakter alfanumerik",
+    "col_file_title": "Nama Berkas & Judul",
+    "col_format": "Format",
+    "col_category": "Kategori",
+    "col_uploaded_by": "Pengunggah",
+    "col_sharing": "Status Berbagi",
+    "preview_file": "Pratinjau Berkas",
+    "share_link": "Pengaturan Tautan Berbagi",
+    "download_file": "Unduh",
+    "delete_file": "Hapus"
   },
   "shared_doc": {
     "password_prompt_title": "Memerlukan Kata Sandi",
@@ -538,7 +617,11 @@
     "preview_title": "Pratinjau Dokumen",
     "download_disabled_notice": "Fitur unduh berkas asli dinonaktifkan untuk tautan ini.",
     "link_expired_title": "Tautan Kedaluwarsa",
-    "link_expired_desc": "Tautan dokumen ini telah kedaluwarsa atau dinonaktifkan oleh pemiliknya."
+    "link_expired_desc": "Tautan dokumen ini telah kedaluwarsa atau dinonaktifkan oleh pemiliknya.",
+    "open_new_tab": "Buka di Tab Baru",
+    "office_preview_title": "Pratinjau Berkas Office / Biner",
+    "office_preview_desc": "Format berkas disarankan untuk diunduh langsung untuk melihat isi lembar kerja atau presentasi secara penuh.",
+    "download_file": "Unduh"
   },
   "gmes": {
     "title": "Monitoring Masalah Lini Produksi GMES",
@@ -554,7 +637,46 @@
     "failure_rate": "Tingkat Kegagalan",
     "line_name": "Lini",
     "station_name": "Stasiun",
-    "no_data": "Tidak ada masalah cacat GMES yang terdeteksi"
+    "no_data": "Tidak ada masalah cacat GMES yang terdeteksi",
+    "total_defect_units": "Total Defect Units",
+    "across_active_lines": "Di seluruh line aktif",
+    "active_open_issues": "Active Open Issues",
+    "requires_action": "Memerlukan investigasi/tindakan",
+    "top_defect_process": "Top Defect Process",
+    "highest_fail_contrib": "Kontribusi defect tertinggi",
+    "most_impacted_line": "Most Impacted Line",
+    "assembly_bottleneck": "Bottleneck lini perakitan",
+    "report_issue": "Laporkan Issue Line",
+    "report_issue_title": "Laporkan Issue Baru GMES Line",
+    "search_placeholder": "Cari item / PIC / line...",
+    "rank": "Peringkat",
+    "process": "Proses",
+    "model": "Model",
+    "status": "Status",
+    "countermeasure": "PIC & Tindakan / Countermeasure",
+    "no_pic": "Belum ada PIC",
+    "no_countermeasure": "Belum ada tindakan tercatat",
+    "telemetry_history": "Riwayat Pengukuran Station",
+    "sn": "SN (Nomor Seri)",
+    "port_station": "Port / Station",
+    "test_item": "Item Uji",
+    "measure_value": "Nilai Ukur",
+    "equip_no": "No. Peralatan",
+    "remark": "Catatan",
+    "no_measurements": "Tidak ada riwayat pengukuran untuk proses ini.",
+    "label_model": "Model Perangkat",
+    "placeholder_model": "Contoh: SM-S928B",
+    "label_fail_qty": "Jumlah Gagal (Unit)",
+    "label_test_item": "Item Uji / Nama Defect",
+    "placeholder_test_item": "Contoh: Main Camera OIS Tilt Fail",
+    "label_share": "Persentase Share (%)",
+    "placeholder_share": "Contoh: 24.5%",
+    "label_pic": "PIC Engineer",
+    "placeholder_pic": "Nama PIC penanggung jawab",
+    "label_countermeasure": "Tindakan Perbaikan / Countermeasure",
+    "placeholder_countermeasure": "Deskripsi langkah investigasi dan tindakan korektif...",
+    "save_issue": "Simpan Issue",
+    "edit_issue_title": "Update Tindakan Issue"
   },
   "gba_tasks": {
     "title": "Tugas Kanban GBA",
@@ -572,7 +694,8 @@
     "priority_urgent": "MENDESAK",
     "priority_high": "TINGGI",
     "priority_medium": "SEDANG",
-    "priority_low": "RENDAH"
+    "priority_low": "RENDAH",
+    "search_placeholder": "Cari model, AP, PIC..."
   },
   "team": {
     "title": "Direktori Tim PE",
@@ -600,7 +723,12 @@
     "col_timestamp": "Waktu",
     "col_ip": "Alamat IP",
     "whitelist_select_user": "+ Whitelist Pengguna...",
-    "whitelist_select_group": "+ Tambah Grup yang Diizinkan..."
+    "whitelist_select_group": "+ Tambah Grup yang Diizinkan...",
+    "save_permissions": "Simpan Pengaturan Akses",
+    "col_email": "Email",
+    "col_actions": "Aksi",
+    "no_restriction_groups": "Semua Part / Tanpa Batasan",
+    "no_restriction_users": "Semua Pengguna / Bebas"
   },
   "ai_chat": {
     "title": "Asisten AI Engineering",
@@ -615,6 +743,10 @@
     "quick_prompt_1": "Analisis gejala cacat komponen PCB",
     "quick_prompt_2": "Rangkum panduan SOP PDF ini",
     "quick_prompt_3": "Susun laporan kerja harian engineering",
-    "quick_prompt_4": "Bandingkan versi binary software AP/CP"
+    "quick_prompt_4": "Bandingkan versi binary software AP/CP",
+    "drop_files": "Lepaskan dokumen di sini untuk dilampirkan",
+    "open_standalone": "Buka di Jendela Baru (Detach Standalone)",
+    "confirm_clear": "Kosongkan riwayat percakapan AI Assistant?",
+    "history_cleared": "Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!"
   }
 }
