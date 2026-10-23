@@ -17,6 +17,8 @@ import {
   UserCheck,
   UserX,
   X,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -47,6 +49,19 @@ export const AdminPage = () => {
   const [password, setPassword] = useState('sein1234');
   const [role, setRole] = useState('member');
   const [groupPartId, setGroupPartId] = useState('');
+
+  // Edit user modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editEmployeeId, setEditEmployeeId] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editFullName, setEditFullName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editGroupPartId, setEditGroupPartId] = useState('');
+  const [editRole, setEditRole] = useState('member');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editNewPassword, setEditNewPassword] = useState('');
+  const [savingUser, setSavingUser] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -226,6 +241,76 @@ export const AdminPage = () => {
     }
   };
 
+  const handleOpenEditUser = (u) => {
+    setEditingUserId(u.id);
+    setEditEmployeeId(u.employee_id || '');
+    setEditUsername(u.username || '');
+    setEditFullName(u.full_name || '');
+    setEditEmail(u.email || '');
+    setEditGroupPartId(u.group_part_id || '');
+    setEditRole(u.role || 'member');
+    setEditIsActive(u.is_active !== false);
+    setEditNewPassword('');
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    if (!editingUserId) return;
+    setSavingUser(true);
+    try {
+      const payload = {
+        employee_id: editEmployeeId,
+        full_name: editFullName,
+        email: editEmail,
+        group_part_id: editGroupPartId || null,
+        role: editRole,
+        is_active: editIsActive,
+      };
+      if (editNewPassword.trim()) {
+        payload.new_password = editNewPassword.trim();
+      }
+      const res = await api.put(`/users/${editingUserId}`, payload);
+      const updatedUser = res.data;
+
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== editingUserId) return u;
+          const matchedGroup = groups.find((g) => g.id === editGroupPartId);
+          return {
+            ...u,
+            ...updatedUser,
+            group_part_name: matchedGroup ? matchedGroup.name : (editGroupPartId ? u.group_part_name : 'General PE'),
+          };
+        })
+      );
+
+      setIsEditModalOpen(false);
+      setPermissionSuccess(`User '${editFullName || editUsername}' berhasil diperbarui!`);
+      setTimeout(() => setPermissionSuccess(''), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (u) => {
+    if (u.username === 'admin') {
+      alert('Akun primary administrator tidak dapat dihapus.');
+      return;
+    }
+    if (!window.confirm(`Hapus user '${u.full_name || u.username}' (@${u.username})? User akan dinonaktifkan.`)) return;
+    try {
+      await api.delete(`/users/${u.id}`);
+      setUsers((prev) => prev.filter((item) => item.id !== u.id));
+      setPermissionSuccess(`User '${u.username}' berhasil dihapus.`);
+      setTimeout(() => setPermissionSuccess(''), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
   const userColumns = [
     {
       title: 'Employee ID',
@@ -279,6 +364,32 @@ export const AdminPage = () => {
       title: 'Status',
       key: 'is_active',
       render: (val) => <StatusBadge status={val ? 'healthy' : 'blocked'} label={val ? 'Active' : 'Disabled'} />,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={Edit2}
+            onClick={() => handleOpenEditUser(row)}
+            title="Edit User Data"
+          >
+            Edit
+          </Button>
+          {row.username !== 'admin' && (
+            <Button
+              size="sm"
+              variant="danger"
+              icon={Trash2}
+              onClick={() => handleDeleteUser(row)}
+              title="Delete User"
+            />
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -950,6 +1061,157 @@ export const AdminPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+        </form>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit User: @${editUsername}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" onClick={handleUpdateUser} disabled={savingUser}>
+              {savingUser ? 'Saving...' : t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleUpdateUser} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="Employee ID"
+              value={editEmployeeId}
+              onChange={(e) => setEditEmployeeId(e.target.value)}
+              required
+              placeholder="e.g. EMP202601"
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Username
+              </label>
+              <input
+                type="text"
+                value={editUsername}
+                disabled
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-tertiary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-muted)',
+                  cursor: 'not-allowed',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="Full Name"
+              value={editFullName}
+              onChange={(e) => setEditFullName(e.target.value)}
+              required
+              placeholder="e.g. Budi Santoso"
+            />
+
+            <Input
+              label="Email"
+              type="email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              required
+              placeholder="budi.s@sein.local"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Group Part
+              </label>
+              <select
+                value={editGroupPartId}
+                onChange={(e) => setEditGroupPartId(e.target.value)}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                <option value="">General PE (No Group)</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name} ({g.parent_group})</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Role Access
+              </label>
+              <select
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value)}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                <option value="member">Member</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Account Status
+              </label>
+              <select
+                value={editIsActive ? 'active' : 'disabled'}
+                onChange={(e) => setEditIsActive(e.target.value === 'active')}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: editIsActive ? '#10b981' : '#ef4444',
+                  fontWeight: 600,
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                <option value="active">Active (Dapat Login)</option>
+                <option value="disabled">Disabled (Diblokir)</option>
+              </select>
+            </div>
+
+            <Input
+              label="Reset Password (Opsional)"
+              type="password"
+              value={editNewPassword}
+              onChange={(e) => setEditNewPassword(e.target.value)}
+              placeholder="Kosongkan jika tidak diubah"
+            />
+          </div>
         </form>
       </Modal>
     </div>

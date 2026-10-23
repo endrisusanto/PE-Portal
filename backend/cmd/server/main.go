@@ -170,6 +170,7 @@ func main() {
 	api.DELETE("/users/me/email-lists/:id", emailListHandler.DeleteEmailList)
 	api.POST("/users", userHandler.CreateUser, middleware.RequireRole("admin"))
 	api.PUT("/users/:id", userHandler.UpdateUser, middleware.RequireRole("admin", "manager"))
+	api.DELETE("/users/:id", userHandler.DeleteUser, middleware.RequireRole("admin"))
 	api.PUT("/admin/users/:id/role", userHandler.UpdateRole, middleware.RequireRole("admin"))
 
 	// Group Parts

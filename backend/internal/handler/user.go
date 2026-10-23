@@ -243,3 +243,16 @@ func (h *UserHandler) UpdateRole(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "role updated successfully"})
 }
+
+func (h *UserHandler) DeleteUser(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid user id")
+	}
+
+	if err := h.userRepo.DeleteUser(c.Request().Context(), id); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "user deleted successfully"})
+}
