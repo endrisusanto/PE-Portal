@@ -45,6 +45,24 @@ if (-not (Test-Path $sqlPath)) {
     $sqlPath = Join-Path $PSScriptRoot "backend/scripts/wipe_mock_data.sql"
 }
 
+$envFile = Join-Path $PSScriptRoot ".env"
+$dbUser = "pe_portal"
+$dbPass = "sein_pe_portal_secret_2026"
+$dbName = "pe_portal"
+$dbHost = "localhost"
+$dbPort = "5432"
+
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -match "^\s*DB_PASSWORD\s*=\s*(.+)") { $dbPass = $matches[1].Trim() }
+        if ($line -match "^\s*POSTGRES_USER\s*=\s*(.+)") { $dbUser = $matches[1].Trim() }
+        if ($line -match "^\s*POSTGRES_DB\s*=\s*(.+)") { $dbName = $matches[1].Trim() }
+        if ($line -match "^\s*DB_HOST\s*=\s*(.+)") { $dbHost = $matches[1].Trim() }
+        if ($line -match "^\s*DB_PORT\s*=\s*(.+)") { $dbPort = $matches[1].Trim() }
+    }
+}
+
 # 1. Cek apakah container docker pe-portal-postgres berjalan
 $dockerRunning = $false
 if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -56,7 +74,7 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
 
 if ($dockerRunning) {
     Write-Host "[2/3] Menggunakan Docker PostgreSQL (pe-portal-postgres)..." -ForegroundColor Cyan
-    Get-Content $sqlPath -Raw | docker exec -i pe-portal-postgres psql -U pe_portal -d pe_portal
+    Get-Content $sqlPath -Raw | docker exec -i pe-portal-postgres psql -U $dbUser -d $dbName
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Gagal mengeksekusi script wipe via Docker." -ForegroundColor Red
         exit 1
@@ -65,9 +83,10 @@ if ($dockerRunning) {
     Write-Host "[2/3] Mencari psql lokal pada sistem Windows..." -ForegroundColor Cyan
     $psqlCandidates = @(
         "psql",
+        "C:\Program Files\PostgreSQL\17\bin\psql.exe",
         "C:\Program Files\PostgreSQL\16\bin\psql.exe",
         "C:\Program Files\PostgreSQL\15\bin\psql.exe",
-        "C:\Program Files\PostgreSQL\17\bin\psql.exe"
+        "C:\Program Files\PostgreSQL\14\bin\psql.exe"
     )
     $psqlCmd = $null
     foreach ($cand in $psqlCandidates) {
@@ -81,12 +100,40 @@ if ($dockerRunning) {
     }
 
     if ($psqlCmd) {
-        Write-Host "Menghubungkan ke PostgreSQL lokal menggunakan: $psqlCmd" -ForegroundColor Cyan
-        $env:PGPASSWORD = if ($env:DB_PASSWORD) { $env:DB_PASSWORD } else { "sein_pe_portal_secret_2026" }
-        & $psqlCmd -U pe_portal -h localhost -d pe_portal -f $sqlPath
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "[ERROR] Gagal mengeksekusi script wipe via psql lokal." -ForegroundColor Red
-            exit 1
+        Write-Host "Menguji kredensial PostgreSQL lokal..." -ForegroundColor Cyan
+        
+        # Daftar kredensial yang dicoba secara otomatis
+        $testUsers = @($dbUser, "postgres")
+        $testPasswords = @($dbPass, "sein_pe_portal_secret_2026", "postgres", "Sein2016!", "admin", "")
+        $connected = $false
+
+        foreach ($u in $testUsers) {
+            foreach ($p in $testPasswords) {
+                $env:PGPASSWORD = $p
+                & $psqlCmd -U $u -h $dbHost -p $dbPort -d $dbName -c "\q" *>$null
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "[OK] Terhubung ke PostgreSQL sebagai user '$u'!" -ForegroundColor Green
+                    & $psqlCmd -U $u -h $dbHost -p $dbPort -d $dbName -f $sqlPath
+                    if ($LASTEXITCODE -eq 0) {
+                        $connected = $true
+                        break
+                    }
+                }
+            }
+            if ($connected) { break }
+        }
+
+        if (-not $connected) {
+            Write-Host "[!] Kredensial default (sein_pe_portal_secret_2026, postgres, Sein2016!) belum cocok." -ForegroundColor Yellow
+            $manualUser = Read-Host "Masukkan username PostgreSQL [default: $dbUser]"
+            if ([string]::IsNullOrWhiteSpace($manualUser)) { $manualUser = $dbUser }
+            $manualPass = Read-Host "Masukkan password PostgreSQL untuk user '$manualUser'"
+            $env:PGPASSWORD = $manualPass
+            & $psqlCmd -U $manualUser -h $dbHost -p $dbPort -d $dbName -f $sqlPath
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "[ERROR] Gagal mengeksekusi script wipe dengan password yang dimasukkan." -ForegroundColor Red
+                exit 1
+            }
         }
     } else {
         Write-Host "[ERROR] Docker container pe-portal-postgres tidak aktif dan psql.exe tidak ditemukan di PATH." -ForegroundColor Red

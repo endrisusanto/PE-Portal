@@ -52,17 +52,59 @@ if [ ! -f "$SQL_PATH" ]; then
     exit 1
 fi
 
+# Load .env if present
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/.env" 2>/dev/null || true
+    set +a
+fi
+
+DB_TARGET_NAME="${POSTGRES_DB:-pe_portal}"
+DB_TARGET_USER="${POSTGRES_USER:-pe_portal}"
+DB_TARGET_PORT="${DB_PORT:-5432}"
+DB_TARGET_HOST="${DB_HOST:-localhost}"
+
 echo ""
-echo -e "${YELLOW}[1/3] Menjalankan pembersihan database...${NC}"
+echo -e "${YELLOW}[1/3] Menjalankan pembersihan database '${DB_TARGET_NAME}'...${NC}"
 
 # Check if Docker container pe-portal-postgres is running
-if docker ps --format '{{.Names}}' | grep -q "pe-portal-postgres"; then
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "pe-portal-postgres"; then
     echo -e "${CYAN}[2/3] Menggunakan Docker PostgreSQL (pe-portal-postgres)...${NC}"
-    docker exec -i pe-portal-postgres psql -U pe_portal -d pe_portal < "$SQL_PATH"
+    docker exec -i pe-portal-postgres psql -U "$DB_TARGET_USER" -d "$DB_TARGET_NAME" < "$SQL_PATH"
 else
-    echo -e "${CYAN}[2/3] Menggunakan psql lokal...${NC}"
-    export PGPASSWORD="${DB_PASSWORD:-sein_pe_portal_secret_2026}"
-    psql -U pe_portal -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" -d "${POSTGRES_DB:-pe_portal}" -f "$SQL_PATH"
+    echo -e "${CYAN}[2/3] Menggunakan psql lokal (Bare-Metal mode)...${NC}"
+    
+    # Daftar kredensial default PE-Portal yang dicoba otomatis:
+    # 1. Password dari .env ($DB_PASSWORD)
+    # 2. sein_pe_portal_secret_2026 (Default Docker & repo PE-Portal)
+    # 3. postgres (Default superuser PostgreSQL installer)
+    # 4. Sein2016! (Default baremetal installer SEIN)
+    FOUND_CONN=false
+    TEST_USERS=("$DB_TARGET_USER" "postgres")
+    TEST_PASSWORDS=("${DB_PASSWORD:-sein_pe_portal_secret_2026}" "postgres" "Sein2016!" "sein_pe_portal_secret_2026" "admin" "")
+
+    for u in "${TEST_USERS[@]}"; do
+        for p in "${TEST_PASSWORDS[@]}"; do
+            if PGPASSWORD="$p" psql -U "$u" -h "$DB_TARGET_HOST" -p "$DB_TARGET_PORT" -d "$DB_TARGET_NAME" -c '\q' >/dev/null 2>&1; then
+                echo -e "${GREEN}✓ Terhubung ke PostgreSQL sebagai user '${u}'!${NC}"
+                export PGPASSWORD="$p"
+                psql -U "$u" -h "$DB_TARGET_HOST" -p "$DB_TARGET_PORT" -d "$DB_TARGET_NAME" -f "$SQL_PATH"
+                FOUND_CONN=true
+                break 2
+            fi
+        done
+    done
+
+    if [ "$FOUND_CONN" = false ]; then
+        echo -e "${YELLOW}[!] Kredensial default (sein_pe_portal_secret_2026, postgres, Sein2016!) belum cocok.${NC}"
+        read -r -p "Masukkan username PostgreSQL [default: ${DB_TARGET_USER}]: " MANUAL_USER
+        MANUAL_USER="${MANUAL_USER:-$DB_TARGET_USER}"
+        read -r -s -p "Masukkan password PostgreSQL untuk user '${MANUAL_USER}': " MANUAL_PASS
+        echo ""
+        export PGPASSWORD="$MANUAL_PASS"
+        psql -U "$MANUAL_USER" -h "$DB_TARGET_HOST" -p "$DB_TARGET_PORT" -d "$DB_TARGET_NAME" -f "$SQL_PATH"
+    fi
 fi
 
 echo ""
