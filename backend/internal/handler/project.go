@@ -358,7 +358,7 @@ func (h *ProjectHandler) GetGbaTasks(c echo.Context) error {
 		apiURL = "http://107.102.39.55/tkdn/api_kanban.php"
 	}
 
-	client := &http.Client{Timeout: 3 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Get(apiURL)
 	if err != nil {
 		// Fallback for local docker/host execution when intranet 107.102.39.55 is unreachable

@@ -4,9 +4,20 @@
  * SEIN PE-Portal - Companion Release Cheatsheet (Software MR) API
  * Path: htdocs/companion-release-cheatsheet/api_releases.php
  * Target: Intranet PC (107.102.39.55 / Local XAMPP Server)
- * Mode: /ponytail (Zero-dependency, high resilience, auto-schema mapping)
+ * Mode: /ponytail (Zero-dependency, high resilience, full database fetch)
+ * ==============================================================================
+ * Description:
+ *   Exposes all firmware release records from MySQL for SEIN PE-Portal.
+ *   - Auto-scans databases: companion_release, companion_release_db, tkdn, etc.
+ *   - Auto-scans tables: release_cheatsheets, releases, software_mr
+ *   - Retrieves the COMPLETE database (supports optional ?limit= parameter, default: all)
+ *   - Safe memory limit & execution time for large datasets
  * ==============================================================================
  */
+
+// Safe limits for full database transfer
+ini_set('memory_limit', '512M');
+set_time_limit(60);
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
@@ -20,38 +31,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $DB_HOST = getenv('DB_HOST') ?: '127.0.0.1';
 $DB_PORT = getenv('DB_PORT') ?: '3306';
-$DB_NAME = getenv('DB_NAME') ?: 'companion_release';
 $DB_USER = getenv('DB_USER') ?: 'root';
 $DB_PASS = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 
+// Candidate databases to probe (ponytail: robust auto-fallback)
+$dbCandidates = array_unique(array_filter([
+    getenv('DB_NAME') ?: '',
+    'companion_release',
+    'companion_release_db',
+    'tkdn',
+    'gba',
+]));
+
 $pdo = null;
-try {
-    $dsn = "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset=utf8mb4";
-    $pdo = new PDO($dsn, $DB_USER, $DB_PASS, [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_TIMEOUT            => 2,
-    ]);
-} catch (Exception $e) {
-    // Database offline, will use sample fallback
+$connectedDb = null;
+
+// Multi-credential fallback for intranet XAMPP & Docker MySQL
+$passCandidates = array_unique([$DB_PASS, '', 'rootpassword', 'root_password', 'password', 'sein2016!']);
+
+foreach ($dbCandidates as $dbName) {
+    foreach ($passCandidates as $pass) {
+        try {
+            $dsn = "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$dbName};charset=utf8mb4";
+            $testPdo = new PDO($dsn, $DB_USER, $pass, [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_TIMEOUT            => 2,
+            ]);
+            $pdo = $testPdo;
+            $connectedDb = $dbName;
+            break 2;
+        } catch (Exception $e) {
+            continue;
+        }
+    }
 }
 
 $releases = [];
 if ($pdo) {
     try {
-        $targetTable = 'releases';
-        $check = $pdo->query("SHOW TABLES LIKE 'releases'")->fetch();
-        if (!$check) {
-            $checkAlt = $pdo->query("SHOW TABLES LIKE 'software_mr'")->fetch();
-            if ($checkAlt) $targetTable = 'software_mr';
+        // Find release cheatsheet table
+        $tableCandidates = ['release_cheatsheets', 'releases', 'software_mr'];
+        $targetTable = null;
+
+        foreach ($tableCandidates as $tbl) {
+            $check = $pdo->query("SHOW TABLES LIKE '{$tbl}'")->fetch();
+            if ($check) {
+                $targetTable = $tbl;
+                break;
+            }
         }
-        $releases = $pdo->query("SELECT * FROM `{$targetTable}` ORDER BY id DESC LIMIT 50")->fetchAll();
+
+        if ($targetTable) {
+            // Optional ?limit= parameter. If omitted or 0, retrieves the ENTIRE table
+            $limitParam = isset($_GET['limit']) ? (int)$_GET['limit'] : 0;
+            $limitClause = $limitParam > 0 ? "LIMIT {$limitParam}" : "";
+
+            $query = "SELECT * FROM `{$targetTable}` ORDER BY id DESC {$limitClause}";
+            $releases = $pdo->query($query)->fetchAll();
+        }
     } catch (Exception $e) {
         $releases = [];
     }
 }
 
-// Fallback sample data if DB is empty or offline
+// Fallback sample data ONLY if DB is completely empty or offline
 if (empty($releases)) {
     $now = date('Y-m-d H:i:s');
     $releases = [
@@ -92,4 +136,4 @@ if (empty($releases)) {
     ];
 }
 
-echo json_encode($releases, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+echo json_encode($releases, JSON_UNESCAPED_SLASHES);

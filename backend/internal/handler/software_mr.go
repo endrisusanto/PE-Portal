@@ -106,7 +106,7 @@ func (h *SoftwareMRHandler) SyncFromIntranet(c echo.Context) error {
 		apiURL = "http://107.102.39.55/companion-release-cheatsheet/api_releases.php"
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Get(apiURL)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadGateway, "Failed to connect to Intranet Software MR API: "+err.Error())
