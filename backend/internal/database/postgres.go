@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"pe-portal/migrations"
 )
 
 // PostgresPool wraps the pgxpool.Pool
@@ -78,15 +80,23 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 			continue // Migration already applied, skip
 		}
 
-		path := filepath.Join(migrationsDir, file)
-		content, err := os.ReadFile(path)
+		var content []byte
+		var err error
+
+		// 1. Try embedded migration FS first (failsafe against working-directory path issues)
+		content, err = migrations.FS.ReadFile(file)
 		if err != nil {
-			// Try looking one directory up if not found
-			path = filepath.Join("..", migrationsDir, file)
+			// 2. Fallback to filesystem lookup
+			path := filepath.Join(migrationsDir, file)
 			content, err = os.ReadFile(path)
 			if err != nil {
-				log.Printf("[DB] Migration file not found at %s (skipping auto-migration): %v", file, err)
-				continue
+				// Try looking one directory up if not found
+				path = filepath.Join("..", migrationsDir, file)
+				content, err = os.ReadFile(path)
+				if err != nil {
+					log.Printf("[DB] Migration file not found at %s: %v", file, err)
+					continue
+				}
 			}
 		}
 
@@ -97,6 +107,23 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		_, _ = p.Pool.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING", file)
 		log.Printf("[DB] Applied migration: %s", file)
 	}
+
+	// Idempotent self-repair check: ensure critical columns and tables exist even if migration tracking was bypassed
+	_, _ = p.Pool.Exec(ctx, `
+		ALTER TABLE IF EXISTS dhl_shipments ADD COLUMN IF NOT EXISTS delivered_notified_at TIMESTAMPTZ;
+		CREATE TABLE IF NOT EXISTS user_group_parts (
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			group_part_id UUID NOT NULL REFERENCES group_parts(id) ON DELETE CASCADE,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			PRIMARY KEY (user_id, group_part_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_user_group_parts_user ON user_group_parts(user_id);
+		CREATE INDEX IF NOT EXISTS idx_user_group_parts_group ON user_group_parts(group_part_id);
+		INSERT INTO user_group_parts (user_id, group_part_id)
+		SELECT id, group_part_id FROM users
+		WHERE group_part_id IS NOT NULL
+		ON CONFLICT (user_id, group_part_id) DO NOTHING;
+	`)
 
 	return nil
 }

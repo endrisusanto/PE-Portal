@@ -1,4 +1,4 @@
--- Migration 010: Document Sharing with Custom Rules (open public, login required, locked with password)
+-- Migration 015: Document Sharing with Custom Rules (open public, login required, locked with password)
 CREATE TABLE IF NOT EXISTS document_shares (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID UNIQUE NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
