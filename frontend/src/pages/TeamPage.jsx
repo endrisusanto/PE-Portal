@@ -37,7 +37,7 @@ export const TeamPage = () => {
     fetchTeam();
   }, []);
 
-  if (loading) return <LoadingState message="Loading engineering organization..." />;
+  if (loading) return <LoadingState message={t('team.loading', 'Loading engineering organization...')} />;
 
   const groupedByParent = groups.reduce((acc, g) => {
     if (!acc[g.parent_group]) acc[g.parent_group] = [];
@@ -49,10 +49,10 @@ export const TeamPage = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       <div>
         <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>
-          {t('nav.team')}
+          {t('team.title', 'PE Team Directory')}
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-          SEIN PE Group structure (30 members across 3 specialized divisions)
+          {t('team.subtitle', 'SEIN PE Group structure (30 members across 3 specialized divisions)')}
         </p>
       </div>
 
@@ -119,10 +119,10 @@ export const TeamPage = () => {
                   {/* Members assigned to this group part */}
                   <div style={{ marginTop: '8px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '8px' }}>
                     <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-                      ASSIGNED MEMBERS ({partMembers.length})
+                      {t('team.assigned_members', 'ASSIGNED MEMBERS')} ({partMembers.length})
                     </div>
                     {partMembers.length === 0 ? (
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>No members assigned</span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{t('team.no_members', 'No members assigned')}</span>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {partMembers.map((m) => (
@@ -143,7 +143,7 @@ export const TeamPage = () => {
                                   whiteSpace: 'nowrap',
                                 }}
                               >
-                                Multi-Jobdesk
+                                {t('team.multi_jobdesk_badge', 'Multi-Jobdesk')}
                               </span>
                             )}
                             <StatusBadge status={m.role} />

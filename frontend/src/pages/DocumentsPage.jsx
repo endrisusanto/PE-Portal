@@ -528,7 +528,7 @@ export const DocumentsPage = () => {
       <Modal
         isOpen={Boolean(shareDoc)}
         onClose={() => setShareDoc(null)}
-        title="Bagikan Dokumen (Share File)"
+        title={t('documents.share_modal_title', 'Bagikan Dokumen (Share File)')}
         maxWidth="640px"
       >
         {shareDoc && (
@@ -561,12 +561,12 @@ export const DocumentsPage = () => {
                 <div className={styles.linkHeader}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <CheckCircle2 size={16} />
-                    <span>Link Sharing Aktif</span>
+                    <span>{t('documents.active_link', 'Link Sharing Aktif')}</span>
                   </div>
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                    {existingShare.access_rule === 'public' && 'Open Public'}
-                    {existingShare.access_rule === 'login_required' && 'Login Required'}
-                    {existingShare.access_rule === 'password' && 'Password Protected'}
+                    {existingShare.access_rule === 'public' && t('documents.rule_public_title', 'Open Public')}
+                    {existingShare.access_rule === 'login_required' && t('documents.rule_login_title', 'Login Required')}
+                    {existingShare.access_rule === 'password' && t('documents.rule_password_title', 'Locked with Password')}
                   </span>
                 </div>
                 <div className={styles.linkInputRow}>
@@ -582,7 +582,7 @@ export const DocumentsPage = () => {
                     onClick={handleCopyShareLink}
                   >
                     {copied ? <Check size={14} /> : <Copy size={14} />}
-                    <span>{copied ? 'Tersalin!' : 'Salin Link'}</span>
+                    <span>{copied ? t('documents.link_copied', 'Tersalin!') : t('documents.copy_link_btn', 'Salin Link')}</span>
                   </button>
                   <Button
                     variant="secondary"
@@ -593,12 +593,12 @@ export const DocumentsPage = () => {
                   />
                 </div>
                 <div className={styles.linkStats}>
-                  <span>Dilihat: <strong>{existingShare.view_count || 0}x</strong></span>
-                  <span>Diunduh: <strong>{existingShare.download_count || 0}x</strong></span>
+                  <span>{t('documents.views_count', 'Dilihat')}: <strong>{existingShare.view_count || 0}x</strong></span>
+                  <span>{t('documents.downloads_count', 'Diunduh')}: <strong>{existingShare.download_count || 0}x</strong></span>
                   {existingShare.expires_at ? (
-                    <span>Kedaluwarsa: {new Date(existingShare.expires_at).toLocaleDateString()}</span>
+                    <span>{t('documents.expires', 'Kedaluwarsa')}: {new Date(existingShare.expires_at).toLocaleDateString()}</span>
                   ) : (
-                    <span>Masa Aktif: Selamanya</span>
+                    <span>{t('documents.active_duration', 'Masa Aktif')}: {t('documents.expiry_forever', 'Selamanya')}</span>
                   )}
                 </div>
               </div>
@@ -625,7 +625,7 @@ export const DocumentsPage = () => {
             {/* Custom Rule Selection */}
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
-                Pilih Aturan Akses Sharing (Custom Rule)
+                {t('documents.rule_title', 'Pilih Aturan Akses Sharing (Custom Rule)')}
               </label>
               <div className={styles.ruleCardGroup}>
                 {/* 1. Open Public */}
@@ -638,13 +638,13 @@ export const DocumentsPage = () => {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div className={styles.ruleCardTitle}>
-                      <span>Open Public</span>
+                      <span>{t('documents.rule_public_title', 'Open Public')}</span>
                       <span className={styles.ruleTag} style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
-                        Tanpa Login
+                        {t('documents.rule_public_tag', 'Tanpa Login')}
                       </span>
                     </div>
                     <p className={styles.ruleCardDesc}>
-                      Siapa pun yang memiliki tautan dapat membuka dan mengunduh berkas secara langsung tanpa perlu login.
+                      {t('documents.rule_public_desc', 'Siapa pun yang memiliki tautan dapat membuka dan mengunduh berkas secara langsung tanpa perlu login.')}
                     </p>
                   </div>
                 </div>
@@ -659,13 +659,13 @@ export const DocumentsPage = () => {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div className={styles.ruleCardTitle}>
-                      <span>Login Required</span>
+                      <span>{t('documents.rule_login_title', 'Login Required')}</span>
                       <span className={styles.ruleTag} style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
-                        Khusus Internal
+                        {t('documents.rule_login_tag', 'Khusus Internal')}
                       </span>
                     </div>
                     <p className={styles.ruleCardDesc}>
-                      Hanya pengguna yang telah terdaftar dan login ke PE-Portal yang diizinkan untuk melihat & mengunduh dokumen.
+                      {t('documents.rule_login_desc', 'Hanya pengguna yang telah terdaftar dan login ke PE-Portal yang diizinkan untuk melihat & mengunduh dokumen.')}
                     </p>
                   </div>
                 </div>
@@ -680,13 +680,13 @@ export const DocumentsPage = () => {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div className={styles.ruleCardTitle}>
-                      <span>Locked with Password</span>
+                      <span>{t('documents.rule_password_title', 'Locked with Password')}</span>
                       <span className={styles.ruleTag} style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
-                        Kata Sandi
+                        {t('documents.rule_password_tag', 'Kata Sandi')}
                       </span>
                     </div>
                     <p className={styles.ruleCardDesc}>
-                      Pengunjung wajib memasukkan kata sandi yang telah ditentukan sebelum dapat mengakses dokumen.
+                      {t('documents.rule_password_desc', 'Pengunjung wajib memasukkan kata sandi yang telah ditentukan sebelum dapat mengakses dokumen.')}
                     </p>
                   </div>
                 </div>
@@ -703,11 +703,11 @@ export const DocumentsPage = () => {
                 marginBottom: '16px',
               }}>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, marginBottom: '6px', color: '#f59e0b' }}>
-                  Kata Sandi Akses File
+                  {t('documents.input_password_label', 'Kata Sandi Akses File')}
                 </label>
                 <Input
                   type="text"
-                  placeholder="Contoh: PE-2026 atau sein123"
+                  placeholder={t('documents.input_password_placeholder', 'Contoh: PE-2026 atau sein123')}
                   value={shareForm.password}
                   onChange={(e) => setShareForm({ ...shareForm, password: e.target.value })}
                 />
@@ -725,20 +725,20 @@ export const DocumentsPage = () => {
                   checked={shareForm.allow_download}
                   onChange={(e) => setShareForm({ ...shareForm, allow_download: e.target.checked })}
                 />
-                <span>Izinkan Pengunjung Mengunduh File Asli</span>
+                <span>{t('documents.allow_download_label', 'Izinkan Pengunjung Mengunduh File Asli')}</span>
               </label>
 
               <div className={styles.selectGroup}>
-                <label>Masa Berlaku Tautan:</label>
+                <label>{t('documents.expiry_label', 'Masa Berlaku Tautan:')}</label>
                 <select
                   className={styles.customSelect}
                   value={shareForm.expires_in_days}
                   onChange={(e) => setShareForm({ ...shareForm, expires_in_days: Number(e.target.value) })}
                 >
-                  <option value={0}>Selamanya (Tanpa Batas)</option>
-                  <option value={1}>1 Hari</option>
-                  <option value={7}>7 Hari (1 Minggu)</option>
-                  <option value={30}>30 Hari (1 Bulan)</option>
+                  <option value={0}>{t('documents.expiry_forever', 'Selamanya (Tanpa Batas)')}</option>
+                  <option value={1}>{t('documents.expiry_1day', '1 Hari')}</option>
+                  <option value={7}>{t('documents.expiry_7days', '7 Hari (1 Minggu)')}</option>
+                  <option value={30}>{t('documents.expiry_30days', '30 Hari (1 Bulan)')}</option>
                 </select>
               </div>
             </div>
@@ -753,20 +753,20 @@ export const DocumentsPage = () => {
                     onClick={handleRevokeShare}
                     style={{ color: 'var(--color-error)' }}
                   >
-                    Nonaktifkan Link
+                    {t('documents.btn_revoke_share', 'Nonaktifkan Link')}
                   </Button>
                 )}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <Button variant="secondary" onClick={() => setShareDoc(null)}>
-                  Batal
+                  {t('common.cancel', 'Batal')}
                 </Button>
                 <Button
                   variant="primary"
                   onClick={handleSaveShare}
                   disabled={savingShare}
                 >
-                  {savingShare ? 'Menyimpan...' : existingShare ? 'Perbarui Link Sharing' : 'Buat Link Sharing'}
+                  {savingShare ? t('common.loading', 'Menyimpan...') : existingShare ? t('documents.btn_update_share', 'Perbarui Link Sharing') : t('documents.btn_create_share', 'Buat Link Sharing')}
                 </Button>
               </div>
             </div>

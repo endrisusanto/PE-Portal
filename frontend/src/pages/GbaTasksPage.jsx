@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Kanban as KanbanIcon,
   Flame,
@@ -37,6 +38,7 @@ const KANBAN_STATUSES = [
 ];
 
 export const GbaTasksPage = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ columns: {}, total: 0 });
   const [error, setError] = useState(null);
@@ -145,7 +147,7 @@ export const GbaTasksPage = () => {
         <div className={styles.titleGroup}>
           <h1 className={styles.title}>
             <KanbanIcon size={20} color="var(--color-accent)" />
-            GBA Task Manager
+            {t('gba_tasks.title', 'GBA Task Manager')}
             {/* Compact live dot per user request */}
             <span
               className={styles.liveDot}
@@ -155,19 +157,19 @@ export const GbaTasksPage = () => {
 
           <div className={styles.statsBar}>
             <span className={styles.statItem}>
-              Total: <span className={styles.statValue}>{kpiStats.total}</span>
+              {t('common.total', 'Total')}: <span className={styles.statValue}>{kpiStats.total}</span>
             </span>
             <span>•</span>
             <span className={styles.statItem} style={{ color: '#ef4444' }}>
-              Urgent: <span className={styles.statValue} style={{ color: '#ef4444' }}>{kpiStats.urgent}</span>
+              {t('gba_tasks.priority_urgent', 'Urgent')}: <span className={styles.statValue} style={{ color: '#ef4444' }}>{kpiStats.urgent}</span>
             </span>
             <span>•</span>
             <span className={styles.statItem} style={{ color: '#f59e0b' }}>
-              Ongoing: <span className={styles.statValue} style={{ color: '#f59e0b' }}>{kpiStats.ongoing}</span>
+              {t('gba_tasks.col_in_progress', 'Ongoing')}: <span className={styles.statValue} style={{ color: '#f59e0b' }}>{kpiStats.ongoing}</span>
             </span>
             <span>•</span>
             <span className={styles.statItem} style={{ color: '#10b981' }}>
-              Approved: <span className={styles.statValue} style={{ color: '#10b981' }}>{kpiStats.approved}</span>
+              {t('gba_tasks.col_done', 'Approved')}: <span className={styles.statValue} style={{ color: '#10b981' }}>{kpiStats.approved}</span>
             </span>
           </div>
         </div>
@@ -176,7 +178,7 @@ export const GbaTasksPage = () => {
         <div className={styles.controls}>
           <input
             type="text"
-            placeholder="Search model, AP, PIC..."
+            placeholder={t('gba_tasks.search_placeholder', 'Search model, AP, PIC...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={styles.searchInput}
@@ -187,7 +189,7 @@ export const GbaTasksPage = () => {
             onChange={(e) => setSelectedPic(e.target.value)}
             className={styles.selectInput}
           >
-            <option value="">All PICs</option>
+            <option value="">{t('gba_tasks.filter_assignee', 'All PICs')}</option>
             {picOptions.map((p) => (
               <option key={p} value={p}>
                 {p.split('@')[0]}
@@ -202,7 +204,7 @@ export const GbaTasksPage = () => {
             title="Filter urgent tasks"
           >
             <Flame size={12} />
-            Urgent {kpiStats.urgent > 0 && `(${kpiStats.urgent})`}
+            {t('gba_tasks.priority_urgent', 'Urgent')} {kpiStats.urgent > 0 && `(${kpiStats.urgent})`}
           </button>
 
           <Button
@@ -210,7 +212,7 @@ export const GbaTasksPage = () => {
             size="sm"
             onClick={fetchTasks}
             disabled={loading}
-            title="Sync live from GBA Task Manager"
+            title={t('gba_tasks.sync_tasks_btn', 'Sync live from GBA Task Manager')}
           >
             <RefreshCw size={13} className={loading ? 'spin' : ''} />
           </Button>
@@ -270,7 +272,7 @@ export const GbaTasksPage = () => {
 
       {/* Classic Kanban Board: Horizontal scroll with fixed comfortable columns */}
       {loading ? (
-        <LoadingState message="Loading GBA Kanban tasks..." />
+        <LoadingState message={t('common.loading', 'Loading GBA Kanban tasks...')} />
       ) : (
         <div className={styles.kanbanBoard}>
           {KANBAN_STATUSES.map((status) => {
@@ -291,7 +293,7 @@ export const GbaTasksPage = () => {
                 {/* Cards List: Smooth vertical scroll per column */}
                 <div className={styles.cardsList}>
                   {tasks.length === 0 ? (
-                    <div className={styles.emptyCol}>No active tasks</div>
+                    <div className={styles.emptyCol}>{t('common.no_data', 'No active tasks')}</div>
                   ) : (
                     tasks.map((task) => {
                       const isUrgent =

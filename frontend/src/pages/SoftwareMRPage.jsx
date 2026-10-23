@@ -257,10 +257,10 @@ export const SoftwareMRPage = () => {
         <div className={styles.titleArea}>
           <h1>
             <GitCompare size={26} color="var(--color-accent)" />
-            {t('nav.software_mr', 'Software MR')} (Maintenance Release)
+            {t('software_mr.title', 'Software MR (Maintenance Release)')}
           </h1>
           <p className={styles.subtitle}>
-            Cheatsheet Pemetaan Binary Firmware, CSC Version Up & Catatan Rilis Perangkat SEIN • Intranet: <code style={{ fontSize: '11px', padding: '1px 5px', borderRadius: '4px', background: 'var(--color-bg-secondary)' }}>107.102.39.55</code>
+            {t('software_mr.subtitle', 'Cheatsheet Pemetaan Binary Firmware, CSC Version Up & Catatan Rilis Perangkat SEIN')} • Intranet: <code style={{ fontSize: '11px', padding: '1px 5px', borderRadius: '4px', background: 'var(--color-bg-secondary)' }}>107.102.39.55</code>
           </p>
         </div>
 
@@ -298,7 +298,7 @@ export const SoftwareMRPage = () => {
           </a>
           <span className={styles.viewOnlyBadge}>
             <Eye size={13} />
-            View-Only Mode
+            {t('software_mr.view_only_mode', 'View-Only Mode')}
           </span>
           <Button
             variant="secondary"
@@ -308,7 +308,7 @@ export const SoftwareMRPage = () => {
             title="Sinkronisasi data rilis langsung dari XAMPP Intranet (107.102.39.55)"
           >
             <RefreshCw size={14} className={syncing ? 'spin' : ''} />
-            <span>{syncing ? 'Menyinkronkan...' : 'Sync Intranet'}</span>
+            <span>{syncing ? t('software_mr.syncing', 'Menyinkronkan...') : t('software_mr.sync_db', 'Sync Intranet')}</span>
           </Button>
         </div>
       </div>
@@ -317,9 +317,9 @@ export const SoftwareMRPage = () => {
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Total Rilis Firmware</span>
+            <span className={styles.kpiLabel}>{t('software_mr.col_total_releases', 'Total Rilis Firmware')}</span>
             <span className={styles.kpiValue}>
-              {stats.total_releases.toLocaleString()} Rilis
+              {stats.total_releases.toLocaleString()} {t('software_mr.unit_releases', 'Rilis')}
             </span>
           </div>
           <div className={styles.kpiIcon} style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#60a5fa' }}>
@@ -329,9 +329,9 @@ export const SoftwareMRPage = () => {
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Model Terdaftar</span>
+            <span className={styles.kpiLabel}>{t('software_mr.col_unique_models', 'Model Terdaftar')}</span>
             <span className={styles.kpiValue} style={{ color: '#818cf8' }}>
-              {stats.unique_models.toLocaleString()} Model
+              {stats.unique_models.toLocaleString()} {t('software_mr.unit_models', 'Model')}
             </span>
           </div>
           <div className={styles.kpiIcon} style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#818cf8' }}>
@@ -341,9 +341,9 @@ export const SoftwareMRPage = () => {
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Rilis Hari Ini</span>
+            <span className={styles.kpiLabel}>{t('software_mr.col_today_releases', 'Rilis Hari Ini')}</span>
             <span className={styles.kpiValue} style={{ color: '#34d399' }}>
-              {stats.today_releases.toLocaleString()} Rilis
+              {stats.today_releases.toLocaleString()} {t('software_mr.unit_releases', 'Rilis')}
             </span>
           </div>
           <div className={styles.kpiIcon} style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#34d399' }}>
@@ -353,9 +353,9 @@ export const SoftwareMRPage = () => {
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>PIC Engineer Aktif</span>
+            <span className={styles.kpiLabel}>{t('software_mr.col_active_pics', 'PIC Engineer Aktif')}</span>
             <span className={styles.kpiValue} style={{ color: '#f59e0b' }}>
-              {stats.active_pics.toLocaleString()} PIC
+              {stats.active_pics.toLocaleString()} {t('software_mr.unit_pics', 'PIC')}
             </span>
           </div>
           <div className={styles.kpiIcon} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
@@ -543,7 +543,7 @@ export const SoftwareMRPage = () => {
             <input
               type="text"
               className={styles.filterInput}
-              placeholder="Cari model, AP, CP, CSC, PIC..."
+              placeholder={t('software_mr.search_placeholder', 'Cari model, AP, CP, CSC, PIC...')}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -559,7 +559,7 @@ export const SoftwareMRPage = () => {
                 setPage(1);
               }}
             >
-              <option value="">Semua Model</option>
+              <option value="">{t('software_mr.all_models', 'Semua Model')}</option>
               {filters.models.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
@@ -573,7 +573,7 @@ export const SoftwareMRPage = () => {
                 setPage(1);
               }}
             >
-              <option value="">Semua PIC</option>
+              <option value="">{t('software_mr.all_pics', 'Semua PIC')}</option>
               {filters.pics.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
@@ -581,7 +581,7 @@ export const SoftwareMRPage = () => {
           </div>
 
           <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
-            {total} Rilis Ditemukan
+            {total} {t('software_mr.releases_found', 'Rilis Ditemukan')}
           </span>
         </div>
 
@@ -592,14 +592,14 @@ export const SoftwareMRPage = () => {
               <tr>
                 <th style={{ width: 40 }}>#</th>
                 {[
-                  { key: 'model', label: 'Model' },
-                  { key: 'pic', label: 'PIC' },
-                  { key: 'ap', label: 'AP Version' },
-                  { key: 'cp', label: 'CP Version' },
-                  { key: 'csc', label: 'CSC Version' },
-                  { key: 'csc_up', label: 'CSC Version Up' },
-                  { key: 'release_date', label: 'Tanggal Rilis' },
-                  { key: 'status', label: 'Status' },
+                  { key: 'model', label: t('software_mr.col_model', 'Model') },
+                  { key: 'pic', label: t('software_mr.col_pic', 'PIC') },
+                  { key: 'ap', label: t('software_mr.col_ap', 'AP Version') },
+                  { key: 'cp', label: t('software_mr.col_cp', 'CP Version') },
+                  { key: 'csc', label: t('software_mr.col_csc', 'CSC Version') },
+                  { key: 'csc_up', label: t('software_mr.col_csc_version_up', 'CSC Version Up') },
+                  { key: 'release_date', label: t('software_mr.col_release_date', 'Tanggal Rilis') },
+                  { key: 'status', label: t('software_mr.col_status', 'Status') },
                 ].map((col) => (
                   <th
                     key={col.key}
@@ -758,7 +758,7 @@ export const SoftwareMRPage = () => {
         {/* Pagination */}
         <div className={styles.pagination}>
           <span>
-            Menampilkan {releases.length} dari {total} rilis maintenance
+            {t('common.showing', 'Menampilkan')} {releases.length} {t('common.of', 'dari')} {total} {t('software_mr.unit_releases', 'rilis maintenance')}
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
             <Button
@@ -767,7 +767,7 @@ export const SoftwareMRPage = () => {
               disabled={page <= 1}
               onClick={() => setPage(p => Math.max(1, p - 1))}
             >
-              Sebelumnya
+              {t('common.previous', 'Sebelumnya')}
             </Button>
             <Button
               variant="secondary"
@@ -775,7 +775,7 @@ export const SoftwareMRPage = () => {
               disabled={page * limit >= total}
               onClick={() => setPage(p => p + 1)}
             >
-              Selanjutnya
+              {t('common.next', 'Selanjutnya')}
             </Button>
           </div>
         </div>
@@ -785,23 +785,23 @@ export const SoftwareMRPage = () => {
       <Modal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
-        title={`Release Cheatsheet: ${selectedRelease?.model || ''}`}
+        title={`${t('software_mr.details_modal_title', 'Release Cheatsheet')}: ${selectedRelease?.model || ''}`}
         maxWidth="min(880px, 92vw)"
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-              PIC: <strong>{selectedRelease?.pic}</strong> • Rilis: {selectedRelease ? new Date(selectedRelease.created_at).toLocaleDateString('id-ID') : ''}
+              PIC: <strong>{selectedRelease?.pic}</strong> • {t('software_mr.col_release_date', 'Rilis')}: {selectedRelease ? new Date(selectedRelease.created_at).toLocaleDateString() : ''}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="secondary" onClick={() => setDetailModalOpen(false)}>
-                Tutup
+                {t('common.close', 'Tutup')}
               </Button>
               <Button
                 variant="primary"
                 onClick={() => handleCopy(selectedRelease?.release_note_format, 'Format Release Note')}
               >
                 <Copy size={14} />
-                Salin Release Note
+                {t('software_mr.copy_release_note', 'Salin Release Note')}
               </Button>
             </div>
           </div>
@@ -812,7 +812,7 @@ export const SoftwareMRPage = () => {
             {/* Version Information Grid */}
             <div className={styles.modalGrid}>
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Model Target</span>
+                <span className={styles.infoLabel}>{t('software_mr.target_model', 'Model Target')}</span>
                 <span className={styles.infoValue}>
                   {selectedRelease.model}
                   <button
@@ -826,12 +826,12 @@ export const SoftwareMRPage = () => {
               </div>
 
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>PIC Release</span>
+                <span className={styles.infoLabel}>{t('software_mr.col_pic', 'PIC Release')}</span>
                 <span className={styles.infoValue}>{selectedRelease.pic}</span>
               </div>
 
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>AP Version</span>
+                <span className={styles.infoLabel}>{t('software_mr.col_ap', 'AP Version')}</span>
                 <span className={styles.infoValue}>
                   <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>{selectedRelease.ap}</span>
                   <button
@@ -845,7 +845,7 @@ export const SoftwareMRPage = () => {
               </div>
 
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>CP Version</span>
+                <span className={styles.infoLabel}>{t('software_mr.col_cp', 'CP Version')}</span>
                 <span className={styles.infoValue}>
                   <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>{selectedRelease.cp}</span>
                   <button
@@ -859,7 +859,7 @@ export const SoftwareMRPage = () => {
               </div>
 
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>CSC Version (Base)</span>
+                <span className={styles.infoLabel}>{t('software_mr.col_csc', 'CSC Version (Base)')}</span>
                 <span className={styles.infoValue}>
                   <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>{selectedRelease.csc}</span>
                   <button
@@ -873,7 +873,7 @@ export const SoftwareMRPage = () => {
               </div>
 
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>CSC Version Up</span>
+                <span className={styles.infoLabel}>{t('software_mr.col_csc_version_up', 'CSC Version Up')}</span>
                 <span className={styles.infoValue}>
                   <span style={{ fontFamily: 'var(--font-mono, monospace)', color: '#34d399' }}>{selectedRelease.csc_version_up}</span>
                   <button
@@ -890,10 +890,10 @@ export const SoftwareMRPage = () => {
             {/* Release Note Block */}
             <div>
               <span className={styles.infoLabel} style={{ display: 'block', marginBottom: 6 }}>
-                Format Release Note (Cheatsheet Preview):
+                {t('software_mr.release_note_preview', 'Format Release Note (Cheatsheet Preview):')}
               </span>
               <div className={styles.releaseNoteBox}>
-                {selectedRelease.release_note_format || 'Tidak ada teks release note.'}
+                {selectedRelease.release_note_format || t('software_mr.no_release_note', 'Tidak ada teks release note.')}
               </div>
             </div>
           </div>

@@ -446,10 +446,10 @@ export const SampleManagementPage = () => {
         <div className={styles.titleArea}>
           <h1>
             <PackageCheck size={26} color="var(--color-accent)" />
-            {t('nav.samples_database', 'Database Sample PE')}
+            {t('samples.title', 'Database Sample PE')}
           </h1>
           <p className={styles.subtitle}>
-            Sistem Inventaris, Pelacakan Peminjaman & Matriks Kondisi Sample Perangkat Engineering
+            {t('samples.subtitle', 'Sistem Inventaris, Pelacakan Peminjaman & Matriks Kondisi Sample Perangkat Engineering')}
           </p>
         </div>
 
@@ -462,7 +462,7 @@ export const SampleManagementPage = () => {
               onClick={() => setActiveTab('peminjaman')}
             >
               <Users size={15} />
-              Status Peminjaman
+              {t('samples.tab_borrowing', 'Status Peminjaman')}
             </button>
             <button
               type="button"
@@ -493,7 +493,7 @@ export const SampleManagementPage = () => {
             }}
           >
             <RefreshCw size={14} />
-            Refresh
+            {t('common.refresh', 'Refresh')}
           </Button>
         </div>
       </div>
@@ -502,7 +502,7 @@ export const SampleManagementPage = () => {
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Total Sample</span>
+            <span className={styles.kpiLabel}>{t('samples.kpi_total', 'Total Sample')}</span>
             <span className={styles.kpiValue} style={{ color: 'var(--color-text-primary)' }}>
               {stats.total_samples.toLocaleString()} Unit
             </span>
@@ -514,7 +514,7 @@ export const SampleManagementPage = () => {
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Sedang Dipinjam</span>
+            <span className={styles.kpiLabel}>{t('samples.kpi_borrowed', 'Sedang Dipinjam')}</span>
             <span className={styles.kpiValue} style={{ color: '#f87171' }}>
               {stats.borrowed.toLocaleString()} Unit
             </span>
@@ -526,7 +526,7 @@ export const SampleManagementPage = () => {
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Tersedia (Ready)</span>
+            <span className={styles.kpiLabel}>{t('samples.kpi_available', 'Tersedia (Ready)')}</span>
             <span className={styles.kpiValue} style={{ color: '#34d399' }}>
               {stats.available.toLocaleString()} Unit
             </span>
@@ -538,7 +538,7 @@ export const SampleManagementPage = () => {
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Kondisi Defect / Perbaikan</span>
+            <span className={styles.kpiLabel}>{t('samples.kpi_defects', 'Kondisi Defect / Perbaikan')}</span>
             <span className={styles.kpiValue} style={{ color: '#fbbf24' }}>
               {stats.defects.toLocaleString()} Unit
             </span>

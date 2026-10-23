@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Bot,
   Send,
@@ -391,6 +392,7 @@ const RichMessageContent = ({ content }) => {
 // 5. MAIN AI CHAT WINDOW COMPONENT
 // ----------------------------------------------------------------------------
 export const AiChatWindow = ({ isDrawer = true, onClose }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([
     {
@@ -466,11 +468,11 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
 
   // Clear Chat History
   const handleClearHistory = () => {
-    if (window.confirm('Kosongkan riwayat percakapan AI Assistant?')) {
+    if (window.confirm(t('ai_chat.confirm_clear', 'Kosongkan riwayat percakapan AI Assistant?'))) {
       setMessages([
         {
           role: 'assistant',
-          content: 'Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!',
+          content: t('ai_chat.history_cleared', 'Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!'),
         },
       ]);
       setAttachments([]);
@@ -761,7 +763,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
       {isDragging && (
         <div className={styles.dragOverlay}>
           <Paperclip size={36} />
-          <span>Lepaskan dokumen di sini untuk dilampirkan</span>
+          <span>{t('ai_chat.drop_files', 'Lepaskan dokumen di sini untuk dilampirkan')}</span>
         </div>
       )}
 
@@ -772,7 +774,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             <Bot size={18} />
           </div>
           <div className={styles.headerText}>
-            <h3>SEIN PE AI Assistant</h3>
+            <h3>{t('ai_chat.title', 'SEIN PE AI Assistant')}</h3>
             <div className={styles.headerModel}>
               <span className={styles.onlineBadge} />
               <span>{activeProvider} • {activeModel}</span>
@@ -785,7 +787,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             type="button"
             className={styles.headerBtn}
             onClick={handleClearHistory}
-            title="Bersihkan percakapan"
+            title={t('ai_chat.clear_btn', 'Bersihkan percakapan')}
           >
             <Trash2 size={15} />
           </button>
@@ -796,7 +798,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 type="button"
                 className={styles.headerBtn}
                 onClick={() => setIsMaximized((prev) => !prev)}
-                title={isMaximized ? 'Perkecil Jendela' : 'Perbesar Jendela (Maximize)'}
+                title={isMaximized ? t('common.minimize', 'Perkecil Jendela') : t('common.maximize', 'Perbesar Jendela')}
               >
                 {isMaximized ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
@@ -804,7 +806,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 type="button"
                 className={styles.headerBtn}
                 onClick={handleDetachWindow}
-                title="Buka di Jendela Baru (Detach Standalone)"
+                title={t('ai_chat.open_standalone', 'Buka di Jendela Baru (Detach Standalone)')}
               >
                 <ExternalLink size={15} />
               </button>
@@ -818,7 +820,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
               if (onClose) onClose();
               navigate('/settings');
             }}
-            title="Konfigurasi Model & Endpoint LLM"
+            title={t('nav.settings', 'Konfigurasi Model & Endpoint LLM')}
           >
             <Settings size={15} />
           </button>
@@ -828,7 +830,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
               type="button"
               className={styles.headerBtn}
               onClick={onClose}
-              aria-label="Tutup Chat"
+              aria-label={t('common.close', 'Tutup Chat')}
             >
               <X size={16} />
             </button>
@@ -903,7 +905,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             <div className={`${styles.messageBubble} ${styles.assistantBubble}`}>
               <em style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Sparkles size={14} color="#3b82f6" />
-                Sedang memproses dengan {activeModel}...
+                {t('ai_chat.thinking', 'Sedang memproses...')} ({activeModel})
               </em>
             </div>
           </div>
@@ -948,7 +950,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                     type="button"
                     className={styles.attachmentRemoveBtn}
                     onClick={() => handleRemoveAttachment(a.id)}
-                    title="Hapus Lampiran"
+                    title={t('common.delete', 'Hapus')}
                   >
                     <X size={12} />
                   </button>
@@ -969,7 +971,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 handleSendMessage();
               }
             }}
-            placeholder="Tanya apa saja ke AI..."
+            placeholder={t('ai_chat.input_placeholder', 'Tanya apa saja ke AI...')}
             className={styles.composerTextarea}
             disabled={isSending}
             autoFocus
@@ -982,13 +984,13 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 type="button"
                 className={styles.attachBtn}
                 onClick={() => fileInputRef.current?.click()}
-                title="Lampirkan Dokumen (TXT, CSV, JSON, Log, PDF, Image)"
+                title={t('ai_chat.attach_tooltip', 'Lampirkan Dokumen (TXT, CSV, JSON, Log, PDF, Image)')}
               >
                 <Paperclip size={17} />
               </button>
               {attachments.length > 0 && (
                 <span className={styles.attachmentsCount}>
-                  {attachments.length} lampiran
+                  {attachments.length} {t('common.files', 'lampiran')}
                 </span>
               )}
             </div>
@@ -998,7 +1000,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 type="submit"
                 disabled={isSending || (!inputVal.trim() && attachments.length === 0)}
                 className={styles.sendBtn}
-                title="Kirim Pesan (Enter)"
+                title={t('ai_chat.send_btn', 'Kirim Pesan (Enter)')}
               >
                 <Send size={15} />
               </button>

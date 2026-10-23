@@ -275,7 +275,7 @@ export const GmesMonitoringPage = () => {
             type="button"
             className={styles.secondaryButton}
             onClick={loadAllData}
-            title="Refresh Data"
+            title={t('gmes.refresh_btn', 'Refresh Data')}
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -286,7 +286,7 @@ export const GmesMonitoringPage = () => {
             onClick={handleOpenCreateModal}
           >
             <Plus size={16} />
-            <span>Laporkan Issue Line</span>
+            <span>{t('gmes.report_issue', 'Laporkan Issue Line')}</span>
           </button>
         </div>
       </div>
@@ -298,9 +298,9 @@ export const GmesMonitoringPage = () => {
             <AlertTriangle size={24} />
           </div>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Total Defect Units</span>
+            <span className={styles.kpiLabel}>{t('gmes.total_defect_units', 'Total Defect Units')}</span>
             <span className={styles.kpiValue}>{stats ? stats.total_fail_qty.toLocaleString() : '0'}</span>
-            <span className={styles.kpiSub}>Across all active lines</span>
+            <span className={styles.kpiSub}>{t('gmes.across_active_lines', 'Across all active lines')}</span>
           </div>
         </div>
 
@@ -309,9 +309,9 @@ export const GmesMonitoringPage = () => {
             <Clock size={24} />
           </div>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Active Open Issues</span>
+            <span className={styles.kpiLabel}>{t('gmes.active_open_issues', 'Active Open Issues')}</span>
             <span className={styles.kpiValue}>{stats ? stats.active_issues : '0'}</span>
-            <span className={styles.kpiSub}>Requires action / investigation</span>
+            <span className={styles.kpiSub}>{t('gmes.requires_action', 'Requires action / investigation')}</span>
           </div>
         </div>
 
@@ -320,9 +320,9 @@ export const GmesMonitoringPage = () => {
             <BarChart2 size={24} />
           </div>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Top Defect Process</span>
+            <span className={styles.kpiLabel}>{t('gmes.top_defect_process', 'Top Defect Process')}</span>
             <span className={styles.kpiValue} style={{ fontSize: '1.15rem' }}>{stats?.worst_process || '-'}</span>
-            <span className={styles.kpiSub}>Highest fail contribution</span>
+            <span className={styles.kpiSub}>{t('gmes.highest_fail_contrib', 'Highest fail contribution')}</span>
           </div>
         </div>
 
@@ -331,9 +331,9 @@ export const GmesMonitoringPage = () => {
             <Layers size={24} />
           </div>
           <div className={styles.kpiContent}>
-            <span className={styles.kpiLabel}>Most Impacted Line</span>
+            <span className={styles.kpiLabel}>{t('gmes.most_impacted_line', 'Most Impacted Line')}</span>
             <span className={styles.kpiValue}>{stats?.worst_line || '-'}</span>
-            <span className={styles.kpiSub}>Assembly Line bottleneck</span>
+            <span className={styles.kpiSub}>{t('gmes.assembly_bottleneck', 'Assembly Line bottleneck')}</span>
           </div>
         </div>
       </div>
@@ -383,7 +383,7 @@ export const GmesMonitoringPage = () => {
           style={{ borderRadius: '6px' }}
         >
           <AlertTriangle size={15} />
-          Daftar Worst Defect ({issues.length})
+          {t('gmes.worst_defects_title', 'Daftar Worst Defect')} ({issues.length})
         </button>
         <button
           type="button"
@@ -392,7 +392,7 @@ export const GmesMonitoringPage = () => {
           style={{ borderRadius: '6px' }}
         >
           <FileSpreadsheet size={15} />
-          Riwayat Pengukuran Station ({measurements.length})
+          {t('gmes.telemetry_history', 'Riwayat Pengukuran Station')} ({measurements.length})
         </button>
       </div>
 
@@ -403,12 +403,12 @@ export const GmesMonitoringPage = () => {
             {activeTabSub === 'worst_list' ? (
               <>
                 <AlertTriangle size={18} className="text-amber-500" />
-                Worst List Issues — {activeProcess}
+                {t('gmes.worst_defects_title', 'Worst List Issues')} — {activeProcess}
               </>
             ) : (
               <>
                 <FileSpreadsheet size={18} className="text-blue-500" />
-                Measurement Telemetry History — {activeProcess}
+                {t('gmes.telemetry_history', 'Measurement Telemetry History')} — {activeProcess}
               </>
             )}
           </h2>
@@ -427,7 +427,7 @@ export const GmesMonitoringPage = () => {
                   fontSize: '0.85rem'
                 }}
               >
-                <option value="ALL">Semua Status</option>
+                <option value="ALL">{t('common.all_status', 'Semua Status')}</option>
                 <option value="OPEN">OPEN</option>
                 <option value="INVESTIGATING">INVESTIGATING</option>
                 <option value="ACTION_TAKEN">ACTION_TAKEN</option>
@@ -439,7 +439,7 @@ export const GmesMonitoringPage = () => {
               <Search size={16} />
               <input
                 type="text"
-                placeholder="Cari item / PIC / line..."
+                placeholder={t('gmes.search_placeholder', 'Cari item / PIC / line...')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -462,28 +462,28 @@ export const GmesMonitoringPage = () => {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ width: '50px' }}>Rank</th>
-                  <th>Process</th>
-                  <th>Line</th>
-                  <th>Model</th>
-                  <th>Test Item / Defect</th>
-                  <th style={{ width: '180px' }}>Share % & Fail Qty</th>
-                  <th>Status</th>
-                  <th>PIC & Tindakan / Countermeasure</th>
-                  <th style={{ textAlign: 'right', width: '90px' }}>Aksi</th>
+                  <th style={{ width: '50px' }}>{t('gmes.rank', 'Rank')}</th>
+                  <th>{t('gmes.process', 'Process')}</th>
+                  <th>{t('gmes.line_name', 'Line')}</th>
+                  <th>{t('gmes.model', 'Model')}</th>
+                  <th>{t('gmes.defect_name', 'Test Item / Defect')}</th>
+                  <th style={{ width: '180px' }}>{t('gmes.failure_rate', 'Share % & Fail Qty')}</th>
+                  <th>{t('gmes.status', 'Status')}</th>
+                  <th>{t('gmes.countermeasure', 'PIC & Tindakan / Countermeasure')}</th>
+                  <th style={{ textAlign: 'right', width: '90px' }}>{t('common.actions', 'Aksi')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
-                      Memuat data GMES...
+                      {t('common.loading', 'Memuat data GMES...')}
                     </td>
                   </tr>
                 ) : issues.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                      Tidak ada issue defect untuk proses ini.
+                      {t('gmes.no_data', 'Tidak ada issue defect untuk proses ini.')}
                     </td>
                   </tr>
                 ) : (

@@ -515,14 +515,14 @@ export const TrainingPage = () => {
               checked={mandatoryOnly}
               onChange={(e) => setMandatoryOnly(e.target.checked)}
             />
-            Hanya Wajib (Mandatory)
+            {t('training.mandatory_only', 'Hanya Wajib (Mandatory)')}
           </label>
 
           <div className={styles.searchBox}>
             <Search size={16} />
             <input
               type="text"
-              placeholder="Cari training..."
+              placeholder={t('training.search_placeholder', 'Cari training...')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -543,12 +543,12 @@ export const TrainingPage = () => {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
           <RefreshCw size={28} className="animate-spin" style={{ margin: '0 auto 1rem' }} />
-          <p>Memuat daftar training online...</p>
+          <p>{t('common.loading', 'Memuat daftar training online...')}</p>
         </div>
       ) : trainings.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
           <AlertCircle size={32} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-          <p>Tidak ada modul training yang cocok dengan filter.</p>
+          <p>{t('training.no_modules_found', 'Tidak ada modul training yang cocok dengan filter.')}</p>
         </div>
       ) : (
         <div className={styles.cardGrid}>
@@ -612,7 +612,7 @@ export const TrainingPage = () => {
                       className={styles.launchButton}
                     >
                       <ExternalLink size={16} />
-                      <span>Buka Kursus Training</span>
+                      <span>{t('training.open_course', 'Buka Kursus Training')}</span>
                     </a>
 
                     {/* View Post-Test Key Button */}
@@ -624,7 +624,7 @@ export const TrainingPage = () => {
                           onClick={() => handleOpenUnlockModal(tItem)}
                         >
                           <Lock size={15} />
-                          <span>Lihat Kunci Jawaban</span>
+                          <span>{t('training.view_answer_key', 'Lihat Kunci Jawaban')}</span>
                         </button>
                       ) : (
                         <div className={styles.noKeyBadge}>

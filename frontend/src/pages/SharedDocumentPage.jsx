@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   FileText,
   Download,
@@ -16,9 +17,11 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { LanguageSwitcher } from '../components/common/LanguageSwitcher';
 import styles from './SharedDocumentPage.module.css';
 
 export const SharedDocumentPage = () => {
+  const { t } = useTranslation();
   const { token } = useParams();
   const { user } = useAuth();
 
@@ -40,7 +43,7 @@ export const SharedDocumentPage = () => {
       const res = await axios.get(`/api/v1/shared/documents/${token}`);
       setShareData(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Dokumen tidak ditemukan atau link telah kedaluwarsa.');
+      setError(err.response?.data?.message || t('shared_doc.link_expired_desc', 'Dokumen tidak ditemukan atau link telah kedaluwarsa.'));
     } finally {
       setLoading(false);
     }
@@ -56,7 +59,7 @@ export const SharedDocumentPage = () => {
   const handleUnlockPassword = async (e) => {
     e.preventDefault();
     if (!passwordInput.trim()) {
-      setPasswordError('Silakan masukkan kata sandi.');
+      setPasswordError(t('shared_doc.input_password_placeholder', 'Silakan masukkan kata sandi.'));
       return;
     }
 
@@ -68,7 +71,7 @@ export const SharedDocumentPage = () => {
       });
       setUnlockedPassword(passwordInput);
     } catch (err) {
-      setPasswordError(err.response?.data?.message || 'Kata sandi tidak sesuai. Silakan coba lagi.');
+      setPasswordError(err.response?.data?.message || t('shared_doc.wrong_password', 'Kata sandi tidak sesuai. Silakan coba lagi.'));
     } finally {
       setVerifying(false);
     }
@@ -119,10 +122,11 @@ export const SharedDocumentPage = () => {
               <div className={styles.brandSub}>Samsung Electronics Indonesia</div>
             </div>
           </div>
+          <LanguageSwitcher />
         </div>
         <div className={styles.contentWrapper} style={{ textAlign: 'center', padding: '80px 20px' }}>
           <div style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>
-            Memuat informasi dokumen sharing...
+            {t('common.loading', 'Memuat...')}
           </div>
         </div>
       </div>
@@ -140,16 +144,17 @@ export const SharedDocumentPage = () => {
               <div className={styles.brandSub}>Samsung Electronics Indonesia</div>
             </div>
           </div>
+          <LanguageSwitcher />
         </div>
         <div className={styles.contentWrapper}>
           <div className={styles.gateCard}>
             <div className={styles.gateIconBox} style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444' }}>
               <AlertCircle size={32} />
             </div>
-            <h2 className={styles.gateTitle}>Tautan Tidak Tersedia</h2>
-            <p className={styles.gateDesc}>{error || 'Dokumen tidak ditemukan atau tautan ini telah dinonaktifkan.'}</p>
+            <h2 className={styles.gateTitle}>{t('shared_doc.link_expired_title', 'Tautan Tidak Tersedia')}</h2>
+            <p className={styles.gateDesc}>{error || t('shared_doc.link_expired_desc', 'Dokumen tidak ditemukan atau tautan ini telah dinonaktifkan.')}</p>
             <Link to="/" className={styles.btnSecondary}>
-              Kembali ke Beranda
+              {t('common.back', 'Kembali ke Beranda')}
             </Link>
           </div>
         </div>
@@ -172,18 +177,19 @@ export const SharedDocumentPage = () => {
               <div className={styles.brandSub}>Samsung Electronics Indonesia</div>
             </div>
           </div>
+          <LanguageSwitcher />
         </div>
         <div className={styles.contentWrapper}>
           <div className={styles.gateCard}>
             <div className={styles.gateIconBox} style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
               <ShieldCheck size={32} />
             </div>
-            <h2 className={styles.gateTitle}>Login Diperlukan</h2>
+            <h2 className={styles.gateTitle}>{t('auth.login_title', 'Login Diperlukan')}</h2>
             <p className={styles.gateDesc}>
-              Dokumen <strong>{doc?.title || 'ini'}</strong> diproteksi dengan aturan <strong>Login Required</strong>. Silakan masuk dengan akun PE-Portal Anda untuk membuka dan mengunduh berkas.
+              {t('documents.rule_login_required', 'Login Required')}: {doc?.title || ''}. {t('auth.login_prompt', 'Silakan masuk dengan akun PE-Portal Anda untuk membuka dan mengunduh berkas.')}
             </p>
             <Link to={`/login?redirect=/share/${token}`} className={styles.btnPrimary}>
-              Masuk ke Akun PE-Portal
+              {t('nav.login', 'Masuk ke Akun PE-Portal')}
             </Link>
           </div>
         </div>
@@ -203,15 +209,16 @@ export const SharedDocumentPage = () => {
               <div className={styles.brandSub}>Samsung Electronics Indonesia</div>
             </div>
           </div>
+          <LanguageSwitcher />
         </div>
         <div className={styles.contentWrapper}>
           <div className={styles.gateCard}>
             <div className={styles.gateIconBox} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
               <KeyRound size={32} />
             </div>
-            <h2 className={styles.gateTitle}>Dokumen Diproteksi Kata Sandi</h2>
+            <h2 className={styles.gateTitle}>{t('shared_doc.password_prompt_title', 'Dokumen Diproteksi Kata Sandi')}</h2>
             <p className={styles.gateDesc}>
-              File <strong>{doc?.title || 'Dokumen'}</strong> dikunci dengan proteksi kata sandi. Masukkan kata sandi yang diberikan untuk melihat dan mengunduh.
+              {t('shared_doc.password_prompt_desc', 'File dikunci dengan proteksi kata sandi. Masukkan kata sandi yang diberikan untuk melihat dan mengunduh.')}
             </p>
 
             {passwordError && (
@@ -223,18 +230,18 @@ export const SharedDocumentPage = () => {
 
             <form onSubmit={handleUnlockPassword} className={styles.formBox}>
               <div className={styles.inputGroup}>
-                <label>Kata Sandi Akses</label>
+                <label>{t('shared_doc.input_password_label', 'Kata Sandi Akses')}</label>
                 <input
                   type="password"
                   className={styles.inputField}
-                  placeholder="Masukkan password dokumen..."
+                  placeholder={t('shared_doc.input_password_placeholder', 'Masukkan password dokumen...')}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   autoFocus
                 />
               </div>
               <button type="submit" className={styles.btnPrimary} disabled={verifying}>
-                {verifying ? 'Memverifikasi...' : 'Buka Dokumen'}
+                {verifying ? t('common.loading', 'Memverifikasi...') : t('shared_doc.submit_btn', 'Buka Dokumen')}
               </button>
             </form>
           </div>
@@ -258,19 +265,22 @@ export const SharedDocumentPage = () => {
             <div className={styles.brandSub}>Samsung Electronics Indonesia</div>
           </div>
         </div>
-        {user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>Login sebagai:</span>
-            <strong>{user.full_name || user.username}</strong>
-            <Link to="/" style={{ color: 'var(--color-accent)', textDecoration: 'none', marginLeft: '8px', fontWeight: 600 }}>
-              Ke Portal
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <LanguageSwitcher />
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+              <span style={{ color: 'var(--color-text-secondary)' }}>{t('common.logged_in_as', 'Login sebagai:')}</span>
+              <strong>{user.full_name || user.username}</strong>
+              <Link to="/" style={{ color: 'var(--color-accent)', textDecoration: 'none', marginLeft: '8px', fontWeight: 600 }}>
+                {t('nav.portal', 'Ke Portal')}
+              </Link>
+            </div>
+          ) : (
+            <Link to={`/login?redirect=/share/${token}`} className={styles.btnSecondary} style={{ padding: '6px 12px', fontSize: '12px' }}>
+              {t('nav.login', 'Masuk Portal')}
             </Link>
-          </div>
-        ) : (
-          <Link to={`/login?redirect=/share/${token}`} className={styles.btnSecondary} style={{ padding: '6px 12px', fontSize: '12px' }}>
-            Masuk Portal
-          </Link>
-        )}
+          )}
+        </div>
       </header>
 
       <main className={styles.contentWrapper}>
@@ -337,7 +347,7 @@ export const SharedDocumentPage = () => {
             {shareData.allow_download && (
               <a href={getDownloadUrl()} download className={styles.btnPrimary}>
                 <Download size={16} />
-                <span>Unduh File Asli</span>
+                <span>{t('shared_doc.download_btn', 'Unduh File Asli')}</span>
               </a>
             )}
             <a
@@ -347,7 +357,7 @@ export const SharedDocumentPage = () => {
               className={styles.btnSecondary}
             >
               <ExternalLink size={16} />
-              <span>Buka di Tab Baru</span>
+              <span>{t('shared_doc.open_new_tab', 'Buka di Tab Baru')}</span>
             </a>
           </div>
         </div>
@@ -357,10 +367,10 @@ export const SharedDocumentPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Eye size={16} color="var(--color-accent)" />
-              <span>Pratinjau Dokumen</span>
+              <span>{t('shared_doc.preview_title', 'Pratinjau Dokumen')}</span>
             </h3>
             <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-              Total Dilihat: {shareData.view_count || 1} • Diunduh: {shareData.download_count || 0}
+              {t('common.views', 'Dilihat')}: {shareData.view_count || 1} • {t('common.downloads', 'Diunduh')}: {shareData.download_count || 0}
             </span>
           </div>
 
@@ -386,14 +396,14 @@ export const SharedDocumentPage = () => {
             ) : (
               <div style={{ padding: '60px 20px', textAlign: 'center' }}>
                 <FileText size={48} color="var(--color-accent)" style={{ marginBottom: '14px' }} />
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>Pratinjau File Office / Biner</h4>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>{t('shared_doc.office_preview_title', 'Pratinjau File Office / Biner')}</h4>
                 <p style={{ margin: '0 0 20px 0', color: 'var(--color-text-secondary)', fontSize: '13px', maxWidth: '420px' }}>
-                  Format <strong>{doc.file_type?.toUpperCase()}</strong> disarankan untuk diunduh langsung untuk melihat isi lembar kerja atau presentasi secara penuh.
+                  {t('shared_doc.office_preview_desc', 'Format berkas disarankan untuk diunduh langsung untuk melihat isi lembar kerja atau presentasi secara penuh.')}
                 </p>
                 {shareData.allow_download && (
                   <a href={getDownloadUrl()} download className={styles.btnPrimary}>
                     <Download size={15} />
-                    <span>Unduh {doc.file_name}</span>
+                    <span>{t('shared_doc.download_file', 'Unduh')} {doc.file_name}</span>
                   </a>
                 )}
               </div>
