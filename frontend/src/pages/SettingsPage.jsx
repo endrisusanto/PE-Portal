@@ -339,7 +339,7 @@ export const SettingsPage = () => {
         borderRadius: 'var(--radius-md)',
         padding: '24px',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
           <div>
             <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={18} color="var(--color-accent)" />
@@ -349,6 +349,27 @@ export const SettingsPage = () => {
               {t('settings.smtp_desc', 'Configure outbound email server for work reports, digital articles and automated scheduled deliveries')}
             </p>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            style={{ fontSize: '0.75rem', height: '32px', padding: '0 10px' }}
+            onClick={() => {
+              setSmtpConfig((prev) => ({
+                ...prev,
+                name: 'Samsung Corporate SMTP',
+                host: 'smtp.samsung.net',
+                port: 25,
+                encryption: 'auto',
+                username: 'endri.s@samsung.com',
+                password: prev.password || 'sein2016!',
+                from_email: 'endri.s@samsung.com',
+                from_name: prev.from_name || 'Endri Susanto (PE Portal)',
+              }));
+              setSmtpFeedback({ type: 'success', text: 'Template config Samsung Net (Port 25, Auto SMTPSecure) berhasil dimuat!' });
+            }}
+          >
+            Gunakan Preset Samsung Intranet (smtp.samsung.net)
+          </Button>
         </div>
 
         {smtpFeedback && (
@@ -383,16 +404,16 @@ export const SettingsPage = () => {
             value={smtpConfig.host}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
             required
-            placeholder="smtp.sein.corp.local"
+            placeholder="smtp.samsung.net"
           />
 
           <Input
             label={t('settings.smtp_port', 'Port')}
             type="number"
             value={smtpConfig.port}
-            onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value) || 587 })}
+            onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value) || 25 })}
             required
-            placeholder="587 or 465"
+            placeholder="25, 587, or 465"
           />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -411,6 +432,7 @@ export const SettingsPage = () => {
                 color: 'var(--color-text-primary)',
               }}
             >
+              <option value="auto">Auto (Opportunistic TLS / Port 25/587)</option>
               <option value="tls">{t('settings.smtp_enc_tls', 'STARTTLS (Port 587)')}</option>
               <option value="ssl">{t('settings.smtp_enc_ssl', 'SSL / TLS Direct (Port 465)')}</option>
               <option value="none">{t('settings.smtp_enc_none', 'Plain / None (Port 25)')}</option>
@@ -418,14 +440,14 @@ export const SettingsPage = () => {
           </div>
 
           <Input
-            label={t('settings.smtp_username', 'Username (Optional)')}
+            label={t('settings.smtp_username', 'Username / Account')}
             value={smtpConfig.username}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, username: e.target.value })}
-            placeholder="pe-reporter@samsung.com"
+            placeholder="endri.s@samsung.com"
           />
 
           <Input
-            label={t('settings.smtp_password', 'Password (Optional)')}
+            label={t('settings.smtp_password', 'Password')}
             type="password"
             value={smtpConfig.password}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, password: e.target.value })}
@@ -437,7 +459,7 @@ export const SettingsPage = () => {
             value={smtpConfig.from_email}
             onChange={(e) => setSmtpConfig({ ...smtpConfig, from_email: e.target.value })}
             required
-            placeholder="pe-reports@samsung.com"
+            placeholder="endri.s@samsung.com"
           />
 
           <Input

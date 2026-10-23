@@ -17,6 +17,34 @@ func NewSMTPService() *SMTPService {
 	return &SMTPService{}
 }
 
+// loginAuth implements LOGIN authentication (commonly used by Microsoft Exchange and enterprise SMTP)
+type loginAuth struct {
+	username, password string
+}
+
+func LoginAuth(username, password string) smtp.Auth {
+	return &loginAuth{username, password}
+}
+
+func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	return "LOGIN", []byte(a.username), nil
+}
+
+func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		switch strings.ToLower(string(fromServer)) {
+		case "username:", "user:":
+			return []byte(a.username), nil
+		case "password:", "pass:":
+			return []byte(a.password), nil
+		default:
+			// Fallback: send password on second challenge
+			return []byte(a.password), nil
+		}
+	}
+	return nil, nil
+}
+
 // SendEmail dispatches an HTML email using Go standard net/smtp
 func (s *SMTPService) SendEmail(cfg *model.SMTPConfig, to []string, cc []string, subject string, htmlBody string) error {
 	if cfg == nil {
@@ -54,17 +82,11 @@ func (s *SMTPService) SendEmail(cfg *model.SMTPConfig, to []string, cc []string,
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
-	// Auth setup
-	var auth smtp.Auth
-	if cfg.Username != "" && cfg.Password != "" {
-		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
-	}
-
 	// Direct SSL/TLS (commonly port 465)
 	if cfg.Encryption == "ssl" || cfg.Port == 465 {
 		tlsConfig := &tls.Config{
 			ServerName:         cfg.Host,
-			InsecureSkipVerify: true, // Allow corporate self-signed certs
+			InsecureSkipVerify: true, // verify_peer: false, allow_self_signed: true
 		}
 		conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, "tcp", addr, tlsConfig)
 		if err != nil {
@@ -78,8 +100,14 @@ func (s *SMTPService) SendEmail(cfg *model.SMTPConfig, to []string, cc []string,
 		}
 		defer client.Close()
 
-		if auth != nil {
-			if ok, _ := client.Extension("AUTH"); ok {
+		if cfg.Username != "" && cfg.Password != "" {
+			if ok, auths := client.Extension("AUTH"); ok {
+				var auth smtp.Auth
+				if strings.Contains(strings.ToUpper(auths), "LOGIN") {
+					auth = LoginAuth(cfg.Username, cfg.Password)
+				} else {
+					auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+				}
 				if err = client.Auth(auth); err != nil {
 					return fmt.Errorf("SMTP authentication failed: %w", err)
 				}
@@ -109,10 +137,10 @@ func (s *SMTPService) SendEmail(cfg *model.SMTPConfig, to []string, cc []string,
 		return client.Quit()
 	}
 
-	// Standard SMTP with STARTTLS (Port 587 or 25)
+	// Standard SMTP connection (Port 25 or 587)
 	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to connect to SMTP host: %w", err)
+		return fmt.Errorf("failed to connect to SMTP host %s: %w", addr, err)
 	}
 	defer conn.Close()
 
@@ -122,20 +150,29 @@ func (s *SMTPService) SendEmail(cfg *model.SMTPConfig, to []string, cc []string,
 	}
 	defer client.Close()
 
-	if cfg.Encryption == "tls" || cfg.Encryption == "starttls" {
+	// SMTPSecure = 'auto' or 'tls' or 'starttls': Upgrade to TLS if STARTTLS supported by server
+	enc := strings.ToLower(strings.TrimSpace(cfg.Encryption))
+	if enc == "auto" || enc == "tls" || enc == "starttls" || enc == "" {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			tlsConfig := &tls.Config{
 				ServerName:         cfg.Host,
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: true, // SMTPOptions verify_peer=false, verify_peer_name=false
 			}
-			if err = client.StartTLS(tlsConfig); err != nil {
+			if err = client.StartTLS(tlsConfig); err != nil && enc != "auto" {
 				return fmt.Errorf("STARTTLS upgrade failed: %w", err)
 			}
 		}
 	}
 
-	if auth != nil {
-		if ok, _ := client.Extension("AUTH"); ok {
+	// Authentication (supports LOGIN & PLAIN with fallback)
+	if cfg.Username != "" && cfg.Password != "" {
+		if ok, auths := client.Extension("AUTH"); ok {
+			var auth smtp.Auth
+			if strings.Contains(strings.ToUpper(auths), "LOGIN") {
+				auth = LoginAuth(cfg.Username, cfg.Password)
+			} else {
+				auth = smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
+			}
 			if err = client.Auth(auth); err != nil {
 				return fmt.Errorf("SMTP authentication failed: %w", err)
 			}
