@@ -8,110 +8,114 @@
 --     2. System Schema Migrations (schema_migrations)
 --     3. Organization Taxonomy & Master Data (group_parts)
 --     4. System Configurations (auth_config, llm_config, mcp_servers, menu_permissions, smtp_configs)
+--   NOTE: Uses dynamic existence checks (to_regclass) so that tables not
+--         yet created/migrated in older schemas do NOT abort the transaction.
 -- ============================================================================
 
-BEGIN;
+DO $$
+DECLARE
+    tbl text;
+    tables text[] := ARRAY[
+        'chat_messages',
+        'chat_sessions',
+        'comments',
+        'document_embeddings',
+        'document_shares',
+        'documents',
+        'project_members',
+        'project_tasks',
+        'projects',
+        'new_model_stages',
+        'new_models',
+        'sample_flows',
+        'samples',
+        'software_mr_releases',
+        'dhl_shipments',
+        'gmes_measurements',
+        'gmes_issues',
+        'training_modules',
+        'imei_articles',
+        'innovation_targets',
+        'innovations',
+        'report_send_logs',
+        'report_schedules',
+        'digital_reports',
+        'audit_logs',
+        'user_email_lists'
+    ];
+BEGIN
+    -- 1. Wipe Dynamic Tables (Only if they exist)
+    FOREACH tbl IN ARRAY tables
+    LOOP
+        IF to_regclass('public.' || tbl) IS NOT NULL THEN
+            EXECUTE 'TRUNCATE TABLE ' || quote_ident(tbl) || ' RESTART IDENTITY CASCADE';
+            RAISE NOTICE '✓ Truncated: %', tbl;
+        ELSE
+            RAISE NOTICE '- Skipped (belum ada): %', tbl;
+        END IF;
+    END LOOP;
 
--- 1. Wipe Collaboration & Comments
-TRUNCATE TABLE chat_messages CASCADE;
-TRUNCATE TABLE chat_sessions CASCADE;
-TRUNCATE TABLE comments CASCADE;
+    -- 2. Wipe Non-Management Dummy/Test Accounts (Preserve admin only)
+    IF to_regclass('public.users') IS NOT NULL THEN
+        DELETE FROM users WHERE role NOT IN ('admin');
 
--- 2. Wipe Documents, Shares & Vector Embeddings
-TRUNCATE TABLE document_embeddings CASCADE;
-TRUNCATE TABLE document_shares CASCADE;
-TRUNCATE TABLE documents CASCADE;
+        -- 3. Ensure default primary Administrator account exists and is active
+        INSERT INTO users (employee_id, username, email, password_hash, full_name, role, auth_provider, is_active)
+        VALUES (
+            'ADMIN001',
+            'admin',
+            'admin@sein.local',
+            '$2b$12$Rx1qMTNxaOYMrbGP5WtohuGfvngsTBjc.X3bYR0szc/jgY119fI.W',
+            'System Administrator',
+            'admin',
+            'local',
+            true
+        )
+        ON CONFLICT (username) DO UPDATE SET
+            role = 'admin',
+            is_active = true;
+        RAISE NOTICE '✓ Preserved & ensured primary admin account (username: admin)';
+    END IF;
+END $$;
 
--- 3. Wipe Milestone Task Projects & Tasks
-TRUNCATE TABLE project_members CASCADE;
-TRUNCATE TABLE project_tasks CASCADE;
-TRUNCATE TABLE projects CASCADE;
+-- Verification: Display status of database tables safely without crashing
+DO $$
+DECLARE
+    tbl text;
+    cnt bigint;
+    check_tables text[] := ARRAY[
+        'users',
+        'group_parts',
+        'menu_permissions',
+        'auth_config',
+        'llm_config',
+        'mcp_servers',
+        'smtp_configs',
+        'samples',
+        'software_mr_releases',
+        'projects',
+        'comments',
+        'documents',
+        'innovations',
+        'gmes_issues',
+        'training_modules',
+        'audit_logs'
+    ];
+BEGIN
+    RAISE NOTICE ' ';
+    RAISE NOTICE '==================================================';
+    RAISE NOTICE '  VERIFIKASI STATUS TABEL SETELAH WIPE:';
+    RAISE NOTICE '==================================================';
+    FOREACH tbl IN ARRAY check_tables
+    LOOP
+        IF to_regclass('public.' || tbl) IS NOT NULL THEN
+            EXECUTE 'SELECT COUNT(*) FROM ' || quote_ident(tbl) INTO cnt;
+            RAISE NOTICE '  % : % rows', rpad(tbl, 28, ' '), cnt;
+        ELSE
+            RAISE NOTICE '  % : (tabel belum dibuat)', rpad(tbl, 28, ' ');
+        END IF;
+    END LOOP;
+    RAISE NOTICE '==================================================';
+END $$;
 
--- 4. Wipe New Model Developments
-TRUNCATE TABLE new_model_stages CASCADE;
-TRUNCATE TABLE new_models CASCADE;
-
--- 5. Wipe Sample Management Inventory & Flow Records
-TRUNCATE TABLE sample_flows CASCADE;
-TRUNCATE TABLE samples RESTART IDENTITY CASCADE;
-
--- 6. Wipe Software MR Releases & DHL Shipments
-TRUNCATE TABLE software_mr_releases RESTART IDENTITY CASCADE;
-TRUNCATE TABLE dhl_shipments RESTART IDENTITY CASCADE;
-
--- 7. Wipe GMES Line Issues, Measurements & Training Modules
-TRUNCATE TABLE gmes_measurements RESTART IDENTITY CASCADE;
-TRUNCATE TABLE gmes_issues RESTART IDENTITY CASCADE;
-TRUNCATE TABLE training_modules RESTART IDENTITY CASCADE;
-
--- 8. Wipe Engineering Articles & Innovations
-TRUNCATE TABLE imei_articles RESTART IDENTITY CASCADE;
-TRUNCATE TABLE innovation_targets CASCADE;
-TRUNCATE TABLE innovations CASCADE;
-
--- 9. Wipe Digital Reports, Schedules & Audit Logs
-TRUNCATE TABLE report_send_logs CASCADE;
-TRUNCATE TABLE report_schedules RESTART IDENTITY CASCADE;
-TRUNCATE TABLE digital_reports RESTART IDENTITY CASCADE;
-TRUNCATE TABLE audit_logs CASCADE;
-
--- 10. Wipe Custom User Email Distribution Lists
-TRUNCATE TABLE user_email_lists RESTART IDENTITY CASCADE;
-
--- 11. Wipe Non-Management Dummy/Test Accounts
--- Only users with role 'admin' are preserved!
-DELETE FROM users WHERE role NOT IN ('admin');
-
--- 12. Ensure default primary Administrator account exists and is active
-INSERT INTO users (employee_id, username, email, password_hash, full_name, role, auth_provider, is_active)
-VALUES (
-    'ADMIN001',
-    'admin',
-    'admin@sein.local',
-    '$2b$12$Rx1qMTNxaOYMrbGP5WtohuGfvngsTBjc.X3bYR0szc/jgY119fI.W',
-    'System Administrator',
-    'admin',
-    'local',
-    true
-)
-ON CONFLICT (username) DO UPDATE SET
-    role = 'admin',
-    is_active = true;
-
-COMMIT;
-
--- Verification: Display status of database tables
 SELECT 'Production Wipe Complete!' AS status;
-
-SELECT 
-    'users (management only)' AS entity, COUNT(*) AS count FROM users
-UNION ALL
-SELECT 'group_parts (master)', COUNT(*) FROM group_parts
-UNION ALL
-SELECT 'menu_permissions (config)', COUNT(*) FROM menu_permissions
-UNION ALL
-SELECT 'auth_config (config)', COUNT(*) FROM auth_config
-UNION ALL
-SELECT 'llm_config (config)', COUNT(*) FROM llm_config
-UNION ALL
-SELECT 'mcp_servers (config)', COUNT(*) FROM mcp_servers
-UNION ALL
-SELECT 'smtp_configs (config)', COUNT(*) FROM smtp_configs
-UNION ALL
-SELECT 'samples (wiped)', COUNT(*) FROM samples
-UNION ALL
-SELECT 'software_mr_releases (wiped)', COUNT(*) FROM software_mr_releases
-UNION ALL
-SELECT 'projects (wiped)', COUNT(*) FROM projects
-UNION ALL
-SELECT 'comments (wiped)', COUNT(*) FROM comments
-UNION ALL
-SELECT 'documents (wiped)', COUNT(*) FROM documents
-UNION ALL
-SELECT 'innovations (wiped)', COUNT(*) FROM innovations
-UNION ALL
-SELECT 'gmes_issues (wiped)', COUNT(*) FROM gmes_issues
-UNION ALL
-SELECT 'training_modules (wiped)', COUNT(*) FROM training_modules
-UNION ALL
-SELECT 'audit_logs (wiped)', COUNT(*) FROM audit_logs;
