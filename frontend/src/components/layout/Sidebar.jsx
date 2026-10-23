@@ -272,7 +272,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       onToggle: () => handleToggleGroup('software-team'),
       children: softwareTeamSubItems,
     },
-    { key: 'projects', to: '/projects', label: t('nav.projects', 'Task Analyst'), icon: FolderKanban },
+    { key: 'projects', to: '/projects', label: t('nav.projects', 'ToDo List'), icon: FolderKanban },
     { key: 'team', to: '/team', label: t('nav.team'), icon: Users },
     {
       isGroup: true,

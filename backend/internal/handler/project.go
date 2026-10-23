@@ -85,6 +85,39 @@ type CreateProjectRequest struct {
 	SendEmail      bool            `json:"send_email"`
 }
 
+type projectMetadataHelper struct {
+	Visibility    string `json:"visibility"`
+	CreatedByID   string `json:"created_by_id"`
+	CreatedByName string `json:"created_by_name"`
+	AssignedPics  []struct {
+		ID       string `json:"id"`
+		FullName string `json:"full_name"`
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+	} `json:"assigned_pics"`
+}
+
+// ponytail: helper to extract distinct emails from assigned_pics
+func extractAssignedEmails(metadata json.RawMessage) []string {
+	if len(metadata) == 0 {
+		return nil
+	}
+	var helper projectMetadataHelper
+	if err := json.Unmarshal(metadata, &helper); err != nil {
+		return nil
+	}
+	var emails []string
+	seen := make(map[string]bool)
+	for _, pic := range helper.AssignedPics {
+		if pic.Email != "" && !seen[pic.Email] {
+			seen[pic.Email] = true
+			emails = append(emails, pic.Email)
+		}
+	}
+	return emails
+}
+
 func (h *ProjectHandler) Create(c echo.Context) error {
 	var req CreateProjectRequest
 	if err := c.Bind(&req); err != nil {
@@ -129,47 +162,51 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	// Send SMTP assignment notification if requested and PIC is assigned
-	if req.SendEmail && ownerID != nil && h.userRepo != nil && h.reportRepo != nil && h.smtpSvc != nil {
-		go func(targetUserID uuid.UUID, projectTitle string, pType string, priority string, progress int, targetDateStr string, desc string) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			assignee, err := h.userRepo.GetByID(ctx, targetUserID)
-			if err != nil || assignee == nil || assignee.Email == "" {
-				return
+	// Send SMTP assignment notification if requested and PIC is assigned (supports multiple PICs)
+	if req.SendEmail && h.userRepo != nil && h.reportRepo != nil && h.smtpSvc != nil {
+		toEmails := extractAssignedEmails(req.Metadata)
+		if len(toEmails) == 0 && ownerID != nil {
+			assignee, err := h.userRepo.GetByID(c.Request().Context(), *ownerID)
+			if err == nil && assignee != nil && assignee.Email != "" {
+				toEmails = append(toEmails, assignee.Email)
 			}
+		}
 
-			smtpCfg, err := h.reportRepo.GetDefaultSMTP(ctx)
-			if err != nil || smtpCfg == nil || smtpCfg.Host == "" {
-				return
-			}
+		if len(toEmails) > 0 {
+			go func(recipients []string, projectTitle string, pType string, priority string, progress int, targetDateStr string, desc string) {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
 
-			subject := fmt.Sprintf("[PE Milestone Task] Penugasan Issue Baru: %s", projectTitle)
-			priorityColor := "#3b82f6"
-			if priority == "urgent" || priority == "high" {
-				priorityColor = "#ef4444"
-			}
+				smtpCfg, err := h.reportRepo.GetDefaultSMTP(ctx)
+				if err != nil || smtpCfg == nil || smtpCfg.Host == "" {
+					return
+				}
 
-			descHTML := ""
-			if desc != "" {
-				descHTML = fmt.Sprintf(`<div style="margin: 16px 0; padding: 12px 14px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;"><strong>Catatan Investigasi / Detail:</strong><br/><span style="white-space: pre-wrap;">%s</span></div>`, desc)
-			}
+				subject := fmt.Sprintf("[PE ToDo List] Penugasan Baru: %s", projectTitle)
+				priorityColor := "#3b82f6"
+				if priority == "urgent" || priority == "high" {
+					priorityColor = "#ef4444"
+				}
 
-			htmlBody := fmt.Sprintf(`
+				descHTML := ""
+				if desc != "" {
+					descHTML = fmt.Sprintf(`<div style="margin: 16px 0; padding: 12px 14px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;"><strong>Catatan Investigasi / Detail:</strong><br/><span style="white-space: pre-wrap;">%s</span></div>`, desc)
+				}
+
+				htmlBody := fmt.Sprintf(`
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
   <div style="background: #1e293b; padding: 20px 24px; border-bottom: 3px solid #3b82f6;">
     <h2 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 700;">SEIN Production Engineer Portal</h2>
-    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Notifikasi Penugasan Issue / Milestone Task Analisis</p>
+    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Notifikasi Penugasan ToDo List / Milestone Task</p>
   </div>
   <div style="padding: 24px;">
-    <p style="font-size: 14px; color: #1e293b; margin-top: 0;">Halo <strong>%s</strong>,</p>
-    <p style="font-size: 14px; color: #475569; line-height: 1.5;">Anda telah ditugaskan sebagai PIC untuk menganalisa dan memantau progress issue produksi berikut:</p>
+    <p style="font-size: 14px; color: #1e293b; margin-top: 0;">Halo Rekan Engineer,</p>
+    <p style="font-size: 14px; color: #475569; line-height: 1.5;">Anda telah ditugaskan sebagai PIC untuk menganalisa, memproses, dan memantau progress task berikut:</p>
     
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 18px 0;">
       <table style="width: 100%%; border-collapse: collapse; font-size: 13.5px;">
         <tr>
-          <td style="padding: 6px 0; color: #64748b; width: 140px; font-weight: 600;">Judul Issue:</td>
+          <td style="padding: 6px 0; color: #64748b; width: 140px; font-weight: 600;">Judul Task:</td>
           <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">%s</td>
         </tr>
         <tr>
@@ -194,33 +231,33 @@ func (h *ProjectHandler) Create(c echo.Context) error {
     %s
 
     <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.4;">
-      <p style="margin: 0;">Silakan akses <strong>PE-Portal</strong> untuk memperbarui milestone stepper, catatan investigasi, dan uji coba countermeasure.</p>
+      <p style="margin: 0;">Silakan akses <strong>PE-Portal &gt; ToDo List</strong> untuk memperbarui progress, timeline diskusi, dan uji coba.</p>
       <p style="margin: 4px 0 0; color: #94a3b8;">Email ini dikirim otomatis oleh SEIN PE Portal Mail Gateway.</p>
     </div>
   </div>
 </div>`,
-				assignee.FullName,
-				projectTitle,
-				pType,
-				priorityColor,
-				priority,
-				progress,
-				targetDateStr,
-				descHTML,
-			)
+					projectTitle,
+					pType,
+					priorityColor,
+					priority,
+					progress,
+					targetDateStr,
+					descHTML,
+				)
 
-			_ = h.smtpSvc.SendEmail(smtpCfg, []string{assignee.Email}, nil, subject, htmlBody)
-		}(*ownerID, p.Title, p.ProjectType, p.Priority, p.Progress, func() string {
-			if p.TargetDate != nil {
-				return *p.TargetDate
-			}
-			return "-"
-		}(), func() string {
-			if p.Description != nil {
-				return *p.Description
-			}
-			return ""
-		}())
+				_ = h.smtpSvc.SendEmail(smtpCfg, recipients, nil, subject, htmlBody)
+			}(toEmails, p.Title, p.ProjectType, p.Priority, p.Progress, func() string {
+				if p.TargetDate != nil {
+					return *p.TargetDate
+				}
+				return "-"
+			}(), func() string {
+				if p.Description != nil {
+					return *p.Description
+				}
+				return ""
+			}())
+		}
 	}
 
 	return c.JSON(http.StatusCreated, created)
@@ -401,10 +438,13 @@ func (h *ProjectHandler) SendEmailNotification(c echo.Context) error {
 	var toEmails []string
 	if len(req.Recipients) > 0 {
 		toEmails = req.Recipients
-	} else if p.OwnerID != nil && h.userRepo != nil {
-		assignee, err := h.userRepo.GetByID(c.Request().Context(), *p.OwnerID)
-		if err == nil && assignee != nil && assignee.Email != "" {
-			toEmails = append(toEmails, assignee.Email)
+	} else {
+		toEmails = extractAssignedEmails(p.Metadata)
+		if len(toEmails) == 0 && p.OwnerID != nil && h.userRepo != nil {
+			assignee, err := h.userRepo.GetByID(c.Request().Context(), *p.OwnerID)
+			if err == nil && assignee != nil && assignee.Email != "" {
+				toEmails = append(toEmails, assignee.Email)
+			}
 		}
 	}
 

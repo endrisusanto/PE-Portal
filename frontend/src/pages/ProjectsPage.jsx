@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronRight,
   User,
+  Users,
   Mail,
   Send,
   AlertCircle,
@@ -29,8 +30,14 @@ import {
   Paperclip,
   Loader2,
   Upload,
+  Lock,
+  Shield,
+  Globe,
+  UserCheck,
+  X,
 } from 'lucide-react';
 import api from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
@@ -60,20 +67,38 @@ export const getMilestone = (progress = 0) => {
   return MILESTONE_STAGES[0];
 };
 
+// ponytail: Expanded Task & Issue Types including feature requests to admin & general tasks
 export const ISSUE_TYPES = [
   { value: 'mechanical', label: 'Mechanical Issue Analysis' },
   { value: 'process', label: 'Production Process Optimization' },
   { value: 'yield', label: 'Line Yield & Defect Loss' },
   { value: 'tooling', label: 'Tooling, Fixture & JIGs' },
   { value: 'development', label: 'New Model Trial Development' },
+  { value: 'feature_request', label: 'Feature Request & Proposal' },
+  { value: 'improvement', label: 'Process Improvement & Kaizen' },
+  { value: 'bug_fix', label: 'Bug & System Fix' },
+  { value: 'general', label: 'General Task / ToDo' },
 ];
+
+// ponytail: Safely parse JSONB metadata from project record
+export const parseMetadata = (metadata) => {
+  if (!metadata) return {};
+  if (typeof metadata === 'object') return metadata;
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return {};
+  }
+};
 
 export const ProjectsPage = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('matrix'); // 'matrix' | 'kanban' | 'table'
+  const [viewMode, setViewMode] = useState('kanban'); // Default: 'kanban' | 'matrix' | 'table'
+  const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'my_tasks'
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [toastMessage, setToastMessage] = useState('');
@@ -94,6 +119,8 @@ export const ProjectsPage = () => {
   const [projectType, setProjectType] = useState('mechanical');
   const [priority, setPriority] = useState('medium');
   const [ownerId, setOwnerId] = useState('');
+  const [selectedPics, setSelectedPics] = useState([]); // Multiple PIC assignment
+  const [visibility, setVisibility] = useState('public'); // 'public' | 'private_pic' | 'manager'
   const [createProgress, setCreateProgress] = useState(20);
   const [sendEmail, setSendEmail] = useState(true);
   const [startDate, setStartDate] = useState(new Date().toISOString().substring(0, 10));
@@ -112,6 +139,8 @@ export const ProjectsPage = () => {
   const [editStatus, setEditStatus] = useState('planning');
   const [editPriority, setEditPriority] = useState('medium');
   const [editOwnerId, setEditOwnerId] = useState('');
+  const [editSelectedPics, setEditSelectedPics] = useState([]);
+  const [editVisibility, setEditVisibility] = useState('public');
   const [editProgress, setEditProgress] = useState(20);
   const [editStartDate, setEditStartDate] = useState('');
   const [editTargetDate, setEditTargetDate] = useState('');
@@ -248,29 +277,48 @@ export const ProjectsPage = () => {
     setTimeout(() => setToastMessage(''), 4500);
   };
 
-  // Create Project / Milestone Task
+  // Create Project / ToDo Task
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setSubmitting(true);
     try {
+      // Determine primary PIC and full PIC list
+      const primaryPic = selectedPics.length > 0 ? selectedPics[0] : (ownerId ? users.find((u) => u.id === ownerId) : null);
+      const picList = selectedPics.length > 0 ? selectedPics : (primaryPic ? [primaryPic] : []);
+
+      const metadataPayload = {
+        visibility,
+        created_by_id: user?.id || undefined,
+        created_by_name: user?.full_name || user?.username || 'Team Member',
+        assigned_pics: picList.map((u) => ({
+          id: u.id,
+          name: u.full_name || u.name,
+          email: u.email || '',
+          role: u.role || 'engineer',
+        })),
+        assigned_pic_ids: picList.map((u) => u.id),
+      };
+
       const payload = {
         title: title.trim(),
         project_type: projectType,
         priority,
-        owner_id: ownerId || undefined,
+        owner_id: primaryPic?.id || undefined,
         progress: createProgress,
         status: createProgress >= 100 ? 'completed' : createProgress > 20 ? 'in_progress' : 'planning',
         start_date: startDate || undefined,
         target_date: targetDate || undefined,
         description: description || undefined,
         attachments: createAttachments,
+        metadata: metadataPayload,
         send_email: sendEmail,
       };
 
       const res = await api.post('/projects', payload);
-      setProjects((prev) => [res.data, ...prev]);
+      const newProject = { ...res.data, metadata: metadataPayload };
+      setProjects((prev) => [newProject, ...prev]);
       setIsModalOpen(false);
 
       // Reset form
@@ -278,25 +326,26 @@ export const ProjectsPage = () => {
       setProjectType('mechanical');
       setPriority('medium');
       setOwnerId('');
+      setSelectedPics([]);
+      setVisibility('public');
       setCreateProgress(20);
       setSendEmail(true);
       setDescription('');
       setTargetDate('');
       setCreateAttachments([]);
 
-      const picUser = users.find((u) => u.id === ownerId);
-      const picName = picUser?.full_name || 'Unassigned';
-      if (sendEmail && picUser && picUser.email) {
-        showToast(`Task berhasil dibuat & notifikasi email dikirim ke ${picUser.email}!`);
+      const picNames = picList.map((p) => p.full_name || p.name).join(', ') || 'Unassigned';
+      if (sendEmail && picList.some((p) => p.email)) {
+        showToast(`Task berhasil dibuat & notifikasi email dikirim ke ${picList.length} PIC!`);
       } else {
-        showToast('Milestone Task berhasil ditambahkan!');
+        showToast('ToDo Task berhasil ditambahkan!');
       }
 
       // Record timeline change log
       await logTimelineEvent(
         'project',
         res.data.id,
-        `Milestone Task Analyst dibuat dengan prioritas ${priority.toUpperCase()}, milestone ${getMilestone(createProgress).label} (${createProgress}%), dan PIC ${picName}`
+        `ToDo Task dibuat dengan prioritas ${priority.toUpperCase()}, kategori ${projectType}, visibilitas ${visibility}, dan PIC: ${picNames}`
       );
     } catch (err) {
       alert(err.response?.data?.message || err.message);
@@ -318,6 +367,22 @@ export const ProjectsPage = () => {
     setEditTargetDate(p.target_date ? p.target_date.substring(0, 10) : '');
     setEditDescription(p.description || '');
 
+    const meta = parseMetadata(p.metadata);
+    setEditVisibility(meta.visibility || 'public');
+
+    let initialPics = [];
+    if (meta.assigned_pics && Array.isArray(meta.assigned_pics) && meta.assigned_pics.length > 0) {
+      initialPics = meta.assigned_pics.map((pic) => {
+        const fullUser = users.find((u) => u.id === pic.id);
+        return fullUser || { id: pic.id, full_name: pic.name || pic.full_name, email: pic.email, role: pic.role };
+      });
+    } else if (p.owner_id) {
+      const u = users.find((usr) => usr.id === p.owner_id);
+      if (u) initialPics = [u];
+      else if (p.owner_name) initialPics = [{ id: p.owner_id, full_name: p.owner_name, email: '' }];
+    }
+    setEditSelectedPics(initialPics);
+
     let initialAttachments = [];
     if (Array.isArray(p.attachments)) {
       initialAttachments = p.attachments;
@@ -333,27 +398,44 @@ export const ProjectsPage = () => {
     setIsEditModalOpen(true);
   };
 
-  // Update Project / Milestone Task
+  // Update Project / ToDo Task
   const handleUpdate = async (e) => {
     if (e) e.preventDefault();
     if (!editingProject) return;
 
     try {
+      const primaryPic = editSelectedPics.length > 0 ? editSelectedPics[0] : (editOwnerId ? users.find((u) => u.id === editOwnerId) : null);
+      const picList = editSelectedPics.length > 0 ? editSelectedPics : (primaryPic ? [primaryPic] : []);
+      const existingMeta = parseMetadata(editingProject.metadata);
+
+      const metadataPayload = {
+        ...existingMeta,
+        visibility: editVisibility,
+        assigned_pics: picList.map((u) => ({
+          id: u.id,
+          name: u.full_name || u.name,
+          email: u.email || '',
+          role: u.role || 'engineer',
+        })),
+        assigned_pic_ids: picList.map((u) => u.id),
+      };
+
       const payload = {
         title: editTitle,
         project_type: editProjectType,
         status: editProgress >= 100 ? 'completed' : editStatus,
         priority: editPriority,
-        owner_id: editOwnerId || undefined,
+        owner_id: primaryPic?.id || undefined,
         progress: Number(editProgress) || 0,
         start_date: editStartDate || undefined,
         target_date: editTargetDate || undefined,
         description: editDescription || undefined,
         attachments: editAttachments,
+        metadata: metadataPayload,
       };
 
       const res = await api.put(`/projects/${editingProject.id}`, payload);
-      const updated = { ...editingProject, ...res.data };
+      const updated = { ...editingProject, ...res.data, metadata: metadataPayload };
       setProjects((prev) =>
         prev.map((p) => (p.id === editingProject.id ? updated : p))
       );
@@ -366,11 +448,10 @@ export const ProjectsPage = () => {
       }
       if (payload.status !== editingProject.status) changes.push(`Status diubah ke ${payload.status}`);
       if (editPriority !== editingProject.priority) changes.push(`Prioritas diubah ke ${editPriority.toUpperCase()}`);
-      if (editProjectType !== editingProject.project_type) changes.push(`Kategori issue diubah ke ${editProjectType}`);
-      if (editOwnerId !== (editingProject.owner_id || '')) {
-        const newOwner = users.find((u) => u.id === editOwnerId)?.full_name || 'Unassigned';
-        changes.push(`PIC dialihkan ke ${newOwner}`);
-      }
+      if (editProjectType !== editingProject.project_type) changes.push(`Kategori diubah ke ${editProjectType}`);
+      if (editVisibility !== (existingMeta.visibility || 'public')) changes.push(`Visibilitas diubah ke ${editVisibility}`);
+      const newPicNames = picList.map((p) => p.full_name || p.name).join(', ');
+      changes.push(`PIC diatur: ${newPicNames || 'Unassigned'}`);
       if (editDescription !== (editingProject.description || '')) {
         changes.push('Catatan analisis/investigasi diperbarui');
       }
@@ -460,21 +541,130 @@ export const ProjectsPage = () => {
     }
   };
 
-  // Filtered Projects
+  // ponytail: Helper to render multi-PIC badges or single PIC
+  const renderPicBadges = (p) => {
+    const meta = parseMetadata(p.metadata);
+    const picList = (meta.assigned_pics && Array.isArray(meta.assigned_pics) && meta.assigned_pics.length > 0)
+      ? meta.assigned_pics
+      : (p.owner_name ? [{ name: p.owner_name }] : []);
+
+    if (picList.length === 0) {
+      return (
+        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <User size={12} style={{ opacity: 0.6 }} />
+          <span>Unassigned</span>
+        </span>
+      );
+    }
+
+    const first = picList[0];
+    const firstName = (first.name || first.full_name || 'PIC').split(' ')[0];
+    const more = picList.length - 1;
+    const allNames = picList.map((x) => x.name || x.full_name).join(', ');
+
+    return (
+      <span
+        title={allNames}
+        style={{
+          fontSize: '12px',
+          fontWeight: 500,
+          color: 'var(--color-text-secondary)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
+        }}
+      >
+        <User size={13} style={{ opacity: 0.7 }} />
+        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{firstName}</span>
+        {more > 0 && (
+          <span style={{
+            fontSize: '10.5px',
+            padding: '1px 6px',
+            background: 'rgba(37, 99, 235, 0.12)',
+            color: 'var(--color-accent)',
+            borderRadius: '9999px',
+            fontWeight: 700,
+          }}>
+            +{more}
+          </span>
+        )}
+      </span>
+    );
+  };
+
+  // ponytail: Filtered Projects with Role-based Visibility & Scope Switcher
+  const { visibleProjects, totalVisibleCount, myTasksCount } = useMemo(() => {
+    // 1. Role-based Visibility Filter
+    const accessible = projects.filter((p) => {
+      if (user?.role === 'admin') return true; // Admin can view all
+
+      const meta = parseMetadata(p.metadata);
+      const vis = meta.visibility || 'public';
+      const isCreator = Boolean(meta.created_by_id && user?.id && meta.created_by_id === user.id);
+      const isAssigned = Boolean(
+        (p.owner_id && user?.id && p.owner_id === user.id) ||
+        (meta.assigned_pic_ids && Array.isArray(meta.assigned_pic_ids) && user?.id && meta.assigned_pic_ids.includes(user.id)) ||
+        (p.owner_name && user?.full_name && p.owner_name.toLowerCase() === user.full_name.toLowerCase())
+      );
+
+      if (vis === 'public') return true;
+      if (vis === 'private_pic') return isAssigned || isCreator;
+      if (vis === 'manager') return user?.role === 'manager' || isAssigned || isCreator;
+      return true;
+    });
+
+    // 2. Count "My Tasks"
+    let myCount = 0;
+    accessible.forEach((p) => {
+      const meta = parseMetadata(p.metadata);
+      const isCreator = Boolean(meta.created_by_id && user?.id && meta.created_by_id === user.id);
+      const isAssigned = Boolean(
+        (p.owner_id && user?.id && p.owner_id === user.id) ||
+        (meta.assigned_pic_ids && Array.isArray(meta.assigned_pic_ids) && user?.id && meta.assigned_pic_ids.includes(user.id)) ||
+        (p.owner_name && user?.full_name && p.owner_name.toLowerCase() === user.full_name.toLowerCase())
+      );
+      if (isAssigned || isCreator) {
+        myCount++;
+      }
+    });
+
+    return {
+      visibleProjects: accessible,
+      totalVisibleCount: accessible.length,
+      myTasksCount: myCount,
+    };
+  }, [projects, user]);
+
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
+    return visibleProjects.filter((p) => {
+      // Scope filter: 'all' vs 'my_tasks'
+      if (scopeFilter === 'my_tasks') {
+        const meta = parseMetadata(p.metadata);
+        const isCreator = Boolean(meta.created_by_id && user?.id && meta.created_by_id === user.id);
+        const isAssigned = Boolean(
+          (p.owner_id && user?.id && p.owner_id === user.id) ||
+          (meta.assigned_pic_ids && Array.isArray(meta.assigned_pic_ids) && user?.id && meta.assigned_pic_ids.includes(user.id)) ||
+          (p.owner_name && user?.full_name && p.owner_name.toLowerCase() === user.full_name.toLowerCase())
+        );
+        if (!isAssigned && !isCreator) return false;
+      }
+
       if (selectedType && p.project_type !== selectedType) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
+        const meta = parseMetadata(p.metadata);
         const mTitle = (p.title || '').toLowerCase().includes(q);
         const mDesc = (p.description || '').toLowerCase().includes(q);
         const mOwner = (p.owner_name || '').toLowerCase().includes(q);
         const mType = (p.project_type || '').toLowerCase().includes(q);
-        if (!mTitle && !mDesc && !mOwner && !mType) return false;
+        const mPics = (meta.assigned_pics || []).some((pic) =>
+          (pic.name || pic.full_name || '').toLowerCase().includes(q)
+        );
+        if (!mTitle && !mDesc && !mOwner && !mType && !mPics) return false;
       }
       return true;
     });
-  }, [projects, search, selectedType]);
+  }, [visibleProjects, scopeFilter, search, selectedType, user]);
 
   // Kanban Column Buckets (1 to 5)
   const kanbanColumns = useMemo(() => {
@@ -495,15 +685,35 @@ export const ProjectsPage = () => {
   // Table Columns
   const columns = [
     {
-      title: t('projects.col_task', 'Issue / Task Analisis'),
+      title: t('projects.col_task', 'Issue / Task / Permintaan'),
       key: 'title',
       render: (val, row) => {
         const ms = getMilestone(row.progress || 0);
+        const meta = parseMetadata(row.metadata);
+        const vis = meta.visibility || 'public';
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text-primary)' }}>{val}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text-primary)' }}>{val}</span>
+              {vis === 'private_pic' && (
+                <span className={`${styles.visibilityPill} ${styles.visibilityPrivate}`} title="Hanya terlihat oleh PIC & Pembuat">
+                  <Lock size={10} /> Privat
+                </span>
+              )}
+              {vis === 'manager' && (
+                <span className={`${styles.visibilityPill} ${styles.visibilityManager}`} title="Terlihat oleh Manager, PIC & Pembuat">
+                  <Shield size={10} /> Manager
+                </span>
+              )}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-              <span style={{ textTransform: 'capitalize', color: 'var(--color-accent)', fontWeight: 600 }}>{row.project_type}</span>
+              <span style={{
+                textTransform: 'capitalize',
+                color: row.project_type === 'feature_request' ? '#a855f7' : 'var(--color-accent)',
+                fontWeight: 600,
+              }}>
+                {row.project_type?.replace('_', ' ')}
+              </span>
               <span>•</span>
               <span style={{ color: ms.color, fontWeight: 600 }}>{ms.label} ({row.progress || 0}%)</span>
             </div>
@@ -514,12 +724,7 @@ export const ProjectsPage = () => {
     {
       title: t('projects.col_pic', 'PIC Assigned'),
       key: 'owner_name',
-      render: (val) => (
-        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-          <User size={13} style={{ opacity: 0.7 }} />
-          <span>{val || 'Unassigned'}</span>
-        </span>
-      ),
+      render: (_, row) => renderPicBadges(row),
     },
     {
       title: t('common.priority', 'Priority'),
@@ -625,10 +830,10 @@ export const ProjectsPage = () => {
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
             <FolderKanban size={22} color="var(--color-accent)" />
-            {t('projects.title', 'Milestone Task Analyst')}
+            {t('projects.title', 'ToDo List & Task Analyst')}
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            {t('projects.subtitle', 'Pelacakan Analisis Issue Mechanical, Optimasi Proses Produksi & Milestone Breadcrumb Navigation Tim SEIN PE')}
+            {t('projects.subtitle', 'Pelacakan Analisis Issue Mechanical, Permintaan Fitur ke Admin, Optimasi Proses & Milestone Stepper')}
           </p>
         </div>
 
@@ -642,29 +847,6 @@ export const ProjectsPage = () => {
             padding: '3px',
             gap: '3px',
           }}>
-            <button
-              type="button"
-              onClick={() => setViewMode('matrix')}
-              title="Matrix Card View"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '9999px',
-                border: 'none',
-                backgroundColor: viewMode === 'matrix' ? 'var(--color-accent)' : 'transparent',
-                color: viewMode === 'matrix' ? '#ffffff' : 'var(--color-text-secondary)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <LayoutGrid size={14} />
-              <span>{t('projects.view_matrix', 'Matrix Cards')}</span>
-            </button>
-
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
@@ -686,6 +868,29 @@ export const ProjectsPage = () => {
             >
               <KanbanIcon size={14} />
               <span>{t('projects.view_kanban', 'Kanban')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('matrix')}
+              title="Matrix Card View"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '9999px',
+                border: 'none',
+                backgroundColor: viewMode === 'matrix' ? 'var(--color-accent)' : 'transparent',
+                color: viewMode === 'matrix' ? '#ffffff' : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <LayoutGrid size={14} />
+              <span>{t('projects.view_matrix', 'Matrix Cards')}</span>
             </button>
 
             <button
@@ -713,52 +918,86 @@ export const ProjectsPage = () => {
           </div>
 
           <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
-            {t('projects.new_task', 'Create New Task')}
+            {t('projects.new_task', 'Tambah ToDo / Task')}
           </Button>
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '240px', maxWidth: '380px' }}>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search issue title, PIC, or description..."
-          />
+      {/* Search, Filter & Scope Switcher Bar */}
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+          <div style={{ minWidth: '220px', maxWidth: '340px', flex: 1 }}>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search task, PIC, deskripsi..."
+            />
+          </div>
+
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            style={{
+              height: '36px',
+              padding: '0 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-secondary)',
+              color: 'var(--color-text-primary)',
+              fontSize: '12.5px',
+            }}
+          >
+            <option value="">{t('projects.all_categories', 'Semua Kategori / Tipe')}</option>
+            {ISSUE_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <select
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          style={{
-            height: '36px',
-            padding: '0 12px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--color-border)',
-            background: 'var(--color-bg-secondary)',
-            color: 'var(--color-text-primary)',
-            fontSize: '12.5px',
-          }}
-        >
-          <option value="">{t('projects.all_categories', 'Semua Kategori Issue')}</option>
-          {ISSUE_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+        {/* ponytail: Switch Button filter Semua Task vs Terkait Saya */}
+        <div className={styles.scopeSwitcher}>
+          <button
+            type="button"
+            className={`${styles.scopeBtn} ${scopeFilter === 'all' ? styles.scopeBtnActive : ''}`}
+            onClick={() => setScopeFilter('all')}
+            title="Tampilkan seluruh task yang dapat Anda akses"
+          >
+            <span>{t('projects.filter_all', 'Semua Task')}</span>
+            <span className={styles.scopeBadge}>{totalVisibleCount}</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.scopeBtn} ${scopeFilter === 'my_tasks' ? styles.scopeBtnActive : ''}`}
+            onClick={() => setScopeFilter('my_tasks')}
+            title="Hanya task yang menugaskan Anda sebagai PIC atau Anda buat"
+          >
+            <UserCheck size={13} />
+            <span>{t('projects.filter_my_tasks', 'Terkait Saya')}</span>
+            <span className={styles.scopeBadge}>{myTasksCount}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
       {loading ? (
-        <LoadingState message={t('projects.loading_milestones', 'Memuat Milestone Task Analyst...')} />
+        <LoadingState message={t('projects.loading_milestones', 'Memuat ToDo List & Task Analyst...')} />
       ) : filteredProjects.length === 0 ? (
         <EmptyState
           icon={FolderKanban}
-          title="Belum ada Task / Analisa Issue"
-          description="Catat temuan analisa issue mechanical atau proses produksi dan assign PIC terkait."
-          actionLabel="Buat Task Pertama"
+          title={scopeFilter === 'my_tasks' ? "Belum ada Task Terkait Nama Anda" : "Belum ada ToDo / Task"}
+          description={scopeFilter === 'my_tasks'
+            ? "Tidak ada task yang menugaskan Anda sebagai PIC atau yang Anda buat. Beralih ke 'Semua Task' atau buat task baru."
+            : "Catat temuan analisa issue mechanical, proses produksi, atau buat permintaan fitur ke Admin."
+          }
+          actionLabel="Buat ToDo Pertama"
           onAction={() => setIsModalOpen(true)}
         />
       ) : viewMode === 'matrix' ? (
@@ -794,20 +1033,32 @@ export const ProjectsPage = () => {
                 }}
                 onClick={() => openViewModal(p)}
               >
-                {/* Header row: Category & Priority */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: 'var(--color-accent)',
-                    background: 'rgba(37, 99, 235, 0.08)',
-                    padding: '3.5px 10px',
-                    borderRadius: '9999px',
-                    border: '1px solid rgba(37, 99, 235, 0.2)',
-                  }}>
-                    {p.project_type || 'Issue'}
-                  </span>
+                {/* Header row: Category, Visibility & Priority */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      color: p.project_type === 'feature_request' ? '#a855f7' : 'var(--color-accent)',
+                      background: p.project_type === 'feature_request' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(37, 99, 235, 0.08)',
+                      padding: '3.5px 10px',
+                      borderRadius: '9999px',
+                      border: p.project_type === 'feature_request' ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid rgba(37, 99, 235, 0.2)',
+                    }}>
+                      {p.project_type?.replace('_', ' ') || 'Issue'}
+                    </span>
+                    {parseMetadata(p.metadata).visibility === 'private_pic' && (
+                      <span className={`${styles.visibilityPill} ${styles.visibilityPrivate}`} title="Hanya terlihat oleh PIC & Pembuat">
+                        <Lock size={10} /> Privat
+                      </span>
+                    )}
+                    {parseMetadata(p.metadata).visibility === 'manager' && (
+                      <span className={`${styles.visibilityPill} ${styles.visibilityManager}`} title="Terlihat oleh Manager, PIC & Pembuat">
+                        <Shield size={10} /> Manager
+                      </span>
+                    )}
+                  </div>
                   <StatusBadge status={p.priority || 'medium'} />
                 </div>
 
@@ -861,12 +1112,7 @@ export const ProjectsPage = () => {
                   fontSize: '11.5px',
                   marginTop: 'auto',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--color-text-secondary)' }}>
-                    <User size={12} style={{ opacity: 0.7 }} />
-                    <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      {p.owner_name ? p.owner_name.split(' ')[0] : 'Unassigned'}
-                    </span>
-                  </div>
+                  {renderPicBadges(p)}
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={(e) => e.stopPropagation()}>
                     {ms.step > 1 && (
@@ -1050,15 +1296,30 @@ export const ProjectsPage = () => {
                           e.currentTarget.style.transform = 'none';
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{
-                            fontSize: '10.5px',
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            color: 'var(--color-accent)',
-                          }}>
-                            {task.project_type}
-                          </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              color: task.project_type === 'feature_request' ? '#a855f7' : 'var(--color-accent)',
+                              background: task.project_type === 'feature_request' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(37, 99, 235, 0.08)',
+                              padding: '2px 7px',
+                              borderRadius: '9999px',
+                            }}>
+                              {task.project_type?.replace('_', ' ')}
+                            </span>
+                            {parseMetadata(task.metadata).visibility === 'private_pic' && (
+                              <span className={`${styles.visibilityPill} ${styles.visibilityPrivate}`} title="Hanya terlihat oleh PIC & Pembuat">
+                                <Lock size={9} /> Privat
+                              </span>
+                            )}
+                            {parseMetadata(task.metadata).visibility === 'manager' && (
+                              <span className={`${styles.visibilityPill} ${styles.visibilityManager}`} title="Terlihat oleh Manager, PIC & Pembuat">
+                                <Shield size={9} /> Manager
+                              </span>
+                            )}
+                          </div>
                           <StatusBadge status={task.priority} />
                         </div>
 
@@ -1087,10 +1348,7 @@ export const ProjectsPage = () => {
                           fontSize: '11px',
                           color: 'var(--color-text-secondary)',
                         }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <User size={12} style={{ opacity: 0.7 }} />
-                            <span>{task.owner_name ? task.owner_name.split(' ')[0] : 'Unassigned'}</span>
-                          </span>
+                          {renderPicBadges(task)}
                           <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
@@ -1179,17 +1437,17 @@ export const ProjectsPage = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title="Create Milestone Task / Issue Analisis"
+          title="Tambah ToDo / Task Analisis & Permintaan"
         >
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600 }}>Judul Issue / Task Analisis</label>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Judul ToDo / Task / Permintaan</label>
               <input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="misal: Root Cause Analisis Bracket Distortion pada SMT Line 2"
+                placeholder="misal: Usulan penambahan fitur scan barcode / Root Cause Bracket Distortion"
                 style={{
                   height: '36px',
                   padding: '0 12px',
@@ -1203,7 +1461,7 @@ export const ProjectsPage = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Kategori Issue</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Kategori / Tipe Task</label>
                 <select
                   value={projectType}
                   onChange={(e) => setProjectType(e.target.value)}
@@ -1246,16 +1504,100 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
-            {/* Assign PIC & SMTP Notification */}
+            {/* Target PIC Assign (Multiple Person) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Users size={13} color="var(--color-accent)" />
+                  Target Assign PIC ({selectedPics.length} orang terpilih)
+                </label>
+                {user && !selectedPics.some((p) => p.id === user.id) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPics((prev) => [...prev, user]);
+                      if (!ownerId) setOwnerId(user.id);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-accent)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    + Tugaskan ke Saya
+                  </button>
+                )}
+              </div>
+
+              <select
+                value=""
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  if (!targetId) return;
+                  const targetUser = users.find((u) => u.id === targetId);
+                  if (targetUser && !selectedPics.some((p) => p.id === targetUser.id)) {
+                    setSelectedPics((prev) => [...prev, targetUser]);
+                    if (!ownerId) setOwnerId(targetUser.id);
+                  }
+                }}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-primary)',
+                }}
+              >
+                <option value="">+ Tambah PIC Engineer / Admin...</option>
+                {users
+                  .filter((u) => !selectedPics.some((p) => p.id === u.id))
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.email || u.username}) - {u.role?.toUpperCase()}
+                    </option>
+                  ))}
+              </select>
+
+              {selectedPics.length > 0 && (
+                <div className={styles.picChipsContainer}>
+                  {selectedPics.map((pic, idx) => (
+                    <span key={pic.id} className={`${styles.picChip} ${idx === 0 ? styles.picChipPrimary : ''}`}>
+                      <User size={12} style={{ opacity: 0.7 }} />
+                      <span>{pic.full_name || pic.name}</span>
+                      {idx === 0 && <span className={styles.picChipTag}>(Lead PIC)</span>}
+                      <button
+                        type="button"
+                        className={styles.picChipRemove}
+                        onClick={() => {
+                          const updated = selectedPics.filter((p) => p.id !== pic.id);
+                          setSelectedPics(updated);
+                          setOwnerId(updated[0]?.id || '');
+                        }}
+                        title="Hapus PIC"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Visibility & Target Date */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <User size={13} color="var(--color-accent)" />
-                  Assign PIC (Engineer)
+                  <Lock size={13} color="var(--color-accent)" />
+                  Visibilitas &amp; Hak Akses
                 </label>
                 <select
-                  value={ownerId}
-                  onChange={(e) => setOwnerId(e.target.value)}
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value)}
                   style={{
                     height: '36px',
                     padding: '0 12px',
@@ -1265,13 +1607,17 @@ export const ProjectsPage = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  <option value="">Pilih PIC Engineer...</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.full_name} ({u.email || u.username})
-                    </option>
-                  ))}
+                  <option value="public">🌐 Publik (Seluruh Tim PE)</option>
+                  <option value="private_pic">🔒 Privat PIC (Hanya PIC &amp; Pembuat)</option>
+                  <option value="manager">🛡️ Manajer &amp; PIC (Manajer, PIC &amp; Pembuat)</option>
                 </select>
+                <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)' }}>
+                  {visibility === 'public'
+                    ? 'Dapat dipantau bersama oleh seluruh tim.'
+                    : visibility === 'private_pic'
+                    ? 'Privat: hanya PIC dan Anda (serta Admin).'
+                    : 'Terlihat oleh Manajer, PIC, dan Anda.'}
+                </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1412,11 +1758,11 @@ export const ProjectsPage = () => {
             setIsEditModalOpen(false);
             setEditingProject(null);
           }}
-          title={`Edit Milestone: ${editingProject?.title || ''}`}
+          title={`Edit ToDo / Task: ${editingProject?.title || ''}`}
         >
           <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600 }}>Judul Task / Issue</label>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Judul ToDo / Task / Permintaan</label>
               <input
                 type="text"
                 required
@@ -1435,7 +1781,7 @@ export const ProjectsPage = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Kategori Issue</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Kategori / Tipe Task</label>
                 <select
                   value={editProjectType}
                   onChange={(e) => setEditProjectType(e.target.value)}
@@ -1478,12 +1824,100 @@ export const ProjectsPage = () => {
               </div>
             </div>
 
+            {/* Target PIC Assign (Multiple Person) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Users size={13} color="var(--color-accent)" />
+                  Target Assign PIC ({editSelectedPics.length} orang terpilih)
+                </label>
+                {user && !editSelectedPics.some((p) => p.id === user.id) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditSelectedPics((prev) => [...prev, user]);
+                      if (!editOwnerId) setEditOwnerId(user.id);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-accent)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    + Tugaskan ke Saya
+                  </button>
+                )}
+              </div>
+
+              <select
+                value=""
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  if (!targetId) return;
+                  const targetUser = users.find((u) => u.id === targetId);
+                  if (targetUser && !editSelectedPics.some((p) => p.id === targetUser.id)) {
+                    setEditSelectedPics((prev) => [...prev, targetUser]);
+                    if (!editOwnerId) setEditOwnerId(targetUser.id);
+                  }
+                }}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-primary)',
+                }}
+              >
+                <option value="">+ Tambah PIC Engineer / Admin...</option>
+                {users
+                  .filter((u) => !editSelectedPics.some((p) => p.id === u.id))
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.email || u.username}) - {u.role?.toUpperCase()}
+                    </option>
+                  ))}
+              </select>
+
+              {editSelectedPics.length > 0 && (
+                <div className={styles.picChipsContainer}>
+                  {editSelectedPics.map((pic, idx) => (
+                    <span key={pic.id} className={`${styles.picChip} ${idx === 0 ? styles.picChipPrimary : ''}`}>
+                      <User size={12} style={{ opacity: 0.7 }} />
+                      <span>{pic.full_name || pic.name}</span>
+                      {idx === 0 && <span className={styles.picChipTag}>(Lead PIC)</span>}
+                      <button
+                        type="button"
+                        className={styles.picChipRemove}
+                        onClick={() => {
+                          const updated = editSelectedPics.filter((p) => p.id !== pic.id);
+                          setEditSelectedPics(updated);
+                          setEditOwnerId(updated[0]?.id || '');
+                        }}
+                        title="Hapus PIC"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Visibility & Target Date */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Assigned PIC</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Lock size={13} color="var(--color-accent)" />
+                  Visibilitas &amp; Hak Akses
+                </label>
                 <select
-                  value={editOwnerId}
-                  onChange={(e) => setEditOwnerId(e.target.value)}
+                  value={editVisibility}
+                  onChange={(e) => setEditVisibility(e.target.value)}
                   style={{
                     height: '36px',
                     padding: '0 12px',
@@ -1493,13 +1927,17 @@ export const ProjectsPage = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  <option value="">Pilih PIC Engineer...</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.full_name} ({u.email || u.username})
-                    </option>
-                  ))}
+                  <option value="public">🌐 Publik (Seluruh Tim PE)</option>
+                  <option value="private_pic">🔒 Privat PIC (Hanya PIC &amp; Pembuat)</option>
+                  <option value="manager">🛡️ Manajer &amp; PIC (Manajer, PIC &amp; Pembuat)</option>
                 </select>
+                <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)' }}>
+                  {editVisibility === 'public'
+                    ? 'Dapat dipantau bersama oleh seluruh tim.'
+                    : editVisibility === 'private_pic'
+                    ? 'Privat: hanya PIC dan Pembuat (serta Admin).'
+                    : 'Terlihat oleh Manajer, PIC, dan Pembuat.'}
+                </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1628,7 +2066,7 @@ export const ProjectsPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 <FolderKanban size={17} color="var(--color-accent)" />
-                <span style={{ fontSize: '15px', fontWeight: 700 }}>Detail Milestone Task Analyst</span>
+                <span style={{ fontSize: '15px', fontWeight: 700 }}>Detail ToDo / Task Analyst</span>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginRight: '8px' }}>
                 <Button
@@ -1662,11 +2100,28 @@ export const ProjectsPage = () => {
             <div className={styles.viewHeroCard}>
               <div className={styles.viewHeroTop}>
                 <div className={styles.viewBadgesGroup}>
-                  <span className={styles.categoryTag}>
-                    <Tag size={11} /> {viewingProject.project_type || 'General'}
+                  <span className={styles.categoryTag} style={{
+                    color: viewingProject.project_type === 'feature_request' ? '#a855f7' : undefined,
+                  }}>
+                    <Tag size={11} /> {viewingProject.project_type?.replace('_', ' ') || 'General'}
                   </span>
                   <StatusBadge status={viewingProject.priority} />
                   <StatusBadge status={viewingProject.status} />
+                  {parseMetadata(viewingProject.metadata).visibility === 'private_pic' && (
+                    <span className={`${styles.visibilityPill} ${styles.visibilityPrivate}`} title="Hanya terlihat oleh PIC & Pembuat">
+                      <Lock size={10} /> Privat PIC
+                    </span>
+                  )}
+                  {parseMetadata(viewingProject.metadata).visibility === 'manager' && (
+                    <span className={`${styles.visibilityPill} ${styles.visibilityManager}`} title="Terlihat oleh Manager, PIC & Pembuat">
+                      <Shield size={10} /> Manager &amp; PIC
+                    </span>
+                  )}
+                  {(!parseMetadata(viewingProject.metadata).visibility || parseMetadata(viewingProject.metadata).visibility === 'public') && (
+                    <span className={styles.visibilityPill} style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                      <Globe size={10} /> Publik
+                    </span>
+                  )}
                 </div>
                 <div className={styles.viewMilestoneBadge}>
                   {getMilestone(viewingProject.progress).label} ({viewingProject.progress || 0}%)
@@ -1680,11 +2135,34 @@ export const ProjectsPage = () => {
               <div className={styles.viewMetaGrid}>
                 <div className={styles.viewMetaItem}>
                   <div className={styles.viewMetaIconBox}>
+                    <Users size={15} />
+                  </div>
+                  <div className={styles.viewMetaText}>
+                    <span className={styles.viewMetaLabel}>Assigned PIC ({(() => {
+                      const m = parseMetadata(viewingProject.metadata);
+                      return (m.assigned_pics && m.assigned_pics.length) || (viewingProject.owner_name ? 1 : 0);
+                    })()} orang)</span>
+                    <span className={styles.viewMetaValue}>
+                      {(() => {
+                        const m = parseMetadata(viewingProject.metadata);
+                        if (m.assigned_pics && m.assigned_pics.length > 0) {
+                          return m.assigned_pics.map((x) => x.name || x.full_name).join(', ');
+                        }
+                        return viewingProject.owner_name || 'Unassigned';
+                      })()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className={styles.viewMetaItem}>
+                  <div className={styles.viewMetaIconBox}>
                     <User size={15} />
                   </div>
                   <div className={styles.viewMetaText}>
-                    <span className={styles.viewMetaLabel}>Person In Charge (PIC)</span>
-                    <span className={styles.viewMetaValue}>{viewingProject.owner_name || 'Unassigned'}</span>
+                    <span className={styles.viewMetaLabel}>Pembuat Task</span>
+                    <span className={styles.viewMetaValue}>
+                      {parseMetadata(viewingProject.metadata).created_by_name || 'Team Member'}
+                    </span>
                   </div>
                 </div>
 
