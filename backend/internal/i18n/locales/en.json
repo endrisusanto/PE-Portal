@@ -44,7 +44,8 @@
     "section_management": "MANAGEMENT",
     "expand_sidebar": "Expand sidebar",
     "collapse_sidebar": "Collapse sidebar",
-    "tools_video_compress": "Video Compressor (VAAPI)"
+    "tools_video_compress": "Video Compressor (VAAPI)",
+    "project_calendar": "Project Calendar"
   },
   "common": {
     "loading": "Loading data...",

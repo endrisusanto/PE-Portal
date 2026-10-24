@@ -13,6 +13,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { InnovationsPage } from './pages/InnovationsPage';
 import { GbaTasksPage } from './pages/GbaTasksPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectCalendarPage } from './pages/ProjectCalendarPage';
 import { SampleManagementPage } from './pages/SampleManagementPage';
 import { DhlTrackerPage } from './pages/DhlTrackerPage';
 import { SoftwareMRPage } from './pages/SoftwareMRPage';
@@ -88,6 +89,7 @@ export function App() {
                 <Route path="innovations" element={<InnovationsPage />} />
                 <Route path="gba-tasks" element={<GbaTasksPage />} />
                 <Route path="projects" element={<ProjectsPage />} />
+                <Route path="project-calendar" element={<ProjectCalendarPage />} />
                 <Route path="samples" element={<SampleManagementPage />} />
                 <Route path="samples/dhl-tracker" element={<DhlTrackerPage />} />
                 <Route path="software-mr" element={<SoftwareMRPage />} />

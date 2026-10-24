@@ -44,7 +44,8 @@
     "section_management": "MANAJEMEN",
     "expand_sidebar": "Buka sidebar",
     "collapse_sidebar": "Tutup sidebar",
-    "tools_video_compress": "Kompresor Video (VAAPI)"
+    "tools_video_compress": "Kompresor Video (VAAPI)",
+    "project_calendar": "Project Calendar"
   },
   "common": {
     "loading": "Memuat data...",

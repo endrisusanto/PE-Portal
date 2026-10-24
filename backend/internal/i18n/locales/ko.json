@@ -44,7 +44,8 @@
     "section_management": "시스템 관리",
     "expand_sidebar": "사이드바 펼치기",
     "collapse_sidebar": "사이드바 접기",
-    "tools_video_compress": "비디오 압축기 (VAAPI)"
+    "tools_video_compress": "비디오 압축기 (VAAPI)",
+    "project_calendar": "프로젝트 캘린더"
   },
   "common": {
     "loading": "데이터 로딩 중...",

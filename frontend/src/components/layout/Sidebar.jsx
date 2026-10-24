@@ -29,6 +29,7 @@ import {
   GraduationCap,
   Terminal,
   Video,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/client';
@@ -290,6 +291,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
           },
         ]
       : []),
+    { key: 'project-calendar', to: '/project-calendar', label: t('nav.project_calendar', 'Project Calendar'), icon: CalendarDays },
     { key: 'projects', to: '/projects', label: t('nav.projects', 'ToDo List'), icon: FolderKanban },
     { key: 'team', to: '/team', label: t('nav.team'), icon: Users },
     ...(toolsNestedGroups.length > 0
