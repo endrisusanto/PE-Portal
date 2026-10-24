@@ -8,6 +8,7 @@ export const EmailChipInput = ({
   onChange,
   placeholder = 'Add email and press Enter or comma...',
   required = false,
+  className = '',
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -74,12 +75,12 @@ export const EmailChipInput = ({
   };
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${className}`}>
       {label && (
         <label className={styles.label}>
           <span>{label} {required && <span style={{ color: 'var(--color-error)' }}>*</span>}</span>
           {emails.length > 0 && (
-            <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
+            <span className={styles.countBadge}>
               {emails.length} recipient{emails.length > 1 ? 's' : ''}
             </span>
           )}

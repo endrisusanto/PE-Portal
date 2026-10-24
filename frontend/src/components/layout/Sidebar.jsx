@@ -192,9 +192,11 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   };
 
   const softwareTeamSubItems = [
-    { to: '/gba-tasks', label: t('nav.gba_tasks', 'GBA Tasks'), icon: Kanban },
-    { to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
-  ].sort((a, b) => a.label.localeCompare(b.label));
+    { key: 'software-gba', to: '/gba-tasks', label: t('nav.gba_tasks', 'GBA Tasks'), icon: Kanban },
+    { key: 'software-mr', to: '/software-mr', label: t('nav.software_mr', 'Software MR'), icon: GitCompare },
+  ]
+    .filter((sub) => isMenuAllowed(sub.key))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   const toolsNestedGroups = [
     {
@@ -205,9 +207,11 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       isOpen: openToolsSubKey === 'dokumen',
       onToggle: () => handleToggleToolsSub('dokumen'),
       children: [
-        { to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
-        { to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
-      ].sort((a, b) => a.label.localeCompare(b.label)),
+        { key: 'tools-documents', to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
+        { key: 'tools-pdf-merge-split', to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
+      ]
+        .filter((sub) => isMenuAllowed(sub.key))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     },
     {
       key: 'media',
@@ -217,10 +221,12 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       isOpen: openToolsSubKey === 'media',
       onToggle: () => handleToggleToolsSub('media'),
       children: [
-        { to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
-        { to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
-        { to: '/tools/video-compress', label: t('nav.tools_video_compress', 'Video Compressor (VAAPI)'), icon: Video },
-      ].sort((a, b) => a.label.localeCompare(b.label)),
+        { key: 'tools-images', to: '/tools/images', label: t('nav.tools_images', 'Image Converter & Compress'), icon: ImageIcon },
+        { key: 'tools-remove-bg', to: '/tools/remove-bg', label: t('nav.tools_bg', 'Local Remove Background'), icon: Scissors },
+        { key: 'tools-video-compress', to: '/tools/video-compress', label: t('nav.tools_video_compress', 'Video Compressor (VAAPI)'), icon: Video },
+      ]
+        .filter((sub) => isMenuAllowed(sub.key))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     },
     {
       key: 'software-dev',
@@ -230,16 +236,20 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       isOpen: openToolsSubKey === 'software-dev',
       onToggle: () => handleToggleToolsSub('software-dev'),
       children: [
-        { to: '/tools/cl-compare', label: t('nav.tools_cl_compare', 'CL Compare'), icon: GitCompare },
-        { to: '/tools/build-command', label: t('nav.tools_build_command', 'Build Command'), icon: Terminal },
-      ].sort((a, b) => a.label.localeCompare(b.label)),
+        { key: 'tools-cl-compare', to: '/tools/cl-compare', label: t('nav.tools_cl_compare', 'CL Compare'), icon: GitCompare },
+        { key: 'tools-build-command', to: '/tools/build-command', label: t('nav.tools_build_command', 'Build Command'), icon: Terminal },
+      ]
+        .filter((sub) => isMenuAllowed(sub.key))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     },
-  ];
+  ].filter((group) => group.children.length > 0);
 
   const sampleManagementSubItems = [
-    { to: '/samples', label: t('nav.samples_database', 'Database Sample PE'), icon: PackageCheck, end: true },
-    { to: '/samples/dhl-tracker', label: t('nav.dhl_tracker', 'DHL Tracker'), icon: Truck },
-  ].sort((a, b) => a.label.localeCompare(b.label));
+    { key: 'sample-database', to: '/samples', label: t('nav.samples_database', 'Database Sample PE'), icon: PackageCheck, end: true },
+    { key: 'sample-dhl', to: '/samples/dhl-tracker', label: t('nav.dhl_tracker', 'DHL Tracker'), icon: Truck },
+  ]
+    .filter((sub) => isMenuAllowed(sub.key))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   // Dashboard as prime top-level item
   const dashboardItem = { key: 'dashboard', to: '/', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard, end: true };
@@ -252,39 +262,51 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { key: 'models', to: '/models', label: t('nav.models'), icon: Cpu },
     { key: 'gmes', to: '/gmes', label: t('nav.gmes', 'GMES Monitor'), icon: Activity },
     { key: 'training', to: '/training', label: t('nav.training', 'Online Training'), icon: GraduationCap },
-    {
-      isGroup: true,
-      key: 'sample-management',
-      label: t('nav.sample_management', 'Sample Management'),
-      icon: PackageCheck,
-      isActive: isSampleManagementActive,
-      isOpen: openGroupKey === 'sample-management',
-      onToggle: () => handleToggleGroup('sample-management'),
-      children: sampleManagementSubItems,
-    },
-    {
-      isGroup: true,
-      key: 'software-team',
-      label: t('nav.software_team', 'Software Team'),
-      icon: Code2,
-      isActive: isSoftwareTeamActive,
-      isOpen: openGroupKey === 'software-team',
-      onToggle: () => handleToggleGroup('software-team'),
-      children: softwareTeamSubItems,
-    },
+    ...(sampleManagementSubItems.length > 0
+      ? [
+          {
+            isGroup: true,
+            key: 'sample-management',
+            label: t('nav.sample_management', 'Sample Management'),
+            icon: PackageCheck,
+            isActive: isSampleManagementActive,
+            isOpen: openGroupKey === 'sample-management',
+            onToggle: () => handleToggleGroup('sample-management'),
+            children: sampleManagementSubItems,
+          },
+        ]
+      : []),
+    ...(softwareTeamSubItems.length > 0
+      ? [
+          {
+            isGroup: true,
+            key: 'software-team',
+            label: t('nav.software_team', 'Software Team'),
+            icon: Code2,
+            isActive: isSoftwareTeamActive,
+            isOpen: openGroupKey === 'software-team',
+            onToggle: () => handleToggleGroup('software-team'),
+            children: softwareTeamSubItems,
+          },
+        ]
+      : []),
     { key: 'projects', to: '/projects', label: t('nav.projects', 'ToDo List'), icon: FolderKanban },
     { key: 'team', to: '/team', label: t('nav.team'), icon: Users },
-    {
-      isGroup: true,
-      isNested: true,
-      key: 'tools',
-      label: t('nav.tools', 'Tools'),
-      icon: Wrench,
-      isActive: isToolsActive,
-      isOpen: openGroupKey === 'tools',
-      onToggle: () => handleToggleGroup('tools'),
-      nestedGroups: toolsNestedGroups,
-    },
+    ...(toolsNestedGroups.length > 0
+      ? [
+          {
+            isGroup: true,
+            isNested: true,
+            key: 'tools',
+            label: t('nav.tools', 'Tools'),
+            icon: Wrench,
+            isActive: isToolsActive,
+            isOpen: openGroupKey === 'tools',
+            onToggle: () => handleToggleGroup('tools'),
+            nestedGroups: toolsNestedGroups,
+          },
+        ]
+      : []),
     { key: 'reports', to: '/reports', label: t('nav.reports'), icon: FileText },
   ].sort((a, b) => a.label.localeCompare(b.label));
 

@@ -14,8 +14,8 @@ export const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -59,14 +59,14 @@ export const LoginPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <form onSubmit={handleSubmit} autoComplete="off" className={styles.form}>
           <Input
             label={t('auth.username_placeholder')}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
             autoFocus
-            autoComplete="username"
+            autoComplete="off"
             placeholder="e.g. admin or employee_id"
           />
 
@@ -76,7 +76,7 @@ export const LoginPage = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            autoComplete="current-password"
+            autoComplete="new-password"
             placeholder="••••••••"
           />
 

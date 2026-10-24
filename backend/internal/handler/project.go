@@ -305,6 +305,43 @@ func (h *ProjectHandler) Delete(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid project id")
 	}
 
+	p, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "project not found")
+	}
+
+	role := ""
+	if roleVal := c.Get(middleware.ContextKeyUserRole); roleVal != nil {
+		if r, ok := roleVal.(string); ok {
+			role = r
+		}
+	}
+
+	var currentUserID uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			currentUserID = uid
+		}
+	}
+
+	isAuthorized := role == "admin" || role == "manager"
+	if !isAuthorized && currentUserID != uuid.Nil {
+		if p.OwnerID != nil && *p.OwnerID == currentUserID {
+			isAuthorized = true
+		} else if len(p.Metadata) > 0 {
+			var meta map[string]interface{}
+			if err := json.Unmarshal(p.Metadata, &meta); err == nil {
+				if createdByID, ok := meta["created_by_id"].(string); ok && createdByID == currentUserID.String() {
+					isAuthorized = true
+				}
+			}
+		}
+	}
+
+	if !isAuthorized {
+		return echo.NewHTTPError(http.StatusForbidden, "you are not authorized to delete this project")
+	}
+
 	if err := h.repo.Delete(c.Request().Context(), id); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

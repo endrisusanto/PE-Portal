@@ -73,6 +73,9 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		"015_document_shares.sql",
 		"016_dhl_delivered_notification.sql",
 		"017_user_multiple_group_parts.sql",
+		"018_article_status.sql",
+		"019_new_model_stage_attachments.sql",
+		"020_multilevel_menu_permissions.sql",
 	}
 	for _, file := range files {
 		var alreadyApplied bool

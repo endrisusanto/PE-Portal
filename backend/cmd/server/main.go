@@ -212,7 +212,7 @@ func main() {
 	api.POST("/projects", projectHandler.Create)
 	api.GET("/projects/:id", projectHandler.Get)
 	api.PUT("/projects/:id", projectHandler.Update)
-	api.DELETE("/projects/:id", projectHandler.Delete, middleware.RequireRole("admin", "manager"))
+	api.DELETE("/projects/:id", projectHandler.Delete)
 	api.POST("/projects/:id/send-email", projectHandler.SendEmailNotification)
 
 	// Project Tasks
@@ -225,8 +225,10 @@ func main() {
 	api.POST("/models", modelHandler.Create)
 	api.GET("/models/:id", modelHandler.Get)
 	api.PUT("/models/:id", modelHandler.Update)
+	api.DELETE("/models/:id", modelHandler.Delete)
 	api.GET("/models/:id/stages", modelHandler.ListStages)
-	api.POST("/models/:id/stages", modelHandler.AdvanceStage, middleware.RequireRole("admin", "manager"))
+	api.POST("/models/:id/stages", modelHandler.AdvanceStage)
+	api.PUT("/models/:id/stages/:stageId", modelHandler.UpdateStage)
 
 	// Sample Management
 	api.GET("/samples", sampleHandler.List)

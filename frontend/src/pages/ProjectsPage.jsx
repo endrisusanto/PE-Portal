@@ -35,6 +35,7 @@ import {
   Globe,
   UserCheck,
   X,
+  Trash2,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -351,6 +352,38 @@ export const ProjectsPage = () => {
       alert(err.response?.data?.message || err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Authorization check for project deletion (author or admin/manager)
+  const canDeleteProject = (p) => {
+    if (!p || !user) return false;
+    if (user.role === 'admin' || user.role === 'manager') return true;
+    if (p.owner_id === user.id) return true;
+    const meta = parseMetadata(p.metadata);
+    if (meta.created_by_id === user.id) return true;
+    return false;
+  };
+
+  const handleDeleteProject = async (p, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (!p || !p.id) return;
+    if (!window.confirm(`Hapus project / task "${p.title}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/projects/${p.id}`);
+      setProjects((prev) => prev.filter((item) => item.id !== p.id));
+      if (editingProject && editingProject.id === p.id) {
+        setIsEditModalOpen(false);
+        setEditingProject(null);
+      }
+      if (viewingProject && viewingProject.id === p.id) {
+        setIsViewModalOpen(false);
+        setViewingProject(null);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Gagal menghapus project');
     }
   };
 
@@ -783,6 +816,18 @@ export const ProjectsPage = () => {
           >
             {t('reports.send_email', 'Email')}
           </Button>
+          {canDeleteProject(row) && (
+            <Button
+              variant="outline"
+              size="xs"
+              icon={Trash2}
+              style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              onClick={(e) => handleDeleteProject(row, e)}
+              title={t('common.delete', 'Hapus Project')}
+            >
+              {t('common.delete', 'Hapus')}
+            </Button>
+          )}
         </div>
       ),
     },
@@ -1190,6 +1235,21 @@ export const ProjectsPage = () => {
                     >
                       Email
                     </Button>
+                    {canDeleteProject(p) && (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        icon={Trash2}
+                        style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject(p, e);
+                        }}
+                        title={t('common.delete', 'Hapus Project')}
+                      >
+                        Hapus
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1384,6 +1444,25 @@ export const ProjectsPage = () => {
                             >
                               <Edit2 size={11} />
                             </button>
+                            {canDeleteProject(task) && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteProject(task, e)}
+                                title="Hapus Task"
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  borderRadius: '6px',
+                                  padding: '4px 7px',
+                                  cursor: 'pointer',
+                                  color: '#ef4444',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
                             {st.step > 1 && (
                               <button
                                 type="button"
@@ -2035,20 +2114,33 @@ export const ProjectsPage = () => {
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingProject(null);
-                }}
-                type="button"
-              >
-                {t('common.cancel', 'Batal')}
-              </Button>
-              <Button variant="primary" type="submit">
-                {t('common.save', 'Simpan Perubahan')}
-              </Button>
+            <div style={{ display: 'flex', justifyContent: canDeleteProject(editingProject) ? 'space-between' : 'flex-end', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+              {canDeleteProject(editingProject) && (
+                <Button
+                  variant="outline"
+                  icon={Trash2}
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                  onClick={(e) => handleDeleteProject(editingProject, e)}
+                  type="button"
+                >
+                  {t('common.delete', 'Hapus Project')}
+                </Button>
+              )}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingProject(null);
+                  }}
+                  type="button"
+                >
+                  {t('common.cancel', 'Batal')}
+                </Button>
+                <Button variant="primary" type="submit">
+                  {t('common.save', 'Simpan Perubahan')}
+                </Button>
+              </div>
             </div>
           </form>
         </Modal>
@@ -2090,6 +2182,18 @@ export const ProjectsPage = () => {
                 >
                   Edit
                 </Button>
+                {canDeleteProject(viewingProject) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={Trash2}
+                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    onClick={(e) => handleDeleteProject(viewingProject, e)}
+                    title={t('common.delete', 'Hapus Project')}
+                  >
+                    Hapus
+                  </Button>
+                )}
               </div>
             </div>
           }
@@ -2303,18 +2407,32 @@ export const ProjectsPage = () => {
 
             {/* Footer Buttons */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
-              <Button
-                variant="outline"
-                size="sm"
-                icon={Edit2}
-                onClick={() => {
-                  const p = viewingProject;
-                  setIsViewModalOpen(false);
-                  openEditModal(p);
-                }}
-              >
-                Edit Task
-              </Button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={Edit2}
+                  onClick={() => {
+                    const p = viewingProject;
+                    setIsViewModalOpen(false);
+                    openEditModal(p);
+                  }}
+                >
+                  Edit Task
+                </Button>
+                {canDeleteProject(viewingProject) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={Trash2}
+                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    onClick={(e) => handleDeleteProject(viewingProject, e)}
+                    title={t('common.delete', 'Hapus Project')}
+                  >
+                    Hapus
+                  </Button>
+                )}
+              </div>
               <Button
                 variant="secondary"
                 size="sm"

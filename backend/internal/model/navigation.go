@@ -13,6 +13,7 @@ type MenuPermission struct {
 	Label         string    `json:"label"`
 	Path          string    `json:"path"`
 	Category      string    `json:"category"`
+	ParentKey     *string   `json:"parent_key,omitempty"`
 	IsVisible     bool      `json:"is_visible"`
 	AllowedRoles  []string  `json:"allowed_roles"`
 	AllowedGroups []string  `json:"allowed_groups"`

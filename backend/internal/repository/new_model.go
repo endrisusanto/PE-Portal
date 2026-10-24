@@ -151,7 +151,8 @@ func (r *NewModelRepository) Update(ctx context.Context, m *model.NewModel) (*mo
 func (r *NewModelRepository) ListStages(ctx context.Context, modelID uuid.UUID) ([]model.NewModelStage, error) {
 	query := `
 		SELECT s.id, s.model_id, s.stage, s.status, s.started_at, s.completed_at,
-		       s.notes, s.approved_by, u.full_name as approver_name, s.created_at
+		       s.notes, s.approved_by, u.full_name as approver_name,
+		       COALESCE(s.attachments, '[]'::jsonb) as attachments, s.created_at
 		FROM new_model_stages s
 		LEFT JOIN users u ON s.approved_by = u.id
 		WHERE s.model_id = $1
@@ -168,7 +169,7 @@ func (r *NewModelRepository) ListStages(ctx context.Context, modelID uuid.UUID) 
 		var s model.NewModelStage
 		err := rows.Scan(
 			&s.ID, &s.ModelID, &s.Stage, &s.Status, &s.StartedAt, &s.CompletedAt,
-			&s.Notes, &s.ApprovedBy, &s.ApproverName, &s.CreatedAt,
+			&s.Notes, &s.ApprovedBy, &s.ApproverName, &s.Attachments, &s.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -178,8 +179,11 @@ func (r *NewModelRepository) ListStages(ctx context.Context, modelID uuid.UUID) 
 	return stages, nil
 }
 
-func (r *NewModelRepository) AdvanceStage(ctx context.Context, modelID uuid.UUID, newStage, notes string, approverID *uuid.UUID) error {
+func (r *NewModelRepository) AdvanceStage(ctx context.Context, modelID uuid.UUID, newStage, notes string, attachments json.RawMessage, approverID *uuid.UUID) error {
 	now := time.Now()
+	if len(attachments) == 0 {
+		attachments = json.RawMessage("[]")
+	}
 
 	// Complete current stage
 	_, _ = r.pool.Exec(ctx, `
@@ -190,9 +194,9 @@ func (r *NewModelRepository) AdvanceStage(ctx context.Context, modelID uuid.UUID
 
 	// Add new stage
 	_, err := r.pool.Exec(ctx, `
-		INSERT INTO new_model_stages (model_id, stage, status, started_at, notes, approved_by)
-		VALUES ($1, $2, 'in_progress', $3, $4, $5)
-	`, modelID, newStage, now, notes, approverID)
+		INSERT INTO new_model_stages (model_id, stage, status, started_at, notes, attachments, approved_by)
+		VALUES ($1, $2, 'in_progress', $3, $4, $5, $6)
+	`, modelID, newStage, now, notes, attachments, approverID)
 	if err != nil {
 		return err
 	}
@@ -202,5 +206,50 @@ func (r *NewModelRepository) AdvanceStage(ctx context.Context, modelID uuid.UUID
 		UPDATE new_models SET stage = $1, updated_at = $2 WHERE id = $3
 	`, newStage, now, modelID)
 
+	return err
+}
+
+func (r *NewModelRepository) UpdateCurrentStage(ctx context.Context, modelID uuid.UUID, notes string, attachments json.RawMessage, approverID *uuid.UUID) error {
+	if len(attachments) == 0 {
+		attachments = json.RawMessage("[]")
+	}
+
+	// Check if in_progress stage exists
+	var stageID uuid.UUID
+	err := r.pool.QueryRow(ctx, `
+		SELECT id FROM new_model_stages WHERE model_id = $1 AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1
+	`, modelID).Scan(&stageID)
+	if err == nil {
+		_, err = r.pool.Exec(ctx, `
+			UPDATE new_model_stages
+			SET notes = $1, attachments = $2, approved_by = COALESCE($3, approved_by)
+			WHERE id = $4
+		`, notes, attachments, approverID, stageID)
+		return err
+	}
+
+	// If not found, create an in_progress stage with model's current stage
+	_, err = r.pool.Exec(ctx, `
+		INSERT INTO new_model_stages (model_id, stage, status, started_at, notes, attachments, approved_by)
+		SELECT id, stage, 'in_progress', NOW(), $1, $2, $3
+		FROM new_models WHERE id = $4
+	`, notes, attachments, approverID, modelID)
+	return err
+}
+
+func (r *NewModelRepository) UpdateStageByID(ctx context.Context, stageID uuid.UUID, notes string, attachments json.RawMessage, approverID *uuid.UUID) error {
+	if len(attachments) == 0 {
+		attachments = json.RawMessage("[]")
+	}
+	_, err := r.pool.Exec(ctx, `
+		UPDATE new_model_stages
+		SET notes = $1, attachments = $2, approved_by = COALESCE($3, approved_by)
+		WHERE id = $4
+	`, notes, attachments, approverID, stageID)
+	return err
+}
+
+func (r *NewModelRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE new_models SET deleted_at = NOW() WHERE id = $1`, id)
 	return err
 }

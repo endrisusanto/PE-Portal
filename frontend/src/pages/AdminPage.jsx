@@ -19,6 +19,7 @@ import {
   X,
   Edit2,
   Trash2,
+  CornerDownRight,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -27,6 +28,19 @@ import { Modal } from '../components/common/Modal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Table } from '../components/common/Table';
 import { LoadingState } from '../components/common/LoadingState';
+
+// ponytail: parent group display labels and grouping helper
+const PARENT_GROUP_LABELS = {
+  pe_mecha: 'PE Mecha',
+  pe_production: 'PE Production',
+  pe_solution: 'PE Solution Production',
+};
+
+const getParentGroupLabel = (key) => {
+  if (!key) return 'General';
+  if (PARENT_GROUP_LABELS[key]) return PARENT_GROUP_LABELS[key];
+  return key.replace(/^pe_/, 'PE ').replace(/_/g, ' ').toUpperCase();
+};
 
 export const AdminPage = () => {
   const { t } = useTranslation();
@@ -37,6 +51,7 @@ export const AdminPage = () => {
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [permissionSuccess, setPermissionSuccess] = useState('');
   const [searchMenuQuery, setSearchMenuQuery] = useState('');
+  const [menuFilterCategory, setMenuFilterCategory] = useState('all'); // 'all' | 'top' | 'sub' | 'tools' | 'sample-management' | 'software-team'
   const [tab, setTab] = useState('users'); // 'users' | 'menu_access' | 'audit'
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +61,7 @@ export const AdminPage = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [password, setPassword] = useState('sein1234');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState('member');
   const [groupPartId, setGroupPartId] = useState('');
   const [createGroupPartIds, setCreateGroupPartIds] = useState([]);
@@ -64,6 +79,16 @@ export const AdminPage = () => {
   const [editIsActive, setEditIsActive] = useState(true);
   const [editNewPassword, setEditNewPassword] = useState('');
   const [savingUser, setSavingUser] = useState(false);
+
+  // Group parts grouped by parent_group for card-based display
+  const groupedGroupParts = React.useMemo(() => {
+    return groups.reduce((acc, g) => {
+      const pGroup = g.parent_group || 'other';
+      if (!acc[pGroup]) acc[pGroup] = [];
+      acc[pGroup].push(g);
+      return acc;
+    }, {});
+  }, [groups]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -240,6 +265,7 @@ export const AdminPage = () => {
       setUsername('');
       setEmail('');
       setFullName('');
+      setPassword('');
       setCreateGroupPartIds([]);
     } catch (err) {
       alert(err.response?.data?.message || err.message);
@@ -495,7 +521,20 @@ export const AdminPage = () => {
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           {tab === 'users' && (
-            <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => {
+                setEmployeeId('');
+                setUsername('');
+                setEmail('');
+                setFullName('');
+                setPassword('');
+                setRole('member');
+                setCreateGroupPartIds([]);
+                setIsModalOpen(true);
+              }}
+            >
               {t('admin.add_user_btn', 'Add Engineer User')}
             </Button>
           )}
@@ -602,8 +641,41 @@ export const AdminPage = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ position: 'relative', width: '220px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {[
+                  { id: 'all', label: `Semua (${menuPermissions.length})` },
+                  { id: 'top', label: `Menu Utama (${menuPermissions.filter((m) => !m.parent_key).length})` },
+                  { id: 'sub', label: `Sub-menu (${menuPermissions.filter((m) => m.parent_key).length})` },
+                  { id: 'tools', label: `Tools (${menuPermissions.filter((m) => m.parent_key === 'tools').length})` },
+                  { id: 'sample-management', label: `Sample (${menuPermissions.filter((m) => m.parent_key === 'sample-management').length})` },
+                  { id: 'software-team', label: `Software (${menuPermissions.filter((m) => m.parent_key === 'software-team').length})` },
+                ].map((f) => {
+                  const isActive = menuFilterCategory === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setMenuFilterCategory(f.id)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-full, 9999px)',
+                        fontSize: '11px',
+                        fontWeight: isActive ? 600 : 500,
+                        cursor: 'pointer',
+                        border: isActive ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
+                        backgroundColor: isActive ? 'rgba(59, 130, 246, 0.15)' : 'var(--color-bg-primary)',
+                        color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ position: 'relative', width: '200px' }}>
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--color-text-secondary)' }} />
                 <input
                   type="text"
@@ -647,12 +719,23 @@ export const AdminPage = () => {
               </thead>
               <tbody>
                 {menuPermissions
-                  .filter((item) =>
-                    !searchMenuQuery ||
-                    item.label.toLowerCase().includes(searchMenuQuery.toLowerCase()) ||
-                    item.menu_key.toLowerCase().includes(searchMenuQuery.toLowerCase()) ||
-                    item.path.toLowerCase().includes(searchMenuQuery.toLowerCase())
-                  )
+                  .filter((item) => {
+                    if (menuFilterCategory === 'top' && item.parent_key) return false;
+                    if (menuFilterCategory === 'sub' && !item.parent_key) return false;
+                    if (menuFilterCategory === 'tools' && item.parent_key !== 'tools') return false;
+                    if (menuFilterCategory === 'sample-management' && item.parent_key !== 'sample-management') return false;
+                    if (menuFilterCategory === 'software-team' && item.parent_key !== 'software-team') return false;
+
+                    if (!searchMenuQuery) return true;
+                    const q = searchMenuQuery.toLowerCase();
+                    return (
+                      item.label.toLowerCase().includes(q) ||
+                      item.menu_key.toLowerCase().includes(q) ||
+                      item.path.toLowerCase().includes(q) ||
+                      (item.category && item.category.toLowerCase().includes(q)) ||
+                      (item.parent_key && item.parent_key.toLowerCase().includes(q))
+                    );
+                  })
                   .map((item) => {
                     const isVisible = item.is_visible !== false;
                     const roles = item.allowed_roles || [];
@@ -663,32 +746,71 @@ export const AdminPage = () => {
                         key={item.menu_key}
                         style={{
                           borderBottom: '1px solid var(--color-border)',
+                          borderLeft: item.parent_key ? '3px solid rgba(59, 130, 246, 0.6)' : '3px solid transparent',
+                          backgroundColor: item.parent_key ? 'rgba(59, 130, 246, 0.02)' : 'transparent',
                           opacity: isVisible ? 1 : 0.6,
                           transition: 'background-color 0.15s ease',
                         }}
                       >
                         {/* 1. Menu Name & Route */}
-                        <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                              {item.label}
-                            </div>
-                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                              <span
-                                style={{
-                                  fontFamily: 'var(--font-mono)',
-                                  fontSize: '11px',
-                                  color: 'var(--color-accent)',
-                                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                  padding: '1px 6px',
-                                  borderRadius: 'var(--radius-xs)',
-                                }}
-                              >
-                                {item.path}
-                              </span>
-                              <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>
-                                ({item.category})
-                              </span>
+                        <td style={{ padding: '12px 16px', paddingLeft: item.parent_key ? '28px' : '16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            {item.parent_key && (
+                              <CornerDownRight size={15} style={{ color: 'var(--color-accent)', marginTop: '3px', flexShrink: 0 }} />
+                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {item.label}
+                                {item.parent_key ? (
+                                  <span
+                                    style={{
+                                      fontSize: '10px',
+                                      color: 'var(--color-accent)',
+                                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                      padding: '1px 6px',
+                                      borderRadius: 'var(--radius-xs)',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Sub-menu
+                                  </span>
+                                ) : (
+                                  <span
+                                    style={{
+                                      fontSize: '10px',
+                                      color: 'var(--color-text-secondary)',
+                                      backgroundColor: 'var(--color-bg-tertiary)',
+                                      padding: '1px 6px',
+                                      borderRadius: 'var(--radius-xs)',
+                                      fontWeight: 500,
+                                    }}
+                                  >
+                                    Menu Utama
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span
+                                  style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '11px',
+                                    color: 'var(--color-accent)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    padding: '1px 6px',
+                                    borderRadius: 'var(--radius-xs)',
+                                  }}
+                                >
+                                  {item.path}
+                                </span>
+                                <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>
+                                  ({item.category})
+                                </span>
+                                {item.parent_key && (
+                                  <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>
+                                    • Induk: <strong style={{ color: 'var(--color-text-primary)' }}>{item.parent_key}</strong>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -1033,13 +1155,15 @@ export const AdminPage = () => {
           </>
         }
       >
-        <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleCreateUser} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Input
             label="Employee ID"
             value={employeeId}
             onChange={(e) => setEmployeeId(e.target.value)}
             required
             placeholder="e.g. EMP202601"
+            name="new_emp_id"
+            autoComplete="off"
           />
 
           <Input
@@ -1048,6 +1172,8 @@ export const AdminPage = () => {
             onChange={(e) => setFullName(e.target.value)}
             required
             placeholder="e.g. Budi Santoso"
+            name="new_full_name"
+            autoComplete="off"
           />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1057,6 +1183,8 @@ export const AdminPage = () => {
               onChange={(e) => setUsername(e.target.value)}
               required
               placeholder="e.g. bsantoso"
+              name="new_engineer_username"
+              autoComplete="off"
             />
 
             <Input
@@ -1066,6 +1194,8 @@ export const AdminPage = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="budi.s@sein.local"
+              name="new_engineer_email"
+              autoComplete="off"
             />
           </div>
 
@@ -1097,11 +1227,14 @@ export const AdminPage = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Masukkan initial password..."
+              name="new_engineer_password"
+              autoComplete="new-password"
               required
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Group Part (Bisa Pilih Lebih Dari 1 / Multi-Jobdesk)
@@ -1112,48 +1245,109 @@ export const AdminPage = () => {
             </div>
             <div
               style={{
-                maxHeight: '140px',
+                maxHeight: '220px',
                 overflowY: 'auto',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--color-bg-secondary)',
-                padding: '8px 10px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                gap: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                paddingRight: '4px',
               }}
             >
-              {groups.map((g) => {
-                const isChecked = createGroupPartIds.includes(g.id);
+              {Object.entries(groupedGroupParts).map(([pGroup, pItems]) => {
+                const selectedInGroup = pItems.filter((g) => createGroupPartIds.includes(g.id)).length;
                 return (
-                  <label
-                    key={g.id}
+                  <div
+                    key={pGroup}
                     style={{
+                      backgroundColor: 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '8px 10px',
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                       gap: '8px',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
-                      border: isChecked ? '1px solid #3b82f6' : '1px solid transparent',
-                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleCreateGroupPart(g.id)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    <span style={{ fontWeight: isChecked ? 600 : 400, color: 'var(--color-text-primary)' }}>
-                      {g.name}
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                      {g.parent_group}
-                    </span>
-                  </label>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderBottom: '1px solid var(--color-border)',
+                        paddingBottom: '4px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--color-text-primary)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        📁 {getParentGroupLabel(pGroup)}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: selectedInGroup > 0 ? 'var(--color-accent, #3b82f6)' : 'var(--color-text-muted)',
+                        }}
+                      >
+                        {selectedInGroup} / {pItems.length} dipilih
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                        gap: '6px',
+                      }}
+                    >
+                      {pItems.map((g) => {
+                        const isChecked = createGroupPartIds.includes(g.id);
+                        return (
+                          <label
+                            key={g.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              padding: '5px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.12)' : 'var(--color-bg-primary)',
+                              border: isChecked ? '1px solid #3b82f6' : '1px solid var(--color-border)',
+                              boxShadow: isChecked ? '0 1px 2px rgba(59, 130, 246, 0.15)' : 'none',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleCreateGroupPart(g.id)}
+                              style={{ cursor: 'pointer', accentColor: '#3b82f6' }}
+                            />
+                            <span
+                              style={{
+                                fontWeight: isChecked ? 600 : 400,
+                                color: isChecked ? 'var(--color-primary, #2563eb)' : 'var(--color-text-primary)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={g.name}
+                            >
+                              {g.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -1276,7 +1470,7 @@ export const AdminPage = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Group Part (Bisa Pilih Lebih Dari 1 / Multi-Jobdesk)
@@ -1287,48 +1481,109 @@ export const AdminPage = () => {
             </div>
             <div
               style={{
-                maxHeight: '140px',
+                maxHeight: '220px',
                 overflowY: 'auto',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--color-bg-secondary)',
-                padding: '8px 10px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                gap: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                paddingRight: '4px',
               }}
             >
-              {groups.map((g) => {
-                const isChecked = editGroupPartIds.includes(g.id);
+              {Object.entries(groupedGroupParts).map(([pGroup, pItems]) => {
+                const selectedInGroup = pItems.filter((g) => editGroupPartIds.includes(g.id)).length;
                 return (
-                  <label
-                    key={g.id}
+                  <div
+                    key={pGroup}
                     style={{
+                      backgroundColor: 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '8px 10px',
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                       gap: '8px',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
-                      border: isChecked ? '1px solid #3b82f6' : '1px solid transparent',
-                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleEditGroupPart(g.id)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    <span style={{ fontWeight: isChecked ? 600 : 400, color: 'var(--color-text-primary)' }}>
-                      {g.name}
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                      {g.parent_group}
-                    </span>
-                  </label>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderBottom: '1px solid var(--color-border)',
+                        paddingBottom: '4px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--color-text-primary)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        📁 {getParentGroupLabel(pGroup)}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: selectedInGroup > 0 ? 'var(--color-accent, #3b82f6)' : 'var(--color-text-muted)',
+                        }}
+                      >
+                        {selectedInGroup} / {pItems.length} dipilih
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                        gap: '6px',
+                      }}
+                    >
+                      {pItems.map((g) => {
+                        const isChecked = editGroupPartIds.includes(g.id);
+                        return (
+                          <label
+                            key={g.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              padding: '5px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.12)' : 'var(--color-bg-primary)',
+                              border: isChecked ? '1px solid #3b82f6' : '1px solid var(--color-border)',
+                              boxShadow: isChecked ? '0 1px 2px rgba(59, 130, 246, 0.15)' : 'none',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleEditGroupPart(g.id)}
+                              style={{ cursor: 'pointer', accentColor: '#3b82f6' }}
+                            />
+                            <span
+                              style={{
+                                fontWeight: isChecked ? 600 : 400,
+                                color: isChecked ? 'var(--color-primary, #2563eb)' : 'var(--color-text-primary)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={g.name}
+                            >
+                              {g.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -1340,6 +1595,8 @@ export const AdminPage = () => {
             value={editNewPassword}
             onChange={(e) => setEditNewPassword(e.target.value)}
             placeholder="Kosongkan jika tidak diubah"
+            name="edit_engineer_password"
+            autoComplete="new-password"
           />
         </form>
       </Modal>

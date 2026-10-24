@@ -901,8 +901,10 @@ const RemoveBackgroundTab = () => {
     setAiStatusText('Menginisialisasi U2-Net neural network...');
 
     try {
-      const { removeBackground } = await import('@imgly/background-removal');
+      // ponytail: serve U2-Net models directly from local server publicPath to eliminate user internet download
+      const serverModelPath = `${window.location.origin}/models/u2net/`;
       const blob = await removeBackground(file, {
+        publicPath: serverModelPath,
         model: u2ModelQuality, // 'medium' (fp16) or 'small' (quint8)
         output: {
           format: 'image/png',
@@ -913,9 +915,9 @@ const RemoveBackgroundTab = () => {
             const pct = Math.min(95, Math.round((current / total) * 100));
             setAiProgress(pct);
             if (key.includes('model') || key.includes('onnx')) {
-              setAiStatusText(`Mengunduh model U2-Net: ${pct}%`);
+              setAiStatusText(`Memuat model U2-Net dari server: ${pct}%`);
             } else if (key.includes('wasm')) {
-              setAiStatusText(`Memuat WebAssembly runtime: ${pct}%`);
+              setAiStatusText(`Memuat WebAssembly runtime dari server: ${pct}%`);
             } else {
               setAiStatusText(`Segmentasi objek U2-Net: ${pct}%`);
             }

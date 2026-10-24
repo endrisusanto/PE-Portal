@@ -11,6 +11,10 @@
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  height: 18px;
+  line-height: 18px;
+  display: flex;
+  align-items: center;
 }
 
 .required {

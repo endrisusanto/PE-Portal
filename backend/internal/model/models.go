@@ -195,9 +195,10 @@ type NewModelStage struct {
 	StartedAt    *time.Time `json:"started_at"`
 	CompletedAt  *time.Time `json:"completed_at"`
 	Notes        *string    `json:"notes"`
-	ApprovedBy   *uuid.UUID `json:"approved_by"`
-	ApproverName *string    `json:"approver_name,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ApprovedBy   *uuid.UUID      `json:"approved_by"`
+	ApproverName *string         `json:"approver_name,omitempty"`
+	Attachments  json.RawMessage `json:"attachments"`
+	CreatedAt    time.Time       `json:"created_at"`
 }
 
 // ImeiArticle represents engineering notes or articles grouped per model project
@@ -212,6 +213,7 @@ type ImeiArticle struct {
 	AuthorName  *string         `json:"author_name,omitempty"`
 	Tags        json.RawMessage `json:"tags"`
 	IsPinned    bool            `json:"is_pinned"`
+	Status      string          `json:"status"` // 'published' | 'draft'
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 }

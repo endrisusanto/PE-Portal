@@ -28,7 +28,7 @@ func NewImeiHandler(repo *repository.ImeiRepository) *ImeiHandler {
 }
 
 func (h *ArticleHandler) List(c echo.Context) error {
-	var modelID, projectID *uuid.UUID
+	var modelID, projectID, authorID *uuid.UUID
 	if mStr := c.QueryParam("model_id"); mStr != "" {
 		if id, err := uuid.Parse(mStr); err == nil {
 			modelID = &id
@@ -39,9 +39,27 @@ func (h *ArticleHandler) List(c echo.Context) error {
 			projectID = &id
 		}
 	}
+	if aStr := c.QueryParam("author_id"); aStr != "" {
+		if id, err := uuid.Parse(aStr); err == nil {
+			authorID = &id
+		}
+	}
 	search := c.QueryParam("search")
 
-	articles, err := h.repo.List(c.Request().Context(), modelID, projectID, search)
+	var viewerID *uuid.UUID
+	isAdmin := false
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			viewerID = &uid
+		}
+	}
+	if roleVal := c.Get(middleware.ContextKeyUserRole); roleVal != nil {
+		if r, ok := roleVal.(string); ok && (r == "admin" || r == "manager") {
+			isAdmin = true
+		}
+	}
+
+	articles, err := h.repo.List(c.Request().Context(), modelID, projectID, authorID, search, viewerID, isAdmin)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
@@ -68,6 +86,7 @@ type CreateArticleRequest struct {
 	ProjectID *uuid.UUID      `json:"project_id"`
 	Tags      json.RawMessage `json:"tags"`
 	IsPinned  bool            `json:"is_pinned"`
+	Status    string          `json:"status"` // 'published' | 'draft'
 }
 
 // Backward compatibility alias
@@ -90,6 +109,11 @@ func (h *ArticleHandler) Create(c echo.Context) error {
 		}
 	}
 
+	status := req.Status
+	if status == "" {
+		status = "published"
+	}
+
 	a := model.ImeiArticle{
 		Title:     req.Title,
 		Content:   req.Content,
@@ -98,6 +122,7 @@ func (h *ArticleHandler) Create(c echo.Context) error {
 		AuthorID:  authorID,
 		Tags:      req.Tags,
 		IsPinned:  req.IsPinned,
+		Status:    status,
 	}
 
 	created, err := h.repo.Create(c.Request().Context(), &a)
@@ -114,9 +139,39 @@ func (h *ArticleHandler) Update(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid article id")
 	}
 
+	existing, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "article not found")
+	}
+
+	var currentUserID uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			currentUserID = uid
+		}
+	}
+	role := ""
+	if roleVal := c.Get(middleware.ContextKeyUserRole); roleVal != nil {
+		if r, ok := roleVal.(string); ok {
+			role = r
+		}
+	}
+	isAuthorized := role == "admin" || role == "manager" || (existing.AuthorID != nil && *existing.AuthorID == currentUserID)
+	if !isAuthorized {
+		return echo.NewHTTPError(http.StatusForbidden, "you are not authorized to update this article")
+	}
+
 	var req CreateArticleRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
+	}
+
+	status := req.Status
+	if status == "" {
+		status = existing.Status
+	}
+	if status == "" {
+		status = "published"
 	}
 
 	a := model.ImeiArticle{
@@ -127,6 +182,7 @@ func (h *ArticleHandler) Update(c echo.Context) error {
 		ProjectID: req.ProjectID,
 		Tags:      req.Tags,
 		IsPinned:  req.IsPinned,
+		Status:    status,
 	}
 
 	updated, err := h.repo.Update(c.Request().Context(), &a)
@@ -141,6 +197,28 @@ func (h *ArticleHandler) Delete(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid article id")
+	}
+
+	existing, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "article not found")
+	}
+
+	var currentUserID uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			currentUserID = uid
+		}
+	}
+	role := ""
+	if roleVal := c.Get(middleware.ContextKeyUserRole); roleVal != nil {
+		if r, ok := roleVal.(string); ok {
+			role = r
+		}
+	}
+	isAuthorized := role == "admin" || role == "manager" || (existing.AuthorID != nil && *existing.AuthorID == currentUserID)
+	if !isAuthorized {
+		return echo.NewHTTPError(http.StatusForbidden, "you are not authorized to delete this article")
 	}
 
 	if err := h.repo.Delete(c.Request().Context(), id); err != nil {

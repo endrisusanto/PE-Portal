@@ -26,22 +26,24 @@ func NewImeiRepository(pool *pgxpool.Pool) *ImeiRepository {
 	return NewArticleRepository(pool)
 }
 
-func (r *ArticleRepository) List(ctx context.Context, modelID, projectID *uuid.UUID, search string) ([]model.ImeiArticle, error) {
+func (r *ArticleRepository) List(ctx context.Context, modelID, projectID, authorID *uuid.UUID, search string, viewerID *uuid.UUID, isAdmin bool) ([]model.ImeiArticle, error) {
 	query := `
 		SELECT a.id, a.title, a.content, a.model_id, nm.model_name,
 		       a.project_id, a.author_id, u.full_name as author_name,
-		       a.tags, a.is_pinned, a.created_at, a.updated_at
+		       a.tags, a.is_pinned, COALESCE(a.status, 'published') as status, a.created_at, a.updated_at
 		FROM imei_articles a
 		LEFT JOIN new_models nm ON a.model_id = nm.id
 		LEFT JOIN users u ON a.author_id = u.id
 		WHERE a.deleted_at IS NULL
 		  AND ($1::uuid IS NULL OR a.model_id = $1)
 		  AND ($2::uuid IS NULL OR a.project_id = $2)
-		  AND ($3 = '' OR a.title ILIKE '%' || $3 || '%' OR a.content ILIKE '%' || $3 || '%')
+		  AND ($3::uuid IS NULL OR a.author_id = $3)
+		  AND ($4 = '' OR a.title ILIKE '%' || $4 || '%' OR a.content ILIKE '%' || $4 || '%')
+		  AND (COALESCE(a.status, 'published') = 'published' OR a.author_id = $5::uuid OR $6::boolean = true)
 		ORDER BY a.is_pinned DESC, a.created_at DESC
 	`
 
-	rows, err := r.pool.Query(ctx, query, modelID, projectID, search)
+	rows, err := r.pool.Query(ctx, query, modelID, projectID, authorID, search, viewerID, isAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list articles: %w", err)
 	}
@@ -53,7 +55,7 @@ func (r *ArticleRepository) List(ctx context.Context, modelID, projectID *uuid.U
 		err := rows.Scan(
 			&a.ID, &a.Title, &a.Content, &a.ModelID, &a.ModelName,
 			&a.ProjectID, &a.AuthorID, &a.AuthorName,
-			&a.Tags, &a.IsPinned, &a.CreatedAt, &a.UpdatedAt,
+			&a.Tags, &a.IsPinned, &a.Status, &a.CreatedAt, &a.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -67,7 +69,7 @@ func (r *ArticleRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.I
 	query := `
 		SELECT a.id, a.title, a.content, a.model_id, nm.model_name,
 		       a.project_id, a.author_id, u.full_name as author_name,
-		       a.tags, a.is_pinned, a.created_at, a.updated_at
+		       a.tags, a.is_pinned, COALESCE(a.status, 'published') as status, a.created_at, a.updated_at
 		FROM imei_articles a
 		LEFT JOIN new_models nm ON a.model_id = nm.id
 		LEFT JOIN users u ON a.author_id = u.id
@@ -78,7 +80,7 @@ func (r *ArticleRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.I
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&a.ID, &a.Title, &a.Content, &a.ModelID, &a.ModelName,
 		&a.ProjectID, &a.AuthorID, &a.AuthorName,
-		&a.Tags, &a.IsPinned, &a.CreatedAt, &a.UpdatedAt,
+		&a.Tags, &a.IsPinned, &a.Status, &a.CreatedAt, &a.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -93,15 +95,18 @@ func (r *ArticleRepository) Create(ctx context.Context, a *model.ImeiArticle) (*
 	if len(a.Tags) == 0 {
 		a.Tags = json.RawMessage("[]")
 	}
+	if a.Status == "" {
+		a.Status = "published"
+	}
 
 	query := `
-		INSERT INTO imei_articles (id, title, content, model_id, project_id, author_id, tags, is_pinned)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO imei_articles (id, title, content, model_id, project_id, author_id, tags, is_pinned, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING created_at, updated_at
 	`
 
 	err := r.pool.QueryRow(ctx, query,
-		a.ID, a.Title, a.Content, a.ModelID, a.ProjectID, a.AuthorID, a.Tags, a.IsPinned,
+		a.ID, a.Title, a.Content, a.ModelID, a.ProjectID, a.AuthorID, a.Tags, a.IsPinned, a.Status,
 	).Scan(&a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create article: %w", err)
@@ -111,14 +116,17 @@ func (r *ArticleRepository) Create(ctx context.Context, a *model.ImeiArticle) (*
 }
 
 func (r *ArticleRepository) Update(ctx context.Context, a *model.ImeiArticle) (*model.ImeiArticle, error) {
+	if a.Status == "" {
+		a.Status = "published"
+	}
 	query := `
 		UPDATE imei_articles
 		SET title = $1, content = $2, model_id = $3, project_id = $4,
-		    tags = $5, is_pinned = $6, updated_at = NOW()
-		WHERE id = $7 AND deleted_at IS NULL
+		    tags = $5, is_pinned = $6, status = $7, updated_at = NOW()
+		WHERE id = $8 AND deleted_at IS NULL
 	`
 	_, err := r.pool.Exec(ctx, query,
-		a.Title, a.Content, a.ModelID, a.ProjectID, a.Tags, a.IsPinned, a.ID,
+		a.Title, a.Content, a.ModelID, a.ProjectID, a.Tags, a.IsPinned, a.Status, a.ID,
 	)
 	if err != nil {
 		return nil, err

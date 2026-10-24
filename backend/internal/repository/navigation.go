@@ -20,7 +20,7 @@ func NewNavigationRepository(pool *pgxpool.Pool) *NavigationRepository {
 // ListMenuPermissions retrieves all menu items ordered by sort_order
 func (r *NavigationRepository) ListMenuPermissions(ctx context.Context) ([]model.MenuPermission, error) {
 	query := `
-		SELECT id, menu_key, label, path, category, is_visible,
+		SELECT id, menu_key, label, path, category, parent_key, is_visible,
 		       COALESCE(allowed_roles, ARRAY[]::text[]),
 		       COALESCE(allowed_groups, ARRAY[]::text[]),
 		       COALESCE(allowed_users, ARRAY[]::text[]),
@@ -39,7 +39,7 @@ func (r *NavigationRepository) ListMenuPermissions(ctx context.Context) ([]model
 	for rows.Next() {
 		var p model.MenuPermission
 		err := rows.Scan(
-			&p.ID, &p.MenuKey, &p.Label, &p.Path, &p.Category, &p.IsVisible,
+			&p.ID, &p.MenuKey, &p.Label, &p.Path, &p.Category, &p.ParentKey, &p.IsVisible,
 			&p.AllowedRoles, &p.AllowedGroups, &p.AllowedUsers, &p.BlockedUsers, &p.SortOrder,
 			&p.CreatedAt, &p.UpdatedAt,
 		)
@@ -54,7 +54,7 @@ func (r *NavigationRepository) ListMenuPermissions(ctx context.Context) ([]model
 // GetMenuPermissionByKey retrieves a menu permission by menu_key
 func (r *NavigationRepository) GetMenuPermissionByKey(ctx context.Context, menuKey string) (*model.MenuPermission, error) {
 	query := `
-		SELECT id, menu_key, label, path, category, is_visible,
+		SELECT id, menu_key, label, path, category, parent_key, is_visible,
 		       COALESCE(allowed_roles, ARRAY[]::text[]),
 		       COALESCE(allowed_groups, ARRAY[]::text[]),
 		       COALESCE(allowed_users, ARRAY[]::text[]),
@@ -65,7 +65,7 @@ func (r *NavigationRepository) GetMenuPermissionByKey(ctx context.Context, menuK
 	`
 	var p model.MenuPermission
 	err := r.pool.QueryRow(ctx, query, menuKey).Scan(
-		&p.ID, &p.MenuKey, &p.Label, &p.Path, &p.Category, &p.IsVisible,
+		&p.ID, &p.MenuKey, &p.Label, &p.Path, &p.Category, &p.ParentKey, &p.IsVisible,
 		&p.AllowedRoles, &p.AllowedGroups, &p.AllowedUsers, &p.BlockedUsers, &p.SortOrder,
 		&p.CreatedAt, &p.UpdatedAt,
 	)
@@ -81,12 +81,12 @@ func (r *NavigationRepository) UpdateMenuPermission(ctx context.Context, menuKey
 		UPDATE menu_permissions
 		SET is_visible = $1, allowed_roles = $2, allowed_groups = $3, allowed_users = $4, blocked_users = $5, updated_at = NOW()
 		WHERE menu_key = $6
-		RETURNING id, menu_key, label, path, category, is_visible,
+		RETURNING id, menu_key, label, path, category, parent_key, is_visible,
 		          allowed_roles, allowed_groups, allowed_users, blocked_users, sort_order, created_at, updated_at
 	`
 	var p model.MenuPermission
 	err := r.pool.QueryRow(ctx, query, req.IsVisible, req.AllowedRoles, req.AllowedGroups, req.AllowedUsers, req.BlockedUsers, menuKey).Scan(
-		&p.ID, &p.MenuKey, &p.Label, &p.Path, &p.Category, &p.IsVisible,
+		&p.ID, &p.MenuKey, &p.Label, &p.Path, &p.Category, &p.ParentKey, &p.IsVisible,
 		&p.AllowedRoles, &p.AllowedGroups, &p.AllowedUsers, &p.BlockedUsers, &p.SortOrder,
 		&p.CreatedAt, &p.UpdatedAt,
 	)

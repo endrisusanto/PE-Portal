@@ -131,8 +131,10 @@ func (h *NewModelHandler) ListStages(c echo.Context) error {
 }
 
 type AdvanceStageRequest struct {
-	Stage string `json:"stage"`
-	Notes string `json:"notes"`
+	Stage       string          `json:"stage"`
+	Notes       string          `json:"notes"`
+	Attachments json.RawMessage `json:"attachments"`
+	Advance     *bool           `json:"advance"` // If false, do NOT advance stage, just update notes & attachments
 }
 
 func (h *NewModelHandler) AdvanceStage(c echo.Context) error {
@@ -141,9 +143,66 @@ func (h *NewModelHandler) AdvanceStage(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid model id")
 	}
 
+	existing, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "model not found")
+	}
+
+	var currentUserID uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			currentUserID = uid
+		}
+	}
+	role := ""
+	if roleVal := c.Get(middleware.ContextKeyUserRole); roleVal != nil {
+		if r, ok := roleVal.(string); ok {
+			role = r
+		}
+	}
+	isAuthorized := role == "admin" || role == "manager" || (existing.OwnerID != nil && *existing.OwnerID == currentUserID)
+	if !isAuthorized {
+		return echo.NewHTTPError(http.StatusForbidden, "you are not authorized to update or advance stage for this model")
+	}
+
 	var req AdvanceStageRequest
-	if err := c.Bind(&req); err != nil || req.Stage == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "stage is required")
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
+	}
+
+	var approverID *uuid.UUID
+	if currentUserID != uuid.Nil {
+		approverID = &currentUserID
+	}
+
+	// If advance is explicitly false, update current stage notes and attachments without advancing
+	if req.Advance != nil && !*req.Advance {
+		if err := h.repo.UpdateCurrentStage(c.Request().Context(), id, req.Notes, req.Attachments, approverID); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(http.StatusOK, map[string]string{"message": "stage data updated successfully without advancing"})
+	}
+
+	// Advance stage
+	if req.Stage == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "stage is required to advance")
+	}
+	if err := h.repo.AdvanceStage(c.Request().Context(), id, req.Stage, req.Notes, req.Attachments, approverID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "stage advanced successfully"})
+}
+
+func (h *NewModelHandler) UpdateStage(c echo.Context) error {
+	stageID, err := uuid.Parse(c.Param("stageId"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid stage id")
+	}
+
+	var req AdvanceStageRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
 	}
 
 	var approverID *uuid.UUID
@@ -153,9 +212,44 @@ func (h *NewModelHandler) AdvanceStage(c echo.Context) error {
 		}
 	}
 
-	if err := h.repo.AdvanceStage(c.Request().Context(), id, req.Stage, req.Notes, approverID); err != nil {
+	if err := h.repo.UpdateStageByID(c.Request().Context(), stageID, req.Notes, req.Attachments, approverID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{"message": "stage advanced successfully"})
+	return c.JSON(http.StatusOK, map[string]string{"message": "stage updated successfully"})
+}
+
+func (h *NewModelHandler) Delete(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid model id")
+	}
+
+	existing, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "model not found")
+	}
+
+	var currentUserID uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			currentUserID = uid
+		}
+	}
+	role := ""
+	if roleVal := c.Get(middleware.ContextKeyUserRole); roleVal != nil {
+		if r, ok := roleVal.(string); ok {
+			role = r
+		}
+	}
+	isAuthorized := role == "admin" || role == "manager" || (existing.OwnerID != nil && *existing.OwnerID == currentUserID)
+	if !isAuthorized {
+		return echo.NewHTTPError(http.StatusForbidden, "you are not authorized to delete this model")
+	}
+
+	if err := h.repo.Delete(c.Request().Context(), id); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "deleted successfully"})
 }
