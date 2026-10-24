@@ -11,6 +11,7 @@ echo ========================================================
 echo.
 
 taskkill /F /IM "pe-portal-backend.exe" 2>nul
+taskkill /F /IM "pe-portal-manager.exe" 2>nul
 taskkill /F /FI "WINDOWTITLE eq PE-Portal*" 2>nul
 
 echo All PE-Portal bare metal services stopped.

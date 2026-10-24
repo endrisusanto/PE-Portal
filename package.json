@@ -1,0 +1,9 @@
+{
+  "name": "pe-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SEIN Production Engineer Team Platform",
+  "scripts": {
+    "release": "./release.sh"
+  }
+}

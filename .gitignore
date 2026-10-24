@@ -14,10 +14,14 @@ bin/
 dist/
 dist-ssr/
 frontend/dist/
+desktop/dist/
+desktop/src-tauri/target/
 
 # Dependencies
 node_modules/
 frontend/node_modules/
+desktop/node_modules/
+.node/
 vendor/
 
 # Local database & uploaded media storage

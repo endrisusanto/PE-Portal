@@ -12,6 +12,18 @@ echo   Starting SEIN PE-Portal Services (Bare Metal)
 echo ========================================================
 echo.
 
+:: Prefer Tray Manager if available to run headless in system tray without console window
+if exist "bin\pe-portal-manager.exe" (
+    echo Launching PE-Portal Desktop Tray Manager...
+    start "" "bin\pe-portal-manager.exe"
+    exit /b 0
+)
+if exist "desktop\src-tauri\target\release\pe_portal_manager.exe" (
+    echo Launching PE-Portal Desktop Tray Manager...
+    start "" "desktop\src-tauri\target\release\pe_portal_manager.exe"
+    exit /b 0
+)
+
 :: Add PostgreSQL to PATH if present
 if exist "C:\Program Files\PostgreSQL\16\bin" set "PATH=C:\Program Files\PostgreSQL\16\bin;%PATH%"
 

@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SEIN PE-Portal Manager</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --border: #334155;
+      --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: 'Consolas', 'Courier New', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Navigation / Header */
+    header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-version {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background-color: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    /* Status & Controls Bar */
+    .controls-panel {
+      padding: 14px 16px;
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: var(--bg-primary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--danger);
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.online {
+      background-color: var(--success);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    }
+
+    .status-dot.starting {
+      background-color: var(--warning);
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+    }
+
+    .metrics-group {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .metric-item strong {
+      color: var(--text-primary);
+    }
+
+    .buttons-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-start {
+      background-color: var(--success);
+      color: white;
+    }
+
+    .btn-stop {
+      background-color: var(--danger);
+      color: white;
+    }
+
+    .btn-restart {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-web {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    .btn-update {
+      background-color: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    /* Terminal Console */
+    .console-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: #0b1120;
+      overflow: hidden;
+    }
+
+    .console-header {
+      background-color: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .console-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .search-input {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      outline: none;
+      width: 160px;
+    }
+
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 11px;
+      background-color: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 4px;
+    }
+
+    .logs-viewport {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      user-select: text;
+    }
+
+    .log-row {
+      display: flex;
+      gap: 8px;
+      word-break: break-all;
+    }
+
+    .log-time {
+      color: #64748b;
+      flex-shrink: 0;
+    }
+
+    .log-info { color: #38bdf8; }
+    .log-warn { color: #facc15; }
+    .log-error { color: #f87171; }
+    .log-text { color: #e2e8f0; }
+
+    /* Modal dialog */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 440px;
+      max-width: 90vw;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .modal-body {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background-color: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #10b981);
+      width: 0%;
+      transition: width 0.2s ease;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">PE</div>
+      <div>
+        <div class="brand-title">SEIN PE-Portal Manager</div>
+        <div class="brand-subtitle">Standalone Windows Service Controller & Tray</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="badge-version" id="versionBadge">v1.0.0</span>
+      <button class="btn-update" id="btnCheckUpdate">⬆ Cek Update</button>
+    </div>
+  </header>
+
+  <!-- Controls Panel -->
+  <div class="controls-panel">
+    <div class="status-group">
+      <div class="status-pill">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">STOPPED</span>
+      </div>
+      <div class="metrics-group">
+        <div class="metric-item">Port: <strong id="portText">8085</strong></div>
+        <div class="metric-item">PID: <strong id="pidText">-</strong></div>
+        <div class="metric-item">Uptime: <strong id="uptimeText">0s</strong></div>
+      </div>
+    </div>
+
+    <div class="buttons-group">
+      <button class="btn-start" id="btnStart">▶ Start</button>
+      <button class="btn-stop" id="btnStop" disabled>⏹ Stop</button>
+      <button class="btn-restart" id="btnRestart" disabled>🔄 Restart</button>
+      <button class="btn-web" id="btnOpenWeb">🌐 Buka Web</button>
+    </div>
+  </div>
+
+  <!-- Terminal Live Streaming Console -->
+  <div class="console-container">
+    <div class="console-header">
+      <span>Console Log (Live Backend Output)</span>
+      <div class="console-tools">
+        <input type="text" class="search-input" id="searchLogInput" placeholder="Filter log..." />
+        <button class="btn-small" id="btnToggleScroll">Auto-scroll: ON</button>
+        <button class="btn-small" id="btnClearLogs">Clear</button>
+        <button class="btn-small" id="btnCopyLogs">Copy</button>
+      </div>
+    </div>
+    <div class="logs-viewport" id="logsViewport"></div>
+  </div>
+
+  <!-- Update Modal (Hidden by Default) -->
+  <div class="modal-overlay" id="updateModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-title" id="updateTitle">Pembaruan Tersedia</div>
+      <div class="modal-body" id="updateBody">Versi terbaru telah ditemukan.</div>
+      <div class="progress-bar-container" id="progressContainer" style="display: none;">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+      <div style="font-size: 11px; color: var(--text-secondary); text-align: right;" id="progressText"></div>
+      <div class="modal-footer">
+        <button class="btn-restart" id="btnDismissUpdate">Tutup</button>
+        <button class="btn-web" id="btnInstallUpdate">Unduh & Pasang</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    let invoke = null;
+    let listen = null;
+    let updaterCheck = null;
+    let processRelaunch = null;
+
+    let autoScroll = true;
+    let allLogs = [];
+    let logSearchQuery = '';
+    let pendingUpdate = null;
+
+    // Initialize Tauri APIs
+    try {
+      if (window.__TAURI__) {
+        invoke = window.__TAURI__.core.invoke;
+        listen = window.__TAURI__.event.listen;
+      }
+    } catch (e) {
+      console.warn("Not running in Tauri runtime", e);
+    }
+
+    const logsViewport = document.getElementById('logsViewport');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const pidText = document.getElementById('pidText');
+    const uptimeText = document.getElementById('uptimeText');
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const btnRestart = document.getElementById('btnRestart');
+    const btnOpenWeb = document.getElementById('btnOpenWeb');
+    const btnCheckUpdate = document.getElementById('btnCheckUpdate');
+    const searchLogInput = document.getElementById('searchLogInput');
+    const btnToggleScroll = document.getElementById('btnToggleScroll');
+    const btnClearLogs = document.getElementById('btnClearLogs');
+    const btnCopyLogs = document.getElementById('btnCopyLogs');
+
+    // Update modal elements
+    const updateModal = document.getElementById('updateModal');
+    const updateTitle = document.getElementById('updateTitle');
+    const updateBody = document.getElementById('updateBody');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const btnDismissUpdate = document.getElementById('btnDismissUpdate');
+    const btnInstallUpdate = document.getElementById('btnInstallUpdate');
+
+    function appendLog(timestamp, level, message) {
+      allLogs.push({ timestamp, level, message });
+      if (allLogs.length > 3000) allLogs.shift();
+
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const filtered = logSearchQuery
+        ? allLogs.filter(l => l.message.toLowerCase().includes(logSearchQuery.toLowerCase()))
+        : allLogs;
+
+      logsViewport.innerHTML = filtered.map(item => {
+        let levelClass = 'log-text';
+        if (item.level === 'error' || item.message.includes('[ERROR]') || item.message.includes('Fatal')) {
+          levelClass = 'log-error';
+        } else if (item.level === 'warn' || item.message.includes('[WARN]')) {
+          levelClass = 'log-warn';
+        } else if (item.message.includes('[INFO]') || item.message.includes('[HTTP]')) {
+          levelClass = 'log-info';
+        }
+
+        return `<div class="log-row">
+          <span class="log-time">[${item.timestamp}]</span>
+          <span class="${levelClass}">${escapeHtml(item.message)}</span>
+        </div>`;
+      }).join('');
+
+      if (autoScroll) {
+        logsViewport.scrollTop = logsViewport.scrollHeight;
+      }
+    }
+
+    function escapeHtml(str) {
+      return (str || '')
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    async function refreshStatus() {
+      if (!invoke) return;
+      try {
+        const status = await invoke('get_service_status');
+        if (status.is_running) {
+          statusDot.className = 'status-dot online';
+          statusText.innerText = 'ONLINE';
+          pidText.innerText = status.pid || '-';
+          uptimeText.innerText = `${status.uptime_seconds}s`;
+          btnStart.disabled = true;
+          btnStop.disabled = false;
+          btnRestart.disabled = false;
+        } else {
+          statusDot.className = 'status-dot';
+          statusText.innerText = 'STOPPED';
+          pidText.innerText = '-';
+          uptimeText.innerText = '0s';
+          btnStart.disabled = false;
+          btnStop.disabled = true;
+          btnRestart.disabled = true;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Auto-update checking routine
+    async function checkForUpdates(silent = false) {
+      try {
+        const { check } = await import('@tauri-apps/plugin-updater');
+        updaterCheck = check;
+        const update = await check();
+        if (update) {
+          pendingUpdate = update;
+          updateTitle.innerText = `Pembaruan Tersedia: v${update.version}`;
+          updateBody.innerText = update.body || 'Perbaikan performa dan fitur baru telah tersedia.';
+          progressContainer.style.display = 'none';
+          progressBar.style.width = '0%';
+          progressText.innerText = '';
+          btnInstallUpdate.style.display = 'inline-block';
+          btnInstallUpdate.innerText = 'Unduh & Pasang';
+          updateModal.style.display = 'flex';
+        } else if (!silent) {
+          alert('Aplikasi sudah menggunakan versi terbaru.');
+        }
+      } catch (e) {
+        console.warn('Updater check error:', e);
+        if (!silent) alert('Pengecekan update gagal atau tidak terhubung ke internet.');
+      }
+    }
+
+    // Event listeners
+    btnStart.addEventListener('click', async () => {
+      if (!invoke) return;
+      statusDot.className = 'status-dot starting';
+      statusText.innerText = 'STARTING...';
+      btnStart.disabled = true;
+      try {
+        await invoke('start_backend');
+      } catch (e) {
+        alert(e);
+      }
+      refreshStatus();
+    });
+
+    btnStop.addEventListener('click', async () => {
+      if (!invoke) return;
+      btnStop.disabled = true;
+      try {
+        await invoke('stop_backend');
+      } catch (e) {
+        alert(e);
+      }
+      refreshStatus();
+    });
+
+    btnRestart.addEventListener('click', async () => {
+      if (!invoke) return;
+      statusDot.className = 'status-dot starting';
+      statusText.innerText = 'RESTARTING...';
+      btnRestart.disabled = true;
+      try {
+        await invoke('restart_backend');
+      } catch (e) {
+        alert(e);
+      }
+      refreshStatus();
+    });
+
+    btnOpenWeb.addEventListener('click', async () => {
+      if (invoke) {
+        await invoke('open_browser_url', { url: 'http://localhost:3025' });
+      } else {
+        window.open('http://localhost:3025', '_blank');
+      }
+    });
+
+    btnCheckUpdate.addEventListener('click', () => checkForUpdates(false));
+
+    searchLogInput.addEventListener('input', (e) => {
+      logSearchQuery = e.target.value;
+      renderLogs();
+    });
+
+    btnToggleScroll.addEventListener('click', () => {
+      autoScroll = !autoScroll;
+      btnToggleScroll.innerText = `Auto-scroll: ${autoScroll ? 'ON' : 'OFF'}`;
+      if (autoScroll) logsViewport.scrollTop = logsViewport.scrollHeight;
+    });
+
+    btnClearLogs.addEventListener('click', () => {
+      allLogs = [];
+      renderLogs();
+    });
+
+    btnCopyLogs.addEventListener('click', () => {
+      const text = allLogs.map(l => `[${l.timestamp}] ${l.message}`).join('\n');
+      navigator.clipboard.writeText(text);
+      alert('Log disalin ke clipboard!');
+    });
+
+    btnDismissUpdate.addEventListener('click', () => {
+      updateModal.style.display = 'none';
+    });
+
+    btnInstallUpdate.addEventListener('click', async () => {
+      if (!pendingUpdate) return;
+      btnInstallUpdate.disabled = true;
+      btnDismissUpdate.disabled = true;
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '10%';
+      progressText.innerText = 'Mengunduh pembaruan...';
+
+      try {
+        const { relaunch } = await import('@tauri-apps/plugin-process');
+
+        let downloaded = 0;
+        let total = 0;
+
+        await pendingUpdate.downloadAndInstall((event) => {
+          switch (event.event) {
+            case 'Started':
+              total = event.data.contentLength || 20 * 1024 * 1024;
+              break;
+            case 'Progress':
+              downloaded += event.data.chunkLength;
+              if (total > 0) {
+                const pct = Math.min(95, Math.round((downloaded / total) * 90));
+                progressBar.style.width = `${pct}%`;
+                progressText.innerText = `Mengunduh: ${pct}%`;
+              }
+              break;
+            case 'Finished':
+              progressBar.style.width = '98%';
+              progressText.innerText = 'Memasang pembaruan...';
+              break;
+          }
+        });
+
+        progressBar.style.width = '100%';
+        progressText.innerText = 'Update selesai! Membuka ulang aplikasi...';
+        setTimeout(async () => {
+          await relaunch();
+        }, 1000);
+      } catch (err) {
+        alert(`Update gagal: ${err.message || err}`);
+        btnInstallUpdate.disabled = false;
+        btnDismissUpdate.disabled = false;
+      }
+    });
+
+    // Setup backend log listener
+    if (listen) {
+      listen('backend-log', (event) => {
+        const { timestamp, level, message } = event.payload;
+        appendLog(timestamp, level, message);
+      });
+    }
+
+    // Auto-start backend on launch if not running
+    setTimeout(async () => {
+      refreshStatus();
+      if (invoke) {
+        try {
+          const s = await invoke('get_service_status');
+          if (!s.is_running) {
+            await invoke('start_backend');
+            refreshStatus();
+          }
+        } catch {}
+      }
+      // Check updates silently on launch
+      checkForUpdates(true);
+    }, 600);
+
+    // Periodic heartbeat to refresh status
+    setInterval(refreshStatus, 3000);
+
+    // Initial greeting log
+    appendLog(new Date().toTimeString().split(' ')[0], 'info', '[SYSTEM] PE-Portal Manager UI siap.');
+  </script>
+</body>
+</html>
