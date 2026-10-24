@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -74,12 +79,29 @@ jobs:
           New-Item -ItemType Directory -Force -Path "desktop\src-tauri\resources\frontend"
           Copy-Item -Path "frontend\dist\*" -Destination "desktop\src-tauri\resources\frontend" -Recurse
 
-      - name: Install Desktop UI Dependencies
+      - name: Install & Build Desktop UI
         shell: pwsh
         run: |
           cd desktop
           npm ci
+          npm run build
           cd ..
+
+      - name: Determine Release Tag
+        id: release_tag
+        shell: pwsh
+        run: |
+          $inputTag = "${{ github.event.inputs.tag }}"
+          if ($inputTag -ne "") {
+            $tag = $inputTag
+          } elseif ("${{ github.ref_type }}" -eq "tag") {
+            $tag = "${{ github.ref_name }}"
+          } else {
+            $pkg = Get-Content -Raw -Path "desktop\package.json" | ConvertFrom-Json
+            $tag = "v" + $pkg.version
+          }
+          Write-Host "Resolved release tag: $tag"
+          "TAG=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Build Tauri Application & Publish GitHub Release
         uses: tauri-apps/tauri-action@v0
@@ -89,8 +111,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: './desktop'
-          tagName: ${{ github.ref_name }}
-          releaseName: 'PE-Portal Desktop ${{ github.ref_name }}'
-          releaseBody: 'Automated release for SEIN PE-Portal Desktop Tray Manager ${{ github.ref_name }}'
+          tagName: ${{ steps.release_tag.outputs.TAG }}
+          releaseName: 'PE-Portal Desktop ${{ steps.release_tag.outputs.TAG }}'
+          releaseBody: 'Automated release for SEIN PE-Portal Desktop Tray Manager ${{ steps.release_tag.outputs.TAG }}'
           releaseDraft: false
           prerelease: false
