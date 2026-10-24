@@ -76,7 +76,11 @@
     "in_progress": "In Progress",
     "review": "Review",
     "completed": "Completed",
-    "tasks_count": "Tasks"
+    "tasks_count": "Tasks",
+    "toggle_holidays": "Indonesian Holidays",
+    "holiday_badge": "National Holiday",
+    "duration": "Duration",
+    "duration_days": "{{count}} days"
   },
   "common": {
     "loading": "Loading data...",

@@ -76,7 +76,11 @@
     "in_progress": "Sedang Berjalan",
     "review": "Peninjauan",
     "completed": "Selesai",
-    "tasks_count": "Task"
+    "tasks_count": "Task",
+    "toggle_holidays": "Libur Nasional Indonesia",
+    "holiday_badge": "Hari Libur Nasional",
+    "duration": "Durasi",
+    "duration_days": "{{count}} hari"
   },
   "common": {
     "loading": "Memuat data...",

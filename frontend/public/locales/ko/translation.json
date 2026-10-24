@@ -76,7 +76,11 @@
     "in_progress": "진행 중",
     "review": "검토 중",
     "completed": "완료됨",
-    "tasks_count": "작업"
+    "tasks_count": "작업",
+    "toggle_holidays": "인도네시아 공휴일",
+    "holiday_badge": "국경일/공휴일",
+    "duration": "기간",
+    "duration_days": "{{count}}일"
   },
   "common": {
     "loading": "데이터 로딩 중...",
