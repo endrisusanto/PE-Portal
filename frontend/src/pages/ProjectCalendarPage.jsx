@@ -24,7 +24,7 @@ import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingState } from '../components/common/LoadingState';
 import { Button } from '../components/common/Button';
-import { getIndonesianHoliday, isSunday } from '../utils/indonesianHolidays';
+import { getIndonesianHoliday, isWeekend, getHolidaysForMonth } from '../utils/indonesianHolidays';
 import styles from './ProjectCalendarPage.module.css';
 
 // Safely parse JSON metadata
@@ -402,7 +402,7 @@ export const ProjectCalendarPage = () => {
           {weekdays.map((w, idx) => (
             <div
               key={idx}
-              className={`${styles.weekdayHeaderCell} ${idx === 6 ? styles.sundayHeader : ''}`}
+              className={`${styles.weekdayHeaderCell} ${idx === 5 || idx === 6 ? styles.weekendHeader : ''}`}
             >
               {w}
             </div>
@@ -458,8 +458,8 @@ export const ProjectCalendarPage = () => {
               <div className={styles.dateCellsUnderlay}>
                 {weekDays.map((cell, cIdx) => {
                   const holiday = getIndonesianHoliday(cell.dateStr);
-                  const sunday = isSunday(cell.date);
-                  const isRedDate = sunday || Boolean(holiday);
+                  const isWeekendDay = isWeekend(cell.date);
+                  const isRedDate = isWeekendDay || Boolean(holiday);
 
                   return (
                     <div
@@ -576,8 +576,8 @@ export const ProjectCalendarPage = () => {
           const dayName = dayObj.date.toLocaleDateString(locale, { weekday: 'short' });
           const dayNum = dayObj.date.getDate();
           const holiday = getIndonesianHoliday(dayObj.dateStr);
-          const sunday = isSunday(dayObj.date);
-          const isRedDate = sunday || Boolean(holiday);
+          const isWeekendDay = isWeekend(dayObj.date);
+          const isRedDate = isWeekendDay || Boolean(holiday);
 
           return (
             <div
@@ -664,7 +664,7 @@ export const ProjectCalendarPage = () => {
   };
 
   // ==========================================================================
-  // RENDER YEAR VIEW
+  // RENDER YEAR VIEW (HIGHLIGHT EVENTS / TASKS & INDONESIAN HOLIDAYS)
   // ==========================================================================
   const renderYearView = () => {
     const year = currentDate.getFullYear();
@@ -673,13 +673,18 @@ export const ProjectCalendarPage = () => {
     const months = Array.from({ length: 12 }, (_, i) => i);
     const locale = i18n.language === 'id' ? 'id-ID' : i18n.language === 'ko' ? 'ko-KR' : 'en-US';
 
-    // Tasks inside the currently selected month in year view
+    // Tasks active during the selected month (date range aware)
+    const selMonthStartStr = `${year}-${String(selectedYearMonth + 1).padStart(2, '0')}-01`;
+    const selDaysInMonth = new Date(year, selectedYearMonth + 1, 0).getDate();
+    const selMonthEndStr = `${year}-${String(selectedYearMonth + 1).padStart(2, '0')}-${String(selDaysInMonth).padStart(2, '0')}`;
+
     const selectedMonthTasks = filteredTasks.filter((tItem) => {
-      let dStr = tItem.target_date || tItem.start_date || formatDateStr(tItem.created_at);
-      if (!dStr) return false;
-      const d = new Date(dStr);
-      return d.getFullYear() === year && d.getMonth() === selectedYearMonth;
+      const { startStr, endStr } = getTaskDateRange(tItem);
+      return startStr <= selMonthEndStr && endStr >= selMonthStartStr;
     });
+
+    // Holidays in the selected month
+    const selectedMonthHolidays = getHolidaysForMonth(year, selectedYearMonth);
 
     return (
       <div className={styles.yearContainer}>
@@ -692,13 +697,16 @@ export const ProjectCalendarPage = () => {
             const startOffset = firstDay === 0 ? 6 : firstDay - 1;
             const daysInMonth = new Date(year, mIdx + 1, 0).getDate();
 
-            // Count tasks in this month
+            const mStartStr = `${year}-${String(mIdx + 1).padStart(2, '0')}-01`;
+            const mEndStr = `${year}-${String(mIdx + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+
+            // Count tasks active in this month
             const mTasksCount = filteredTasks.filter((tItem) => {
-              let dStr = tItem.target_date || tItem.start_date || formatDateStr(tItem.created_at);
-              if (!dStr) return false;
-              const d = new Date(dStr);
-              return d.getFullYear() === year && d.getMonth() === mIdx;
+              const { startStr, endStr } = getTaskDateRange(tItem);
+              return startStr <= mEndStr && endStr >= mStartStr;
             }).length;
+
+            const mHolidays = getHolidaysForMonth(year, mIdx);
 
             return (
               <div
@@ -710,13 +718,35 @@ export const ProjectCalendarPage = () => {
               >
                 <div className={styles.miniMonthHeader}>
                   <span className={styles.miniMonthTitle}>{mTitle}</span>
-                  {mTasksCount > 0 && (
-                    <span className={styles.miniMonthTaskCount}>{mTasksCount}</span>
-                  )}
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    {mHolidays.length > 0 && showHolidays && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          color: '#ef4444',
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          fontWeight: 700,
+                        }}
+                        title={`${mHolidays.length} ${t('project_calendar.holiday_badge', 'Hari Libur')}`}
+                      >
+                        {mHolidays.length} Libur
+                      </span>
+                    )}
+                    {mTasksCount > 0 && (
+                      <span className={styles.miniMonthTaskCount}>{mTasksCount}</span>
+                    )}
+                  </div>
                 </div>
                 <div className={styles.miniMonthDaysGrid}>
                   {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((wd, i) => (
-                    <div key={i} className={styles.miniDayHeader}>
+                    <div
+                      key={i}
+                      className={`${styles.miniDayHeader} ${
+                        i === 5 || i === 6 ? styles.miniDayWeekendHeader : ''
+                      }`}
+                    >
                       {wd}
                     </div>
                   ))}
@@ -726,18 +756,45 @@ export const ProjectCalendarPage = () => {
                   {Array.from({ length: daysInMonth }, (_, i) => {
                     const day = i + 1;
                     const dStr = `${year}-${String(mIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const hasTasks = Boolean(tasksByDate[dStr] && tasksByDate[dStr].length > 0);
+                    const cellDate = new Date(year, mIdx, day);
+                    const isWeekendDay = isWeekend(cellDate);
+                    const holiday = getIndonesianHoliday(dStr);
+                    const isHolidayDay = Boolean(holiday);
+
+                    // Check if any active task covers this date (date range aware)
+                    const hasTasks = filteredTasks.some((tItem) => {
+                      const { startStr, endStr } = getTaskDateRange(tItem);
+                      return startStr <= dStr && endStr >= dStr;
+                    });
+
                     const isToday = dStr === todayStr;
 
                     return (
                       <div
                         key={day}
                         className={`${styles.miniDayCell} ${
-                          isToday ? styles.miniDayCellToday : hasTasks ? styles.miniDayHasTasks : ''
+                          isToday
+                            ? styles.miniDayCellToday
+                            : hasTasks
+                            ? styles.miniDayHasTasks
+                            : isHolidayDay
+                            ? styles.miniDayHoliday
+                            : isWeekendDay
+                            ? styles.miniDayWeekend
+                            : ''
                         }`}
-                        title={hasTasks ? `${tasksByDate[dStr].length} tasks on ${dStr}` : undefined}
+                        title={
+                          holiday
+                            ? `${dStr}: ${holiday.name}`
+                            : hasTasks
+                            ? `${dStr}: Active Tasks`
+                            : undefined
+                        }
                       >
                         {day}
+                        {isHolidayDay && showHolidays && !isToday && !hasTasks && (
+                          <span className={styles.miniDayHolidayBadgeDot} />
+                        )}
                       </div>
                     );
                   })}
@@ -747,7 +804,7 @@ export const ProjectCalendarPage = () => {
           })}
         </div>
 
-        {/* Side Panel: Selected Month Task Breakdown */}
+        {/* Side Panel: Selected Month Breakdown (Holidays + Tasks) */}
         <div className={styles.yearDetailPanel}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className={styles.yearDetailTitle}>
@@ -760,43 +817,84 @@ export const ProjectCalendarPage = () => {
             <span className={styles.countBadge}>{selectedMonthTasks.length} Task</span>
           </div>
 
-          {selectedMonthTasks.length === 0 ? (
-            <div className={styles.emptyStateContainer}>
-              <Clock size={32} style={{ opacity: 0.4 }} />
-              <p style={{ margin: 0, fontSize: '13px' }}>
-                {t('project_calendar.no_tasks', 'Tidak ada task terjadwal untuk bulan ini')}
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {selectedMonthTasks.map((tItem) => {
-                const meta = parseMetadata(tItem.metadata);
-                const picName = (meta.assigned_pics && meta.assigned_pics[0]?.name) || tItem.owner_name || 'Team';
-
-                return (
-                  <div
-                    key={tItem.id}
-                    className={styles.weekTaskCard}
-                    onClick={() => setSelectedTask(tItem)}
-                  >
-                    <div className={styles.cardHeaderRow}>
-                      <span className={`${styles.taskPill} ${getPriorityClass(tItem.priority)}`} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
-                        {tItem.priority || 'medium'}
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                        {tItem.target_date || 'No Date'}
-                      </span>
-                    </div>
-                    <h4 className={styles.taskCardTitle}>{tItem.title}</h4>
-                    <div className={styles.cardFooterRow}>
-                      <span>PIC: {picName}</span>
-                      <span>{tItem.progress || 0}%</span>
-                    </div>
+          {/* Indonesian Holidays in Selected Month */}
+          {selectedMonthHolidays.length > 0 && showHolidays && (
+            <div className={styles.miniMonthHolidaysSection}>
+              <h4 className={styles.miniSectionTitle}>
+                <PartyPopper size={14} />
+                {t('project_calendar.holiday_badge', 'Hari Libur')} ({selectedMonthHolidays.length})
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {selectedMonthHolidays.map((h, hIdx) => (
+                  <div key={hIdx} className={styles.holidayItemRow}>
+                    <span className={styles.holidayItemDate}>{h.day}</span>
+                    <span className={styles.holidayItemName}>
+                      {h.name}
+                      {h.isCutiBersama && (
+                        <span style={{ fontSize: '10px', color: '#f87171', marginLeft: '6px', opacity: 0.85 }}>
+                          (Cuti Bersama)
+                        </span>
+                      )}
+                    </span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Tasks & Events in Selected Month */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span className={styles.metaLabel} style={{ fontWeight: 700 }}>
+                {t('project_calendar.all_tasks', 'Task & Event')}
+              </span>
+            </div>
+
+            {selectedMonthTasks.length === 0 ? (
+              <div className={styles.emptyStateContainer}>
+                <Clock size={32} style={{ opacity: 0.4 }} />
+                <p style={{ margin: 0, fontSize: '13px' }}>
+                  {t('project_calendar.no_tasks', 'Tidak ada task terjadwal untuk bulan ini')}
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {selectedMonthTasks.map((tItem) => {
+                  const meta = parseMetadata(tItem.metadata);
+                  const picName = (meta.assigned_pics && meta.assigned_pics[0]?.name) || tItem.owner_name || 'Team';
+                  const { diffDays, isMultiDay } = getTaskDateRange(tItem);
+
+                  return (
+                    <div
+                      key={tItem.id}
+                      className={styles.weekTaskCard}
+                      onClick={() => setSelectedTask(tItem)}
+                    >
+                      <div className={styles.cardHeaderRow}>
+                        <span className={`${styles.taskPill} ${getPriorityClass(tItem.priority)}`} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
+                          {tItem.priority || 'medium'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                          {tItem.target_date || 'No Date'}
+                        </span>
+                      </div>
+                      <h4 className={styles.taskCardTitle}>{tItem.title}</h4>
+                      {isMultiDay && (
+                        <span className={styles.cardDateRangeBadge}>
+                          <Clock size={11} />
+                          {tItem.start_date || tItem.target_date} → {tItem.target_date} ({t('project_calendar.duration_days', { count: diffDays })})
+                        </span>
+                      )}
+                      <div className={styles.cardFooterRow}>
+                        <span>PIC: {picName}</span>
+                        <span>{tItem.progress || 0}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );

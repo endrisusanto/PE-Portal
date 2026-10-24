@@ -139,10 +139,44 @@ export const getIndonesianHoliday = (dateStr) => {
 };
 
 /**
+ * Checks if a Date object is a weekend (Saturday or Sunday)
+ * @param {Date} date
+ * @returns {boolean}
+ */
+export const isWeekend = (date) => {
+  if (!(date instanceof Date)) return false;
+  const day = date.getDay();
+  return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
+};
+
+/**
  * Checks if a Date object is Sunday (day 0)
  * @param {Date} date
  * @returns {boolean}
  */
 export const isSunday = (date) => {
   return date instanceof Date && date.getDay() === 0;
+};
+
+/**
+ * Retrieves all Indonesian holidays and cuti bersama for a specific year and month (0-indexed)
+ * @param {number} year
+ * @param {number} month (0 - 11)
+ * @returns {Array<{ dateStr: string, day: number, name: string, isCutiBersama: boolean }>}
+ */
+export const getHolidaysForMonth = (year, month) => {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const holidays = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const h = getIndonesianHoliday(dStr);
+    if (h) {
+      holidays.push({
+        dateStr: dStr,
+        day: d,
+        ...h,
+      });
+    }
+  }
+  return holidays;
 };
