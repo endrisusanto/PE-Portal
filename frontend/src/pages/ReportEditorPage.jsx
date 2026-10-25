@@ -421,6 +421,8 @@ export const ReportEditorPage = () => {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
   const [notification, setNotification] = useState(null);
 
   // Global ticker for countdown widgets
@@ -609,16 +611,53 @@ export const ReportEditorPage = () => {
     }
   }, [id, templateIdParam]);
 
-  // Synthesize via RAG from database activities
-  const handleSynthesizeFromDB = async () => {
+  // Synthesize via RAG from database activities with optional custom prompt
+  const handleSynthesizeFromDB = async (promptOverride) => {
     setSynthesizing(true);
+    const activePrompt = typeof promptOverride === 'string' ? promptOverride : customPrompt;
     try {
-      const res = await api.post('/reports/ai-synthesize', {});
+      const res = await api.post('/reports/ai-synthesize', { prompt: activePrompt || '' });
       if (res.data.title) setTitle(res.data.title);
       if (res.data.blocks && res.data.blocks.length > 0) {
-        setBlocks(res.data.blocks);
+        // ponytail: robust block normalization for chart selection and IDs
+        const normalized = res.data.blocks.map((b, idx) => {
+          const id = b.id || `blk_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`;
+          let type = b.type || 'paragraph';
+          if (type === 'pie' || type === 'pie_chart' || type === 'piechart') type = 'chart_pie';
+          else if (type === 'donut' || type === 'donut_chart' || type === 'donutchart') type = 'chart_donut';
+          else if (type === 'bar' || type === 'bar_chart' || type === 'barchart') type = 'chart_bar';
+          else if (type === 'line' || type === 'line_chart' || type === 'linechart') type = 'chart_line';
+
+          const block = { ...b, id, type };
+
+          if (block.type === 'db_widget') {
+            if (['pie', 'donut', 'bar'].includes(block.displayMode)) {
+              block.chartType = block.displayMode;
+              block.displayMode = 'chart';
+            }
+            if (block.displayMode === 'chart' && !block.chartType) {
+              block.chartType = 'bar';
+            }
+          } else if ((block.type === 'chart_pie' || block.type === 'chart_donut') && (!block.data || block.data.length === 0)) {
+            block.data = [
+              { label: 'Completed', value: 65, color: '#10b981' },
+              { label: 'In Progress', value: 25, color: '#0284c7' },
+              { label: 'Pending', value: 10, color: '#f59e0b' },
+            ];
+          } else if (block.type === 'chart_bar' && (!block.data || block.data.length === 0)) {
+            block.data = [
+              { label: 'SMT', value: 14 },
+              { label: 'FATP', value: 8 },
+              { label: 'Mecha JIG', value: 22 },
+            ];
+          }
+
+          return block;
+        });
+        setBlocks(normalized);
       }
-      showNotification('success', 'Synthesized report from your database activities!');
+      setIsAiModalOpen(false);
+      showNotification('success', t('reports.ai_synthesize_success', 'Report draft successfully synthesized by AI!'));
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     } finally {
@@ -1236,10 +1275,10 @@ export const ReportEditorPage = () => {
             size="sm"
             icon={Sparkles}
             loading={synthesizing}
-            onClick={handleSynthesizeFromDB}
-            title="Auto-draft from DB tasks & projects"
+            onClick={() => setIsAiModalOpen(true)}
+            title="Auto-draft from DB tasks & projects or Custom AI Prompt"
           >
-            RAG AI Draft
+            {t('reports.btn_ai_draft', 'AI Prompt Draft')}
           </Button>
 
           <Button
@@ -2889,6 +2928,126 @@ export const ReportEditorPage = () => {
               title="Email Preview"
               style={{ width: '100%', height: '100%', border: 'none', background: '#f1f5f9' }}
             />
+          </div>
+        </div>
+      </Modal>
+
+      {/* AI Report Generator & Custom Prompt Modal */}
+      <Modal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        title={t('reports.ai_modal_title', 'AI Report Generator & Custom Prompt')}
+        maxWidth="680px"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              onClick={() => handleSynthesizeFromDB('')}
+              loading={synthesizing}
+              icon={Sparkles}
+              title={t('reports.quick_rag_hint', 'Generate standard daily report draft without typing a prompt')}
+            >
+              {t('reports.quick_rag_btn', '⚡ Quick RAG Draft (Standard)')}
+            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button variant="outline" onClick={() => setIsAiModalOpen(false)}>
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                icon={Sparkles}
+                loading={synthesizing}
+                onClick={() => handleSynthesizeFromDB(customPrompt)}
+              >
+                {t('reports.generate_ai_btn', 'Generate Report with AI')}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <p style={{ margin: '0 0 6px', fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+              {t('reports.ai_modal_desc', 'Type custom instructions for your report. The AI LLM will synthesize portal database records (Tasks, Projects, New Models, DHL, etc.) into ready-to-use report blocks.')}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              {t('reports.custom_prompt_label', 'Custom Prompt / Instructions:')}
+            </label>
+            <textarea
+              rows={4}
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder={t('reports.custom_prompt_placeholder', 'Example: Generate a daily report on recent DHL status, display in table and piechart...')}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: '13px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)',
+                resize: 'vertical',
+                outline: 'none',
+                fontFamily: 'inherit',
+                lineHeight: 1.45,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  handleSynthesizeFromDB(customPrompt);
+                }
+              }}
+            />
+            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+              {t('reports.ctrl_enter_hint', 'Press Ctrl + Enter to generate immediately')}
+            </span>
+          </div>
+
+          {/* Quick Prompts Suggestions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+              {t('reports.quick_suggestions', '💡 Quick Prompt Suggestions:')}
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {[
+                { label: '📦 Status DHL (Table & Pie Chart)', prompt: 'Buatkan daily report terkait status DHL terbaru tampilkan dalam table dan piechart' },
+                { label: '📋 Rekap Tugas & Progres Harian', prompt: 'Rekap tugas operasional saya hari ini dalam bentuk checklist beserta statusnya dan tambahkan rencana besok' },
+                { label: '🚀 Status Proyek & Milestone Model', prompt: 'Tampilkan ringkasan progres proyek yang sedang in-progress dalam tabel serta milestone model baru' },
+                { label: '⚠️ Kendala Lini & Action Plan', prompt: 'Susun laporan fokus pada kendala lini produksi hari ini dan action plan perbaikan' },
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setCustomPrompt(item.prompt)}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '11.5px',
+                    borderRadius: '20px',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-accent)';
+                    e.currentTarget.style.background = 'var(--color-bg-tertiary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                    e.currentTarget.style.background = 'var(--color-bg-secondary)';
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </Modal>

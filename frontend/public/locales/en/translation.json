@@ -587,7 +587,18 @@
     "col_subject": "Subject",
     "col_recipients": "Recipients",
     "col_status": "Status",
-    "col_details": "Details"
+    "col_details": "Details",
+    "btn_ai_draft": "AI Prompt Draft",
+    "ai_modal_title": "AI Report Generator & Custom Prompt",
+    "ai_modal_desc": "Type custom instructions for your report. The AI LLM will synthesize portal database records (Tasks, Projects, New Models, DHL, etc.) into ready-to-use report blocks.",
+    "custom_prompt_label": "Custom Prompt / Instructions:",
+    "custom_prompt_placeholder": "Example: Generate a daily report on recent DHL status, display in table and piechart...",
+    "ctrl_enter_hint": "Press Ctrl + Enter to generate immediately",
+    "quick_suggestions": "💡 Quick Prompt Suggestions:",
+    "quick_rag_btn": "⚡ Quick RAG Draft (Standard)",
+    "quick_rag_hint": "Generate standard daily report draft without typing a prompt",
+    "generate_ai_btn": "Generate Report with AI",
+    "ai_synthesize_success": "Report draft successfully synthesized by AI!"
   },
   "dhl": {
     "title": "DHL Shipment Tracker",

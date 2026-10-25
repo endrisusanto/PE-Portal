@@ -94,7 +94,7 @@ func main() {
 	commentHandler := handler.NewCommentHandler(commentRepo, cfg.FileStoragePath)
 	mcpHandler := handler.NewMCPHandler(mcpRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo, pgPool.Pool)
-	reportHandler := handler.NewReportHandler(reportRepo, smtpService, reportScheduler)
+	reportHandler := handler.NewReportHandler(reportRepo, smtpService, reportScheduler, llmRepo, llmService)
 	aiHandler := handler.NewAIHandler(llmRepo, llmService)
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
 	sampleHandler := handler.NewSampleHandler(sampleRepo)

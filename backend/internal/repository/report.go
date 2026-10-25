@@ -473,13 +473,14 @@ func (r *ReportRepository) ListLogs(ctx context.Context, userID *uuid.UUID, limi
 // ==========================================
 
 type ScrapedActivities struct {
-	User        model.User            `json:"user"`
-	Tasks       []model.ProjectTask   `json:"tasks"`
-	Projects    []model.Project       `json:"projects"`
-	Models      []model.NewModel      `json:"models"`
-	Articles    []model.ImeiArticle   `json:"articles"`
-	Innovations []model.Innovation    `json:"innovations"`
-	GeneratedAt time.Time             `json:"generated_at"`
+	User        model.User          `json:"user"`
+	Tasks       []model.ProjectTask `json:"tasks"`
+	Projects    []model.Project     `json:"projects"`
+	Models      []model.NewModel    `json:"models"`
+	Articles    []model.ImeiArticle `json:"articles"`
+	Innovations []model.Innovation  `json:"innovations"`
+	DHL         []DHLShipmentRecord `json:"dhl"`
+	GeneratedAt time.Time           `json:"generated_at"`
 }
 
 // ScrapeMemberActivities extracts database records belonging to or worked on by this member
@@ -563,6 +564,28 @@ func (r *ReportRepository) ScrapeMemberActivities(ctx context.Context, userID uu
 			); err == nil {
 				m.Specifications = rawSpec
 				activities.Models = append(activities.Models, m)
+			}
+		}
+	}
+
+	// 5. DHL Express Shipments (recent 30 shipments)
+	dhlQuery := `
+		SELECT id, service_name, origin_country, origin_city, dest_country, dest_city, status_code, status_label, status_description, last_event_time, last_location, pic, is_collected, notes, created_at, updated_at
+		FROM dhl_shipments
+		ORDER BY updated_at DESC
+		LIMIT 30
+	`
+	dRows, err := r.pool.Query(ctx, dhlQuery)
+	if err == nil {
+		defer dRows.Close()
+		for dRows.Next() {
+			var s DHLShipmentRecord
+			if err := dRows.Scan(
+				&s.ID, &s.ServiceName, &s.OriginCountry, &s.OriginCity, &s.DestCountry, &s.DestCity,
+				&s.StatusCode, &s.StatusLabel, &s.StatusDescription, &s.LastEventTime, &s.LastLocation,
+				&s.PIC, &s.IsCollected, &s.Notes, &s.CreatedAt, &s.UpdatedAt,
+			); err == nil {
+				activities.DHL = append(activities.DHL, s)
 			}
 		}
 	}

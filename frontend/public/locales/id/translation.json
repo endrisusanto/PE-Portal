@@ -587,7 +587,18 @@
     "col_subject": "Subjek",
     "col_recipients": "Penerima",
     "col_status": "Status",
-    "col_details": "Rincian"
+    "col_details": "Rincian",
+    "btn_ai_draft": "Draf Prompt AI",
+    "ai_modal_title": "AI Report Generator & Custom Prompt",
+    "ai_modal_desc": "Ketik instruksi atau kebutuhan laporan Anda secara bebas. AI LLM akan memproses database portal (Tasks, Projects, New Models, DHL, dsb.) untuk menyusun blok laporan yang sesuai.",
+    "custom_prompt_label": "Instruksi / Prompt Kustom:",
+    "custom_prompt_placeholder": "Contoh: Buatkan daily report terkait status DHL terbaru tampilkan dalam table dan piechart...",
+    "ctrl_enter_hint": "Tekan Ctrl + Enter untuk langsung generate",
+    "quick_suggestions": "💡 Saran Prompt Cepat:",
+    "quick_rag_btn": "⚡ Draf RAG Standar (Instan)",
+    "quick_rag_hint": "Buat draf laporan harian standar tanpa perlu mengetik prompt",
+    "generate_ai_btn": "Generate Laporan dengan AI",
+    "ai_synthesize_success": "Draf laporan berhasil disintesis oleh AI!"
   },
   "dhl": {
     "title": "DHL Shipment Tracker",
