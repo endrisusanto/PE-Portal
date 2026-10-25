@@ -14,7 +14,6 @@ export const ZONES = {
   MEETING_1: 'Meeting 1',
   MEETING_2: 'Meeting 2',
   MEETING_3: 'Meeting 3',
-  JIG_DEV: 'JIG Development Lab',
   UNITBOX_STORAGE: 'Unitbox Storage',
   SAMPLE_STORAGE: 'Sample Storage',
   STAIRS: 'Area Tangga',
@@ -272,24 +271,17 @@ export const getCoordinatesForZone = (zoneKey, slotIndex = 0) => {
       return { x: 80.5 + col * 4.2, y: 18 + row * 5.2, label: `PANTRY-${slotIndex + 1}` };
     }
 
-    // --- JIG DEVELOPMENT LAB (Between Meeting 3 and Unitbox Storage) ---
-    case ZONES.JIG_DEV: {
-      const col = slotIndex % 2;
-      const row = Math.floor(slotIndex / 2);
-      return { x: 37 + col * 4, y: 19 + row * 7, label: `JIG-${slotIndex + 1}` };
-    }
-
     // --- MEETING ROOMS & STORAGES ---
     case ZONES.MEETING_1:
-      return { x: 8, y: 24, label: 'MTG-1' };
+      return { x: 9, y: 24, label: 'MTG-1' };
     case ZONES.MEETING_2:
-      return { x: 18, y: 24, label: 'MTG-2' };
+      return { x: 21, y: 24, label: 'MTG-2' };
     case ZONES.MEETING_3:
-      return { x: 28, y: 24, label: 'MTG-3' };
+      return { x: 33, y: 24, label: 'MTG-3' };
     case ZONES.UNITBOX_STORAGE:
-      return { x: 49, y: 24, label: 'UB-STOR' };
+      return { x: 44.5, y: 24, label: 'UB-STOR' };
     case ZONES.SAMPLE_STORAGE:
-      return { x: 56.5, y: 24, label: 'SMP-STOR' };
+      return { x: 55, y: 24, label: 'SMP-STOR' };
 
     case ZONES.STAIRS:
       return { x: 62.5, y: 24, label: 'TANGGA' };
@@ -357,13 +349,6 @@ export const getEngineerTargetPosition = (engineer, phase, index, currentTimeMin
         };
       }
       // 1. Specialized lab or storage visits during work sessions
-      if ((phase.id === 'WORK_2' || phase.id === 'WORK_3') && [13, 16].includes(engineer.id)) {
-        return {
-          zone: ZONES.JIG_DEV,
-          coords: getCoordinatesForZone(ZONES.JIG_DEV, engineer.id === 13 ? 0 : 1),
-          activity: 'Assembling & uji presisi fixture di JIG Development Lab ⚙️',
-        };
-      }
       if ((phase.id === 'WORK_2' || phase.id === 'WORK_3') && [22, 23].includes(engineer.id)) {
         return {
           zone: ZONES.LAB_SOFTWARE,
