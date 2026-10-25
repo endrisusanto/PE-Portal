@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -425,33 +426,103 @@ func (h *ProjectHandler) UpdateTaskStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "task status updated"})
 }
 
+var (
+	gbaCacheData    map[string]interface{}
+	gbaCacheTime    time.Time
+	gbaCacheMu      sync.RWMutex
+	gbaWorkingURL   string
+	gbaWorkingURLMu sync.RWMutex
+)
+
 // GetGbaTasks proxies GBA task manager kanban data from intranet project_manager app (view only)
+// ponytail: fast 2s timeout, in-memory 60s cache, and dynamic working-URL memory to eliminate 30s hangs
 func (h *ProjectHandler) GetGbaTasks(c echo.Context) error {
-	apiURL := os.Getenv("GBA_API_URL")
-	if apiURL == "" {
-		apiURL = "http://107.102.39.55/tkdn/api_kanban.php"
+	forceRefresh := c.QueryParam("refresh") == "true"
+
+	if !forceRefresh {
+		gbaCacheMu.RLock()
+		if gbaCacheData != nil && time.Since(gbaCacheTime) < 60*time.Second {
+			cached := gbaCacheData
+			gbaCacheMu.RUnlock()
+			return c.JSON(http.StatusOK, cached)
+		}
+		gbaCacheMu.RUnlock()
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(apiURL)
-	if err != nil {
-		// Fallback for local docker/host execution when intranet 107.102.39.55 is unreachable
-		resp, err = client.Get("http://172.17.0.1:8089/api_kanban.php")
-		if err != nil {
-			resp, err = client.Get("http://localhost:8089/api_kanban.php")
+	primaryURL := os.Getenv("GBA_API_URL")
+	if primaryURL == "" {
+		primaryURL = "http://107.102.39.55/tkdn/api_kanban.php"
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+
+	// Build candidate URLs, prioritizing known working URL
+	var candidates []string
+	gbaWorkingURLMu.RLock()
+	lastWorking := gbaWorkingURL
+	gbaWorkingURLMu.RUnlock()
+
+	if lastWorking != "" {
+		candidates = append(candidates, lastWorking)
+	}
+	if primaryURL != lastWorking {
+		candidates = append(candidates, primaryURL)
+	}
+	fallbackURLs := []string{
+		"http://172.17.0.1:8089/api_kanban.php",
+		"http://localhost:8089/api_kanban.php",
+	}
+	for _, fb := range fallbackURLs {
+		if fb != lastWorking && fb != primaryURL {
+			candidates = append(candidates, fb)
 		}
 	}
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadGateway, "Failed to connect to GBA Task Manager: "+err.Error())
-	}
-	defer resp.Body.Close()
 
+	var lastErr error
 	var data map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to decode GBA tasks: "+err.Error())
+
+	for _, targetURL := range candidates {
+		resp, err := client.Get(targetURL)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("status %d from %s", resp.StatusCode, targetURL)
+			continue
+		}
+
+		err = json.NewDecoder(resp.Body).Decode(&data)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		// Success! Remember working URL and cache data
+		gbaWorkingURLMu.Lock()
+		gbaWorkingURL = targetURL
+		gbaWorkingURLMu.Unlock()
+
+		gbaCacheMu.Lock()
+		gbaCacheData = data
+		gbaCacheTime = time.Now()
+		gbaCacheMu.Unlock()
+
+		return c.JSON(http.StatusOK, data)
 	}
 
-	return c.JSON(http.StatusOK, data)
+	// If all network requests failed but we have stale cache, serve it
+	gbaCacheMu.RLock()
+	if gbaCacheData != nil {
+		stale := gbaCacheData
+		gbaCacheMu.RUnlock()
+		return c.JSON(http.StatusOK, stale)
+	}
+	gbaCacheMu.RUnlock()
+
+	return echo.NewHTTPError(http.StatusBadGateway, "Failed to connect to GBA Task Manager: "+lastErr.Error())
 }
 
 // SendEmailNotification sends an on-demand milestone progress email to the assignee or specified recipients

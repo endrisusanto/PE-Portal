@@ -48,12 +48,14 @@ export const GbaTasksPage = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [expandedCols, setExpandedCols] = useState({});
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (isRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/gba-tasks');
+      const url = isRefresh ? '/gba-tasks?refresh=true' : '/gba-tasks';
+      const res = await api.get(url);
       if (res.data) {
         setData(res.data);
         setLastRefreshed(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -210,7 +212,7 @@ export const GbaTasksPage = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={fetchTasks}
+            onClick={() => fetchTasks(true)}
             disabled={loading}
             title={t('gba_tasks.sync_tasks_btn', 'Sync live from GBA Task Manager')}
           >
@@ -277,7 +279,12 @@ export const GbaTasksPage = () => {
         <div className={styles.kanbanBoard}>
           {KANBAN_STATUSES.map((status) => {
             const conf = STATUS_CONFIG[status] || { color: '#64748b' };
-            const tasks = filteredColumns[status] || [];
+            const allTasks = filteredColumns[status] || [];
+            const isExpanded = Boolean(expandedCols[status]);
+            const isFiltered = Boolean(search.trim() || selectedPic || urgentOnly);
+            const limit = isExpanded || isFiltered ? allTasks.length : 35;
+            const tasks = allTasks.slice(0, limit);
+            const remaining = allTasks.length - tasks.length;
 
             return (
               <div key={status} className={styles.column}>
@@ -287,7 +294,7 @@ export const GbaTasksPage = () => {
                     <span className={styles.colDot} style={{ backgroundColor: conf.color }} />
                     <span className={styles.colTitle}>{status}</span>
                   </div>
-                  <span className={styles.colBadge}>{tasks.length}</span>
+                  <span className={styles.colBadge}>{allTasks.length}</span>
                 </div>
 
                 {/* Cards List: Smooth vertical scroll per column */}
@@ -370,6 +377,16 @@ export const GbaTasksPage = () => {
                         </div>
                       );
                     })
+                  )}
+
+                  {remaining > 0 && (
+                    <button
+                      type="button"
+                      className={styles.showMoreBtn}
+                      onClick={() => setExpandedCols((prev) => ({ ...prev, [status]: true }))}
+                    >
+                      + {remaining} more tasks (Show All)
+                    </button>
                   )}
                 </div>
               </div>
