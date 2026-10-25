@@ -69,7 +69,7 @@ export const TeamPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <Layers size={20} color="var(--color-accent)" />
             <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 700 }}>
-              {PARENT_GROUP_TITLES[parentKey] || parentKey}
+              {t(`team.parent_${parentKey}`, PARENT_GROUP_TITLES[parentKey] || parentKey)}
             </h2>
             <span style={{
               fontSize: '11px',
@@ -79,7 +79,7 @@ export const TeamPage = () => {
               padding: '2px 8px',
               borderRadius: 'var(--radius-sm)',
             }}>
-              {parts.length} Group Parts
+              {t('team.group_parts_count', { count: parts.length, defaultValue: `${parts.length} Group Parts` })}
             </span>
           </div>
 

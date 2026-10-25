@@ -19,11 +19,14 @@ import {
   FolderKanban,
   Eye,
   PartyPopper,
+  Save,
+  CalendarPlus,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingState } from '../components/common/LoadingState';
 import { Button } from '../components/common/Button';
+import { CustomHolidayModal } from '../components/common/CustomHolidayModal';
 import { getIndonesianHoliday, isWeekend, getHolidaysForMonth } from '../utils/indonesianHolidays';
 import styles from './ProjectCalendarPage.module.css';
 
@@ -92,6 +95,7 @@ export const ProjectCalendarPage = () => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.role === 'admin';
 
   // Data states
   const [projects, setProjects] = useState([]);
@@ -109,9 +113,82 @@ export const ProjectCalendarPage = () => {
 
   // Year view selected month (0 - 11)
   const [selectedYearMonth, setSelectedYearMonth] = useState(new Date().getMonth());
+  const [isCustomHolidayModalOpen, setIsCustomHolidayModalOpen] = useState(false);
+  const [customHolidaysVersion, setCustomHolidaysVersion] = useState(0);
+
+  // Sync custom holidays reactively
+  useEffect(() => {
+    const handleSync = () => setCustomHolidaysVersion((v) => v + 1);
+    window.addEventListener('customHolidaysChanged', handleSync);
+    return () => window.removeEventListener('customHolidaysChanged', handleSync);
+  }, []);
 
   // Modal Detail state
   const [selectedTask, setSelectedTask] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editPriority, setEditPriority] = useState('medium');
+  const [editStatus, setEditStatus] = useState('planning');
+  const [editProgress, setEditProgress] = useState(0);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editTargetDate, setEditTargetDate] = useState('');
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleOpenTaskModal = (task) => {
+    setSelectedTask(task);
+    setEditTitle(task.title || '');
+    setEditDesc(task.description || '');
+    setEditPriority(task.priority || 'medium');
+    setEditStatus(task.status || (task.progress >= 25 ? 'in_progress' : 'planning'));
+    setEditProgress(task.progress || 0);
+    setEditStartDate(task.start_date ? task.start_date.substring(0, 10) : '');
+    setEditTargetDate(task.target_date ? task.target_date.substring(0, 10) : '');
+  };
+
+  const handleSaveCalendarTask = async () => {
+    if (!selectedTask || !editTitle.trim()) return;
+    setIsSavingTask(true);
+    try {
+      const derivedStatus =
+        editStatus && editStatus !== 'planning'
+          ? editStatus
+          : editProgress >= 100
+          ? 'completed'
+          : editProgress >= 75
+          ? 'review'
+          : editProgress >= 25
+          ? 'in_progress'
+          : 'planning';
+
+      const payload = {
+        title: editTitle,
+        description: editDesc || undefined,
+        priority: editPriority,
+        status: derivedStatus,
+        progress: Number(editProgress) || 0,
+        start_date: editStartDate || undefined,
+        target_date: editTargetDate || undefined,
+      };
+
+      const res = await api.put(`/projects/${selectedTask.id}`, payload);
+      const updated = { ...selectedTask, ...res.data };
+      setProjects((prev) =>
+        prev.map((p) => (p.id === selectedTask.id ? updated : p))
+      );
+      setSelectedTask(null);
+      showToast('Perubahan task berhasil disimpan!');
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setIsSavingTask(false);
+    }
+  };
 
   // Fetch projects & users
   useEffect(() => {
@@ -310,20 +387,15 @@ export const ProjectCalendarPage = () => {
     }
   };
 
-  // Priority gradient class helper for continuous spanning bars
-  const getBarPriorityClass = (priority) => {
-    switch (priority?.toLowerCase()) {
-      case 'urgent':
-        return styles.barUrgent;
-      case 'high':
-        return styles.barHigh;
-      case 'medium':
-        return styles.barMedium;
-      case 'low':
-        return styles.barLow;
-      default:
-        return styles.barAmber;
-    }
+  // ponytail: color line range bar by milestone progress & actual status instead of static priority
+  const getBarColorClass = (task) => {
+    if (task?.priority?.toLowerCase() === 'urgent') return styles.barUrgent;
+    const p = Number(task?.progress) || 0;
+    if (task?.status === 'completed' || p >= 100) return styles.barCompleted;
+    if (p >= 80) return styles.barVerification;
+    if (p >= 60) return styles.barDev;
+    if (p >= 40) return styles.barAnalysis;
+    return styles.barPlanning;
   };
 
   // ==========================================================================
@@ -470,7 +542,7 @@ export const ProjectCalendarPage = () => {
                     >
                       <div className={styles.dayCellHeader}>
                         <span
-                          className={`${styles.dateNumber} ${isRedDate ? styles.holidayDate : ''}`}
+                          className={`${styles.dateNumber} ${isRedDate && !cell.isToday ? styles.holidayDate : ''}`}
                         >
                           {cell.dayNum}
                         </span>
@@ -505,13 +577,13 @@ export const ProjectCalendarPage = () => {
                   return (
                     <div
                       key={`${task.id}-w${wIdx}`}
-                      className={`${styles.spanningTaskBar} ${getBarPriorityClass(task.priority)} ${
+                      className={`${styles.spanningTaskBar} ${getBarColorClass(task)} ${
                         continuesPrior ? styles.continuesPrior : ''
                       } ${continuesAfter ? styles.continuesAfter : ''}`}
                       style={{
                         gridColumn: `${colStart} / span ${colSpan}`,
                       }}
-                      onClick={() => setSelectedTask(task)}
+                      onClick={() => handleOpenTaskModal(task)}
                       title={`${task.title} (${task.priority || 'medium'}) - ${task.start_date || task.target_date || ''} s/d ${task.target_date || ''} (${diffDays} ${t('project_calendar.duration_days', 'hari')})`}
                     >
                       {continuesPrior && <span className={styles.continuationArrow}>◀</span>}
@@ -521,6 +593,11 @@ export const ProjectCalendarPage = () => {
                         </span>
                       )}
                       <span className={styles.barTitle}>{task.title}</span>
+                      {task.progress !== undefined && (
+                        <span className={styles.barMilestoneBadge}>
+                          {task.progress}%
+                        </span>
+                      )}
                       {isMultiDay && colSpan >= 2 && (
                         <span style={{ fontSize: '10px', opacity: 0.9, flexShrink: 0, fontWeight: 700 }}>
                           {diffDays}d
@@ -534,7 +611,7 @@ export const ProjectCalendarPage = () => {
                   <div className={styles.moreTasksRow}>
                     <button
                       className={styles.moreTasksBtn}
-                      onClick={() => setSelectedTask(weekTasks[4].task)}
+                      onClick={() => handleOpenTaskModal(weekTasks[4].task)}
                     >
                       +{weekTasks.length - 4} {t('project_calendar.tasks_count', 'Tasks')}
                     </button>
@@ -588,7 +665,7 @@ export const ProjectCalendarPage = () => {
                 <span className={styles.weekColDayName} style={{ color: isRedDate ? '#ef4444' : undefined }}>
                   {dayName}
                 </span>
-                <span className={`${styles.weekColDateNum} ${isRedDate ? styles.holidayDate : ''}`}>
+                <span className={`${styles.weekColDateNum} ${isRedDate && !dayObj.isToday ? styles.holidayDate : ''}`}>
                   {dayNum}
                 </span>
                 {holiday && showHolidays && (
@@ -621,7 +698,7 @@ export const ProjectCalendarPage = () => {
                       <div
                         key={tItem.id}
                         className={styles.weekTaskCard}
-                        onClick={() => setSelectedTask(tItem)}
+                        onClick={() => handleOpenTaskModal(tItem)}
                       >
                         <div className={styles.cardHeaderRow}>
                           <span className={`${styles.taskPill} ${getPriorityClass(tItem.priority)}`} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
@@ -868,7 +945,7 @@ export const ProjectCalendarPage = () => {
                     <div
                       key={tItem.id}
                       className={styles.weekTaskCard}
-                      onClick={() => setSelectedTask(tItem)}
+                      onClick={() => handleOpenTaskModal(tItem)}
                     >
                       <div className={styles.cardHeaderRow}>
                         <span className={`${styles.taskPill} ${getPriorityClass(tItem.priority)}`} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
@@ -976,6 +1053,20 @@ export const ProjectCalendarPage = () => {
             <span>{t('project_calendar.holiday_badge', 'Hari Libur')}</span>
           </button>
 
+          {/* Add Holiday Button - Admin Only */}
+          {isAdmin && (
+            <button
+              type="button"
+              className={styles.holidayToggleBtn}
+              onClick={() => setIsCustomHolidayModalOpen(true)}
+              title="Tambah dan kelola hari libur"
+              style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
+            >
+              <CalendarPlus size={14} />
+              <span>+ Libur</span>
+            </button>
+          )}
+
           <Button
             variant="primary"
             onClick={() => navigate('/projects')}
@@ -1053,21 +1144,27 @@ export const ProjectCalendarPage = () => {
         </>
       )}
 
-      {/* Task Quick-View Modal */}
+      {/* Task Quick-View & Edit Modal */}
       {selectedTask && (
         <div className={styles.modalOverlay} onClick={() => setSelectedTask(null)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <div className={styles.modalTitleArea}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                  <span className={`${styles.taskPill} ${getPriorityClass(selectedTask.priority)}`}>
-                    {selectedTask.priority || 'medium'}
+              <div className={styles.modalTitleArea} style={{ width: '100%' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                  <span className={`${styles.taskPill} ${getPriorityClass(editPriority)}`}>
+                    {editPriority || 'medium'}
                   </span>
                   <span className={styles.taskTypeTag}>
                     {selectedTask.project_type?.replace('_', ' ') || 'task'}
                   </span>
                 </div>
-                <h2>{selectedTask.title}</h2>
+                <input
+                  type="text"
+                  className={styles.titleInputField}
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Judul Task..."
+                />
               </div>
               <button className={styles.closeModalBtn} onClick={() => setSelectedTask(null)}>
                 <X size={18} />
@@ -1075,39 +1172,94 @@ export const ProjectCalendarPage = () => {
             </div>
 
             <div className={styles.modalBody}>
-              {selectedTask.description && (
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                  {selectedTask.description}
-                </p>
-              )}
+              <div>
+                <label className={styles.metaLabel} style={{ display: 'block', marginBottom: '4px' }}>
+                  Catatan / Deskripsi Task
+                </label>
+                <textarea
+                  className={styles.descInputField}
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  rows={2}
+                  placeholder="Catatan analisis, investigasi, atau countermeasure..."
+                />
+              </div>
 
               <div className={styles.metaGrid}>
                 <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>{t('project_calendar.due_date', 'Target Due Date')}</span>
-                  <span className={styles.metaValue}>{selectedTask.target_date || '-'}</span>
+                  <span className={styles.metaLabel}>{t('project_calendar.start_date', 'Start Date')}</span>
+                  <input
+                    type="date"
+                    className={styles.dateInputField}
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                  />
                 </div>
                 <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>{t('project_calendar.start_date', 'Start Date')}</span>
-                  <span className={styles.metaValue}>{selectedTask.start_date || '-'}</span>
+                  <span className={styles.metaLabel}>{t('project_calendar.due_date', 'Target Due Date')}</span>
+                  <input
+                    type="date"
+                    className={styles.dateInputField}
+                    value={editTargetDate}
+                    onChange={(e) => setEditTargetDate(e.target.value)}
+                  />
                 </div>
-                {selectedTask.start_date && selectedTask.target_date && (
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>{t('project_calendar.duration', 'Durasi')}</span>
-                    <span className={styles.metaValue} style={{ color: 'var(--color-accent)', fontWeight: 700 }}>
-                      {t('project_calendar.duration_days', { count: getTaskDateRange(selectedTask).diffDays })}
-                    </span>
-                  </div>
-                )}
                 <div className={styles.metaItem}>
                   <span className={styles.metaLabel}>{t('project_calendar.milestone', 'Milestone')}</span>
-                  <span className={styles.metaValue}>{selectedTask.progress || 0}%</span>
+                  <select
+                    className={styles.statusSelectField}
+                    value={editProgress}
+                    onChange={(e) => {
+                      const newP = Number(e.target.value);
+                      setEditProgress(newP);
+                      if (newP >= 100) setEditStatus('completed');
+                      else if (newP >= 75) setEditStatus('review');
+                      else if (newP >= 25) setEditStatus('in_progress');
+                      else setEditStatus('planning');
+                    }}
+                  >
+                    <option value={20}>20% - Step 1: Initial Planning</option>
+                    <option value={40}>40% - Step 2: Root Cause Analysis</option>
+                    <option value={60}>60% - Step 3: Countermeasure & Dev</option>
+                    <option value={80}>80% - Step 4: Verification & Test</option>
+                    <option value={100}>100% - Step 5: Completed</option>
+                  </select>
                 </div>
                 <div className={styles.metaItem}>
                   <span className={styles.metaLabel}>Status</span>
-                  <span className={styles.metaValue} style={{ textTransform: 'capitalize' }}>
-                    {selectedTask.status || 'planning'}
-                  </span>
+                  <select
+                    className={styles.statusSelectField}
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                  >
+                    <option value="planning">Planning</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">Review</option>
+                    <option value="completed">Completed</option>
+                    <option value="on_hold">On Hold</option>
+                  </select>
                 </div>
+                <div className={styles.metaItem}>
+                  <span className={styles.metaLabel}>Prioritas</span>
+                  <select
+                    className={styles.statusSelectField}
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value)}
+                  >
+                    <option value="urgent">Urgent</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                {editStartDate && editTargetDate && (
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>{t('project_calendar.duration', 'Durasi')}</span>
+                    <span className={styles.metaValue} style={{ color: 'var(--color-accent)', fontWeight: 700, lineHeight: '32px' }}>
+                      {Math.max(1, Math.round((new Date(editTargetDate + 'T00:00:00') - new Date(editStartDate + 'T00:00:00')) / (1000 * 60 * 60 * 24)) + 1)} hari
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Assigned PICs */}
@@ -1142,18 +1294,63 @@ export const ProjectCalendarPage = () => {
                 {t('common.close', 'Tutup')}
               </Button>
               <Button
-                variant="primary"
+                variant="secondary"
                 onClick={() => {
+                  const taskId = selectedTask.id;
                   setSelectedTask(null);
-                  navigate('/projects');
+                  navigate('/projects', {
+                    state: { returnTo: '/project-calendar', editProjectId: taskId },
+                  });
                 }}
               >
                 <ExternalLink size={14} />
                 {t('project_calendar.open_in_projects', 'Buka di ToDo List')}
               </Button>
+              <Button
+                variant="primary"
+                disabled={isSavingTask || !editTitle.trim()}
+                onClick={handleSaveCalendarTask}
+              >
+                <Save size={14} />
+                {isSavingTask ? 'Menyimpan...' : 'Simpan Perubahan'}
+              </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '24px',
+          zIndex: 9999,
+          background: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-accent)',
+          borderRadius: 'var(--radius-sm)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          color: 'var(--color-text-primary)',
+          fontSize: '13px',
+          fontWeight: 600,
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          <CheckCircle2 size={16} color="var(--color-accent)" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Modal Kelola & Tambah Tanggal Libur (Admin Only) */}
+      {isAdmin && (
+        <CustomHolidayModal
+          isOpen={isCustomHolidayModalOpen}
+          onClose={() => setIsCustomHolidayModalOpen(false)}
+          initialDate={formatDateStr(currentDate)}
+        />
       )}
     </div>
   );

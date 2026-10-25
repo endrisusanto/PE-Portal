@@ -487,7 +487,7 @@ export const TrainingPage = () => {
               }}
             >
               <Plus size={16} />
-              <span>Tambah Training</span>
+              <span>{t('training.add_training', 'Tambah Training')}</span>
             </button>
           )}
         </div>
@@ -496,16 +496,26 @@ export const TrainingPage = () => {
       {/* Filter and Search Bar */}
       <div className={styles.filterBar}>
         <div className={styles.categoriesWrapper}>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className={`${styles.categoryBtn} ${selectedCategory === cat ? styles.categoryBtnActive : ''}`}
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
+          {CATEGORIES.map((cat) => {
+            let label = cat;
+            if (cat === 'ALL') label = t('training.cat_all', 'ALL');
+            else if (cat === 'EHS & Safety') label = t('training.cat_ehs', 'EHS & Safety');
+            else if (cat === 'Information Security') label = t('training.cat_sec', 'Information Security');
+            else if (cat === 'Technical & AI') label = t('training.cat_tech', 'Technical & AI');
+            else if (cat === 'Compliance') label = t('training.cat_comp', 'Compliance');
+            else if (cat === 'Quality & Standards') label = t('training.cat_qual', 'Quality & Standards');
+
+            return (
+              <button
+                key={cat}
+                type="button"
+                className={`${styles.categoryBtn} ${selectedCategory === cat ? styles.categoryBtnActive : ''}`}
+                onClick={() => setSelectedCategory(cat)}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>

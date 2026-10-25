@@ -42,6 +42,7 @@ import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
 import { RichNotesViewer } from '../components/common/RichNotesViewer';
+import i18n from '../utils/i18n';
 
 export const PIPELINE_STAGES = [
   { key: 'concept', label: 'Concept', fullLabel: 'Concept & Feasibility', desc: 'Perencanaan awal spesifikasi, market demand, dan kelayakan teknis' },
@@ -55,11 +56,19 @@ export const PIPELINE_STAGES = [
 ];
 
 export const getStageInfo = (stageKey) => {
-  return PIPELINE_STAGES.find((s) => s.key === stageKey) || {
-    key: stageKey,
-    label: stageKey ? stageKey.toUpperCase() : 'Stage',
-    fullLabel: stageKey,
-    desc: '',
+  const stage = PIPELINE_STAGES.find((s) => s.key === stageKey);
+  if (!stage) {
+    return {
+      key: stageKey,
+      label: stageKey ? stageKey.toUpperCase() : 'Stage',
+      fullLabel: stageKey,
+      desc: '',
+    };
+  }
+  return {
+    ...stage,
+    fullLabel: i18n.t(`models.pipeline_${stage.key}`, stage.fullLabel),
+    desc: i18n.t(`models.pipeline_${stage.key}_desc`, stage.desc),
   };
 };
 
@@ -71,9 +80,9 @@ export const formatStageDuration = (startedAt, completedAt) => {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   if (diffDays > 0) {
-    return `${diffDays} hari ${diffHours > 0 ? `${diffHours} jam` : ''}`;
+    return i18n.t('models.duration_days_hours', { days: diffDays, hours: diffHours, defaultValue: `${diffDays} hari ${diffHours > 0 ? `${diffHours} jam` : ''}` });
   }
-  return `${Math.max(1, diffHours)} jam`;
+  return i18n.t('models.duration_hours', { hours: Math.max(1, diffHours), defaultValue: `${Math.max(1, diffHours)} jam` });
 };
 
 export const ModelsPage = () => {
@@ -454,7 +463,7 @@ export const ModelsPage = () => {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari model, codename (cth: Paradigm, S26)..."
+            placeholder={t('models.search_placeholder', 'Cari model, codename (cth: Paradigm, S26)...')}
             icon={Search}
           />
         </div>
@@ -471,23 +480,23 @@ export const ModelsPage = () => {
             color: 'var(--color-text-primary)',
           }}
         >
-          <option value="">Semua Tahap Development</option>
+          <option value="">{t('models.all_stages', 'Semua Tahap Development')}</option>
           {PIPELINE_STAGES.map((s) => (
             <option key={s.key} value={s.key}>
-              {s.label} ({s.fullLabel})
+              {s.label} ({t(`models.pipeline_${s.key}`, s.fullLabel)})
             </option>
           ))}
         </select>
       </div>
 
       {loading ? (
-        <LoadingState message="Memuat pipeline new model development..." />
+        <LoadingState message={t('models.loading', 'Memuat pipeline new model development...')} />
       ) : filteredModels.length === 0 ? (
         <EmptyState
           icon={Cpu}
-          title={search ? 'Model tidak ditemukan' : 'Belum ada model terdaftar'}
-          description={search ? 'Coba ubah kata kunci pencarian atau filter tahap.' : 'Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development.'}
-          actionLabel="Daftarkan Model Baru"
+          title={search ? t('models.not_found', 'Model tidak ditemukan') : t('models.empty_title', 'Belum ada model terdaftar')}
+          description={search ? t('models.not_found_desc', 'Coba ubah kata kunci pencarian atau filter tahap.') : t('models.empty_desc', 'Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development.')}
+          actionLabel={t('models.add_model', 'Daftarkan Model Baru')}
           onAction={() => setIsAddModalOpen(true)}
         />
       ) : (
@@ -573,7 +582,7 @@ export const ModelsPage = () => {
                       onClick={() => openDetailModal(m, 'history')}
                       title="Lihat Detail History Development & Tahapan"
                     >
-                      History & Detail
+                      {t('models.history_detail', 'History & Detail')}
                     </Button>
                     <Button
                       variant="outline"
@@ -582,7 +591,7 @@ export const ModelsPage = () => {
                       onClick={() => openDetailModal(m, 'comments')}
                       title="Buka Komentar & Diskusi Tim"
                     >
-                      Komentar
+                      {t('models.comments', 'Komentar')}
                     </Button>
                     <Button
                       variant="outline"
@@ -590,7 +599,7 @@ export const ModelsPage = () => {
                       icon={Edit2}
                       onClick={(e) => openEditModal(m, e)}
                     >
-                      Edit
+                      {t('common.edit', 'Edit')}
                     </Button>
                     {/* Update / Advance Stage Button */}
                     <Button
@@ -600,7 +609,7 @@ export const ModelsPage = () => {
                       onClick={(e) => openStageModal(m, 'update_only', '', [], null, e)}
                       title="Update Catatan/Dokumen atau Majukan Tahap"
                     >
-                      Update / Advance Stage
+                      {t('models.advance_stage', 'Update / Advance Stage')}
                     </Button>
                     {canDeleteModel(m) && (
                       <Button
@@ -611,7 +620,7 @@ export const ModelsPage = () => {
                         onClick={(e) => handleDeleteModel(m, e)}
                         title="Hapus Model Development"
                       >
-                        Hapus
+                        {t('common.delete', 'Hapus')}
                       </Button>
                     )}
                   </div>
@@ -756,7 +765,7 @@ export const ModelsPage = () => {
                   setViewingModel(null);
                 }}
               >
-                Tutup
+                {t('common.close', 'Tutup')}
               </Button>
             </div>
           }
@@ -899,7 +908,7 @@ export const ModelsPage = () => {
                 }}
               >
                 <History size={15} />
-                <span>Riwayat Tahap Development ({stageHistory.length})</span>
+                <span>{t('models.history_tab', 'Riwayat Tahap Development')} ({stageHistory.length})</span>
               </button>
 
               <button
@@ -921,7 +930,7 @@ export const ModelsPage = () => {
                 }}
               >
                 <MessageSquare size={15} />
-                <span>Komentar & Diskusi Tim</span>
+                <span>{t('models.comments_tab', 'Komentar & Diskusi Tim')}</span>
               </button>
             </div>
 
@@ -930,7 +939,7 @@ export const ModelsPage = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Log Perkembangan Tahap Engineering, Hasil Uji & Dokumen
+                    {t('models.development_log', 'Log Perkembangan Tahap Engineering, Hasil Uji & Dokumen')}
                   </span>
                   <Button
                     variant="outline"
@@ -938,7 +947,7 @@ export const ModelsPage = () => {
                     icon={Edit2}
                     onClick={() => openStageModal(viewingModel, 'update_only', '', [], null)}
                   >
-                    + Update Catatan/Dokumen Tahap Ini
+                    + {t('models.update_current_stage', 'Update Catatan/Dokumen Tahap Ini')}
                   </Button>
                 </div>
 
@@ -1159,7 +1168,7 @@ export const ModelsPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Cpu size={17} color="var(--color-accent)" />
               <span style={{ fontSize: '15px', fontWeight: 700 }}>
-                {targetStageId ? 'Edit Catatan & Dokumen Tahap' : `Update Data Tahap: ${activeModel.model_name}`}
+                {targetStageId ? t('models.edit_stage_data', 'Edit Catatan & Dokumen Tahap') : t('models.update_stage_data', { name: activeModel.model_name, defaultValue: `Update Data Tahap: ${activeModel.model_name}` })}
               </span>
             </div>
           }
@@ -1181,7 +1190,7 @@ export const ModelsPage = () => {
                 icon={advanceMode === 'advance' ? ChevronRight : Save}
                 onClick={handleStageSubmit}
               >
-                {advanceMode === 'advance' ? 'Konfirmasi Pemindahan Tahap' : 'Simpan Catatan & Dokumen Tahap'}
+                {advanceMode === 'advance' ? t('models.confirm_advance_stage', 'Konfirmasi Pemindahan Tahap') : t('models.save_stage_data', 'Simpan Catatan & Dokumen Tahap')}
               </Button>
             </div>
           }
@@ -1452,7 +1461,7 @@ export const ModelsPage = () => {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Daftarkan Model Baru"
+        title={t('models.add_model', 'Daftarkan Model Baru')}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
             <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
@@ -1466,7 +1475,7 @@ export const ModelsPage = () => {
       >
         <form onSubmit={handleCreateModel} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Input
-            label="Model Name"
+            label={t('models.model_name', 'Nama Model')}
             value={modelName}
             onChange={(e) => setModelName(e.target.value)}
             required
@@ -1474,7 +1483,7 @@ export const ModelsPage = () => {
           />
 
           <Input
-            label="Codename"
+            label={t('models.codename', 'Codename')}
             value={codename}
             onChange={(e) => setCodename(e.target.value)}
             placeholder="e.g. Paradigm"
@@ -1482,7 +1491,7 @@ export const ModelsPage = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-              Tahap Awal (Initial Stage)
+              {t('models.initial_stage', 'Tahap Awal (Initial Stage)')}
             </label>
             <select
               value={stage}
@@ -1505,14 +1514,14 @@ export const ModelsPage = () => {
           </div>
 
           <Input
-            label="Target Release Date"
+            label={t('models.target_release', 'Target Release Date')}
             type="date"
             value={targetRelease}
             onChange={(e) => setTargetRelease(e.target.value)}
           />
 
           <FormattingTextarea
-            label="Deskripsi / Spesifikasi Awal"
+            label={t('models.initial_description', 'Deskripsi / Spesifikasi Awal')}
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -1529,7 +1538,7 @@ export const ModelsPage = () => {
           setIsEditModalOpen(false);
           setEditingModel(null);
         }}
-        title={`Edit Model: ${editingModel?.model_name || ''}`}
+        title={`${t('models.edit_model', 'Edit Model')}: ${editingModel?.model_name || ''}`}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
             <div>

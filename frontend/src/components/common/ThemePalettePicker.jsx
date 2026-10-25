@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Palette, Check, Sparkles, Building2, Heart, Zap, Compass, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import styles from './ThemePalettePicker.module.css';
@@ -17,6 +18,7 @@ const renderThemeIcon = (iconKey, size = 13) => {
 };
 
 export const ThemePalettePicker = () => {
+  const { t } = useTranslation();
   const {
     palette,
     setPalette,
@@ -50,8 +52,8 @@ export const ThemePalettePicker = () => {
         type="button"
         className={styles.paletteTrigger}
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Customize decorative theme palette"
-        title="Customize decorative theme palette"
+        aria-label={t('theme.title', 'Decorative Theme')}
+        title={t('theme.title', 'Decorative Theme')}
       >
         <Palette size={16} />
       </button>
@@ -59,10 +61,10 @@ export const ThemePalettePicker = () => {
       {isOpen && (
         <div className={styles.popover} role="menu">
           <div className={styles.header}>
-            <span className={styles.headerTitle}>Decorative Theme</span>
+            <span className={styles.headerTitle}>{t('theme.title', 'Decorative Theme')}</span>
             <span style={{ fontSize: '10px', color: 'var(--color-accent)', fontWeight: 600 }}>
               <Sparkles size={11} style={{ verticalAlign: 'middle', marginRight: '2px' }} />
-              Personalize
+              {t('theme.personalize', 'Personalize')}
             </span>
           </div>
 
@@ -70,6 +72,7 @@ export const ThemePalettePicker = () => {
             {presets.filter((p) => p.id !== 'custom').map((p) => {
               const activeColor = theme === 'dark' ? p.darkColor : p.color;
               const isSelected = palette === p.id;
+              const presetLabel = t(`theme.presets.${p.id}`, p.name);
               return (
                 <button
                   key={p.id}
@@ -87,7 +90,7 @@ export const ThemePalettePicker = () => {
                       className={styles.swatch}
                       style={{ backgroundColor: activeColor }}
                     />
-                    <span className={styles.presetName}>{p.name}</span>
+                    <span className={styles.presetName}>{presetLabel}</span>
                   </div>
                   {isSelected && <Check size={14} color="var(--color-accent)" />}
                 </button>
@@ -98,7 +101,7 @@ export const ThemePalettePicker = () => {
           <div className={styles.customSection}>
             <span className={styles.customLabel} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Palette size={13} color="var(--color-accent)" />
-              Custom Hex:
+              {t('theme.custom_accent', 'Custom Hex:')}
             </span>
             <div className={styles.colorPickerWrapper}>
               <input
@@ -106,7 +109,7 @@ export const ThemePalettePicker = () => {
                 value={customAccent}
                 onChange={(e) => setCustomAccent(e.target.value)}
                 className={styles.colorInput}
-                title="Choose your personal accent color"
+                title={t('theme.custom_accent', 'Custom Hex:')}
               />
               <span className={styles.colorHex}>{customAccent.toUpperCase()}</span>
             </div>
@@ -115,14 +118,14 @@ export const ThemePalettePicker = () => {
           <div className={styles.animatedBgSection}>
             <div className={styles.animatedBgLabel}>
               <Sparkles size={13} color="var(--color-accent)" />
-              <span>Animated BG</span>
+              <span>{t('theme.animated_bg', 'Animated BG')}</span>
             </div>
             <button
               type="button"
               className={`${styles.toggleSwitch} ${animatedBg ? styles.toggleSwitchActive : ''}`}
               onClick={toggleAnimatedBg}
-              aria-label="Toggle animated theme background"
-              title={animatedBg ? "Disable animated background" : "Enable animated background"}
+              aria-label={t('theme.toggle_animated_bg', 'Toggle animated theme background')}
+              title={t('theme.toggle_animated_bg', 'Toggle animated theme background')}
             >
               <span className={styles.toggleKnob} />
             </button>

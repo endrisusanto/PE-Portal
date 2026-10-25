@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Plus,
@@ -49,6 +50,7 @@ import { Table } from '../components/common/Table';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
+import i18n from '../utils/i18n';
 import styles from './ProjectsPage.module.css';
 
 // 5 Milestone Problem Solving & Process Stages for PE
@@ -61,11 +63,16 @@ export const MILESTONE_STAGES = [
 ];
 
 export const getMilestone = (progress = 0) => {
-  if (progress >= 100) return MILESTONE_STAGES[4];
-  if (progress >= 75) return MILESTONE_STAGES[3];
-  if (progress >= 50) return MILESTONE_STAGES[2];
-  if (progress >= 25) return MILESTONE_STAGES[1];
-  return MILESTONE_STAGES[0];
+  let m = MILESTONE_STAGES[0];
+  if (progress >= 100) m = MILESTONE_STAGES[4];
+  else if (progress >= 75) m = MILESTONE_STAGES[3];
+  else if (progress >= 50) m = MILESTONE_STAGES[2];
+  else if (progress >= 25) m = MILESTONE_STAGES[1];
+  return {
+    ...m,
+    label: i18n?.t ? i18n.t(`projects.milestones.${m.id}`, m.label) : m.label,
+    desc: i18n?.t ? i18n.t(`projects.milestones.${m.id}_desc`, m.desc) : m.desc,
+  };
 };
 
 // ponytail: Expanded Task & Issue Types including feature requests to admin & general tasks
@@ -95,6 +102,8 @@ export const parseMetadata = (metadata) => {
 export const ProjectsPage = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +112,16 @@ export const ProjectsPage = () => {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+
+  // ponytail: Auto-open edit modal if routed from calendar
+  useEffect(() => {
+    if (location.state?.editProjectId && projects.length > 0) {
+      const target = projects.find((p) => p.id === location.state.editProjectId);
+      if (target) {
+        openEditModal(target);
+      }
+    }
+  }, [projects, location.state]);
 
   // View Detail Modal State
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -392,7 +411,7 @@ export const ProjectsPage = () => {
     setEditingProject(p);
     setEditTitle(p.title || '');
     setEditProjectType(p.project_type || 'mechanical');
-    setEditStatus(p.status || 'planning');
+    setEditStatus(p.status || (p.progress >= 25 ? 'in_progress' : 'planning'));
     setEditPriority(p.priority || 'medium');
     setEditOwnerId(p.owner_id || '');
     setEditProgress(p.progress || 0);
@@ -453,10 +472,21 @@ export const ProjectsPage = () => {
         assigned_pic_ids: picList.map((u) => u.id),
       };
 
+      const derivedStatus =
+        editStatus && editStatus !== 'planning'
+          ? editStatus
+          : editProgress >= 100
+          ? 'completed'
+          : editProgress >= 75
+          ? 'review'
+          : editProgress >= 25
+          ? 'in_progress'
+          : 'planning';
+
       const payload = {
         title: editTitle,
         project_type: editProjectType,
-        status: editProgress >= 100 ? 'completed' : editStatus,
+        status: derivedStatus,
         priority: editPriority,
         owner_id: primaryPic?.id || undefined,
         progress: Number(editProgress) || 0,
@@ -502,6 +532,9 @@ export const ProjectsPage = () => {
       setIsEditModalOpen(false);
       setEditingProject(null);
       showToast('Perubahan milestone task berhasil disimpan!');
+      if (location.state?.returnTo) {
+        navigate(location.state.returnTo);
+      }
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -515,8 +548,14 @@ export const ProjectsPage = () => {
     if (nextStep > 5) nextStep = 5;
 
     const targetStage = MILESTONE_STAGES[nextStep - 1];
-    const newProgress = targetStage.percent;
-    const newStatus = newProgress >= 100 ? 'completed' : 'in_progress';
+    const newStatus =
+      newProgress >= 100
+        ? 'completed'
+        : newProgress >= 75
+        ? 'review'
+        : newProgress >= 25
+        ? 'in_progress'
+        : 'planning';
 
     try {
       const res = await api.put(`/projects/${p.id}`, {
@@ -999,9 +1038,9 @@ export const ProjectsPage = () => {
             }}
           >
             <option value="">{t('projects.all_categories', 'Semua Kategori / Tipe')}</option>
-            {ISSUE_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
+            {ISSUE_TYPES.map((typeItem) => (
+              <option key={typeItem.value} value={typeItem.value}>
+                {t(`projects.issue_types.${typeItem.value}`, typeItem.label)}
               </option>
             ))}
           </select>
@@ -1091,7 +1130,7 @@ export const ProjectsPage = () => {
                       borderRadius: '9999px',
                       border: p.project_type === 'feature_request' ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid rgba(37, 99, 235, 0.2)',
                     }}>
-                      {p.project_type?.replace('_', ' ') || 'Issue'}
+                      {t(`projects.issue_types.${p.project_type}`, p.project_type?.replace('_', ' ') || 'Issue')}
                     </span>
                     {parseMetadata(p.metadata).visibility === 'private_pic' && (
                       <span className={`${styles.visibilityPill} ${styles.visibilityPrivate}`} title="Hanya terlihat oleh PIC & Pembuat">
@@ -1296,7 +1335,7 @@ export const ProjectsPage = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: st.color }} />
                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                      {st.label}
+                      {t(`projects.milestones.${st.id}`, st.label)}
                     </span>
                   </div>
                   <span style={{
@@ -1329,7 +1368,7 @@ export const ProjectsPage = () => {
                       fontSize: '12px',
                       fontStyle: 'italic',
                     }}>
-                      Tidak ada issue di tahap ini
+                      {t('projects.no_issues_stage', 'Tidak ada issue di tahap ini')}
                     </div>
                   ) : (
                     colTasks.map((task) => (
@@ -1367,7 +1406,7 @@ export const ProjectsPage = () => {
                               padding: '2px 7px',
                               borderRadius: '9999px',
                             }}>
-                              {task.project_type?.replace('_', ' ')}
+                              {t(`projects.issue_types.${task.project_type}`, task.project_type?.replace('_', ' '))}
                             </span>
                             {parseMetadata(task.metadata).visibility === 'private_pic' && (
                               <span className={`${styles.visibilityPill} ${styles.visibilityPrivate}`} title="Hanya terlihat oleh PIC & Pembuat">
@@ -1553,9 +1592,9 @@ export const ProjectsPage = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  {ISSUE_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
+                  {ISSUE_TYPES.map((typeItem) => (
+                    <option key={typeItem.value} value={typeItem.value}>
+                      {t(`projects.issue_types.${typeItem.value}`, typeItem.label)}
                     </option>
                   ))}
                 </select>
@@ -1737,10 +1776,10 @@ export const ProjectsPage = () => {
                       type="button"
                       onClick={() => setCreateProgress(st.percent)}
                       className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
-                      title={st.desc}
+                      title={t(`projects.milestones.${st.id}_desc`, st.desc)}
                     >
                       <span className={styles.breadcrumbNum}>{st.step}</span>
-                      <span className={styles.breadcrumbLabel}>{st.label}</span>
+                      <span className={styles.breadcrumbLabel}>{t(`projects.milestones.${st.id}`, st.label)}</span>
                     </button>
                   );
                 })}
@@ -1873,9 +1912,9 @@ export const ProjectsPage = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  {ISSUE_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
+                  {ISSUE_TYPES.map((typeItem) => (
+                    <option key={typeItem.value} value={typeItem.value}>
+                      {t(`projects.issue_types.${typeItem.value}`, typeItem.label)}
                     </option>
                   ))}
                 </select>
@@ -1987,7 +2026,7 @@ export const ProjectsPage = () => {
               )}
             </div>
 
-            {/* Visibility & Target Date */}
+            {/* Visibility & Status */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -2020,7 +2059,52 @@ export const ProjectsPage = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>Target Date</label>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  style={{
+                    height: '36px',
+                    padding: '0 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  <option value="planning">Planning</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="review">Review</option>
+                  <option value="completed">Completed</option>
+                  <option value="on_hold">On Hold</option>
+                </select>
+                <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)' }}>
+                  Status pengerjaan task aktif saat ini.
+                </span>
+              </div>
+            </div>
+
+            {/* Start Date & Target Date (Task Date Range) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Start Date</label>
+                <input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  style={{
+                    height: '36px',
+                    padding: '0 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Target Due Date</label>
                 <input
                   type="date"
                   value={editTargetDate}
@@ -2055,12 +2139,18 @@ export const ProjectsPage = () => {
                     <button
                       key={st.id}
                       type="button"
-                      onClick={() => setEditProgress(st.percent)}
+                      onClick={() => {
+                        setEditProgress(st.percent);
+                        if (st.percent >= 100) setEditStatus('completed');
+                        else if (st.percent >= 75) setEditStatus('review');
+                        else if (st.percent >= 25) setEditStatus('in_progress');
+                        else setEditStatus('planning');
+                      }}
                       className={`${styles.breadcrumbNode} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
-                      title={st.desc}
+                      title={t(`projects.milestones.${st.id}_desc`, st.desc)}
                     >
                       <span className={styles.breadcrumbNum}>{st.step}</span>
-                      <span className={styles.breadcrumbLabel}>{st.label}</span>
+                      <span className={styles.breadcrumbLabel}>{t(`projects.milestones.${st.id}`, st.label)}</span>
                     </button>
                   );
                 })}
@@ -2132,6 +2222,9 @@ export const ProjectsPage = () => {
                   onClick={() => {
                     setIsEditModalOpen(false);
                     setEditingProject(null);
+                    if (location.state?.returnTo) {
+                      navigate(location.state.returnTo);
+                    }
                   }}
                   type="button"
                 >
@@ -2327,12 +2420,12 @@ export const ProjectsPage = () => {
                     <div
                       key={st.id}
                       className={`${styles.breadcrumbNode} ${styles.breadcrumbNodeStatic} ${isCurrent ? styles.breadcrumbNodeCurrent : ''} ${isCompleted ? styles.breadcrumbNodeCompleted : ''}`}
-                      title={st.desc}
+                      title={t(`projects.milestones.${st.id}_desc`, st.desc)}
                     >
                       <span className={styles.breadcrumbNum}>
                         {isCompleted && !isCurrent ? <Check size={10} strokeWidth={3} /> : st.step}
                       </span>
-                      <span className={styles.breadcrumbLabel}>{st.label}</span>
+                      <span className={styles.breadcrumbLabel}>{t(`projects.milestones.${st.id}`, st.label)}</span>
                     </div>
                   );
                 })}

@@ -92,37 +92,37 @@ export const UtilityPage = () => {
   const toolMeta = {
     images: {
       title: t('nav.tools_images', 'Image Converter & Compress'),
-      subtitle: 'Bulk konversi format gambar (WEBP, JPEG, PNG, AVIF) & kompresi ukuran instan secara lokal di browser.',
+      subtitle: t('tools.sub_images', 'Bulk konversi format gambar (WEBP, JPEG, PNG, AVIF) & kompresi ukuran instan secara lokal di browser.'),
       icon: ImageIcon,
     },
     documents: {
       title: t('nav.tools_docs', 'Document PDF Compress'),
-      subtitle: 'Kompresi file dokumen PDF secara aman dan lokal tanpa upload ke server eksternal.',
+      subtitle: t('tools.sub_documents', 'Kompresi file dokumen PDF secara aman dan lokal tanpa upload ke server eksternal.'),
       icon: FileArchive,
     },
     'remove-bg': {
       title: t('nav.tools_bg', 'Local Remove Background'),
-      subtitle: 'Penghapusan background gambar menjadi format PNG transparan secara lokal & instan.',
+      subtitle: t('tools.sub_bg', 'Penghapusan background gambar menjadi format PNG transparan secara lokal & instan.'),
       icon: Scissors,
     },
     'pdf-merge-split': {
       title: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'),
-      subtitle: 'Gabungkan beberapa dokumen PDF menjadi satu atau pisahkan halaman tertentu secara instan & 100% lokal di browser.',
+      subtitle: t('tools.sub_pdf_merge_split', 'Gabungkan beberapa dokumen PDF menjadi satu atau pisahkan halaman tertentu secara instan & 100% lokal di browser.'),
       icon: FileStack,
     },
     'cl-compare': {
       title: t('nav.tools_cl_compare', 'CL Compare'),
-      subtitle: 'Normalisasi, sortir urutan Change List (CL), serta komparasi 3-way (Left Only, Common, Right Only) secara instan.',
+      subtitle: t('tools.sub_cl_compare', 'Normalisasi, sortir urutan Change List (CL), serta komparasi 3-way (Left Only, Common, Right Only) secara instan.'),
       icon: GitCompare,
     },
     'build-command': {
       title: t('nav.tools_build_command', 'Build Command'),
-      subtitle: 'Konversi otomatis perintah BASE SYSTEM_BUILD_CMD ke versi INDONESIA USER & ENG build command dengan sentuhan cerdas.',
+      subtitle: t('tools.sub_build_command', 'Konversi otomatis perintah BASE SYSTEM_BUILD_CMD ke versi INDONESIA USER & ENG build command dengan sentuhan cerdas.'),
       icon: Terminal,
     },
     'video-compress': {
       title: t('nav.tools_video_compress', 'Video Compressor (VAAPI)'),
-      subtitle: 'Kompresi file video cepat dengan akselerasi perangkat keras H.264 VAAPI (Linux GPU) atau CPU high-efficiency.',
+      subtitle: t('tools.sub_video_compress', 'Kompresi file video cepat dengan akselerasi perangkat keras H.264 VAAPI (Linux GPU) atau CPU high-efficiency.'),
       icon: VideoIcon,
     },
   };
@@ -178,6 +178,7 @@ export const UtilityPage = () => {
 // 1. IMAGE CONVERTER & COMPRESS TAB (100% Browser Local)
 // ============================================================================
 const ImageConverterTab = () => {
+  const { t } = useTranslation();
   const [files, setFiles] = useState([]);
   const [targetFormat, setTargetFormat] = useState('image/webp');
   const [quality, setQuality] = useState(80);
@@ -331,20 +332,20 @@ const ImageConverterTab = () => {
       <div className={styles.controlPanel}>
         <div className={styles.controlGroup}>
           <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Format Target</span>
+            <span className={styles.controlLabel}>{t('tools.target_format_label', 'Format Target')}</span>
             <select
               className={styles.selectInput}
               value={targetFormat}
               onChange={(e) => setTargetFormat(e.target.value)}
             >
-              <option value="image/webp">WEBP (Modern & Ringan)</option>
-              <option value="image/jpeg">JPEG / JPG (Universal)</option>
-              <option value="image/png">PNG (Lossless / Transparent)</option>
+              <option value="image/webp">{t('tools.format_webp', 'WEBP (Modern & Ringan)')}</option>
+              <option value="image/jpeg">{t('tools.format_jpeg', 'JPEG / JPG (Universal)')}</option>
+              <option value="image/png">{t('tools.format_png', 'PNG (Lossless / Transparent)')}</option>
             </select>
           </div>
 
           <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Kualitas: {quality}%</span>
+            <span className={styles.controlLabel}>{t('tools.quality_label', 'Kualitas')}: {quality}%</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
                 type="range"
@@ -359,16 +360,16 @@ const ImageConverterTab = () => {
           </div>
 
           <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Maksimum Resolusi</span>
+            <span className={styles.controlLabel}>{t('tools.max_resolution_label', 'Maksimum Resolusi')}</span>
             <select
               className={styles.selectInput}
               value={maxDimension}
               onChange={(e) => setMaxDimension(e.target.value)}
             >
-              <option value="original">Resolusi Asli (Original)</option>
-              <option value="1920">Full HD (Max 1920px)</option>
-              <option value="1280">HD (Max 1280px)</option>
-              <option value="800">Compact (Max 800px)</option>
+              <option value="original">{t('tools.res_original_label', 'Resolusi Asli (Original)')}</option>
+              <option value="1920">{t('tools.res_1920_label', 'Full HD (Max 1920px)')}</option>
+              <option value="1280">{t('tools.res_1280_label', 'HD (Max 1280px)')}</option>
+              <option value="800">{t('tools.res_800_label', 'Compact (Max 800px)')}</option>
             </select>
           </div>
         </div>
@@ -377,13 +378,13 @@ const ImageConverterTab = () => {
           {files.length > 0 && (
             <>
               <Button variant="secondary" icon={RefreshCw} onClick={handleReapply} loading={processing}>
-                Konversi Ulang
+                {t('tools.reconvert_btn', 'Konversi Ulang')}
               </Button>
               <Button variant="secondary" icon={Trash2} onClick={handleClear}>
-                Hapus Semua
+                {t('tools.clear_all_btn', 'Hapus Semua')}
               </Button>
               <Button variant="primary" icon={Download} onClick={handleDownloadAll}>
-                Unduh Semua ({files.length})
+                {t('tools.download_all_btn', { count: files.length, defaultValue: `Unduh Semua (${files.length})` })}
               </Button>
             </>
           )}
@@ -408,10 +409,10 @@ const ImageConverterTab = () => {
         <Upload size={38} className={styles.dropzoneIcon} />
         <div>
           <p style={{ fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>
-            Tarik & Lepas gambar di sini, atau <span style={{ color: 'var(--color-accent)' }}>klik untuk memilih</span>
+            {t('tools.image_dropzone_title', 'Tarik & Lepas gambar di sini, atau ')}<span style={{ color: 'var(--color-accent)' }}>{t('tools.click_to_select', 'klik untuk memilih')}</span>
           </p>
           <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
-            Mendukung file JPG, PNG, WEBP, AVIF, BMP, GIF dalam jumlah banyak (bulk)
+            {t('tools.image_dropzone_desc', 'Mendukung file JPG, PNG, WEBP, AVIF, BMP, GIF dalam jumlah banyak (bulk)')}
           </p>
         </div>
         <input
@@ -429,7 +430,7 @@ const ImageConverterTab = () => {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <span style={{ fontSize: '14px', fontWeight: 600 }}>
-              Daftar Hasil Konversi ({files.length} file)
+              {t('tools.conversion_results_title', { count: files.length, defaultValue: `Daftar Hasil Konversi (${files.length} file)` })}
             </span>
           </div>
 
@@ -449,14 +450,14 @@ const ImageConverterTab = () => {
                     <span>{formatBytes(item.originalSize)}</span>
                     <span style={{ color: 'var(--color-text-secondary)' }}>➔</span>
                     <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                      {item.convertedSize ? formatBytes(item.convertedSize) : 'Menghitung...'}
+                      {item.convertedSize ? formatBytes(item.convertedSize) : t('tools.calculating', 'Menghitung...')}
                     </span>
                   </div>
 
                   {item.savings !== undefined && item.savings > 0 && (
                     <div style={{ marginTop: '4px' }}>
                       <span className={styles.savingsBadge}>
-                        Hemat {item.savings}%
+                        {t('tools.saved_percent', { percent: item.savings, defaultValue: `Hemat ${item.savings}%` })}
                       </span>
                     </div>
                   )}
@@ -469,7 +470,7 @@ const ImageConverterTab = () => {
                   onClick={() => handleDownloadSingle(item)}
                   style={{ width: '100%', marginTop: '6px' }}
                 >
-                  Unduh File
+                  {t('tools.download_file', 'Unduh File')}
                 </Button>
               </div>
             ))}
@@ -484,6 +485,7 @@ const ImageConverterTab = () => {
 // 2. DOCUMENT / PDF COMPRESS TAB (Local Ghostscript / Native Engine)
 // ============================================================================
 const DocumentCompressTab = () => {
+  const { t } = useTranslation();
   const [docs, setDocs] = useState([]);
   const [compressionPreset, setCompressionPreset] = useState('ebook'); // screen, ebook, printer
   const [compressing, setCompressing] = useState(false);
@@ -502,7 +504,7 @@ const DocumentCompressTab = () => {
   const handleAddDocs = async (fileList) => {
     const validPdfs = Array.from(fileList).filter((f) => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
     if (validPdfs.length === 0) {
-      alert('Silakan pilih dokumen berformat PDF.');
+      alert(t('tools.select_pdf_alert', 'Silakan pilih dokumen berformat PDF.'));
       return;
     }
 
@@ -562,15 +564,7 @@ const DocumentCompressTab = () => {
           errorMsg = err.response.data.message;
         }
       }
-      if (
-        errorMsg.includes('invalid xref table') ||
-        errorMsg.includes('Cannot find') ||
-        errorMsg.includes('not a PDF file') ||
-        errorMsg.includes('exit status 1') ||
-        errorMsg.includes('PDF compression failed')
-      ) {
-        errorMsg = 'Dokumen gagal diproses karena terenkripsi oleh sistem keamanan korporat (Samsung NASCA / DRM). Solusi: Buka di Adobe Reader / MS Office, tekan Ctrl+P, pilih printer "Microsoft Print to PDF", lalu simpan file hasil cetak tersebut.';
-      }
+      // ponytail: clean error message without NASCA pop-up text
       return {
         ...item,
         status: 'error',
@@ -625,41 +619,20 @@ const DocumentCompressTab = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Informative Tip for Samsung NASCA / Corporate DRM */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: '10px',
-        padding: '10px 14px',
-        borderRadius: 'var(--radius-sm, 6px)',
-        background: 'rgba(59, 130, 246, 0.08)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
-        fontSize: '12px',
-        color: 'var(--color-text-secondary)',
-        lineHeight: 1.5,
-      }}>
-        <AlertCircle size={16} color="#3b82f6" style={{ flexShrink: 0, marginTop: '2px' }} />
-        <div>
-          <strong style={{ color: 'var(--color-text-primary)' }}>Tips Dokumen Terenkripsi NASCA (Samsung Corporate DRM):</strong>
-          <p style={{ margin: '3px 0 0 0' }}>
-            Jika dokumen di PC kantor terproteksi enkripsi NASCA, buka file di <strong>Adobe Acrobat Reader</strong> / <strong>MS Office</strong>, tekan <strong>Ctrl + P</strong>, pilih printer <strong>"Microsoft Print to PDF"</strong>, lalu simpan. PDF hasil cetak tersebut otomatis terdekripsi dan siap diolah tanpa kendala.
-          </p>
-        </div>
-      </div>
-
+      {/* ponytail: removed NASCA tip banner */}
       {/* Control Bar */}
       <div className={styles.controlPanel}>
         <div className={styles.controlGroup}>
           <div className={styles.controlItem}>
-            <span className={styles.controlLabel}>Tingkat Kompresi Dokumen</span>
+            <span className={styles.controlLabel}>{t('tools.compression_level_label', 'Tingkat Kompresi Dokumen')}</span>
             <select
               className={styles.selectInput}
               value={compressionPreset}
               onChange={(e) => setCompressionPreset(e.target.value)}
             >
-              <option value="screen">Tinggi / Email (72 DPI - Ukuran Terkecil)</option>
-              <option value="ebook">Standar Seimbang (150 DPI - Teks & Grafik Tajam)</option>
-              <option value="printer">Ringan / Cetak (300 DPI - Diagram Presisi Tinggi)</option>
+              <option value="screen">{t('tools.preset_screen', 'Tinggi / Email (72 DPI - Ukuran Terkecil)')}</option>
+              <option value="ebook">{t('tools.preset_ebook', 'Standar Seimbang (150 DPI - Teks & Grafik Tajam)')}</option>
+              <option value="printer">{t('tools.preset_printer', 'Ringan / Cetak (300 DPI - Diagram Presisi Tinggi)')}</option>
             </select>
           </div>
         </div>
@@ -673,10 +646,10 @@ const DocumentCompressTab = () => {
                 onClick={handleStartCompressAll}
                 loading={compressing}
               >
-                Mulai Kompresi ({docs.length} Dokumen)
+                {t('tools.start_compress_all', { count: docs.length, defaultValue: `Mulai Kompresi (${docs.length} Dokumen)` })}
               </Button>
               <Button variant="secondary" icon={Trash2} onClick={() => setDocs([])}>
-                Bersihkan
+                {t('common.clear', 'Bersihkan')}
               </Button>
             </>
           )}
@@ -701,10 +674,10 @@ const DocumentCompressTab = () => {
         <FileArchive size={38} className={styles.dropzoneIcon} />
         <div>
           <p style={{ fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>
-            Tarik & Lepas dokumen PDF di sini, atau <span style={{ color: 'var(--color-accent)' }}>klik untuk memilih</span>
+            {t('tools.pdf_compress_dropzone_title', 'Tarik & Lepas dokumen PDF di sini, atau ')}<span style={{ color: 'var(--color-accent)' }}>{t('tools.click_to_select', 'klik untuk memilih')}</span>
           </p>
           <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
-            Memproses kompresi stream dokumen PDF secara lokal menggunakan Ghostscript engine.
+            {t('tools.pdf_compress_dropzone_desc', 'Memproses kompresi stream dokumen PDF secara lokal menggunakan Ghostscript engine.')}
           </p>
         </div>
         <input
@@ -740,7 +713,7 @@ const DocumentCompressTab = () => {
                 <div>
                   <p style={{ margin: 0, fontWeight: 600, fontSize: '13.5px' }}>{doc.name}</p>
                   <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                    Ukuran Asli: {formatBytes(doc.originalSize)}
+                    {t('tools.original_size', 'Ukuran Asli')}: {formatBytes(doc.originalSize)}
                   </p>
                 </div>
               </div>
@@ -752,7 +725,7 @@ const DocumentCompressTab = () => {
                       {formatBytes(doc.compressedSize)}
                     </p>
                     <span className={styles.savingsBadge}>
-                      Hemat {doc.savings}%
+                      {t('tools.saved_percent', { percent: doc.savings, defaultValue: `Hemat ${doc.savings}%` })}
                     </span>
                   </div>
                 )}
@@ -760,7 +733,7 @@ const DocumentCompressTab = () => {
                 {doc.status === 'error' && (
                   <span style={{ fontSize: '12px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <AlertCircle size={14} />
-                    {doc.errorMessage || 'Gagal memproses'}
+                    {doc.errorMessage || t('tools.failed_process', 'Gagal memproses')}
                   </span>
                 )}
 
@@ -776,14 +749,14 @@ const DocumentCompressTab = () => {
                       isCompressed: Boolean(doc.compressedUrl),
                     })
                   }
-                  title="Shortcut Preview PDF"
+                  title={t('tools.preview_pdf', 'Shortcut Preview PDF')}
                 >
-                  Preview PDF
+                  {t('tools.preview_pdf', 'Preview PDF')}
                 </Button>
 
                 {doc.status === 'done' ? (
                   <Button variant="primary" size="sm" icon={Download} onClick={() => handleDownloadPdf(doc)}>
-                    Unduh PDF
+                    {t('tools.download_pdf', 'Unduh PDF')}
                   </Button>
                 ) : (
                   <Button
@@ -793,7 +766,7 @@ const DocumentCompressTab = () => {
                     disabled={compressing || doc.status === 'processing'}
                     onClick={() => handleCompressSingle(doc)}
                   >
-                    Kompres
+                    {t('tools.compress', 'Kompres')}
                   </Button>
                 )}
 
@@ -801,7 +774,7 @@ const DocumentCompressTab = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleRemoveDoc(doc.id)}
-                  title="Hapus dari daftar"
+                  title={t('common.delete', 'Hapus dari daftar')}
                 >
                   <Trash2 size={14} color="var(--color-error)" />
                 </Button>
@@ -815,7 +788,7 @@ const DocumentCompressTab = () => {
       <Modal
         isOpen={Boolean(previewPdf)}
         onClose={() => setPreviewPdf(null)}
-        title={`Preview PDF: ${previewPdf?.name || ''} ${previewPdf?.isCompressed ? '(Terkonpresi)' : '(Asli)'}`}
+        title={`${t('tools.preview_pdf', 'Preview PDF')}: ${previewPdf?.name || ''} ${previewPdf?.isCompressed ? t('tools.compressed_tag', '(Terkonpresi)') : t('tools.original_tag', '(Asli)')}`}
         maxWidth="950px"
       >
         {previewPdf && (
@@ -838,7 +811,7 @@ const DocumentCompressTab = () => {
                 icon={ExternalLink}
                 onClick={() => window.open(previewPdf.url, '_blank')}
               >
-                Buka di Tab Baru
+                {t('tools.open_new_tab', 'Buka di Tab Baru')}
               </Button>
               <Button
                 variant="primary"
@@ -849,7 +822,7 @@ const DocumentCompressTab = () => {
                   safeDownloadBlob(previewPdf.url, filename);
                 }}
               >
-                Unduh PDF
+                {t('tools.download_pdf', 'Unduh PDF')}
               </Button>
             </div>
           </div>
@@ -863,6 +836,7 @@ const DocumentCompressTab = () => {
 // 3. LOCAL BACKGROUND REMOVER TAB (No API / Python Engine)
 // ============================================================================
 const RemoveBackgroundTab = () => {
+  const { t } = useTranslation();
   const [imageSrc, setImageSrc] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [algorithm, setAlgorithm] = useState('u2net'); // 'u2net' (AI Salient Object) or 'color' (Manual Canvas)
@@ -1360,10 +1334,10 @@ const RemoveBackgroundTab = () => {
           <Scissors size={40} className={styles.dropzoneIcon} />
           <div>
             <p style={{ fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>
-              Pilih foto atau drag & drop gambar yang ingin dihapus background-nya
+              {t('tools.remove_bg_dropzone_title', 'Pilih foto atau drag & drop gambar yang ingin dihapus background-nya')}
             </p>
             <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              Berjalan 100% lokal di browser dan mesin lokal tanpa upload ke API luar
+              {t('tools.remove_bg_dropzone_desc', 'Berjalan 100% lokal di browser dan mesin lokal tanpa upload ke API luar')}
             </p>
           </div>
           <input
@@ -1384,9 +1358,9 @@ const RemoveBackgroundTab = () => {
           {/* Original Preview (For Pipette & Reference) */}
           <div className={styles.canvasBox}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>Gambar Asli (Klik untuk Pipet Warna)</span>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>{t('tools.original_image_ref', 'Gambar Asli (Klik untuk Pipet Warna)')}</span>
               <Button variant="secondary" size="sm" icon={Upload} onClick={() => fileInputRef.current?.click()}>
-                Ganti Gambar
+                {t('tools.change_image', 'Ganti Gambar')}
               </Button>
             </div>
             <div className={styles.canvasWrapper} style={{ backgroundColor: 'var(--color-bg-primary)' }}>
@@ -1439,6 +1413,7 @@ const RemoveBackgroundTab = () => {
 // 4. PDF MERGE & SPLIT TAB (100% Client-Side with pdf-lib /ponytail)
 // ============================================================================
 const PdfMergeSplitTab = () => {
+  const { t } = useTranslation();
   const [mode, setMode] = useState('merge'); // 'merge' | 'split'
 
   // Merge State
@@ -1501,17 +1476,13 @@ const PdfMergeSplitTab = () => {
 
     setMergeSuccess(null);
     const loadedItems = [];
-    const nascaFiles = [];
 
+    // ponytail: load valid PDFs without NASCA popup/alert dialog
     for (const file of pdfFiles) {
       try {
         const arrayBuffer = await file.arrayBuffer();
-        // Check magic bytes %PDF- (NASCA encrypted files do not have standard PDF header)
         const header = new TextDecoder('ascii').decode(arrayBuffer.slice(0, 5));
-        if (header !== '%PDF-') {
-          nascaFiles.push(file.name);
-          continue;
-        }
+        if (header !== '%PDF-') continue;
 
         const pdfDoc = await PDFDocument.load(arrayBuffer);
         const pageCount = pdfDoc.getPageCount();
@@ -1525,16 +1496,7 @@ const PdfMergeSplitTab = () => {
         });
       } catch (err) {
         console.error('Failed to parse PDF:', file.name, err);
-        nascaFiles.push(file.name);
       }
-    }
-
-    if (nascaFiles.length > 0) {
-      alert(
-        `Peringatan Dokumen Terenkripsi NASCA / DRM:\n\n` +
-        `Dokumen berikut tidak dapat dibaca karena terproteksi enkripsi korporat:\n- ${nascaFiles.join('\n- ')}\n\n` +
-        `Solusi Praktis:\nBuka file di Adobe Acrobat Reader, tekan Ctrl+P, pilih printer "Microsoft Print to PDF", lalu simpan PDF baru.`
-      );
     }
 
     if (loadedItems.length > 0) {
@@ -1612,7 +1574,7 @@ const PdfMergeSplitTab = () => {
       const arrayBuffer = await selectedFile.arrayBuffer();
       const header = new TextDecoder('ascii').decode(arrayBuffer.slice(0, 5));
       if (header !== '%PDF-') {
-        throw new Error('Dokumen terdeteksi terenkripsi oleh sistem korporat (Samsung NASCA / DRM).\n\nSolusi: Buka file di Adobe Acrobat Reader, tekan Ctrl+P, pilih printer "Microsoft Print to PDF", lalu simpan.');
+        throw new Error('Dokumen bukan file PDF standar yang valid.');
       }
 
       const pdfDoc = await PDFDocument.load(arrayBuffer);
@@ -1730,28 +1692,7 @@ const PdfMergeSplitTab = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      {/* Informative Tip for Samsung NASCA / Corporate DRM */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: '10px',
-        padding: '10px 14px',
-        borderRadius: 'var(--radius-sm, 6px)',
-        background: 'rgba(59, 130, 246, 0.08)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
-        fontSize: '12px',
-        color: 'var(--color-text-secondary)',
-        lineHeight: 1.5,
-      }}>
-        <AlertCircle size={16} color="#3b82f6" style={{ flexShrink: 0, marginTop: '2px' }} />
-        <div>
-          <strong style={{ color: 'var(--color-text-primary)' }}>Tips Dokumen Terenkripsi NASCA (Samsung Corporate DRM):</strong>
-          <p style={{ margin: '3px 0 0 0' }}>
-            Jika dokumen terproteksi enkripsi NASCA, buka file di <strong>Adobe Acrobat Reader</strong>, tekan <strong>Ctrl + P</strong>, pilih printer <strong>"Microsoft Print to PDF"</strong>, lalu simpan. PDF hasil cetak tersebut otomatis terdekripsi dan siap digabung (Merge) atau dipisah (Split) tanpa kendala.
-          </p>
-        </div>
-      </div>
-
+      {/* ponytail: removed NASCA tip banner */}
       {/* Top Mode Selector */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div className={styles.modeToggle}>
@@ -1809,14 +1750,14 @@ const PdfMergeSplitTab = () => {
             <Layers size={40} className={styles.dropzoneIcon} />
             <div>
               <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                Klik untuk pilih dokumen PDF atau Drag & Drop beberapa file ke sini
+                {t('tools.pdf_merge_dropzone_title', 'Klik untuk pilih dokumen PDF atau Drag & Drop beberapa file ke sini')}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                Mendukung bulk upload file PDF tanpa batasan ukuran server.
+                {t('tools.pdf_merge_dropzone_desc', 'Mendukung bulk upload file PDF tanpa batasan ukuran server.')}
               </div>
             </div>
             <Button variant="secondary" icon={Upload} size="sm">
-              Pilih Dokumen PDF
+              {t('tools.select_pdf_files', 'Pilih Dokumen PDF')}
             </Button>
             <input
               ref={mergeFileInputRef}
@@ -1860,13 +1801,13 @@ const PdfMergeSplitTab = () => {
               <div className={styles.controlPanel}>
                 <div className={styles.controlGroup}>
                   <div className={styles.controlItem}>
-                    <span className={styles.controlLabel}>Nama File Hasil Penggabungan</span>
+                    <span className={styles.controlLabel}>{t('tools.merged_filename_label', 'Nama File Hasil Penggabungan')}</span>
                     <input
                       type="text"
                       className={styles.selectInput}
                       value={mergeOutputName}
                       onChange={(e) => setMergeOutputName(e.target.value)}
-                      placeholder="merged_document.pdf"
+                      placeholder={t('tools.merged_filename_placeholder', 'merged_document.pdf')}
                       style={{ minWidth: '220px' }}
                     />
                   </div>
@@ -1977,14 +1918,14 @@ const PdfMergeSplitTab = () => {
               <Split size={40} className={styles.dropzoneIcon} />
               <div>
                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Pilih atau Drag & Drop 1 file dokumen PDF yang ingin dipisahkan
+                  {t('tools.pdf_split_dropzone_title', 'Pilih atau Drag & Drop 1 file dokumen PDF yang ingin dipisahkan')}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                  Dokumen diproses secara lokal langsung di memori browser.
+                  {t('tools.pdf_split_dropzone_desc', 'Dokumen diproses secara lokal langsung di memori browser.')}
                 </div>
               </div>
               <Button variant="secondary" icon={Upload} size="sm">
-                Pilih File PDF
+                {t('tools.select_pdf_file', 'Pilih File PDF')}
               </Button>
               <input
                 ref={splitFileInputRef}
@@ -2141,7 +2082,7 @@ const PdfMergeSplitTab = () => {
                             className={styles.selectInput}
                             value={pageRange}
                             onChange={(e) => setPageRange(e.target.value)}
-                            placeholder="Contoh: 1-5, 8, 12"
+                            placeholder={t('tools.page_range_placeholder', 'Contoh: 1-5, 8, 12')}
                             style={{ maxWidth: '320px' }}
                           />
                           <span style={{ fontSize: '11.5px', color: selectedPagesList.length > 0 ? '#10b981' : '#ef4444' }}>
@@ -2256,6 +2197,7 @@ const preprocessCL = (input) => {
 };
 
 const CLCompareTab = () => {
+  const { t } = useTranslation();
   const [mode, setMode] = useState('sort'); // 'sort' | 'compare'
 
   // Sort state
@@ -2355,7 +2297,7 @@ const CLCompareTab = () => {
             <textarea
               className={styles.toolTextarea}
               rows={5}
-              placeholder="Tempelkan daftar CL di sini (bisa dipisah spasi, koma, baris baru, atau teks acak)..."
+              placeholder={t('tools.cl_sort_placeholder', 'Tempelkan daftar CL di sini (bisa dipisah spasi, koma, baris baru, atau teks acak)...')}
               value={sortInput}
               onChange={(e) => setSortInput(e.target.value)}
             />
@@ -2397,7 +2339,7 @@ const CLCompareTab = () => {
               className={styles.toolTextarea}
               rows={5}
               readOnly
-              placeholder="Hasil CL yang sudah disortir dan dinormalisasi akan muncul di sini..."
+              placeholder={t('tools.cl_sorted_output_placeholder', 'Hasil CL yang sudah disortir dan dinormalisasi akan muncul di sini...')}
               value={sortedOutput}
             />
           </div>
@@ -2418,7 +2360,7 @@ const CLCompareTab = () => {
               <textarea
                 className={styles.toolTextarea}
                 rows={5}
-                placeholder="Tempelkan CL sisi Kiri..."
+                placeholder={t('tools.cl_left_placeholder', 'Tempelkan CL sisi Kiri...')}
                 value={leftInput}
                 onChange={(e) => setLeftInput(e.target.value)}
               />
@@ -2435,7 +2377,7 @@ const CLCompareTab = () => {
               <textarea
                 className={styles.toolTextarea}
                 rows={5}
-                placeholder="Tempelkan CL sisi Kanan..."
+                placeholder={t('tools.cl_right_placeholder', 'Tempelkan CL sisi Kanan...')}
                 value={rightInput}
                 onChange={(e) => setRightInput(e.target.value)}
               />
@@ -2581,6 +2523,7 @@ const DEFAULT_BUILD_CMD =
   './build -oa -tuser -ma -i A336EDXUEGYH7 -j EGYH7 -B -Wt --sssi-build system -d low -s -r31998945 a33x_sea_open OLM OJM OLM_SUP OJM_SUP';
 
 const BuildCommandTab = () => {
+  const { t } = useTranslation();
   const [baseCmd, setBaseCmd] = useState(DEFAULT_BUILD_CMD);
   const [copiedType, setCopiedType] = useState(null); // 'user' | 'eng'
 
@@ -2706,7 +2649,7 @@ const BuildCommandTab = () => {
           rows={3}
           value={baseCmd}
           onChange={(e) => setBaseCmd(e.target.value)}
-          placeholder="Masukkan perintah build dasar di sini..."
+          placeholder={t('tools.build_cmd_placeholder', 'Masukkan perintah build dasar di sini...')}
         />
       </div>
 

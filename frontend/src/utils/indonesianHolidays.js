@@ -103,36 +103,129 @@ const HOLIDAYS_BY_DATE = {
   '2027-12-25': { name: 'Hari Raya Natal' },
 };
 
+const CUSTOM_HOLIDAYS_STORAGE_KEY = 'pe_custom_holidays';
+
 /**
- * Check if a given date string ('YYYY-MM-DD') is an Indonesian national holiday or cuti bersama
+ * Get all custom user-defined holidays as a date-keyed dictionary
+ * @returns {Record<string, { name: string, isCutiBersama: boolean }>}
+ */
+export const getCustomHolidaysMap = () => {
+  try {
+    const raw = localStorage.getItem(CUSTOM_HOLIDAYS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+/**
+ * Get all custom holidays as a sorted list
+ * @returns {Array<{ dateStr: string, name: string, isCutiBersama: boolean }>}
+ */
+export const getCustomHolidaysList = () => {
+  const map = getCustomHolidaysMap();
+  return Object.keys(map)
+    .sort()
+    .map((dateStr) => ({
+      dateStr,
+      ...map[dateStr],
+    }));
+};
+
+/**
+ * Save a custom holiday into localStorage and notify all listeners
  * @param {string} dateStr 'YYYY-MM-DD'
- * @returns {{ name: string, isHoliday: boolean, isCutiBersama: boolean } | null}
+ * @param {string} name Name or description of the custom holiday
+ * @param {boolean} isCutiBersama Whether this is considered cuti bersama / company off-day
+ * @returns {boolean} Success status
+ */
+export const saveCustomHoliday = (dateStr, name, isCutiBersama = false) => {
+  if (!dateStr || !name) return false;
+  const cleanDate = dateStr.substring(0, 10);
+  const map = getCustomHolidaysMap();
+  map[cleanDate] = {
+    name: name.trim(),
+    isCutiBersama: Boolean(isCutiBersama),
+  };
+  try {
+    localStorage.setItem(CUSTOM_HOLIDAYS_STORAGE_KEY, JSON.stringify(map));
+    window.dispatchEvent(new CustomEvent('customHolidaysChanged', { detail: map }));
+    return true;
+  } catch (e) {
+    console.error('Failed to save custom holiday:', e);
+    return false;
+  }
+};
+
+/**
+ * Delete a custom holiday from localStorage and notify all listeners
+ * @param {string} dateStr 'YYYY-MM-DD'
+ * @returns {boolean} Success status
+ */
+export const deleteCustomHoliday = (dateStr) => {
+  if (!dateStr) return false;
+  const cleanDate = dateStr.substring(0, 10);
+  const map = getCustomHolidaysMap();
+  if (map[cleanDate]) {
+    delete map[cleanDate];
+    try {
+      localStorage.setItem(CUSTOM_HOLIDAYS_STORAGE_KEY, JSON.stringify(map));
+      window.dispatchEvent(new CustomEvent('customHolidaysChanged', { detail: map }));
+      return true;
+    } catch (e) {
+      console.error('Failed to delete custom holiday:', e);
+      return false;
+    }
+  }
+  return false;
+};
+
+/**
+ * Check if a given date string ('YYYY-MM-DD') is an Indonesian national holiday or custom holiday
+ * @param {string} dateStr 'YYYY-MM-DD'
+ * @returns {{ name: string, isHoliday: boolean, isCutiBersama: boolean, isCustom: boolean } | null}
  */
 export const getIndonesianHoliday = (dateStr) => {
   if (!dateStr) return null;
   const clean = dateStr.substring(0, 10);
+
+  // 1. Check user-defined custom holidays first
+  const customMap = getCustomHolidaysMap();
+  if (customMap[clean]) {
+    return {
+      name: customMap[clean].name,
+      isHoliday: true,
+      isCutiBersama: Boolean(customMap[clean].isCutiBersama),
+      isCustom: true,
+    };
+  }
+
+  // 2. Check hardcoded official SKB 3 Menteri national holidays
   const found = HOLIDAYS_BY_DATE[clean];
   if (found) {
     return {
       name: found.name,
       isHoliday: true,
       isCutiBersama: Boolean(found.isCutiBersama),
+      isCustom: false,
     };
   }
 
-  // Check generic fixed annual holidays for any year beyond the hardcoded map
+  // 3. Check generic fixed annual holidays for any year beyond the hardcoded map
   const monthDay = clean.substring(5);
   switch (monthDay) {
     case '01-01':
-      return { name: 'Tahun Baru Masehi', isHoliday: true, isCutiBersama: false };
+      return { name: 'Tahun Baru Masehi', isHoliday: true, isCutiBersama: false, isCustom: false };
     case '05-01':
-      return { name: 'Hari Buruh Internasional', isHoliday: true, isCutiBersama: false };
+      return { name: 'Hari Buruh Internasional', isHoliday: true, isCutiBersama: false, isCustom: false };
     case '06-01':
-      return { name: 'Hari Lahir Pancasila', isHoliday: true, isCutiBersama: false };
+      return { name: 'Hari Lahir Pancasila', isHoliday: true, isCutiBersama: false, isCustom: false };
     case '08-17':
-      return { name: 'Hari Kemerdekaan Republik Indonesia', isHoliday: true, isCutiBersama: false };
+      return { name: 'Hari Kemerdekaan Republik Indonesia', isHoliday: true, isCutiBersama: false, isCustom: false };
     case '12-25':
-      return { name: 'Hari Raya Natal', isHoliday: true, isCutiBersama: false };
+      return { name: 'Hari Raya Natal', isHoliday: true, isCutiBersama: false, isCustom: false };
     default:
       return null;
   }

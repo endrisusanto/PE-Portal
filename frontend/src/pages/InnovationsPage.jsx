@@ -59,6 +59,17 @@ const getClassBadgeClass = (classType) => {
   }
 };
 
+const formatClassName = (t, classType) => {
+  if (!classType) return t ? t('innovations.class_4', 'Class 4') : 'Class 4';
+  const normalized = classType.toLowerCase().replace(/\s+/g, '_');
+  if (normalized.includes('3')) return t ? t('innovations.class_3', classType) : classType;
+  if (normalized.includes('4')) return t ? t('innovations.class_4', classType) : classType;
+  if (normalized.includes('5')) return t ? t('innovations.class_5', classType) : classType;
+  if (normalized.includes('under') || normalized.includes('review')) return t ? t('innovations.under_review', classType) : classType;
+  if (normalized.includes('non') || normalized.includes('adopt')) return t ? t('innovations.non_adopt', classType) : classType;
+  return t ? t(`innovations.${normalized}`, classType) : classType;
+};
+
 // Safe normalization of attachments JSON
 const normalizeAttachments = (raw) => {
   if (!raw) return { media: [], documents: [], tables: [] };
@@ -440,7 +451,7 @@ export const InnovationsPage = () => {
       key: 'class_type',
       render: (val) => (
         <span className={`${styles.badgeClassBase} ${getClassBadgeClass(val || 'Class 4')}`}>
-          {val || 'Class 4'}
+          {formatClassName(t, val || 'Class 4')}
         </span>
       ),
     },
@@ -598,10 +609,10 @@ export const InnovationsPage = () => {
                   </div>
                   <div className={styles.kpiFooter}>
                     <span className={styles.achievementBadge}>
-                      {stats.achievement_rate.toFixed(1)}% Achieved
+                      {t('innovations.kpi_achieved', { rate: stats.achievement_rate.toFixed(1), defaultValue: `${stats.achievement_rate.toFixed(1)}% Achieved` })}
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                      Challenge: {stats.total_challenge}
+                      {t('innovations.kpi_challenge_count', { count: stats.total_challenge, defaultValue: `Challenge: ${stats.total_challenge}` })}
                     </span>
                   </div>
                 </div>
@@ -616,11 +627,11 @@ export const InnovationsPage = () => {
                     <span className={styles.kpiMainNumber} style={{ color: '#ff7597' }}>
                       {stats.class3_count}
                     </span>
-                    <span className={styles.kpiSubNumber}>proposals</span>
+                    <span className={styles.kpiSubNumber}>{t('innovations.kpi_proposals', 'proposals')}</span>
                   </div>
                   <div className={styles.kpiFooter}>
                     <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      Breakthrough innovations
+                      {t('innovations.kpi_breakthrough', 'Breakthrough innovations')}
                     </span>
                   </div>
                 </div>
@@ -638,7 +649,7 @@ export const InnovationsPage = () => {
                   </div>
                   <div className={styles.kpiFooter}>
                     <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      Class 3 + 4 + 5 ({stats.class3_count + stats.class4_count + stats.class5_count} adopted)
+                      {t('innovations.kpi_adopted_summary', { count: stats.class3_count + stats.class4_count + stats.class5_count, defaultValue: `Class 3 + 4 + 5 (${stats.class3_count + stats.class4_count + stats.class5_count} adopted)` })}
                     </span>
                   </div>
                 </div>
@@ -656,7 +667,7 @@ export const InnovationsPage = () => {
                   </div>
                   <div className={styles.kpiFooter}>
                     <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      Awaiting review
+                      {t('innovations.kpi_awaiting_review', 'Awaiting review')}
                     </span>
                   </div>
                 </div>
@@ -674,7 +685,7 @@ export const InnovationsPage = () => {
                   </div>
                   <div className={styles.kpiFooter}>
                     <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      Not adopted
+                      {t('innovations.kpi_not_adopted', 'Not adopted')}
                     </span>
                   </div>
                 </div>
@@ -687,20 +698,20 @@ export const InnovationsPage = () => {
                   <div className={styles.chartCardHeader}>
                     <div className={styles.chartTitle}>
                       <TrendingUp size={16} color="var(--color-accent)" />
-                      Monthly Performance ({selectedYear})
+                      {t('innovations.monthly_performance_title', { year: selectedYear, defaultValue: `Monthly Performance (${selectedYear})` })}
                     </div>
                     <div className={styles.chartLegend}>
                       <div className={styles.legendItem}>
                         <span className={styles.legendDot} style={{ background: 'var(--color-accent)' }} />
-                        <span>Actual Register</span>
+                        <span>{t('innovations.legend_actual', 'Actual Register')}</span>
                       </div>
                       <div className={styles.legendItem}>
                         <span className={styles.legendDot} style={{ background: '#f59e0b' }} />
-                        <span>Target</span>
+                        <span>{t('innovations.legend_target', 'Target')}</span>
                       </div>
                       <div className={styles.legendItem}>
                         <span className={styles.legendDot} style={{ background: '#8b5cf6' }} />
-                        <span>Challenge</span>
+                        <span>{t('innovations.legend_challenge', 'Challenge')}</span>
                       </div>
                     </div>
                   </div>
@@ -806,7 +817,7 @@ export const InnovationsPage = () => {
                   <div className={styles.chartCardHeader}>
                     <div className={styles.chartTitle}>
                       <Layers size={16} color="var(--color-accent)" />
-                      Class Type Distribution
+                      {t('innovations.distribution_title', 'Class Type Distribution')}
                     </div>
                     {/* View Toggle: Donut vs Pie */}
                     <div className={styles.chartTypeToggle}>
@@ -816,7 +827,7 @@ export const InnovationsPage = () => {
                         onClick={() => setChartMode('donut')}
                         title="Donut Chart View"
                       >
-                        Donut
+                        {t('innovations.view_donut', 'Donut')}
                       </button>
                       <button
                         type="button"
@@ -824,7 +835,7 @@ export const InnovationsPage = () => {
                         onClick={() => setChartMode('pie')}
                         title="Pie Chart View"
                       >
-                        Pie
+                        {t('innovations.view_pie', 'Pie')}
                       </button>
                     </div>
                   </div>
@@ -873,7 +884,7 @@ export const InnovationsPage = () => {
                                     {stats.total_actual}
                                   </span>
                                   <span className={styles.donutCenterLabel}>
-                                    TOTAL BP
+                                    {t('innovations.total_bp', 'TOTAL BP')}
                                   </span>
                                 </>
                               )}
@@ -939,10 +950,10 @@ export const InnovationsPage = () => {
                   {/* Fixed: Use BarChart3 icon instead of Table component to prevent "No records found" box */}
                   <div className={styles.chartTitle}>
                     <BarChart3 size={16} color="var(--color-accent)" />
-                    Monthly Performance Summary Matrix ({selectedYear})
+                    {t('innovations.matrix_title', { year: selectedYear, defaultValue: `Monthly Performance Summary Matrix (${selectedYear})` })}
                   </div>
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                    🟢 Target Met • 🔴 Target Pending
+                    {t('innovations.target_met_hint', '🟢 Target Met • 🔴 Target Pending')}
                   </span>
                 </div>
 
@@ -950,18 +961,18 @@ export const InnovationsPage = () => {
                   <table className={styles.matrixTable}>
                     <thead>
                       <tr>
-                        <th className={styles.matrixLabelCell}>Metric / Data</th>
+                        <th className={styles.matrixLabelCell}>{t('innovations.col_metric_data', 'Metric / Data')}</th>
                         {stats.monthly.map((m) => (
                           <th key={m.month}>{m.month_name}</th>
                         ))}
-                        <th className={styles.matrixTotalCell}>Total</th>
+                        <th className={styles.matrixTotalCell}>{t('innovations.col_total', 'Total')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {/* Actual Register */}
                       <tr className={styles.actualHighlightRow}>
                         <td className={styles.matrixLabelCell}>
-                          <span style={{ color: 'var(--color-accent)' }}>● Actual Register</span>
+                          <span style={{ color: 'var(--color-accent)' }}>● {t('innovations.legend_actual', 'Actual Register')}</span>
                         </td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>
@@ -978,7 +989,7 @@ export const InnovationsPage = () => {
 
                       {/* Target Register */}
                       <tr className={styles.targetRow}>
-                        <td className={styles.matrixLabelCell}>Target Register</td>
+                        <td className={styles.matrixLabelCell}>{t('innovations.target_register', 'Target Register')}</td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>{m.target_register}</td>
                         ))}
@@ -987,7 +998,7 @@ export const InnovationsPage = () => {
 
                       {/* Target Challenge */}
                       <tr className={styles.targetRow}>
-                        <td className={styles.matrixLabelCell}>Target Challenge</td>
+                        <td className={styles.matrixLabelCell}>{t('innovations.target_challenge', 'Target Challenge')}</td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>{m.target_challenge}</td>
                         ))}
@@ -997,7 +1008,7 @@ export const InnovationsPage = () => {
                       {/* Class 3 */}
                       <tr>
                         <td className={styles.matrixLabelCell}>
-                          <span style={{ color: '#ff7597' }}>Class 3 (Top Tier)</span>
+                          <span style={{ color: '#ff7597' }}>{t('innovations.class_3', 'Class 3 (Top Tier)')}</span>
                         </td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>{m.class3 || 0}</td>
@@ -1008,7 +1019,7 @@ export const InnovationsPage = () => {
                       {/* Class 4 */}
                       <tr>
                         <td className={styles.matrixLabelCell}>
-                          <span style={{ color: '#60a5fa' }}>Class 4 (High Impact)</span>
+                          <span style={{ color: '#60a5fa' }}>{t('innovations.class_4', 'Class 4 (High Impact)')}</span>
                         </td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>{m.class4 || 0}</td>
@@ -1019,7 +1030,7 @@ export const InnovationsPage = () => {
                       {/* Class 5 */}
                       <tr>
                         <td className={styles.matrixLabelCell}>
-                          <span style={{ color: '#34d399' }}>Class 5 (Standard)</span>
+                          <span style={{ color: '#34d399' }}>{t('innovations.class_5', 'Class 5 (Standard)')}</span>
                         </td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>{m.class5 || 0}</td>
@@ -1030,7 +1041,7 @@ export const InnovationsPage = () => {
                       {/* Non Adopt */}
                       <tr>
                         <td className={styles.matrixLabelCell}>
-                          <span style={{ color: '#9ca3af' }}>Non Adopt</span>
+                          <span style={{ color: '#9ca3af' }}>{t('innovations.non_adopt', 'Non Adopt')}</span>
                         </td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>{m.non_adopt || 0}</td>
@@ -1041,7 +1052,7 @@ export const InnovationsPage = () => {
                       {/* Under Review */}
                       <tr>
                         <td className={styles.matrixLabelCell}>
-                          <span style={{ color: '#fbbf24' }}>Under Review</span>
+                          <span style={{ color: '#fbbf24' }}>{t('innovations.under_review', 'Under Review')}</span>
                         </td>
                         {stats.monthly.map((m) => (
                           <td key={m.month}>{m.under_review || 0}</td>
@@ -1066,19 +1077,19 @@ export const InnovationsPage = () => {
           <div className={styles.repoControlsBar}>
             <div className={styles.repoFilterGroup}>
               <span className={styles.repoFilterLabel}>
-                Filter Class:
+                {t('innovations.filter_class', 'Filter Class:')}
               </span>
               <select
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
                 className={styles.repoSelect}
               >
-                <option value="">All Classes</option>
-                <option value="Class 3">Class 3 (Breakthrough)</option>
-                <option value="Class 4">Class 4 (High Impact)</option>
-                <option value="Class 5">Class 5 (Standard)</option>
-                <option value="Under Review">Under Review</option>
-                <option value="Non Adopt">Non Adopt</option>
+                <option value="">{t('common.all', 'All Classes')}</option>
+                <option value="Class 3">{t('innovations.class_3', 'Class 3')}</option>
+                <option value="Class 4">{t('innovations.class_4', 'Class 4')}</option>
+                <option value="Class 5">{t('innovations.class_5', 'Class 5')}</option>
+                <option value="Under Review">{t('innovations.under_review', 'Under Review')}</option>
+                <option value="Non Adopt">{t('innovations.non_adopt', 'Non Adopt')}</option>
               </select>
 
               {/* View Switcher: Cards vs Table */}
@@ -1090,7 +1101,7 @@ export const InnovationsPage = () => {
                   title="Article Cards View"
                 >
                   <Grid size={12} />
-                  Articles
+                  {t('innovations.view_cards', 'Articles')}
                 </button>
                 <button
                   type="button"
@@ -1099,7 +1110,7 @@ export const InnovationsPage = () => {
                   title="Summary Table View"
                 >
                   <List size={12} />
-                  Table
+                  {t('innovations.view_table', 'Table')}
                 </button>
               </div>
             </div>
@@ -1109,7 +1120,7 @@ export const InnovationsPage = () => {
                 <Search size={13} className={styles.repoSearchIcon} />
                 <input
                   type="text"
-                  placeholder="Search articles, techniques..."
+                  placeholder={t('innovations.search_articles_placeholder', 'Search articles, techniques...')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className={styles.repoSearchInput}
@@ -1118,7 +1129,7 @@ export const InnovationsPage = () => {
 
               <Button variant="primary" size="sm" onClick={() => handleOpenEditor(null)}>
                 <Plus size={13} />
-                New Article
+                {t('innovations.new_article', 'New Article')}
               </Button>
             </div>
           </div>
@@ -1127,9 +1138,9 @@ export const InnovationsPage = () => {
             <LoadingState message="Loading innovation articles..." />
           ) : filteredItems.length === 0 ? (
             <EmptyState
-              title="No innovation articles found"
-              description="Be the first to create a new innovation or best practice article."
-              actionLabel="New Article"
+              title={t('innovations.empty_title', 'No innovation articles found')}
+              description={t('innovations.empty_desc', 'Be the first to create a new innovation or best practice article.')}
+              actionLabel={t('innovations.new_article', 'New Article')}
               onAction={() => handleOpenEditor(null)}
             />
           ) : repoViewMode === 'cards' ? (
@@ -1145,7 +1156,7 @@ export const InnovationsPage = () => {
                   >
                     <div className={styles.articleTopRow}>
                       <span className={`${styles.badgeClassBase} ${getClassBadgeClass(item.class_type || 'Class 4')}`}>
-                        {item.class_type || 'Class 4'}
+                        {formatClassName(t, item.class_type || 'Class 4')}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-warning)' }}>
@@ -1166,25 +1177,25 @@ export const InnovationsPage = () => {
                       {att.media.length > 0 && (
                         <span className={styles.tagPill}>
                           <ImageIcon size={11} color="var(--color-accent)" />
-                          {att.media.length} Photos
+                          {att.media.length} {t('innovations.tag_photos', 'Photos')}
                         </span>
                       )}
                       {att.documents.length > 0 && (
                         <span className={styles.tagPill}>
                           <FileText size={11} color="#10b981" />
-                          {att.documents.length} Docs
+                          {att.documents.length} {t('innovations.tag_docs', 'Docs')}
                         </span>
                       )}
                       {att.tables.length > 0 && (
                         <span className={styles.tagPill}>
                           <TableIcon size={11} color="#f59e0b" />
-                          {att.tables.length} Tables
+                          {att.tables.length} {t('innovations.tag_tables', 'Tables')}
                         </span>
                       )}
                     </div>
 
                     <div className={styles.articleFooter}>
-                      <span>👤 {item.author_name || 'Engineer PIC'}</span>
+                      <span>👤 {item.author_name || t('innovations.engineer_pic', 'Engineer PIC')}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <button
                           type="button"
@@ -1196,10 +1207,10 @@ export const InnovationsPage = () => {
                           title="Edit this article"
                         >
                           <Edit3 size={12} />
-                          Edit
+                          {t('innovations.btn_edit', 'Edit')}
                         </button>
                         <span className={styles.viewArticleBtn}>
-                          Read <ArrowRight size={12} />
+                          {t('innovations.btn_read', 'Read')} <ArrowRight size={12} />
                         </span>
                       </div>
                     </div>
@@ -1232,7 +1243,7 @@ export const InnovationsPage = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span className={`${styles.badgeClassBase} ${getClassBadgeClass(selectedArticle.class_type || 'Class 4')}`}>
-                        {selectedArticle.class_type || 'Class 4'}
+                        {formatClassName(t, selectedArticle.class_type || 'Class 4')}
                       </span>
                       <StatusBadge status={selectedArticle.status || 'draft'} />
                     </div>
@@ -1497,11 +1508,11 @@ export const InnovationsPage = () => {
                         fontSize: '13px',
                       }}
                     >
-                      <option value="Class 3">Class 3 (Breakthrough / Top Tier)</option>
-                      <option value="Class 4">Class 4 (High Impact)</option>
-                      <option value="Class 5">Class 5 (Standard Line Improvement)</option>
-                      <option value="Under Review">Under Review</option>
-                      <option value="Non Adopt">Non Adopt</option>
+                      <option value="Class 3">{t('innovations.class_3', 'Class 3 (Breakthrough / Top Tier)')}</option>
+                      <option value="Class 4">{t('innovations.class_4', 'Class 4 (High Impact)')}</option>
+                      <option value="Class 5">{t('innovations.class_5', 'Class 5 (Standard Line Improvement)')}</option>
+                      <option value="Under Review">{t('innovations.under_review', 'Under Review')}</option>
+                      <option value="Non Adopt">{t('innovations.non_adopt', 'Non Adopt')}</option>
                     </select>
                   </div>
 
@@ -1917,7 +1928,7 @@ export const InnovationsPage = () => {
                             <td style={{ fontWeight: 600 }}>{p.title}</td>
                             <td>
                               <span className={`${styles.badge} ${getClassBadgeClass(p.class_type)}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
-                                {p.class_type}
+                                {formatClassName(t, p.class_type)}
                               </span>
                             </td>
                             <td style={{ color: 'var(--color-text-secondary)', maxWidth: '560px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

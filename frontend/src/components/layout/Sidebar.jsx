@@ -10,6 +10,7 @@ import {
   GitCompare,
   Code2,
   ChevronDown,
+  ChevronRight,
   Cpu,
   Newspaper,
   FolderArchive,
@@ -351,9 +352,9 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       </div>
 
       <nav className={styles.nav}>
-        {/* Prime Dashboard Navigation Item at Top */}
+        {/* Fixed Top Navigation: Dashboard & Top Separator */}
         {isDashboardVisible && (
-          <>
+          <div className={styles.navTop}>
             <NavLink
               to={dashboardItem.to}
               end={dashboardItem.end}
@@ -362,162 +363,173 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
               }
               title={dashboardItem.label}
             >
-              <LayoutDashboard size={18} className={styles.navIcon} />
+              <LayoutDashboard size={17} className={styles.navIcon} />
               {!isCollapsed && <span>{dashboardItem.label}</span>}
             </NavLink>
             <div className={styles.navDivider} />
-          </>
+          </div>
         )}
 
-        {visibleOperationItems.length > 0 && (
-          <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_operations', 'OPERATIONS')}</div>
-        )}
-        {visibleOperationItems.map((item) => {
-          if (item.isGroup) {
-            const GroupIcon = item.icon;
-            return (
-              <div key={item.key} className={styles.navGroup}>
-                <button
-                  type="button"
-                  className={`${styles.groupHeader} ${item.isActive ? styles.groupHeaderActive : ''}`}
-                  onClick={() => {
-                    if (isCollapsed) {
-                      onToggleCollapse?.();
-                      item.onToggle();
-                    } else {
-                      item.onToggle();
-                    }
-                  }}
-                  title={isCollapsed ? item.label : undefined}
-                  aria-expanded={item.isOpen}
-                >
-                  <div className={styles.groupTitle}>
-                    <GroupIcon size={18} className={styles.navIcon} />
-                    {!isCollapsed && <span>{item.label}</span>}
-                  </div>
-                  {!isCollapsed && (
-                    <ChevronDown
-                      size={14}
-                      className={`${styles.chevronIcon} ${item.isOpen ? styles.chevronOpen : ''}`}
-                    />
-                  )}
-                </button>
-
-                {item.isOpen && (
-                  <div className={styles.subnavContainer}>
-                    {item.isNested ? (
-                      item.nestedGroups.map((nested) => {
-                        const NestedIcon = nested.icon;
-                        return (
-                          <div key={nested.key} className={styles.nestedGroup}>
-                            <button
-                              type="button"
-                              className={`${styles.nestedHeader} ${nested.isActive ? styles.nestedHeaderActive : ''}`}
-                              onClick={nested.onToggle}
-                              title={nested.label}
-                              aria-expanded={nested.isOpen}
-                            >
-                              <div className={styles.nestedTitle}>
-                                <NestedIcon size={14} className={styles.navIcon} />
-                                <span>{nested.label}</span>
-                              </div>
-                              <ChevronDown
-                                size={12}
-                                className={`${styles.chevronIcon} ${nested.isOpen ? styles.chevronOpen : ''}`}
-                              />
-                            </button>
-
-                            {nested.isOpen && (
-                              <div className={styles.nestedSubnavContainer}>
-                                {nested.children.map((sub) => {
-                                  const SubIcon = sub.icon;
-                                  return (
-                                    <NavLink
-                                      key={sub.to}
-                                      to={sub.to}
-                                      end={sub.end}
-                                      className={({ isActive }) =>
-                                        `${styles.nestedSubnavLink} ${isActive ? styles.nestedSubnavActive : ''}`
-                                      }
-                                      title={sub.label}
-                                    >
-                                      <SubIcon size={13} className={styles.navIcon} />
-                                      <span>{sub.label}</span>
-                                    </NavLink>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
+        {/* Scrollable Middle Navigation between Top and Bottom Separator */}
+        <div className={styles.navScrollArea}>
+          {visibleOperationItems.length > 0 && (
+            <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_operations', 'OPERATIONS')}</div>
+          )}
+          {visibleOperationItems.map((item) => {
+            if (item.isGroup) {
+              const GroupIcon = item.icon;
+              return (
+                <div key={item.key} className={styles.navGroup}>
+                  <button
+                    type="button"
+                    className={`${styles.groupHeader} ${item.isActive ? styles.groupHeaderActive : ''}`}
+                    onClick={() => {
+                      if (isCollapsed) {
+                        onToggleCollapse?.();
+                        item.onToggle();
+                      } else {
+                        item.onToggle();
+                      }
+                    }}
+                    title={isCollapsed ? item.label : undefined}
+                    aria-expanded={item.isOpen}
+                  >
+                    <div className={styles.groupTitle}>
+                      <GroupIcon size={17} className={styles.navIcon} />
+                      {!isCollapsed && <span>{item.label}</span>}
+                    </div>
+                    {isCollapsed ? (
+                      <ChevronRight
+                        size={11}
+                        className={styles.collapsedChevron}
+                      />
                     ) : (
-                      item.children.map((sub) => {
-                        const SubIcon = sub.icon;
-                        return (
-                          <NavLink
-                            key={sub.to}
-                            to={sub.to}
-                            end={sub.end}
-                            className={({ isActive }) =>
-                              `${styles.subnavLink} ${isActive ? styles.subnavActive : ''}`
-                            }
-                            title={sub.label}
-                          >
-                            <SubIcon size={15} className={styles.navIcon} />
-                            {!isCollapsed && <span>{sub.label}</span>}
-                          </NavLink>
-                        );
-                      })
+                      <ChevronDown
+                        size={13}
+                        className={`${styles.chevronIcon} ${item.isOpen ? styles.chevronOpen : ''}`}
+                      />
                     )}
-                  </div>
-                )}
-              </div>
+                  </button>
+
+                  {!isCollapsed && item.isOpen && (
+                    <div className={styles.subnavContainer}>
+                      {item.isNested ? (
+                        item.nestedGroups.map((nested) => {
+                          const NestedIcon = nested.icon;
+                          return (
+                            <div key={nested.key} className={styles.nestedGroup}>
+                              <button
+                                type="button"
+                                className={`${styles.nestedHeader} ${nested.isActive ? styles.nestedHeaderActive : ''}`}
+                                onClick={nested.onToggle}
+                                title={nested.label}
+                                aria-expanded={nested.isOpen}
+                              >
+                                <div className={styles.nestedTitle}>
+                                  <NestedIcon size={13} className={styles.navIcon} />
+                                  <span>{nested.label}</span>
+                                </div>
+                                <ChevronDown
+                                  size={11}
+                                  className={`${styles.chevronIcon} ${nested.isOpen ? styles.chevronOpen : ''}`}
+                                />
+                              </button>
+
+                              {nested.isOpen && (
+                                <div className={styles.nestedSubnavContainer}>
+                                  {nested.children.map((sub) => {
+                                    const SubIcon = sub.icon;
+                                    return (
+                                      <NavLink
+                                        key={sub.to}
+                                        to={sub.to}
+                                        end={sub.end}
+                                        className={({ isActive }) =>
+                                          `${styles.nestedSubnavLink} ${isActive ? styles.nestedSubnavActive : ''}`
+                                        }
+                                        title={sub.label}
+                                      >
+                                        <SubIcon size={12} className={styles.navIcon} />
+                                        <span>{sub.label}</span>
+                                      </NavLink>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        item.children.map((sub) => {
+                          const SubIcon = sub.icon;
+                          return (
+                            <NavLink
+                              key={sub.to}
+                              to={sub.to}
+                              end={sub.end}
+                              className={({ isActive }) =>
+                                `${styles.subnavLink} ${isActive ? styles.subnavActive : ''}`
+                              }
+                              title={sub.label}
+                            >
+                              <SubIcon size={14} className={styles.navIcon} />
+                              {!isCollapsed && <span>{sub.label}</span>}
+                            </NavLink>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                title={item.label}
+              >
+                <Icon size={17} className={styles.navIcon} />
+                {!isCollapsed && <span>{item.label}</span>}
+              </NavLink>
             );
-          }
+          })}
 
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-              title={item.label}
-            >
-              <Icon size={18} className={styles.navIcon} />
-              {!isCollapsed && <span>{item.label}</span>}
-            </NavLink>
-          );
-        })}
+          <div className={styles.divider} />
+          <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_management', 'MANAGEMENT')}</div>
+          {adminItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <Icon size={17} className={styles.navIcon} />
+                {!isCollapsed && <span>{item.label}</span>}
+              </NavLink>
+            );
+          })}
+        </div>
 
-        <div className={styles.divider} />
-        <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_management', 'MANAGEMENT')}</div>
-        {adminItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <Icon size={18} className={styles.navIcon} />
-              {!isCollapsed && <span>{item.label}</span>}
-            </NavLink>
-          );
-        })}
-
-        <div className={styles.divider} />
-        <button
-          type="button"
-          onClick={onToggleChat}
-          className={styles.chatTrigger}
-          title={isCollapsed ? t('nav.ai_assistant') : undefined}
-        >
-          <BotMessageSquare size={18} className={styles.chatIcon} />
-          {!isCollapsed && <span>{t('nav.ai_assistant')}</span>}
-        </button>
+        {/* Fixed Bottom Navigation: Bottom Separator & AI Assistant */}
+        <div className={styles.navBottom}>
+          <div className={styles.divider} />
+          <button
+            type="button"
+            onClick={onToggleChat}
+            className={styles.chatTrigger}
+            title={isCollapsed ? t('nav.ai_assistant') : undefined}
+          >
+            <BotMessageSquare size={17} className={styles.chatIcon} />
+            {!isCollapsed && <span>{t('nav.ai_assistant')}</span>}
+          </button>
+        </div>
       </nav>
     </aside>
   );

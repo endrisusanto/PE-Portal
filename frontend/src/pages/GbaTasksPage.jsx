@@ -243,10 +243,10 @@ export const GbaTasksPage = () => {
               e.currentTarget.style.color = 'var(--color-text-secondary)';
               e.currentTarget.style.borderColor = 'var(--color-border)';
             }}
-            title="Buka GBA Task Manager di Intranet PC (107.102.39.55/tkdn)"
+            title={t('gba_tasks.open_app_tooltip', 'Open GBA Task Manager App in new tab (107.102.39.55/tkdn)')}
           >
             <ExternalLink size={12} />
-            <span>Intranet 107.102.39.55</span>
+            <span>{t('gba_tasks.open_app', 'Open GBA App')}</span>
           </a>
 
           <span className={styles.viewOnlyPill}>View-Only</span>

@@ -291,10 +291,10 @@ export const SoftwareMRPage = () => {
               e.currentTarget.style.color = 'var(--color-text-secondary)';
               e.currentTarget.style.borderColor = 'var(--color-border)';
             }}
-            title="Buka Companion Release Cheatsheet di Intranet PC (107.102.39.55)"
+            title={t('software_mr.open_app_tooltip', 'Open Software MR App in new tab (107.102.39.55)')}
           >
             <ExternalLink size={13} />
-            <span>Intranet 107.102.39.55</span>
+            <span>{t('software_mr.open_app', 'Open Software MR App')}</span>
           </a>
           <span className={styles.viewOnlyBadge}>
             <Eye size={13} />
@@ -370,32 +370,32 @@ export const SoftwareMRPage = () => {
           <div className={styles.chartTitleArea}>
             <div className={styles.chartTitle}>
               <TrendingUp size={20} color="var(--color-accent)" />
-              <span>Tren Rilis Harian (30 Hari Kebelakang)</span>
+              <span>{t('software_mr.daily_trend_title', '일별 릴리즈 추이 (최근 30일)')}</span>
             </div>
             <div className={styles.chartLegend}>
               <span className={styles.legendIndicator} />
-              <span>Jumlah Rilis per Hari</span>
+              <span>{t('software_mr.daily_trend_legend', '일별 릴리즈 건수')}</span>
             </div>
             {selectedModel && (
               <span className={styles.picBadge}>
-                Model: {selectedModel}
+                {t('software_mr.col_model', 'Model')}: {selectedModel}
               </span>
             )}
           </div>
           <div className={styles.chartStatsSummary}>
             <div className={styles.chartStatPill}>
-              <span>Total 30 Hari:</span>
-              <span className={styles.chartStatValue}>{totalTrendReleases} Rilis</span>
+              <span>{t('software_mr.total_30_days', 'Total 30 Hari')}:</span>
+              <span className={styles.chartStatValue}>{totalTrendReleases} {t('software_mr.unit_releases', 'Rilis')}</span>
             </div>
             <div className={styles.chartStatPill}>
-              <span>Rata-rata:</span>
-              <span className={styles.chartStatValue}>{avgTrend}/hari</span>
+              <span>{t('software_mr.average', 'Rata-rata')}:</span>
+              <span className={styles.chartStatValue}>{avgTrend}/{t('software_mr.per_day', 'hari')}</span>
             </div>
             {peakDay && peakDay.count > 0 && (
               <div className={styles.chartStatPill}>
-                <span>Puncak:</span>
+                <span>{t('software_mr.peak', 'Puncak')}:</span>
                 <span className={styles.chartStatValue}>
-                  {peakDay.count} Rilis ({peakDay.label})
+                  {peakDay.count} {t('software_mr.unit_releases', 'Rilis')} ({peakDay.label})
                 </span>
               </div>
             )}
@@ -421,7 +421,7 @@ export const SoftwareMRPage = () => {
                   }}
                 >
                   <div className={styles.chartTooltipDate}>{hoveredPoint.date} ({hoveredPoint.label})</div>
-                  <div className={styles.chartTooltipCount}>{hoveredPoint.count} Rilis Firmware</div>
+                  <div className={styles.chartTooltipCount}>{hoveredPoint.count} {t('software_mr.unit_firmware_releases', '건 펌웨어 릴리즈')}</div>
                 </div>
               )}
 

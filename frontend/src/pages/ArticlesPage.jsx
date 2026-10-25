@@ -97,7 +97,7 @@ export const ArticlesPage = () => {
   const handleDeleteArticle = async (art, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!art || !art.id) return;
-    if (!window.confirm(`Hapus artikel "${art.title}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!window.confirm(t('articles.confirm_delete', { title: art.title, defaultValue: `Hapus artikel "${art.title}"? Tindakan ini tidak dapat dibatalkan.` }))) {
       return;
     }
     try {
@@ -272,7 +272,7 @@ export const ArticlesPage = () => {
             }}
           >
             <Globe size={13} />
-            <span>All Artikel</span>
+            <span>{t('articles.tab_all', 'All Artikel')}</span>
           </button>
           <button
             type="button"
@@ -293,7 +293,7 @@ export const ArticlesPage = () => {
             }}
           >
             <User size={13} />
-            <span>My Artikel</span>
+            <span>{t('articles.tab_my', 'My Artikel')}</span>
           </button>
         </div>
 
