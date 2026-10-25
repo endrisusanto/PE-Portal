@@ -7,6 +7,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 
 const PARENT_GROUP_TITLES = {
+  pe_management: 'PE Executive Management',
   pe_production: 'PE Production',
   pe_mecha: 'PE Mecha',
   pe_solution: 'PE Solution Production',

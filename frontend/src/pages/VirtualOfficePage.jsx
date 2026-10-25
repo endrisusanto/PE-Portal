@@ -1,0 +1,313 @@
+// VirtualOfficePage.jsx
+// Main Page: 2.5D Animated AI Engineering Office for 30 Persons
+// Represents SEIN PE work hours: 07:00 Start, 09:30 Break (10m), 11:40 Lunch, 12:30 Resume, 14:30 Break (10m), 16:10 Pulang
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Building2, Users, Clock, Sparkles, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import api from '../api/client';
+import {
+  TEAMS,
+  INITIAL_ENGINEERS,
+  SCHEDULE_PHASES,
+  getActivePhase,
+  getEngineerTargetPosition,
+  minutesToTime,
+  timeToMinutes,
+} from '../components/office/virtualOfficeData';
+import { VirtualOfficeCanvas } from '../components/office/VirtualOfficeCanvas';
+import { VirtualOfficeTimeline } from '../components/office/VirtualOfficeTimeline';
+import { VirtualOfficeActivityLog } from '../components/office/VirtualOfficeActivityLog';
+
+// Helper: Get current local time in minutes from 00:00 (WIB)
+const getLocalTimeInMinutes = () => {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+};
+
+export const VirtualOfficePage = () => {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
+
+  // Time & Simulation State
+  const [currentTimeMins, setCurrentTimeMins] = useState(getLocalTimeInMinutes());
+  const [isLiveMode, setIsLiveMode] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(5);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  // Filter & Selection State
+  const [selectedEngineer, setSelectedEngineer] = useState(null);
+  const [filterTeam, setFilterTeam] = useState('ALL');
+  const [engineersList, setEngineersList] = useState(INITIAL_ENGINEERS);
+
+  // Audio Context ref for ambient chimes on phase change
+  const audioCtxRef = useRef(null);
+  const lastPhaseIdRef = useRef(null);
+
+  // Fetch actual team members directly from PostgreSQL database users table
+  useEffect(() => {
+    const fetchRealUsers = async () => {
+      try {
+        const res = await api.get('/users');
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          // Filter actual 30 PE members (exclude global admin) and sort by employee_id PE001..PE030
+          const peUsers = res.data
+            .filter((u) => u.employee_id?.startsWith('PE') || (u.username !== 'admin' && u.employee_id !== 'ADMIN001'))
+            .sort((a, b) => (a.employee_id || '').localeCompare(b.employee_id || ''));
+
+          if (peUsers.length > 0) {
+          setEngineersList((prev) =>
+            prev.map((eng) => {
+              let dbUser = null;
+              if (eng.id === 31) {
+                dbUser = res.data.find((u) => u.employee_id === 'PE_EXP01' || u.username?.includes('jinwoo'));
+              } else if (eng.id === 32) {
+                dbUser = res.data.find((u) => u.employee_id === 'PE_GL01' || u.username?.includes('hendrik'));
+              } else {
+                const targetEmp = `PE${String(eng.id).padStart(3, '0')}`;
+                dbUser = res.data.find((u) => u.employee_id === targetEmp);
+              }
+
+              if (dbUser) {
+                let team = eng.team;
+                if (dbUser.parent_group === 'pe_management' || dbUser.employee_id?.startsWith('PE_')) team = TEAMS.MANAGEMENT;
+                else if (dbUser.parent_group === 'pe_production') team = TEAMS.PRODUCTION;
+                else if (dbUser.parent_group === 'pe_mecha') team = TEAMS.MECHA;
+                else if (dbUser.parent_group === 'pe_solution') team = TEAMS.SOLUTION;
+
+                const isManager = dbUser.role === 'manager' || dbUser.role === 'leader' || eng.isLeader;
+                let roleTitle = eng.role;
+                if (dbUser.employee_id === 'PE_EXP01') roleTitle = 'Korean Expatriate Dispatcher';
+                else if (dbUser.employee_id === 'PE_GL01') roleTitle = 'PE Group Leader / Group Manager';
+                else if (isManager) roleTitle = `${team} Manager`;
+                else roleTitle = dbUser.group_part_name || eng.role;
+
+                return {
+                  ...eng,
+                  name: dbUser.full_name || eng.name,
+                  role: roleTitle,
+                  team,
+                  isLeader: isManager,
+                  apiUser: dbUser,
+                };
+              }
+              return eng;
+            })
+          );
+          }
+        }
+      } catch (err) {
+        // Fallback to INITIAL_ENGINEERS on error
+      }
+    };
+    fetchRealUsers();
+  }, []);
+
+  // Live Clock Interval (runs every second when live mode is active)
+  useEffect(() => {
+    if (!isLiveMode) return;
+    const interval = setInterval(() => {
+      setCurrentTimeMins(getLocalTimeInMinutes());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isLiveMode]);
+
+  // Simulation Playback Interval
+  useEffect(() => {
+    if (isLiveMode || !isPlaying) return;
+    const interval = setInterval(() => {
+      setCurrentTimeMins((prev) => (prev + (playbackSpeed * 0.25)) % 1440);
+    }, 250);
+    return () => clearInterval(interval);
+  }, [isLiveMode, isPlaying, playbackSpeed]);
+
+  // Active Phase calculation
+  const activePhase = useMemo(() => {
+    return getActivePhase(currentTimeMins);
+  }, [currentTimeMins]);
+
+  // Sound chime when entering a new phase (e.g., 09:30 Coffee break or 16:10 Pulang)
+  useEffect(() => {
+    if (lastPhaseIdRef.current && lastPhaseIdRef.current !== activePhase.id) {
+      if (soundEnabled) {
+        playChime(activePhase.type);
+      }
+    }
+    lastPhaseIdRef.current = activePhase.id;
+  }, [activePhase, soundEnabled]);
+
+  const playChime = (type) => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      const freq = type === 'break' ? 523.25 : (type === 'work' ? 659.25 : 440);
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + 0.3);
+
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch (e) {
+      // Audio not supported or blocked by browser policy
+    }
+  };
+
+  // Compute updated positions and activities for 30 engineers (updates smoothly on phase change and minute-by-minute hydration/toilet breaks)
+  const engineersWithPositions = useMemo(() => {
+    return engineersList.map((eng, idx) => {
+      const target = getEngineerTargetPosition(eng, activePhase, idx, currentTimeMins);
+      return {
+        ...eng,
+        currentZone: target.zone,
+        targetCoords: target.coords,
+        currentActivity: target.activity,
+      };
+    });
+  }, [engineersList, activePhase, Math.floor(currentTimeMins)]);
+
+  // Handle Seek / Scrub Time
+  const handleSeekTime = (mins) => {
+    setIsLiveMode(false);
+    setCurrentTimeMins(mins);
+  };
+
+  const handleToggleLiveMode = () => {
+    if (!isLiveMode) {
+      setIsLiveMode(true);
+      setIsPlaying(false);
+      setCurrentTimeMins(getLocalTimeInMinutes());
+    } else {
+      setIsLiveMode(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '100%' }}>
+      {/* Top Header */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building2 size={24} color="var(--color-accent)" />
+            <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, margin: 0 }}>
+              Virtual Office HQ (2.5D Animated)
+            </h1>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                color: '#10b981',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+              }}
+            >
+              {engineersList.length} Personil Active (30 Engineer + 2 Executive)
+            </span>
+          </div>
+          <p
+            style={{
+              color: 'var(--color-text-secondary)',
+              fontSize: 'var(--font-size-sm)',
+              marginTop: '4px',
+              margin: 0,
+            }}
+          >
+            Representasi visual jam kerja tim SEIN PE (07:00 Mulai Kerja, 09:30 Break 10m, 11:40 Istirahat, 14:30 Break 10m, 16:10 Pulang)
+          </p>
+        </div>
+
+        {/* Audio Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setSoundEnabled((prev) => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 500,
+              backgroundColor: 'var(--color-bg-secondary)',
+              color: soundEnabled ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer',
+            }}
+            title="Bunyi lonceng transisi pergantian jam kerja"
+          >
+            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            <span>{soundEnabled ? 'Suara Lonceng: On' : 'Suara Lonceng: Mute'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Interactive Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) 340px',
+          gap: '16px',
+          alignItems: 'start',
+        }}
+      >
+        {/* Left Column: Timeline Scrubber + Canvas */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <VirtualOfficeTimeline
+            currentTimeMins={currentTimeMins}
+            onSeekTime={handleSeekTime}
+            isLiveMode={isLiveMode}
+            onToggleLiveMode={handleToggleLiveMode}
+            isPlaying={isPlaying}
+            onTogglePlay={() => setIsPlaying((prev) => !prev)}
+            playbackSpeed={playbackSpeed}
+            onChangePlaybackSpeed={setPlaybackSpeed}
+            activePhase={activePhase}
+          />
+
+          <VirtualOfficeCanvas
+            engineers={engineersWithPositions}
+            activePhase={activePhase}
+            selectedEngineer={selectedEngineer}
+            onSelectEngineer={setSelectedEngineer}
+            filterTeam={filterTeam}
+            isDarkMode={isDarkMode}
+          />
+        </div>
+
+        {/* Right Column: Activity Log & Inspector */}
+        <div style={{ height: '100%' }}>
+          <VirtualOfficeActivityLog
+            engineers={engineersWithPositions}
+            activePhase={activePhase}
+            selectedEngineer={selectedEngineer}
+            onSelectEngineer={setSelectedEngineer}
+            filterTeam={filterTeam}
+            onFilterTeam={setFilterTeam}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+export default VirtualOfficePage;

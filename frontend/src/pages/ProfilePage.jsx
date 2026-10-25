@@ -113,21 +113,23 @@ export const ProfilePage = () => {
 
   useEffect(() => {
     fetchEmailLists();
-    api.get('/ai/config')
-      .then((res) => {
-        const { config, is_user_custom } = res.data;
-        if (config) {
-          setActiveProviderName(config.name || 'LM Studio');
-          if (is_user_custom) {
-            setHasCustomKey(true);
-            setCustomBaseUrl(config.base_url || '');
-            setCustomApiKey(config.api_key || '');
-            setCustomModelName(config.model_name || '');
+    if (user?.role === 'admin') {
+      api.get('/ai/config')
+        .then((res) => {
+          const { config, is_user_custom } = res.data;
+          if (config) {
+            setActiveProviderName(config.name || 'LM Studio');
+            if (is_user_custom) {
+              setHasCustomKey(true);
+              setCustomBaseUrl(config.base_url || '');
+              setCustomApiKey(config.api_key || '');
+              setCustomModelName(config.model_name || '');
+            }
           }
-        }
-      })
-      .catch(() => {});
-  }, []);
+        })
+        .catch(() => {});
+    }
+  }, [user?.role]);
 
   const handleCreateEmailList = async (e) => {
     e.preventDefault();
@@ -810,77 +812,79 @@ export const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Personal LLM API Key Override */}
-      <div className={styles.card} style={{ marginTop: 'var(--space-2)' }}>
+      {/* Personal LLM API Key Override - Admin Only */}
+      {user?.role === 'admin' && (
+        <div className={styles.card} style={{ marginTop: 'var(--space-2)' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-          <h2 className={styles.cardTitle} style={{ borderBottom: 'none', paddingBottom: 0 }}>
-            <KeyRound size={18} color="var(--color-accent)" />
-            Personal LLM API Key & Endpoint (Custom Provider)
-          </h2>
-          <span style={{
-            fontSize: '11px',
-            padding: '2px 8px',
-            borderRadius: 'var(--radius-sm)',
-            fontWeight: 600,
-            backgroundColor: hasCustomKey ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
-            color: hasCustomKey ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-            border: '1px solid var(--color-border)',
-          }}>
-            Active: {hasCustomKey ? 'Using My Personal API Key' : `Portal Default (${activeProviderName})`}
-          </span>
-        </div>
-
-        <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-          If you prefer to use your own personal API key (LM Studio, OpenAI, Gemini, or Claude) instead of the portal's shared gateway, enter your endpoint credentials below.
-        </p>
-
-        <form onSubmit={handleSavePersonalLlm} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '12px' }}>
-          <Input
-            label="Custom Base URL (OpenAI-Compatible)"
-            value={customBaseUrl}
-            onChange={(e) => setCustomBaseUrl(e.target.value)}
-            placeholder="https://lmstudio.endrisusanto.my.id/v1"
-          />
-
-          <Input
-            label="Personal API Key"
-            type="password"
-            value={customApiKey}
-            onChange={(e) => setCustomApiKey(e.target.value)}
-            placeholder="lm-studio or sk-..."
-          />
-
-          <Input
-            label="Model ID / Name"
-            value={customModelName}
-            onChange={(e) => setCustomModelName(e.target.value)}
-            placeholder="google/gemma-4-e4b"
-          />
-
-          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--color-border-subtle)', flexWrap: 'wrap', gap: '8px' }}>
-            {hasCustomKey ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleResetPersonalLlm}
-              >
-                Revert to Shared Portal Default
-              </Button>
-            ) : <div />}
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              loading={savingCustomLlm}
-            >
-              Save Personal API Key
-            </Button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 className={styles.cardTitle} style={{ borderBottom: 'none', paddingBottom: 0 }}>
+              <KeyRound size={18} color="var(--color-accent)" />
+              Personal LLM API Key & Endpoint (Custom Provider)
+            </h2>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 600,
+              backgroundColor: hasCustomKey ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
+              color: hasCustomKey ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+              border: '1px solid var(--color-border)',
+            }}>
+              Active: {hasCustomKey ? 'Using My Personal API Key' : `Portal Default (${activeProviderName})`}
+            </span>
           </div>
-        </form>
-      </div>
+
+          <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+            If you prefer to use your own personal API key (LM Studio, OpenAI, Gemini, or Claude) instead of the portal's shared gateway, enter your endpoint credentials below.
+          </p>
+
+          <form onSubmit={handleSavePersonalLlm} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '12px' }}>
+            <Input
+              label="Custom Base URL (OpenAI-Compatible)"
+              value={customBaseUrl}
+              onChange={(e) => setCustomBaseUrl(e.target.value)}
+              placeholder="https://lmstudio.endrisusanto.my.id/v1"
+            />
+
+            <Input
+              label="Personal API Key"
+              type="password"
+              value={customApiKey}
+              onChange={(e) => setCustomApiKey(e.target.value)}
+              placeholder="lm-studio or sk-..."
+            />
+
+            <Input
+              label="Model ID / Name"
+              value={customModelName}
+              onChange={(e) => setCustomModelName(e.target.value)}
+              placeholder="google/gemma-4-e4b"
+            />
+
+            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--color-border-subtle)', flexWrap: 'wrap', gap: '8px' }}>
+              {hasCustomKey ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetPersonalLlm}
+                >
+                  Revert to Shared Portal Default
+                </Button>
+              ) : <div />}
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                loading={savingCustomLlm}
+              >
+                Save Personal API Key
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Custom Email Lists / Recipient Groups for SMTP Reports */}
       <div className={styles.card} style={{ marginTop: 'var(--space-2)' }}>

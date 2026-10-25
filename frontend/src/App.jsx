@@ -31,6 +31,7 @@ import { GmesMonitoringPage } from './pages/GmesMonitoringPage';
 import { TrainingPage } from './pages/TrainingPage';
 import { SharedDocumentPage } from './pages/SharedDocumentPage';
 import { AiChatPage } from './pages/AiChatPage';
+import { VirtualOfficePage } from './pages/VirtualOfficePage';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -104,6 +105,7 @@ export function App() {
                 <Route path="utility" element={<Navigate to="/tools/images" replace />} />
                 <Route path="utility/:tab" element={<UtilityPage />} />
                 <Route path="team" element={<TeamPage />} />
+                <Route path="virtual-office" element={<VirtualOfficePage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="reports/new" element={<ReportEditorPage />} />
                 <Route path="reports/editor/:id" element={<ReportEditorPage />} />
