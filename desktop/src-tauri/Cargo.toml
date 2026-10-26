@@ -1,6 +1,6 @@
 [package]
 name = "pe_portal_manager"
-version = "1.0.0"
+version = "1.0.1"
 description = "SEIN PE-Portal Desktop Tray Manager & Launcher"
 authors = ["SEIN Production Engineer Team"]
 edition = "2021"
