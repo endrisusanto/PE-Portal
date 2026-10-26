@@ -93,6 +93,34 @@ def main():
         # Check item errors
         items = result.get("items", []) if isinstance(result, dict) else []
         failed = [item for item in items if isinstance(item, dict) and item.get("error")]
+
+        # Auto-retry with parsing_yn=false if DataHub rejected due to DRM_ENCRYPTED_FILE
+        if failed and any("DRM_ENCRYPTED_FILE" in str(it.get("error")) for it in failed):
+            if values.get("parsing_yn") != "false":
+                retry_values = dict(values)
+                retry_values["parsing_yn"] = "false"
+                retry_values.pop("pii_tag_enabled", None)
+                try:
+                    fobj.seek(0)
+                    retry_resp = requests.post(
+                        api_url,
+                        headers={"Authorization": f"Bearer {token}"},
+                        data=retry_values,
+                        files=[("files", (filename, fobj))],
+                        proxies={"http": None, "https": None},
+                        timeout=300,
+                    )
+                    if retry_resp.status_code == 200:
+                        retry_res = retry_resp.json()
+                        retry_items = retry_res.get("items", []) if isinstance(retry_res, dict) else []
+                        retry_failed = [it for it in retry_items if isinstance(it, dict) and it.get("error")]
+                        if not retry_failed:
+                            result = retry_res
+                            items = retry_items
+                            failed = []
+                except Exception:
+                    pass
+
         if failed:
             err_items = [f"{it.get('name')}: {it.get('error')}" for it in failed]
             print(json.dumps({

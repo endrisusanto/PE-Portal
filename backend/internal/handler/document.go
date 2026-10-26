@@ -211,6 +211,15 @@ func (h *DocumentHandler) Upload(c echo.Context) error {
 			}
 
 			res, dhErr := h.datahub.IngestObject(c.Request().Context(), fReader, created.FileName, params, "")
+			if dhErr != nil && strings.Contains(dhErr.Error(), "DRM_ENCRYPTED_FILE") && params.ParsingYN {
+				log.Printf("[DataHub] Ingest rejected with DRM_ENCRYPTED_FILE. Retrying without parsing (raw storage)...")
+				params.ParsingYN = false
+				params.PIITagEnabled = nil
+				if retryFile, oErr := os.Open(created.FilePath); oErr == nil {
+					defer retryFile.Close()
+					res, dhErr = h.datahub.IngestObject(c.Request().Context(), retryFile, created.FileName, params, "")
+				}
+			}
 			if dhErr != nil {
 				errMsg := dhErr.Error()
 				log.Printf("[DataHub] Ingest failed: %v", errMsg)
@@ -281,6 +290,15 @@ func (h *DocumentHandler) SyncToDataHub(c echo.Context) error {
 	}
 
 	res, dhErr := h.datahub.IngestObject(c.Request().Context(), fReader, doc.FileName, params, "")
+	if dhErr != nil && strings.Contains(dhErr.Error(), "DRM_ENCRYPTED_FILE") && params.ParsingYN {
+		log.Printf("[DataHub] Ingest rejected with DRM_ENCRYPTED_FILE. Retrying without parsing (raw storage)...")
+		params.ParsingYN = false
+		params.PIITagEnabled = nil
+		if retryFile, oErr := os.Open(doc.FilePath); oErr == nil {
+			defer retryFile.Close()
+			res, dhErr = h.datahub.IngestObject(c.Request().Context(), retryFile, doc.FileName, params, "")
+		}
+	}
 	if dhErr != nil {
 		errMsg := dhErr.Error()
 		status := "failed"
