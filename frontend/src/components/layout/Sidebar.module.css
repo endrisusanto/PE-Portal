@@ -282,6 +282,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .subnavLink:hover {
@@ -372,6 +374,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .nestedSubnavLink:hover {
@@ -511,3 +515,61 @@
 .chatIcon {
   flex-shrink: 0;
 }
+
+/* Pinned / Favorites Section */
+.pinnedSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.pinnedBadge {
+  font-size: 9px;
+  font-weight: 700;
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+  padding: 1px 5px;
+  border-radius: 999px;
+  line-height: 12px;
+}
+
+.pinActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.navLink:hover .pinActionBtn,
+.subnavLink:hover .pinActionBtn,
+.nestedSubnavLink:hover .pinActionBtn {
+  opacity: 0.6;
+}
+
+.pinActionBtn:hover {
+  opacity: 1 !important;
+  color: var(--color-accent) !important;
+  transform: scale(1.15);
+}
+
+.pinActionBtn.isPinned {
+  opacity: 1 !important;
+  color: var(--color-accent) !important;
+}
+
+.collapsed .pinActionBtn {
+  display: none;
+}
+

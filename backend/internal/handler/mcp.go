@@ -13,6 +13,7 @@ import (
 	"pe-portal/internal/middleware"
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
+	"pe-portal/internal/service"
 )
 
 type MCPHandler struct {
@@ -151,34 +152,48 @@ func (h *MCPHandler) HealthCheck(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
-	if err != nil {
-		_ = h.repo.UpdateHealth(context.Background(), id, "unhealthy")
-		return c.JSON(http.StatusOK, map[string]interface{}{"status": "unhealthy", "error": err.Error()})
+	normalizedURL := service.NormalizeMCPURL(server.URL)
+	baseURL := service.GetBaseURL(normalizedURL)
+
+	testURLs := []string{
+		baseURL + "/health",
+		baseURL + "/api/mcp/tools",
+		baseURL + "/mcp/tools",
+		baseURL + "/",
+		normalizedURL,
 	}
 
-	if server.AuthType == "bearer" && server.AuthToken != nil {
-		httpReq.Header.Set("Authorization", "Bearer "+*server.AuthToken)
-	} else if server.AuthType == "api_key" && server.AuthToken != nil {
-		httpReq.Header.Set("X-API-Key", *server.AuthToken)
+	health := "unhealthy"
+	statusCode := 0
+
+	for _, tURL := range testURLs {
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, tURL, nil)
+		if err != nil {
+			continue
+		}
+
+		if server.AuthType == "bearer" && server.AuthToken != nil {
+			httpReq.Header.Set("Authorization", "Bearer "+*server.AuthToken)
+		} else if server.AuthType == "api_key" && server.AuthToken != nil {
+			httpReq.Header.Set("X-API-Key", *server.AuthToken)
+		}
+
+		resp, err := h.httpClient.Do(httpReq)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+				health = "healthy"
+				statusCode = resp.StatusCode
+				break
+			}
+		}
 	}
 
-	resp, err := h.httpClient.Do(httpReq)
-	if err != nil {
-		_ = h.repo.UpdateHealth(context.Background(), id, "unhealthy")
-		return c.JSON(http.StatusOK, map[string]interface{}{"status": "unhealthy", "error": err.Error()})
-	}
-	defer resp.Body.Close()
-
-	health := "healthy"
-	if resp.StatusCode >= 500 {
-		health = "unhealthy"
-	}
 	_ = h.repo.UpdateHealth(context.Background(), id, health)
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"status":      health,
-		"status_code": resp.StatusCode,
+		"status_code": statusCode,
 	})
 }
 
@@ -199,7 +214,8 @@ func (h *MCPHandler) Proxy(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "failed to read body")
 	}
 
-	httpReq, err := http.NewRequestWithContext(c.Request().Context(), c.Request().Method, server.URL, bytes.NewReader(bodyBytes))
+	normalizedURL := service.NormalizeMCPURL(server.URL)
+	httpReq, err := http.NewRequestWithContext(c.Request().Context(), c.Request().Method, normalizedURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

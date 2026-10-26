@@ -70,11 +70,11 @@ const WIDGET_COLUMNS = {
   ],
   dhl: [
     { key: 'tracking_number', label: 'AWB / Tracking' },
-    { key: 'status_label', label: 'Status Label' },
+    { key: 'status_description', label: 'Status' },
     { key: 'status_code', label: 'Status Code' },
     { key: 'pic', label: 'PIC' },
-    { key: 'origin_country', label: 'Origin' },
-    { key: 'dest_country', label: 'Destination' },
+    { key: 'origin_city', label: 'Origin' },
+    { key: 'dest_city', label: 'Destination' },
     { key: 'is_collected', label: 'Collected (true/false)' },
   ],
   software_mr: [
@@ -110,7 +110,7 @@ const WIDGET_FORMULA_SUGGESTIONS = {
   tasks: ['=COUNT(rows)', '=COUNTIF(status, "done")', '=COUNTIF(status, "in_progress")'],
   models: ['=COUNT(rows)', '=COUNTIF(stage, "concept")', '=COUNTIF(stage, "mass_production")'],
   projects: ['=COUNT(rows)', '=AVERAGE(progress)', '=SUM(progress)', '=COUNTIF(status, "active")'],
-  dhl: ['=COUNT(rows)', '=COUNTIF(status_code, "delivered")', '=COUNTIF(is_collected, "true")'],
+  dhl: ['=COUNT(rows)', '=COUNTIF(status_code, "delivered")', '=COUNTIF(is_collected, "true")', '=COUNTIF(status_description, "Hold")'],
   software_mr: ['=COUNT(rows)', '=COUNTA(model)', '=COUNTA(csc_version_up)'],
   gba_tasks: ['=COUNT(rows)', '=COUNTIF(status, "Approved")', '=COUNTIF(is_urgent, "1")'],
 };
@@ -129,8 +129,9 @@ const WIDGET_PRESETS = {
     { label: 'Active Status', field: 'status', operator: 'equals', value: 'active' },
   ],
   dhl: [
-    { label: 'Delivered', field: 'status_label', operator: 'contains', value: 'Delivered' },
-    { label: 'In Transit', field: 'status_label', operator: 'contains', value: 'Transit' },
+    { label: 'Delivered', field: 'status_description', operator: 'contains', value: 'Delivered' },
+    { label: 'On Hold', field: 'status_description', operator: 'contains', value: 'Hold' },
+    { label: 'In Transit', field: 'status_code', operator: 'equals', value: 'transit' },
   ],
   software_mr: [
     { label: 'Has CSC Up', field: 'csc_version_up', operator: 'is_not_empty', value: '' },
@@ -216,15 +217,21 @@ const getDbChartData = (widgetType, rows = [], chartType = 'bar') => {
   // Determine categorical group field per DB widget
   let groupField = 'status';
   if (widgetType === 'models') groupField = 'stage';
-  else if (widgetType === 'dhl') groupField = 'status_label';
+  else if (widgetType === 'dhl') groupField = 'status_description';
   else if (widgetType === 'software_mr') groupField = 'model';
   else if (widgetType === 'gba_tasks') groupField = 'status';
 
   const counts = {};
   rows.forEach((r) => {
     let key = r[groupField];
-    if (!key && widgetType === 'dhl') key = r.status_code;
-    if (!key && widgetType === 'gba_tasks') key = r.stage;
+    if (widgetType === 'dhl') {
+      const desc = r.status_description || '';
+      const code = (r.status_code || '').toLowerCase();
+      const label = r.status_label || '';
+      key = desc || (code === 'delivered' ? 'Delivered' : (label && !/^\d+$/.test(label) ? label : (code && code !== 'failure' ? code : 'Shipment on Hold')));
+    } else if (!key && widgetType === 'gba_tasks') {
+      key = r.stage;
+    }
     const cleanKey = String(key || 'Other').trim();
     const label = cleanKey.length <= 4 ? cleanKey.toUpperCase() : cleanKey.charAt(0).toUpperCase() + cleanKey.slice(1).replace(/_/g, ' ');
     counts[label] = (counts[label] || 0) + 1;
@@ -531,9 +538,38 @@ export const ReportEditorPage = () => {
         }
       }
 
+      let rawDhl = [];
+      if (dhlRes.status === 'fulfilled' && Array.isArray(dhlRes.value?.data)) {
+        rawDhl = dhlRes.value.data;
+      } else if (Array.isArray(baseData.dhl)) {
+        rawDhl = baseData.dhl;
+      }
+
+      const normalizedDhl = rawDhl.map((item) => {
+        const awb = item.id || item.tracking_number || '';
+        const origin = item.origin_city || item.origin_country || '-';
+        const dest = item.dest_city || item.dest_country || '-';
+        const desc = item.status_description || '';
+        const code = (item.status_code || '').toLowerCase();
+        const label = item.status_label || '';
+        const cleanStatus = desc || (code === 'delivered' ? 'Delivered' : (label && !/^\d+$/.test(label) ? label : (code && code !== 'failure' ? code : 'Shipment on Hold')));
+
+        return {
+          ...item,
+          id: awb,
+          tracking_number: awb,
+          origin_city: origin,
+          dest_city: dest,
+          origin_country: item.origin_country || origin,
+          dest_country: item.dest_country || dest,
+          status_description: cleanStatus,
+          status: cleanStatus,
+        };
+      });
+
       setLiveDbData({
         ...baseData,
-        dhl: dhlRes.status === 'fulfilled' && Array.isArray(dhlRes.value?.data) ? dhlRes.value.data : [],
+        dhl: normalizedDhl,
         software_mr: swRes.status === 'fulfilled' && Array.isArray(swRes.value?.data?.items)
           ? swRes.value.data.items
           : (swRes.status === 'fulfilled' && Array.isArray(swRes.value?.data) ? swRes.value.data : []),
@@ -1110,7 +1146,15 @@ export const ReportEditorPage = () => {
               bodyRows += '<tr><td colspan="4" style="padding:8px; text-align:center; color:#94a3b8;">No matching DHL shipments</td></tr>';
             } else {
               visibleRows.forEach((d) => {
-                bodyRows += `<tr><td style="padding:6px; border-bottom:1px solid #e2e8f0; font-weight:600; font-family:monospace; color:#0d7377;">${d.tracking_number}</td><td style="padding:6px; border-bottom:1px solid #e2e8f0; color:#0369a1;">${d.status_label || d.status_code || '-'}</td><td style="padding:6px; border-bottom:1px solid #e2e8f0;">${d.origin_country || '-'} → ${d.dest_country || '-'}</td><td style="padding:6px; border-bottom:1px solid #e2e8f0; color:#64748b;">${d.pic || '-'}</td></tr>`;
+                const awb = d.id || d.tracking_number || '-';
+                const status = d.status_description || (d.status_label && !/^\d+$/.test(d.status_label) ? d.status_label : (d.status_code && d.status_code !== 'failure' ? d.status_code : 'Shipment on Hold'));
+                const isDelivered = (d.status_code || '').toLowerCase() === 'delivered' || status.toLowerCase().includes('delivered');
+                const isHold = status.toLowerCase().includes('hold') || d.status_label === '103' || (d.status_code || '').toLowerCase() === 'failure';
+                const statusColor = isDelivered ? '#10b981' : isHold ? '#f59e0b' : '#0284c7';
+                const origin = d.origin_city || d.origin_country || '-';
+                const dest = d.dest_city || d.dest_country || '-';
+
+                bodyRows += `<tr><td style="padding:6px; border-bottom:1px solid #e2e8f0; font-weight:600; font-family:monospace; color:#0d7377;">${awb}</td><td style="padding:6px; border-bottom:1px solid #e2e8f0; font-weight:600; color:${statusColor};">${status}</td><td style="padding:6px; border-bottom:1px solid #e2e8f0;">${origin} → ${dest}</td><td style="padding:6px; border-bottom:1px solid #e2e8f0; color:#64748b;">${d.pic || '-'}</td></tr>`;
               });
             }
             bodyRows += '</tbody>';
@@ -2544,34 +2588,52 @@ export const ReportEditorPage = () => {
                             {visibleRows.length === 0 ? (
                               <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No DHL shipments matching filter rules</td></tr>
                             ) : (
-                              visibleRows.map((d) => (
-                                <tr key={d.id}>
-                                  <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-accent)' }}>
-                                    {d.tracking_number}
-                                  </td>
-                                  <td>
-                                    <span style={{
-                                      padding: '2px 6px',
-                                      borderRadius: '4px',
-                                      fontSize: '10px',
-                                      fontWeight: 600,
-                                      backgroundColor: d.status_code === 'delivered' ? 'var(--color-success-subtle)' : 'var(--color-accent-subtle)',
-                                      color: d.status_code === 'delivered' ? 'var(--color-success)' : 'var(--color-accent)',
-                                    }}>
-                                      {d.status_label || d.status_code || '-'}
-                                    </span>
-                                  </td>
-                                  <td style={{ color: 'var(--color-text-secondary)' }}>
-                                    {d.origin_country || '-'} → {d.dest_country || '-'}
-                                  </td>
-                                  <td style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                                    {d.pic || '-'}
-                                  </td>
-                                  <td style={{ color: 'var(--color-text-muted)' }}>
-                                    {d.created_at ? new Date(d.created_at).toLocaleDateString() : '-'}
-                                  </td>
-                                </tr>
-                              ))
+                              visibleRows.map((d) => {
+                                const awb = d.id || d.tracking_number || '-';
+                                const status = d.status_description || (d.status_label && !/^\d+$/.test(d.status_label) ? d.status_label : (d.status_code && d.status_code !== 'failure' ? d.status_code : 'Shipment on Hold'));
+                                const isDelivered = (d.status_code || '').toLowerCase() === 'delivered' || status.toLowerCase().includes('delivered');
+                                const isHold = status.toLowerCase().includes('hold') || d.status_label === '103' || (d.status_code || '').toLowerCase() === 'failure';
+                                const origin = d.origin_city || d.origin_country || '-';
+                                const dest = d.dest_city || d.dest_country || '-';
+
+                                return (
+                                  <tr key={d.id || awb}>
+                                    <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-accent)' }}>
+                                      {awb}
+                                    </td>
+                                    <td>
+                                      <span style={{
+                                        padding: '2px 8px',
+                                        borderRadius: '9999px',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        backgroundColor: isDelivered
+                                          ? 'var(--color-success-subtle, rgba(16, 185, 129, 0.12))'
+                                          : isHold
+                                            ? 'var(--color-warning-subtle, rgba(245, 158, 11, 0.12))'
+                                            : 'var(--color-accent-subtle, rgba(13, 115, 119, 0.12))',
+                                        color: isDelivered
+                                          ? 'var(--color-success, #10b981)'
+                                          : isHold
+                                            ? 'var(--color-warning, #f59e0b)'
+                                            : 'var(--color-accent, #0d7377)',
+                                        border: `1px solid ${isDelivered ? 'var(--color-success, #10b981)' : isHold ? 'var(--color-warning, #f59e0b)' : 'var(--color-accent, #0d7377)'}`,
+                                      }}>
+                                        {status}
+                                      </span>
+                                    </td>
+                                    <td style={{ color: 'var(--color-text-secondary)' }}>
+                                      {origin} → {dest}
+                                    </td>
+                                    <td style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                                      {d.pic || '-'}
+                                    </td>
+                                    <td style={{ color: 'var(--color-text-muted)' }}>
+                                      {d.updated_at ? new Date(d.updated_at).toLocaleDateString() : (d.created_at ? new Date(d.created_at).toLocaleDateString() : '-')}
+                                    </td>
+                                  </tr>
+                                );
+                              })
                             )}
                           </tbody>
                         </table>

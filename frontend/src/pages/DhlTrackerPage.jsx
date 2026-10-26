@@ -155,7 +155,7 @@ export const DhlTrackerPage = () => {
       if (code === 'delivered') {
         delivered += 1;
         if (!s.is_collected) waitingCollection += 1;
-      } else if (code === 'transit' || code === 'pre-transit') {
+      } else {
         inTransit += 1;
       }
     });
@@ -180,10 +180,10 @@ export const DhlTrackerPage = () => {
         } else {
           waitingPickup.push(s);
         }
-      } else if (code === 'transit') {
-        inTransit.push(s);
-      } else {
+      } else if (code === 'pre-transit') {
         preTransit.push(s);
+      } else {
+        inTransit.push(s);
       }
     });
 
@@ -398,43 +398,53 @@ export const DhlTrackerPage = () => {
   };
 
   // Badge Status Styling
-  const getStatusBadge = (code, label, iconOnly = false) => {
+  const getStatusBadge = (code, label, description = '', iconOnly = false) => {
+    let desc = description;
+    let isIconOnly = iconOnly;
+    if (typeof description === 'boolean') {
+      isIconOnly = description;
+      desc = '';
+    }
+
     const c = (code || '').toLowerCase().trim();
     const l = (label || '').toLowerCase().trim();
+    const d = (desc || '').trim();
+    const lowerD = d.toLowerCase();
 
-    const isDelivered = c === 'delivered' || l === 'delivered' || c === '600' || l === '600';
-    const isTransit = c === 'transit' || l === 'transit' || c === 'in transit' || l === 'in transit';
+    const isDelivered = c === 'delivered' || l === 'delivered' || c === '600' || l === '600' || lowerD.includes('delivered');
+    const isTransit = c === 'transit' || l === 'transit' || c === 'in transit' || l === 'in transit' || lowerD.includes('in transit');
     const isPreTransit = c === 'pre-transit' || l === 'pre-transit' || c === 'pre transit' || l === 'pre transit';
+    const isHold = lowerD.includes('hold') || l.includes('hold') || c.includes('hold') || l === '103';
 
     let badgeClass = styles.badgeFailure;
     let Icon = AlertCircle;
-    let defaultLabel = t('dhl.status_unknown', 'Unknown');
+    let defaultLabel = d || (l && !/^\d+$/.test(l) ? label : (c && c !== 'failure' ? code : t('dhl.status_update', 'Status Update')));
 
     if (isDelivered) {
       badgeClass = styles.badgeDelivered;
       Icon = CheckCircle2;
       defaultLabel = t('dhl.status_delivered', 'Delivered');
+    } else if (isHold) {
+      badgeClass = styles.badgeHold;
+      Icon = Clock;
+      defaultLabel = d || 'Shipment is on hold';
     } else if (isTransit) {
       badgeClass = styles.badgeTransit;
       Icon = Truck;
-      defaultLabel = t('dhl.status_transit', 'In Transit');
+      defaultLabel = d || t('dhl.status_transit', 'In Transit');
     } else if (isPreTransit) {
       badgeClass = styles.badgePreTransit;
       Icon = Clock;
-      defaultLabel = t('dhl.status_pre_transit', 'Pre-Transit');
+      defaultLabel = d || t('dhl.status_pre_transit', 'Pre-Transit');
+    } else if (d) {
+      badgeClass = styles.badgeHold;
+      Icon = AlertCircle;
+      defaultLabel = d;
     }
 
-    // Determine clean label (filter out raw numeric codes like '600')
-    let displayTitle = defaultLabel;
-    if (!isDelivered && !isTransit && !isPreTransit) {
-      if (label && !/^\d+$/.test(label.trim())) {
-        displayTitle = label;
-      } else if (code && !/^\d+$/.test(code.trim())) {
-        displayTitle = code;
-      }
-    }
+    const displayTitle = defaultLabel;
 
-    if (iconOnly) {
+    if (isIconOnly) {
       return (
         <span
           className={`${styles.badge} ${badgeClass} ${styles.badgeIconOnly}`}
@@ -752,7 +762,7 @@ export const DhlTrackerPage = () => {
                             </a>
                           </div>
 
-                          <div>{getStatusBadge(item.status_code, item.status_label, true)}</div>
+                          <div>{getStatusBadge(item.status_code, item.status_label, item.status_description, true)}</div>
                         </div>
 
                         {/* Route Chips */}
@@ -913,7 +923,7 @@ export const DhlTrackerPage = () => {
                           </a>
                         </div>
                       </td>
-                      <td>{getStatusBadge(item.status_code, item.status_label)}</td>
+                      <td>{getStatusBadge(item.status_code, item.status_label, item.status_description)}</td>
                       <td>
                         <div className={styles.tableRoute}>
                           <span>{item.origin_city || item.origin_country || 'Origin'}</span>
@@ -1053,7 +1063,7 @@ export const DhlTrackerPage = () => {
                     </a>
                   </div>
 
-                  <div>{getStatusBadge(item.status_code, item.status_label, true)}</div>
+                  <div>{getStatusBadge(item.status_code, item.status_label, item.status_description, false)}</div>
                 </div>
 
                 {/* Route Flow */}
@@ -1402,7 +1412,7 @@ export const DhlTrackerPage = () => {
             <div className={styles.detailSummaryRow}>
               <div>
                 <div className={styles.detailStatusWrap}>
-                  {getStatusBadge(activeShipment.status_code, activeShipment.status_label)}
+                  {getStatusBadge(activeShipment.status_code, activeShipment.status_label, activeShipment.status_description)}
                   <span className={styles.detailService}>{activeShipment.service_name || 'DHL Express'}</span>
                 </div>
                 <div className={styles.detailRouteBadge}>

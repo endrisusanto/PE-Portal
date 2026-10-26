@@ -39,6 +39,24 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Intercept guest write / update attempts
+    if (
+      error.response?.data?.code === 'GUEST_WRITE_BLOCKED' ||
+      ((error.response?.status === 401 || error.response?.status === 403) &&
+        typeof error.response?.data?.message === 'string' &&
+        error.response.data.message.includes('Wajib login dengan ADCorp'))
+    ) {
+      window.dispatchEvent(
+        new CustomEvent('pe_guest_action_blocked', {
+          detail: {
+            message: error.response?.data?.message || 'Wajib login dengan ADCorp untuk melakukan aksi write atau update',
+            action: originalRequest?.method,
+          },
+        })
+      );
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem('pe_portal_refresh_token');
 

@@ -45,7 +45,11 @@
     "expand_sidebar": "Buka sidebar",
     "collapse_sidebar": "Tutup sidebar",
     "tools_video_compress": "Kompresor Video (VAAPI)",
-    "project_calendar": "Project Calendar"
+    "project_calendar": "Project Calendar",
+    "section_pinned": "FAVORIT",
+    "pin_menu": "Pin ke favorit (maks 3)",
+    "unpin_menu": "Lepas pin menu",
+    "pin_limit_reached": "Maksimal 3 menu favorit yang dapat di-pin. Lepas pin menu lain terlebih dahulu."
   },
   "project_calendar": {
     "title": "Project Calendar",
@@ -1030,7 +1034,7 @@
     "assigned_members": "ASSIGNED MEMBERS",
     "no_members": "Belum ada anggota yang ditugaskan",
     "group_parts_count": "{{count}} Group Parts",
-    "parent_pe_production": "PE Production",
+    "parent_pe_production": "PE Part",
     "parent_pe_mecha": "PE Mecha",
     "parent_pe_solution": "PE Solution Production",
     "loading": "Memuat struktur organisasi engineering..."

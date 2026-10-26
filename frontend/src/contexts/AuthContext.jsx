@@ -1,18 +1,70 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
+import { GuestAuthModal } from '../components/common/GuestAuthModal';
 
 const AuthContext = createContext();
 
+export const GUEST_USER = {
+  id: '00000000-0000-0000-0000-000000000000',
+  username: 'guest',
+  full_name: 'Guest Visitor',
+  role: 'guest',
+  department: 'Public / Guest',
+  is_guest: true,
+  preferred_lang: 'id',
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
+    const token = localStorage.getItem('pe_portal_token');
+    if (!token) return GUEST_USER;
     const saved = localStorage.getItem('pe_portal_user');
-    return saved ? JSON.parse(saved) : null;
+    return saved ? JSON.parse(saved) : GUEST_USER;
   });
   const [loading, setLoading] = useState(true);
+
+  // Guest warning modal state
+  const [guestModalOpen, setGuestModalOpen] = useState(false);
+  const [guestActionName, setGuestActionName] = useState('');
+
+  const isGuest = !user || user.role === 'guest' || Boolean(user.is_guest);
+
+  const showGuestModal = useCallback((actionName = '') => {
+    setGuestActionName(actionName);
+    setGuestModalOpen(true);
+  }, []);
+
+  const hideGuestModal = useCallback(() => {
+    setGuestModalOpen(false);
+    setGuestActionName('');
+  }, []);
+
+  const requireAuth = useCallback(
+    (actionName = '') => {
+      if (isGuest) {
+        showGuestModal(actionName);
+        return false;
+      }
+      return true;
+    },
+    [isGuest, showGuestModal]
+  );
+
+  // Listen for global blocked guest write events from axios client
+  useEffect(() => {
+    const handleGuestBlocked = (e) => {
+      const action = e.detail?.action || e.detail?.message || '';
+      showGuestModal(action);
+    };
+
+    window.addEventListener('pe_guest_action_blocked', handleGuestBlocked);
+    return () => window.removeEventListener('pe_guest_action_blocked', handleGuestBlocked);
+  }, [showGuestModal]);
 
   useEffect(() => {
     const token = localStorage.getItem('pe_portal_token');
     if (!token) {
+      setUser(GUEST_USER);
       setLoading(false);
       return;
     }
@@ -23,11 +75,11 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('pe_portal_user', JSON.stringify(res.data));
       })
       .catch(() => {
-        // Token invalid or expired, clear session
-        setUser(null);
+        // Token invalid or expired, switch to guest session
         localStorage.removeItem('pe_portal_token');
         localStorage.removeItem('pe_portal_refresh_token');
         localStorage.removeItem('pe_portal_user');
+        setUser(GUEST_USER);
       })
       .finally(() => {
         setLoading(false);
@@ -52,7 +104,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('pe_portal_token');
       localStorage.removeItem('pe_portal_refresh_token');
       localStorage.removeItem('pe_portal_user');
-      setUser(null);
+      setUser(GUEST_USER);
     }
   };
 
@@ -63,8 +115,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isGuest,
+        login,
+        logout,
+        updateUser,
+        requireAuth,
+        showGuestModal,
+        hideGuestModal,
+      }}
+    >
       {children}
+      <GuestAuthModal
+        isOpen={guestModalOpen}
+        onClose={hideGuestModal}
+        actionName={guestActionName}
+      />
     </AuthContext.Provider>
   );
 };

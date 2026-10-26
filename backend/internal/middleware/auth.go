@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"pe-portal/internal/auth"
@@ -15,7 +16,7 @@ const (
 	ContextKeyUserRole   = "user_role"
 )
 
-// AuthMiddleware creates an Echo middleware to validate JWT Bearer tokens
+// AuthMiddleware creates an Echo middleware to validate JWT Bearer tokens or allow guest view-only access
 func AuthMiddleware(jwtService *auth.JWTService) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -33,13 +34,36 @@ func AuthMiddleware(jwtService *auth.JWTService) echo.MiddlewareFunc {
 				tokenStr = c.QueryParam("token")
 			}
 
+			method := c.Request().Method
+			isReadMethod := method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
+
 			if tokenStr == "" {
-				return echo.NewHTTPError(http.StatusUnauthorized, "missing authorization header")
+				if isReadMethod {
+					c.Set(ContextKeyUserID, uuid.Nil)
+					c.Set(ContextKeyUserRole, "guest")
+					return next(c)
+				}
+				return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+					"message": "Wajib login dengan ADCorp untuk melakukan aksi write atau update",
+					"code":    "GUEST_WRITE_BLOCKED",
+				})
 			}
 
 			claims, err := jwtService.ValidateToken(tokenStr)
 			if err != nil {
+				if isReadMethod {
+					c.Set(ContextKeyUserID, uuid.Nil)
+					c.Set(ContextKeyUserRole, "guest")
+					return next(c)
+				}
 				return echo.NewHTTPError(http.StatusUnauthorized, "invalid or expired token")
+			}
+
+			if claims.Role == "guest" && !isReadMethod {
+				return c.JSON(http.StatusForbidden, map[string]interface{}{
+					"message": "Wajib login dengan ADCorp untuk melakukan aksi write atau update",
+					"code":    "GUEST_WRITE_BLOCKED",
+				})
 			}
 
 			c.Set(ContextKeyUserClaims, claims)

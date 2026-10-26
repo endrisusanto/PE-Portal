@@ -32,6 +32,9 @@ func (h *EmailListHandler) GetEmailLists(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 	}
 	userID := val.(uuid.UUID)
+	if userID == uuid.Nil {
+		return c.JSON(http.StatusOK, []model.UserEmailList{})
+	}
 
 	lists, err := h.repo.GetByUserID(c.Request().Context(), userID)
 	if err != nil {

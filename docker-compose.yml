@@ -19,6 +19,8 @@ services:
     container_name: pe-portal-backend
     ports:
       - "${BACKEND_PORT:-8085}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     environment:
       - PORT=8080

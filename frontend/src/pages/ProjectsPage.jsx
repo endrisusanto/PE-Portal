@@ -101,7 +101,7 @@ export const parseMetadata = (metadata) => {
 
 export const ProjectsPage = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, requireAuth } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [projects, setProjects] = useState([]);
@@ -140,6 +140,7 @@ export const ProjectsPage = () => {
   const [priority, setPriority] = useState('medium');
   const [ownerId, setOwnerId] = useState('');
   const [selectedPics, setSelectedPics] = useState([]); // Multiple PIC assignment
+  const [customEmailInput, setCustomEmailInput] = useState(''); // Comma-separated or single custom target PIC email
   const [visibility, setVisibility] = useState('public'); // 'public' | 'private_pic' | 'manager'
   const [createProgress, setCreateProgress] = useState(20);
   const [sendEmail, setSendEmail] = useState(true);
@@ -160,6 +161,7 @@ export const ProjectsPage = () => {
   const [editPriority, setEditPriority] = useState('medium');
   const [editOwnerId, setEditOwnerId] = useState('');
   const [editSelectedPics, setEditSelectedPics] = useState([]);
+  const [editCustomEmailInput, setEditCustomEmailInput] = useState('');
   const [editVisibility, setEditVisibility] = useState('public');
   const [editProgress, setEditProgress] = useState(20);
   const [editStartDate, setEditStartDate] = useState('');
@@ -297,6 +299,71 @@ export const ProjectsPage = () => {
     setTimeout(() => setToastMessage(''), 4500);
   };
 
+  // ponytail: parse comma-separated emails or single input, auto-match registered user or add as external chip
+  const handleAddCustomPicEmails = (inputText, isEdit = false) => {
+    if (!inputText || !inputText.trim()) return;
+    const rawList = inputText.split(/[,;\n]+/).map((s) => s.trim().replace(/^mailto:/i, '')).filter(Boolean);
+    if (rawList.length === 0) return;
+
+    if (isEdit) {
+      setEditSelectedPics((prev) => {
+        const next = [...prev];
+        rawList.forEach((item) => {
+          const lower = item.toLowerCase();
+          if (next.some((p) => (p.email && p.email.toLowerCase() === lower) || p.id === lower || p.id === `ext_${lower}`)) {
+            return;
+          }
+          const registered = users.find((u) => (u.email && u.email.toLowerCase() === lower) || u.username?.toLowerCase() === lower);
+          if (registered) {
+            if (!next.some((p) => p.id === registered.id)) {
+              next.push(registered);
+              if (!editOwnerId) setEditOwnerId(registered.id);
+            }
+          } else {
+            next.push({
+              id: `ext_${lower}`,
+              name: item,
+              full_name: item,
+              email: item,
+              role: 'external',
+              is_external: true,
+            });
+          }
+        });
+        return next;
+      });
+      setEditCustomEmailInput('');
+    } else {
+      setSelectedPics((prev) => {
+        const next = [...prev];
+        rawList.forEach((item) => {
+          const lower = item.toLowerCase();
+          if (next.some((p) => (p.email && p.email.toLowerCase() === lower) || p.id === lower || p.id === `ext_${lower}`)) {
+            return;
+          }
+          const registered = users.find((u) => (u.email && u.email.toLowerCase() === lower) || u.username?.toLowerCase() === lower);
+          if (registered) {
+            if (!next.some((p) => p.id === registered.id)) {
+              next.push(registered);
+              if (!ownerId) setOwnerId(registered.id);
+            }
+          } else {
+            next.push({
+              id: `ext_${lower}`,
+              name: item,
+              full_name: item,
+              email: item,
+              role: 'external',
+              is_external: true,
+            });
+          }
+        });
+        return next;
+      });
+      setCustomEmailInput('');
+    }
+  };
+
   // Create Project / ToDo Task
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -305,7 +372,8 @@ export const ProjectsPage = () => {
     setSubmitting(true);
     try {
       // Determine primary PIC and full PIC list
-      const primaryPic = selectedPics.length > 0 ? selectedPics[0] : (ownerId ? users.find((u) => u.id === ownerId) : null);
+      const registeredPrimary = selectedPics.find((p) => !p.is_external && !String(p.id).startsWith('ext_'));
+      const primaryPic = registeredPrimary || (ownerId ? users.find((u) => u.id === ownerId) : null);
       const picList = selectedPics.length > 0 ? selectedPics : (primaryPic ? [primaryPic] : []);
 
       const metadataPayload = {
@@ -314,18 +382,19 @@ export const ProjectsPage = () => {
         created_by_name: user?.full_name || user?.username || 'Team Member',
         assigned_pics: picList.map((u) => ({
           id: u.id,
-          name: u.full_name || u.name,
+          name: u.full_name || u.name || u.email,
           email: u.email || '',
-          role: u.role || 'engineer',
+          role: u.role || (u.is_external ? 'external' : 'engineer'),
+          is_external: !!u.is_external || String(u.id).startsWith('ext_'),
         })),
-        assigned_pic_ids: picList.map((u) => u.id),
+        assigned_pic_ids: picList.filter((u) => !u.is_external && u.id && !String(u.id).startsWith('ext_')).map((u) => u.id),
       };
 
       const payload = {
         title: title.trim(),
         project_type: projectType,
         priority,
-        owner_id: primaryPic?.id || undefined,
+        owner_id: primaryPic?.id || user?.id || undefined,
         progress: createProgress,
         status: createProgress >= 100 ? 'completed' : createProgress > 20 ? 'in_progress' : 'planning',
         start_date: startDate || undefined,
@@ -347,6 +416,7 @@ export const ProjectsPage = () => {
       setPriority('medium');
       setOwnerId('');
       setSelectedPics([]);
+      setCustomEmailInput('');
       setVisibility('public');
       setCreateProgress(20);
       setSendEmail(true);
@@ -354,7 +424,7 @@ export const ProjectsPage = () => {
       setTargetDate('');
       setCreateAttachments([]);
 
-      const picNames = picList.map((p) => p.full_name || p.name).join(', ') || 'Unassigned';
+      const picNames = picList.map((p) => p.full_name || p.name || p.email).join(', ') || 'Unassigned';
       if (sendEmail && picList.some((p) => p.email)) {
         showToast(`Task berhasil dibuat & notifikasi email dikirim ke ${picList.length} PIC!`);
       } else {
@@ -386,6 +456,7 @@ export const ProjectsPage = () => {
 
   const handleDeleteProject = async (p, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
+    if (!requireAuth('Hapus Task')) return;
     if (!p || !p.id) return;
     if (!window.confirm(`Hapus project / task "${p.title}"? Tindakan ini tidak dapat dibatalkan.`)) {
       return;
@@ -408,6 +479,7 @@ export const ProjectsPage = () => {
 
   // Open Edit Modal
   const openEditModal = (p) => {
+    if (!requireAuth('Edit Task')) return;
     setEditingProject(p);
     setEditTitle(p.title || '');
     setEditProjectType(p.project_type || 'mechanical');
@@ -425,6 +497,17 @@ export const ProjectsPage = () => {
     let initialPics = [];
     if (meta.assigned_pics && Array.isArray(meta.assigned_pics) && meta.assigned_pics.length > 0) {
       initialPics = meta.assigned_pics.map((pic) => {
+        const isExt = pic.is_external || String(pic.id).startsWith('ext_') || !pic.id;
+        if (isExt) {
+          return {
+            id: pic.id || `ext_${(pic.email || pic.name).toLowerCase()}`,
+            full_name: pic.full_name || pic.name || pic.email,
+            name: pic.name || pic.full_name || pic.email,
+            email: pic.email || '',
+            role: pic.role || 'external',
+            is_external: true,
+          };
+        }
         const fullUser = users.find((u) => u.id === pic.id);
         return fullUser || { id: pic.id, full_name: pic.name || pic.full_name, email: pic.email, role: pic.role };
       });
@@ -434,6 +517,7 @@ export const ProjectsPage = () => {
       else if (p.owner_name) initialPics = [{ id: p.owner_id, full_name: p.owner_name, email: '' }];
     }
     setEditSelectedPics(initialPics);
+    setEditCustomEmailInput('');
 
     let initialAttachments = [];
     if (Array.isArray(p.attachments)) {
@@ -456,7 +540,8 @@ export const ProjectsPage = () => {
     if (!editingProject) return;
 
     try {
-      const primaryPic = editSelectedPics.length > 0 ? editSelectedPics[0] : (editOwnerId ? users.find((u) => u.id === editOwnerId) : null);
+      const registeredPrimary = editSelectedPics.find((p) => !p.is_external && !String(p.id).startsWith('ext_'));
+      const primaryPic = registeredPrimary || (editOwnerId ? users.find((u) => u.id === editOwnerId) : null);
       const picList = editSelectedPics.length > 0 ? editSelectedPics : (primaryPic ? [primaryPic] : []);
       const existingMeta = parseMetadata(editingProject.metadata);
 
@@ -465,11 +550,12 @@ export const ProjectsPage = () => {
         visibility: editVisibility,
         assigned_pics: picList.map((u) => ({
           id: u.id,
-          name: u.full_name || u.name,
+          name: u.full_name || u.name || u.email,
           email: u.email || '',
-          role: u.role || 'engineer',
+          role: u.role || (u.is_external ? 'external' : 'engineer'),
+          is_external: !!u.is_external || String(u.id).startsWith('ext_'),
         })),
-        assigned_pic_ids: picList.map((u) => u.id),
+        assigned_pic_ids: picList.filter((u) => !u.is_external && u.id && !String(u.id).startsWith('ext_')).map((u) => u.id),
       };
 
       const derivedStatus =
@@ -488,7 +574,7 @@ export const ProjectsPage = () => {
         project_type: editProjectType,
         status: derivedStatus,
         priority: editPriority,
-        owner_id: primaryPic?.id || undefined,
+        owner_id: primaryPic?.id || user?.id || undefined,
         progress: Number(editProgress) || 0,
         start_date: editStartDate || undefined,
         target_date: editTargetDate || undefined,
@@ -513,7 +599,7 @@ export const ProjectsPage = () => {
       if (editPriority !== editingProject.priority) changes.push(`Prioritas diubah ke ${editPriority.toUpperCase()}`);
       if (editProjectType !== editingProject.project_type) changes.push(`Kategori diubah ke ${editProjectType}`);
       if (editVisibility !== (existingMeta.visibility || 'public')) changes.push(`Visibilitas diubah ke ${editVisibility}`);
-      const newPicNames = picList.map((p) => p.full_name || p.name).join(', ');
+      const newPicNames = picList.map((p) => p.full_name || p.name || p.email).join(', ');
       changes.push(`PIC diatur: ${newPicNames || 'Unassigned'}`);
       if (editDescription !== (editingProject.description || '')) {
         changes.push('Catatan analisis/investigasi diperbarui');
@@ -630,9 +716,10 @@ export const ProjectsPage = () => {
     }
 
     const first = picList[0];
-    const firstName = (first.name || first.full_name || 'PIC').split(' ')[0];
+    const rawName = first.name || first.full_name || first.email || 'PIC';
+    const firstName = rawName.includes('@') ? rawName.split('@')[0] : rawName.split(' ')[0];
     const more = picList.length - 1;
-    const allNames = picList.map((x) => x.name || x.full_name).join(', ');
+    const allNames = picList.map((x) => x.name || x.full_name || x.email).join(', ');
 
     return (
       <span
@@ -1001,7 +1088,7 @@ export const ProjectsPage = () => {
             </button>
           </div>
 
-          <Button variant="primary" icon={Plus} onClick={() => setIsModalOpen(true)}>
+          <Button variant="primary" icon={Plus} onClick={() => requireAuth('Tambah ToDo / Task') && setIsModalOpen(true)}>
             {t('projects.new_task', 'Tambah ToDo / Task')}
           </Button>
         </div>
@@ -1082,7 +1169,7 @@ export const ProjectsPage = () => {
             : "Catat temuan analisa issue mechanical, proses produksi, atau buat permintaan fitur ke Admin."
           }
           actionLabel="Buat ToDo Pertama"
-          onAction={() => setIsModalOpen(true)}
+          onAction={() => requireAuth('Tambah ToDo / Task') && setIsModalOpen(true)}
         />
       ) : viewMode === 'matrix' ? (
         /* MATRIX CARD VIEW */
@@ -1651,57 +1738,137 @@ export const ProjectsPage = () => {
                 )}
               </div>
 
-              <select
-                value=""
-                onChange={(e) => {
-                  const targetId = e.target.value;
-                  if (!targetId) return;
-                  const targetUser = users.find((u) => u.id === targetId);
-                  if (targetUser && !selectedPics.some((p) => p.id === targetUser.id)) {
-                    setSelectedPics((prev) => [...prev, targetUser]);
-                    if (!ownerId) setOwnerId(targetUser.id);
-                  }
-                }}
-                style={{
-                  height: '36px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg-secondary)',
-                  color: 'var(--color-text-primary)',
-                }}
-              >
-                <option value="">+ Tambah PIC Engineer / Admin...</option>
-                {users
-                  .filter((u) => !selectedPics.some((p) => p.id === u.id))
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.full_name} ({u.email || u.username}) - {u.role?.toUpperCase()}
-                    </option>
-                  ))}
-              </select>
+              {/* Dual PIC Selection: Registered User Dropdown & Custom Email Field with Comma Support */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const targetId = e.target.value;
+                    if (!targetId) return;
+                    const targetUser = users.find((u) => u.id === targetId);
+                    if (targetUser && !selectedPics.some((p) => p.id === targetUser.id || (p.email && targetUser.email && p.email.toLowerCase() === targetUser.email.toLowerCase()))) {
+                      setSelectedPics((prev) => [...prev, targetUser]);
+                      if (!ownerId) setOwnerId(targetUser.id);
+                    }
+                  }}
+                  style={{
+                    height: '36px',
+                    padding: '0 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '11.5px',
+                  }}
+                >
+                  <option value="">+ Pilih User Terdaftar...</option>
+                  {users
+                    .filter((u) => !selectedPics.some((p) => p.id === u.id || (p.email && u.email && p.email.toLowerCase() === u.email.toLowerCase())))
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name} ({u.email || u.username})
+                      </option>
+                    ))}
+                </select>
+
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Mail size={13} style={{ position: 'absolute', left: '10px', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    value={customEmailInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.includes(',')) {
+                        handleAddCustomPicEmails(val, false);
+                      } else {
+                        setCustomEmailInput(val);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        handleAddCustomPicEmails(customEmailInput, false);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (customEmailInput.trim()) {
+                        handleAddCustomPicEmails(customEmailInput, false);
+                      }
+                    }}
+                    placeholder="Atau email (koma jika banyak)..."
+                    style={{
+                      width: '100%',
+                      height: '36px',
+                      padding: customEmailInput.trim() ? '0 30px 0 28px' : '0 10px 0 28px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-bg-secondary)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '11.5px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {customEmailInput.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomPicEmails(customEmailInput, false)}
+                      title="Tambahkan email ini"
+                      style={{
+                        position: 'absolute',
+                        right: '6px',
+                        background: 'var(--color-accent)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 'var(--radius-xs, 4px)',
+                        width: '20px',
+                        height: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        lineHeight: 1,
+                      }}
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {selectedPics.length > 0 && (
                 <div className={styles.picChipsContainer}>
-                  {selectedPics.map((pic, idx) => (
-                    <span key={pic.id} className={`${styles.picChip} ${idx === 0 ? styles.picChipPrimary : ''}`}>
-                      <User size={12} style={{ opacity: 0.7 }} />
-                      <span>{pic.full_name || pic.name}</span>
-                      {idx === 0 && <span className={styles.picChipTag}>(Lead PIC)</span>}
-                      <button
-                        type="button"
-                        className={styles.picChipRemove}
-                        onClick={() => {
-                          const updated = selectedPics.filter((p) => p.id !== pic.id);
-                          setSelectedPics(updated);
-                          setOwnerId(updated[0]?.id || '');
-                        }}
-                        title="Hapus PIC"
+                  {selectedPics.map((pic, idx) => {
+                    const isExt = pic.is_external || String(pic.id).startsWith('ext_');
+                    return (
+                      <span
+                        key={pic.id || pic.email}
+                        className={`${styles.picChip} ${idx === 0 ? styles.picChipPrimary : ''} ${isExt ? styles.picChipExternal : ''}`}
                       >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
+                        {isExt ? (
+                          <Mail size={12} color="var(--color-warning, #f59e0b)" />
+                        ) : (
+                          <User size={12} style={{ opacity: 0.7 }} />
+                        )}
+                        <span>{pic.full_name || pic.name || pic.email}</span>
+                        {idx === 0 && <span className={styles.picChipTag}>(Lead PIC)</span>}
+                        {isExt && <span className={styles.picChipExtTag}>(Unregistered)</span>}
+                        <button
+                          type="button"
+                          className={styles.picChipRemove}
+                          onClick={() => {
+                            const updated = selectedPics.filter((p) => (p.id || p.email) !== (pic.id || pic.email));
+                            setSelectedPics(updated);
+                            const firstRegistered = updated.find((p) => !p.is_external && !String(p.id).startsWith('ext_'));
+                            setOwnerId(firstRegistered ? firstRegistered.id : '');
+                          }}
+                          title="Hapus PIC"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1971,57 +2138,137 @@ export const ProjectsPage = () => {
                 )}
               </div>
 
-              <select
-                value=""
-                onChange={(e) => {
-                  const targetId = e.target.value;
-                  if (!targetId) return;
-                  const targetUser = users.find((u) => u.id === targetId);
-                  if (targetUser && !editSelectedPics.some((p) => p.id === targetUser.id)) {
-                    setEditSelectedPics((prev) => [...prev, targetUser]);
-                    if (!editOwnerId) setEditOwnerId(targetUser.id);
-                  }
-                }}
-                style={{
-                  height: '36px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg-secondary)',
-                  color: 'var(--color-text-primary)',
-                }}
-              >
-                <option value="">+ Tambah PIC Engineer / Admin...</option>
-                {users
-                  .filter((u) => !editSelectedPics.some((p) => p.id === u.id))
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.full_name} ({u.email || u.username}) - {u.role?.toUpperCase()}
-                    </option>
-                  ))}
-              </select>
+              {/* Dual PIC Selection: Registered User Dropdown & Custom Email Field with Comma Support */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const targetId = e.target.value;
+                    if (!targetId) return;
+                    const targetUser = users.find((u) => u.id === targetId);
+                    if (targetUser && !editSelectedPics.some((p) => p.id === targetUser.id || (p.email && targetUser.email && p.email.toLowerCase() === targetUser.email.toLowerCase()))) {
+                      setEditSelectedPics((prev) => [...prev, targetUser]);
+                      if (!editOwnerId) setEditOwnerId(targetUser.id);
+                    }
+                  }}
+                  style={{
+                    height: '36px',
+                    padding: '0 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '11.5px',
+                  }}
+                >
+                  <option value="">+ Pilih User Terdaftar...</option>
+                  {users
+                    .filter((u) => !editSelectedPics.some((p) => p.id === u.id || (p.email && u.email && p.email.toLowerCase() === u.email.toLowerCase())))
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name} ({u.email || u.username})
+                      </option>
+                    ))}
+                </select>
+
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Mail size={13} style={{ position: 'absolute', left: '10px', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    value={editCustomEmailInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.includes(',')) {
+                        handleAddCustomPicEmails(val, true);
+                      } else {
+                        setEditCustomEmailInput(val);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        handleAddCustomPicEmails(editCustomEmailInput, true);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (editCustomEmailInput.trim()) {
+                        handleAddCustomPicEmails(editCustomEmailInput, true);
+                      }
+                    }}
+                    placeholder="Atau email (koma jika banyak)..."
+                    style={{
+                      width: '100%',
+                      height: '36px',
+                      padding: editCustomEmailInput.trim() ? '0 30px 0 28px' : '0 10px 0 28px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-bg-secondary)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '11.5px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {editCustomEmailInput.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomPicEmails(editCustomEmailInput, true)}
+                      title="Tambahkan email ini"
+                      style={{
+                        position: 'absolute',
+                        right: '6px',
+                        background: 'var(--color-accent)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 'var(--radius-xs, 4px)',
+                        width: '20px',
+                        height: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        lineHeight: 1,
+                      }}
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {editSelectedPics.length > 0 && (
                 <div className={styles.picChipsContainer}>
-                  {editSelectedPics.map((pic, idx) => (
-                    <span key={pic.id} className={`${styles.picChip} ${idx === 0 ? styles.picChipPrimary : ''}`}>
-                      <User size={12} style={{ opacity: 0.7 }} />
-                      <span>{pic.full_name || pic.name}</span>
-                      {idx === 0 && <span className={styles.picChipTag}>(Lead PIC)</span>}
-                      <button
-                        type="button"
-                        className={styles.picChipRemove}
-                        onClick={() => {
-                          const updated = editSelectedPics.filter((p) => p.id !== pic.id);
-                          setEditSelectedPics(updated);
-                          setEditOwnerId(updated[0]?.id || '');
-                        }}
-                        title="Hapus PIC"
+                  {editSelectedPics.map((pic, idx) => {
+                    const isExt = pic.is_external || String(pic.id).startsWith('ext_');
+                    return (
+                      <span
+                        key={pic.id || pic.email}
+                        className={`${styles.picChip} ${idx === 0 ? styles.picChipPrimary : ''} ${isExt ? styles.picChipExternal : ''}`}
                       >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
+                        {isExt ? (
+                          <Mail size={12} color="var(--color-warning, #f59e0b)" />
+                        ) : (
+                          <User size={12} style={{ opacity: 0.7 }} />
+                        )}
+                        <span>{pic.full_name || pic.name || pic.email}</span>
+                        {idx === 0 && <span className={styles.picChipTag}>(Lead PIC)</span>}
+                        {isExt && <span className={styles.picChipExtTag}>(Unregistered)</span>}
+                        <button
+                          type="button"
+                          className={styles.picChipRemove}
+                          onClick={() => {
+                            const updated = editSelectedPics.filter((p) => (p.id || p.email) !== (pic.id || pic.email));
+                            setEditSelectedPics(updated);
+                            const firstRegistered = updated.find((p) => !p.is_external && !String(p.id).startsWith('ext_'));
+                            setEditOwnerId(firstRegistered ? firstRegistered.id : '');
+                          }}
+                          title="Hapus PIC"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>

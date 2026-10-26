@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Shield, KeyRound, User } from 'lucide-react';
+import { Shield, KeyRound, User, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
@@ -88,6 +88,15 @@ export const LoginPage = () => {
           >
             {loading ? t('auth.signing_in') : t('auth.sign_in')}
           </Button>
+
+          <button
+            type="button"
+            onClick={() => navigate(from, { replace: true })}
+            className={styles.guestEntryBtn}
+          >
+            <Eye size={15} />
+            <span>Masuk sebagai Guest (View Only)</span>
+          </button>
         </form>
 
         <div className={styles.footerNote}>

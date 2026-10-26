@@ -45,7 +45,11 @@
     "expand_sidebar": "Expand sidebar",
     "collapse_sidebar": "Collapse sidebar",
     "tools_video_compress": "Video Compressor (VAAPI)",
-    "project_calendar": "Project Calendar"
+    "project_calendar": "Project Calendar",
+    "section_pinned": "PINNED",
+    "pin_menu": "Pin to favorites (max 3)",
+    "unpin_menu": "Unpin menu",
+    "pin_limit_reached": "Maximum of 3 pinned favorite menus reached. Please unpin an existing menu first."
   },
   "project_calendar": {
     "title": "Project Calendar",
@@ -1030,7 +1034,7 @@
     "assigned_members": "ASSIGNED MEMBERS",
     "no_members": "No members assigned",
     "group_parts_count": "{{count}} Group Parts",
-    "parent_pe_production": "PE Production",
+    "parent_pe_production": "PE Part",
     "parent_pe_mecha": "PE Mecha",
     "parent_pe_solution": "PE Solution Production",
     "loading": "Loading engineering organization..."

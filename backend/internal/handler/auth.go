@@ -100,6 +100,19 @@ func (h *AuthHandler) Me(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid user id in context")
 	}
 
+	if userID == uuid.Nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"id":             uuid.Nil,
+			"username":       "guest",
+			"full_name":      "Guest Visitor",
+			"role":           "guest",
+			"department":     "Public / Guest",
+			"is_active":      true,
+			"is_guest":       true,
+			"preferred_lang": "id",
+		})
+	}
+
 	user, err := h.userRepo.GetByID(c.Request().Context(), userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "user profile not found")

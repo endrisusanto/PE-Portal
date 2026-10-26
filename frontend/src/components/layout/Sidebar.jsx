@@ -32,6 +32,7 @@ import {
   Video,
   CalendarDays,
   Building2,
+  Pin,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/client';
@@ -73,6 +74,52 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     if (isToolsSwActive) return 'software-dev';
     return 'dokumen';
   });
+
+  // ponytail: pinned favorite menus (up to 3 items)
+  const pinStorageKey = user?.id ? `pe_pinned_menus_${user.id}` : 'pe_pinned_menus';
+  const [pinnedKeys, setPinnedKeys] = useState(() => {
+    try {
+      const saved = localStorage.getItem(pinStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.slice(0, 3);
+      }
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(pinStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setPinnedKeys(parsed.slice(0, 3));
+      } else {
+        setPinnedKeys([]);
+      }
+    } catch {}
+  }, [pinStorageKey]);
+
+  const handleTogglePin = (e, itemKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPinnedKeys((prev) => {
+      let next;
+      if (prev.includes(itemKey)) {
+        next = prev.filter((k) => k !== itemKey);
+      } else {
+        if (prev.length >= 3) {
+          alert(t('nav.pin_limit_reached', 'Maksimal 3 menu favorit yang dapat di-pin. Lepas pin salah satu menu terlebih dahulu.'));
+          return prev;
+        }
+        next = [...prev, itemKey];
+      }
+      try {
+        localStorage.setItem(pinStorageKey, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Auto-switch open group when route changes to an active section
   useEffect(() => {
@@ -326,6 +373,36 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     .filter((item) => isMenuAllowed(item.key))
     .sort((a, b) => a.label.localeCompare(b.label));
 
+  // ponytail: all leaf pinnable items catalog
+  const allLeafItems = [
+    ...operationItems.filter((item) => !item.isGroup),
+    ...sampleManagementSubItems,
+    ...softwareTeamSubItems,
+    ...toolsNestedGroups.flatMap((group) => group.children),
+    ...adminItems,
+  ];
+
+  const pinnedItems = pinnedKeys
+    .map((key) => allLeafItems.find((item) => item.key === key))
+    .filter((item) => item && isMenuAllowed(item.key))
+    .slice(0, 3);
+
+  const renderPinButton = (itemKey) => {
+    if (isCollapsed) return null;
+    const isPinned = pinnedKeys.includes(itemKey);
+    return (
+      <button
+        type="button"
+        className={`${styles.pinActionBtn} ${isPinned ? styles.isPinned : ''}`}
+        onClick={(e) => handleTogglePin(e, itemKey)}
+        title={isPinned ? t('nav.unpin_menu', 'Lepas pin menu') : t('nav.pin_menu', 'Pin ke favorit (maks 3)')}
+        aria-label={isPinned ? t('nav.unpin_menu', 'Lepas pin menu') : t('nav.pin_menu', 'Pin ke favorit (maks 3)')}
+      >
+        <Pin size={11} style={{ transform: isPinned ? 'rotate(45deg)' : 'none', fill: isPinned ? 'currentColor' : 'none' }} />
+      </button>
+    );
+  };
+
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
       <div
@@ -374,6 +451,37 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
 
         {/* Scrollable Middle Navigation between Top and Bottom Separator */}
         <div className={styles.navScrollArea}>
+          {/* Pinned / Favorites Section (Up to 3) */}
+          {pinnedItems.length > 0 && (
+            <div className={styles.pinnedSection}>
+              <div className={styles.sectionLabel} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {!isCollapsed && (
+                  <>
+                    <span>{t('nav.section_pinned', 'FAVORIT')}</span>
+                    <span className={styles.pinnedBadge}>{pinnedItems.length}/3</span>
+                  </>
+                )}
+              </div>
+              {pinnedItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={`pinned-${item.key}`}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                    title={item.label}
+                  >
+                    <Icon size={17} className={styles.navIcon} />
+                    {!isCollapsed && <span>{item.label}</span>}
+                    {renderPinButton(item.key)}
+                  </NavLink>
+                );
+              })}
+              <div className={styles.navDivider} style={{ margin: '4px 2px 6px 2px' }} />
+            </div>
+          )}
+
           {visibleOperationItems.length > 0 && (
             <div className={styles.sectionLabel}>{!isCollapsed && t('nav.section_operations', 'OPERATIONS')}</div>
           )}
@@ -453,6 +561,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
                                       >
                                         <SubIcon size={12} className={styles.navIcon} />
                                         <span>{sub.label}</span>
+                                        {renderPinButton(sub.key)}
                                       </NavLink>
                                     );
                                   })}
@@ -476,6 +585,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
                             >
                               <SubIcon size={14} className={styles.navIcon} />
                               {!isCollapsed && <span>{sub.label}</span>}
+                              {renderPinButton(sub.key)}
                             </NavLink>
                           );
                         })
@@ -497,6 +607,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
               >
                 <Icon size={17} className={styles.navIcon} />
                 {!isCollapsed && <span>{item.label}</span>}
+                {renderPinButton(item.key)}
               </NavLink>
             );
           })}
@@ -514,6 +625,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
               >
                 <Icon size={17} className={styles.navIcon} />
                 {!isCollapsed && <span>{item.label}</span>}
+                {renderPinButton(item.key)}
               </NavLink>
             );
           })}

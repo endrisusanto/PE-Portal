@@ -4,7 +4,7 @@
 
 export const TEAMS = {
   MANAGEMENT: 'PE Management',
-  PRODUCTION: 'PE Production',
+  PRODUCTION: 'PE Part',
   MECHA: 'PE Mecha',
   SOLUTION: 'PE Solution',
 };
@@ -21,8 +21,8 @@ export const ZONES = {
   LAB_ANALISA: 'Lab Analisa',
   PANTRY: 'Pantry (Coffee & Refreshment)',
   TOILET_PRIA: 'Toilet Pria',
-  PE_PRODUCTION: 'PE Production Area',
-  PE_PRODUCTION_MANAGER: 'PE Production Manager',
+  PE_PRODUCTION: 'PE Part Area',
+  PE_PRODUCTION_MANAGER: 'PE Part Manager',
   PE_MECHA: 'PE Mecha Area',
   PE_MECHA_MANAGER: 'PE Mecha Manager',
   PE_SOLUTION: 'PE Solution Area',
@@ -155,40 +155,40 @@ export const getActivePhase = (mins) => {
 // Bottom row: PE Production (+Manager), PE Mecha (+Manager), PE Solution (+Manager), [gap], Gaming Room, Lab Software, Toilet Wanita
 export const getCoordinatesForZone = (zoneKey, slotIndex = 0) => {
   switch (zoneKey) {
-    // --- WORKSTATIONS (PE PRODUCTION) ---
+    // --- WORKSTATIONS (PE PRODUCTION / PE PART) ---
     case ZONES.PE_PRODUCTION: {
-      // 9 Member desks in a 3x3 block (x: 7..18, y: 53..70)
+      // 15 Member desks in a 3x5 block (x: 7..17, y: 52.5..72.5)
       const col = slotIndex % 3;
       const row = Math.floor(slotIndex / 3);
-      return { x: 7.5 + col * 5, y: 53 + row * 8, label: `P-${slotIndex + 1}` };
+      return { x: 7 + col * 5, y: 52.5 + row * 5, label: `P-${slotIndex + 1}` };
     }
     case ZONES.PE_PRODUCTION_MANAGER: {
       // Dedicated MANAGER desk at bottom
-      return { x: 12.5, y: 83.5, label: `P-MANAGER` };
+      return { x: 12, y: 83.5, label: `P-MANAGER` };
     }
 
     // --- WORKSTATIONS (PE MECHA) ---
     case ZONES.PE_MECHA: {
-      // 9 Member desks in a 3x3 block (x: 25..36, y: 53..70)
+      // 15 Member desks in a 3x5 block (x: 25..35, y: 52.5..72.5)
       const col = slotIndex % 3;
       const row = Math.floor(slotIndex / 3);
-      return { x: 25.5 + col * 5, y: 53 + row * 8, label: `M-${slotIndex + 1}` };
+      return { x: 25 + col * 5, y: 52.5 + row * 5, label: `M-${slotIndex + 1}` };
     }
     case ZONES.PE_MECHA_MANAGER: {
       // Dedicated MANAGER desk at bottom
-      return { x: 30.5, y: 83.5, label: `M-MANAGER` };
+      return { x: 30, y: 83.5, label: `M-MANAGER` };
     }
 
     // --- WORKSTATIONS (PE SOLUTION) ---
     case ZONES.PE_SOLUTION: {
-      // 9 Member desks in a 3x3 block (x: 43..54, y: 53..70)
+      // 15 Member desks in a 3x5 block (x: 43..53, y: 52.5..72.5)
       const col = slotIndex % 3;
       const row = Math.floor(slotIndex / 3);
-      return { x: 43.5 + col * 5, y: 53 + row * 8, label: `S-${slotIndex + 1}` };
+      return { x: 43 + col * 5, y: 52.5 + row * 5, label: `S-${slotIndex + 1}` };
     }
     case ZONES.PE_SOLUTION_MANAGER: {
       // Dedicated MANAGER desk at bottom
-      return { x: 48.5, y: 83.5, label: `S-MANAGER` };
+      return { x: 48, y: 83.5, label: `S-MANAGER` };
     }
 
     // --- EXECUTIVE MANAGEMENT (KOREAN DISPATCHER & GROUP LEADER) ---
@@ -234,20 +234,20 @@ export const getCoordinatesForZone = (zoneKey, slotIndex = 0) => {
 
     // --- MEETING ROOMS & STORAGES ---
     case ZONES.MEETING_1:
-      return { x: 9, y: 24, label: 'MTG-1' };
+      return { x: 7.75, y: 24, label: 'MTG-1' };
     case ZONES.MEETING_2:
-      return { x: 21, y: 24, label: 'MTG-2' };
+      return { x: 17.25, y: 24, label: 'MTG-2' };
     case ZONES.MEETING_3:
-      return { x: 33, y: 30.5, label: 'MTG-3' };
-    case ZONES.UNITBOX_STORAGE:
-      return { x: 44.5, y: 30.5, label: 'UB-STOR' };
+      return { x: 26.75, y: 24, label: 'MTG-3' };
     case ZONES.JIG_DEVELOPMENT: {
-      const col = slotIndex % 3;
-      const row = Math.floor(slotIndex / 3);
-      return { x: 33 + col * 5.5, y: 16.5 + row * 3, label: `JIG-${slotIndex + 1}` };
+      const col = slotIndex % 2;
+      const row = Math.floor(slotIndex / 2);
+      return { x: 35 + col * 2.5, y: 22 + row * 4, label: `JIG-${slotIndex + 1}` };
     }
+    case ZONES.UNITBOX_STORAGE:
+      return { x: 45.75, y: 24, label: 'UB-STOR' };
     case ZONES.SAMPLE_STORAGE:
-      return { x: 55, y: 24, label: 'SMP-STOR' };
+      return { x: 55.25, y: 24, label: 'SMP-STOR' };
 
     case ZONES.STAIRS:
       return { x: 62.5, y: 24, label: 'TANGGA' };
@@ -282,7 +282,7 @@ export const getEngineerTargetPosition = (engineer, phase, index, currentTimeMin
   // Determine home desk zone
   // ponytail: calculate homeSlot dynamically so any number of engineers sit at desks cleanly
   let homeZone = ZONES.PE_PRODUCTION;
-  let homeSlot = (engineer.slotIndex !== undefined ? engineer.slotIndex : (engineer.id ? (engineer.id - 1) : index)) % 9;
+  let homeSlot = (engineer.slotIndex !== undefined ? engineer.slotIndex : (engineer.id ? (engineer.id - 1) : index)) % 15;
   if (engineer.id === 31 || engineer.role?.includes('Dispatcher') || engineer.employee_id === 'PE_EXP01') {
     homeZone = ZONES.PE_DISPATCHER;
   } else if (engineer.id === 32 || engineer.role?.includes('Group Leader') || engineer.employee_id === 'PE_GL01') {

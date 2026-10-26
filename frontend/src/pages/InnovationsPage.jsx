@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Plus,
   BarChart3,
@@ -93,6 +94,7 @@ const normalizeAttachments = (raw) => {
 
 export const InnovationsPage = () => {
   const { t } = useTranslation();
+  const { requireAuth } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'records'
   const [selectedYear, setSelectedYear] = useState(2026);
   const [repoViewMode, setRepoViewMode] = useState('cards'); // 'cards' | 'table'
@@ -304,6 +306,7 @@ export const InnovationsPage = () => {
 
   // Open Article Editor (New or Edit)
   const handleOpenEditor = (item = null) => {
+    if (!requireAuth(item ? 'Edit Inovasi' : 'Submit Inovasi')) return;
     if (item) {
       setEditingId(item.id);
       setFormTitle(item.title || '');

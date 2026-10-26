@@ -624,23 +624,27 @@ function drawOfficeFloor(ctx, width, height, project, isDark, isNight) {
 }
 
 function drawFloorPlanRooms(ctx, width, height, project, isDark, isNight, tick) {
-  // Top Row Rooms
-  drawRoomBox(ctx, width, height, project, { x1: 3, y1: 10, x2: 15, y2: 38 }, 'MEETING 1', '#8b5cf6', isDark, () => {
-    drawMiniTable(ctx, width, height, project, 9, 24, 12, 7, '#a78bfa');
+  // Top Row Rooms (Equal width 9.5 each: Meeting 1, 2, 3, JIG Room, Unitbox, Sample Room across x: 3..60)
+  drawRoomBox(ctx, width, height, project, { x1: 3, y1: 10, x2: 12.5, y2: 38 }, 'MEETING 1', '#8b5cf6', isDark, () => {
+    drawMiniTable(ctx, width, height, project, 7.75, 24, 10, 6.5, '#a78bfa');
   });
 
-  drawRoomBox(ctx, width, height, project, { x1: 15, y1: 10, x2: 27, y2: 38 }, 'MEETING 2', '#8b5cf6', isDark, () => {
-    drawMiniTable(ctx, width, height, project, 21, 24, 12, 7, '#a78bfa');
+  drawRoomBox(ctx, width, height, project, { x1: 12.5, y1: 10, x2: 22, y2: 38 }, 'MEETING 2', '#8b5cf6', isDark, () => {
+    drawMiniTable(ctx, width, height, project, 17.25, 24, 10, 6.5, '#a78bfa');
   });
 
-  // JIG DEVELOPMENT (di atas Meeting 3 dan Unitbox Storage, x: 27..50, y: 10..23)
-  drawRoomBox(ctx, width, height, project, { x1: 27, y1: 10, x2: 50, y2: 23 }, 'JIG DEVELOPMENT', '#10b981', isDark, () => {
-    const benchPos = project(38.5, 16.5, 0, width, height);
+  drawRoomBox(ctx, width, height, project, { x1: 22, y1: 10, x2: 31.5, y2: 38 }, 'MEETING 3', '#8b5cf6', isDark, () => {
+    drawMiniTable(ctx, width, height, project, 26.75, 24, 10, 6.5, '#a78bfa');
+  });
+
+  // JIG ROOM (diapit diantara Meeting 3 dan Unitbox Storage, x: 31.5..41, y: 10..38)
+  drawRoomBox(ctx, width, height, project, { x1: 31.5, y1: 10, x2: 41, y2: 38 }, 'JIG ROOM', '#10b981', isDark, () => {
+    const benchPos = project(36.25, 22, 0, width, height);
     ctx.fillStyle = isDark ? '#064e3b' : '#a7f3d0';
-    ctx.fillRect(benchPos.x - 14, benchPos.y - 5, 28, 10);
+    ctx.fillRect(benchPos.x - 14, benchPos.y - 6, 28, 12);
     ctx.strokeStyle = '#059669';
     ctx.lineWidth = 1;
-    ctx.strokeRect(benchPos.x - 14, benchPos.y - 5, 28, 10);
+    ctx.strokeRect(benchPos.x - 14, benchPos.y - 6, 28, 12);
 
     // Clamps & Fixture Pins
     ctx.fillStyle = '#f59e0b';
@@ -652,26 +656,24 @@ function drawFloorPlanRooms(ctx, width, height, project, isDark, isNight, tick) 
     ctx.fillStyle = '#059669';
     ctx.font = 'bold 7.5px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('⚙️ JIG FIXTURE BENCH', benchPos.x, benchPos.y + 10);
+    ctx.fillText('⚙️ JIG FIXTURE BENCH', benchPos.x, benchPos.y + 12);
   });
 
-  // MEETING 3 (di bawah JIG Development, x: 27..39, y: 23..38)
-  drawRoomBox(ctx, width, height, project, { x1: 27, y1: 23, x2: 39, y2: 38 }, 'MEETING 3', '#8b5cf6', isDark, () => {
-    drawMiniTable(ctx, width, height, project, 33, 30.5, 10, 6, '#a78bfa');
-  });
-
-  // UNITBOX STORAGE (di bawah JIG Development, x: 39..50, y: 23..38)
-  drawRoomBox(ctx, width, height, project, { x1: 39, y1: 23, x2: 50, y2: 38 }, 'UNITBOX STORAGE', '#f59e0b', isDark, () => {
-    const pos = project(44.5, 30.5, 0, width, height);
+  // UNITBOX (x: 41..50.5, y: 10..38)
+  drawRoomBox(ctx, width, height, project, { x1: 41, y1: 10, x2: 50.5, y2: 38 }, 'UNITBOX', '#f59e0b', isDark, () => {
+    const pos = project(45.75, 24, 0, width, height);
     ctx.fillStyle = '#d97706';
     ctx.font = '8px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('📦 UNITBOX', pos.x, pos.y);
   });
 
-  drawRoomBox(ctx, width, height, project, { x1: 50, y1: 10, x2: 60, y2: 38 }, 'SAMPLE STORAGE', '#f59e0b', isDark, () => {
-    const pos = project(55, 24, 0, width, height);
+  // SAMPLE ROOM (x: 50.5..60, y: 10..38)
+  drawRoomBox(ctx, width, height, project, { x1: 50.5, y1: 10, x2: 60, y2: 38 }, 'SAMPLE ROOM', '#f59e0b', isDark, () => {
+    const pos = project(55.25, 24, 0, width, height);
     ctx.fillStyle = '#d97706';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
     ctx.fillText('📱 SAMPLES', pos.x, pos.y);
   });
 
@@ -756,7 +758,7 @@ function drawFloorPlanRooms(ctx, width, height, project, isDark, isNight, tick) 
   });
 
   // Bottom Row Rooms: 3 Divisions + Dedicated MANAGER Zone + EXECUTIVE MANAGEMENT
-  drawTeamZoneBox(ctx, width, height, project, 3, 21, 48, 76, 92, 'PE PRODUCTION', '#3b82f6', isDark);
+  drawTeamZoneBox(ctx, width, height, project, 3, 21, 48, 76, 92, 'PE PART', '#3b82f6', isDark);
   drawTeamZoneBox(ctx, width, height, project, 21, 39, 48, 76, 92, 'PE MECHA', '#10b981', isDark);
   drawTeamZoneBox(ctx, width, height, project, 39, 57, 48, 76, 92, 'PE SOLUTION', '#8b5cf6', isDark);
 
@@ -824,7 +826,8 @@ function drawRoomBox(ctx, width, height, project, bounds, title, accentColor, is
 
   const labelPos = project((bounds.x1 + bounds.x2) / 2, bounds.y1 + 3, 0, width, height);
   ctx.fillStyle = accentColor;
-  ctx.font = 'bold 9px sans-serif';
+  const roomW = bounds.x2 - bounds.x1;
+  ctx.font = roomW <= 8 ? 'bold 8px sans-serif' : 'bold 9px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(title, labelPos.x, labelPos.y);
 
@@ -971,14 +974,14 @@ function drawMiniTable(ctx, width, height, project, cx, cy, rx, ry, color) {
 }
 
 function drawWorkstationDesks(ctx, width, height, project, isDark, isNight) {
-  // PE Production (9 Members: 3x3 + 1 Manager)
-  drawTeamDesks(ctx, width, height, project, 7.5, 53, 5, 8, 3, 3, 12.5, 83.5, '#3b82f6', isDark, isNight);
+  // PE Production / PE Part (15 Members: 3x5 block + 1 Manager)
+  drawTeamDesks(ctx, width, height, project, 7, 52.5, 5, 5, 3, 5, 12, 83.5, '#3b82f6', isDark, isNight);
 
-  // PE Mecha (9 Members: 3x3 + 1 Manager)
-  drawTeamDesks(ctx, width, height, project, 25.5, 53, 5, 8, 3, 3, 30.5, 83.5, '#10b981', isDark, isNight);
+  // PE Mecha (15 Members: 3x5 block + 1 Manager)
+  drawTeamDesks(ctx, width, height, project, 25, 52.5, 5, 5, 3, 5, 30, 83.5, '#10b981', isDark, isNight);
 
-  // PE Solution (9 Members: 3x3 + 1 Manager)
-  drawTeamDesks(ctx, width, height, project, 43.5, 53, 5, 8, 3, 3, 48.5, 83.5, '#8b5cf6', isDark, isNight);
+  // PE Solution (15 Members: 3x5 block + 1 Manager)
+  drawTeamDesks(ctx, width, height, project, 43, 52.5, 5, 5, 3, 5, 48, 83.5, '#8b5cf6', isDark, isNight);
 
   // PE Executive Management (2 Boss Desks: Korean Dispatcher & PE Group Leader)
   drawExecutiveBossDesks(ctx, width, height, project, isDark, isNight);
@@ -1046,8 +1049,8 @@ function drawBossDeskItem(ctx, x, y, accentColor, isDark, isNight, labelText, is
 }
 
 function drawSingleDesk(ctx, x, y, tagColor, isDark, isNight, isManager) {
-  const deskWidth = isManager ? 22 : 16;
-  const deskHeight = isManager ? 9 : 7;
+  const deskWidth = isManager ? 22 : 15;
+  const deskHeight = isManager ? 9 : 6.5;
 
   ctx.fillStyle = isDark
     ? (isNight ? '#1e293b' : '#334155')

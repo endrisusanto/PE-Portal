@@ -85,6 +85,29 @@
   margin-top: var(--space-2);
 }
 
+.guestEntryBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border);
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.guestEntryBtn:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover, rgba(255, 255, 255, 0.25));
+}
+
 .footerNote {
   margin-top: var(--space-6);
   padding-top: var(--space-4);

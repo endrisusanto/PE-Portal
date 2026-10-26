@@ -69,13 +69,17 @@ func NewDataHubService(settingsRepo *repository.SettingsRepository) *DataHubServ
 
 	apiKey := os.Getenv("DATAHUB_API_KEY")
 
+	// ponytail: 300-second timeout matching Python requests timeout=300
+	// Proxy: nil matching Python proxies={"http": None, "https": None} for internal direct intranet
 	return &DataHubService{
 		settingsRepo: settingsRepo,
 		baseURL:      baseURL,
 		apiKey:       apiKey,
-		// ponytail: 8-second timeout to avoid holding requests when intranet server is unreachable from external networks
 		httpClient: &http.Client{
-			Timeout: 8 * time.Second,
+			Timeout: 300 * time.Second,
+			Transport: &http.Transport{
+				Proxy: nil,
+			},
 		},
 	}
 }
@@ -128,24 +132,24 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 		return nil, fmt.Errorf("failed to copy file contents: %w", err)
 	}
 
-	// 2. folder_id or project_id (at least one is required)
-	projectID := strings.TrimSpace(params.ProjectID)
+	// 2. folder_id or project_id (mutually exclusive, matching Python script)
 	folderID := strings.TrimSpace(params.FolderID)
-
 	if folderID == "" && defaultFolder != "" {
 		folderID = defaultFolder
 	}
-	if projectID == "" && folderID == "" {
+
+	projectID := strings.TrimSpace(params.ProjectID)
+	if folderID == "" && projectID == "" && defaultProj != "" {
 		projectID = defaultProj
 	}
 
+	// Strictly send EITHER folder_id OR project_id
 	if folderID != "" {
 		if len(folderID) > 50 {
 			folderID = folderID[:50]
 		}
 		_ = writer.WriteField("folder_id", folderID)
-	}
-	if projectID != "" {
+	} else if projectID != "" {
 		if len(projectID) > 50 {
 			projectID = projectID[:50]
 		}
@@ -242,15 +246,24 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(respBody, &parsed); err == nil {
-		if id, ok := parsed["object_id"].(string); ok {
-			result.ObjectID = id
-		} else if id, ok := parsed["id"].(string); ok {
-			result.ObjectID = id
-		} else if items, ok := parsed["items"].([]interface{}); ok && len(items) > 0 {
-			if firstItem, ok := items[0].(map[string]interface{}); ok {
-				if id, ok := firstItem["object_id"].(string); ok {
-					result.ObjectID = id
+		// Check for item errors matching python script: failed = [item for item in result.get("items", []) if item.get("error")]
+		if items, ok := parsed["items"].([]interface{}); ok && len(items) > 0 {
+			for _, itemRaw := range items {
+				if itemMap, ok := itemRaw.(map[string]interface{}); ok {
+					if errVal, hasErr := itemMap["error"]; hasErr && errVal != nil && fmt.Sprint(errVal) != "" {
+						return nil, fmt.Errorf("datahub item error on '%v': %v", itemMap["name"], errVal)
+					}
+					if id, ok := itemMap["object_id"].(string); ok && result.ObjectID == "" {
+						result.ObjectID = id
+					}
 				}
+			}
+		}
+		if result.ObjectID == "" {
+			if id, ok := parsed["object_id"].(string); ok {
+				result.ObjectID = id
+			} else if id, ok := parsed["id"].(string); ok {
+				result.ObjectID = id
 			}
 		}
 	}
@@ -258,9 +271,9 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 	return result, nil
 }
 
-// TestConnection tests connectivity to DataHub by calling GET /v3/projects
+// TestConnection tests connectivity to DataHub by calling GET /v3/folders/{folder} or /v3/projects
 func (s *DataHubService) TestConnection(ctx context.Context, customURL string, customKey string) (map[string]interface{}, error) {
-	baseURL, apiKey, _, _, _ := s.resolveConfig(ctx)
+	baseURL, apiKey, _, defaultFolder, _ := s.resolveConfig(ctx)
 	if customURL != "" {
 		baseURL = strings.TrimRight(customURL, "/")
 	}
@@ -269,7 +282,14 @@ func (s *DataHubService) TestConnection(ctx context.Context, customURL string, c
 	}
 
 	targetURL := baseURL + "/v3/projects"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	if defaultFolder != "" {
+		targetURL = baseURL + "/v3/folders/" + defaultFolder
+	}
+
+	testCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(testCtx, http.MethodGet, targetURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid request URL: %w", err)
 	}
@@ -289,6 +309,24 @@ func (s *DataHubService) TestConnection(ctx context.Context, customURL string, c
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound && defaultFolder != "" {
+		req2, err2 := http.NewRequestWithContext(testCtx, http.MethodGet, baseURL+"/v3/projects", nil)
+		if err2 == nil {
+			if apiKey != "" {
+				req2.Header.Set("Authorization", req.Header.Get("Authorization"))
+			}
+			if resp2, err3 := s.httpClient.Do(req2); err3 == nil {
+				defer resp2.Body.Close()
+				body2, _ := io.ReadAll(resp2.Body)
+				return map[string]interface{}{
+					"status_code": resp2.StatusCode,
+					"response":    string(body2),
+					"endpoint":    baseURL + "/v3/projects",
+				}, nil
+			}
+		}
+	}
+
 	return map[string]interface{}{
 		"status_code": resp.StatusCode,
 		"response":    string(body),

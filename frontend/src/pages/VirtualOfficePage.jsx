@@ -55,6 +55,7 @@ export const VirtualOfficePage = () => {
         const res = await api.get('/users');
         if (Array.isArray(res.data) && res.data.length > 0) {
           // ponytail: Filter out system admin and map strictly registered users
+          const teamCounters = { [TEAMS.PRODUCTION]: 0, [TEAMS.MECHA]: 0, [TEAMS.SOLUTION]: 0, [TEAMS.MANAGEMENT]: 0 };
           const registeredUsers = res.data
             .filter((u) => u.username !== 'admin' && u.employee_id !== 'ADMIN001' && u.is_active !== false)
             .sort((a, b) => (a.employee_id || '').localeCompare(b.employee_id || ''))
@@ -70,6 +71,7 @@ export const VirtualOfficePage = () => {
               }
 
               const isLeader = u.role === 'manager' || u.role === 'leader' || u.employee_id?.startsWith('PE_');
+              const slot = !isLeader && teamCounters[team] !== undefined ? teamCounters[team]++ : 0;
               let roleTitle = u.role;
               if (u.employee_id === 'PE_EXP01') roleTitle = 'Korean Expatriate Dispatcher';
               else if (u.employee_id === 'PE_GL01') roleTitle = 'PE Group Leader / Group Manager';
@@ -90,6 +92,7 @@ export const VirtualOfficePage = () => {
                 role: roleTitle,
                 team,
                 isLeader,
+                slotIndex: slot,
                 currentTask: `Bekerja aktif di ${roleTitle}`,
                 avatarColor: ['#2563eb', '#059669', '#7c3aed', '#d97706', '#e11d48', '#0284c7'][idx % 6],
                 apiUser: u,

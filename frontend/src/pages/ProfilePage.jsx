@@ -930,7 +930,7 @@ export const ProfilePage = () => {
                 label="Group / List Name"
                 value={newListName}
                 onChange={(e) => setNewListName(e.target.value)}
-                placeholder="e.g. PE Production Leads"
+                placeholder="e.g. PE Part Leads"
                 required
               />
               <Input

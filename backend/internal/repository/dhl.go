@@ -58,9 +58,15 @@ func (r *DHLRepository) List(ctx context.Context, search string, statusCode stri
 	}
 
 	if statusCode != "" && statusCode != "all" {
-		query += fmt.Sprintf(" AND status_code = $%d", argIdx)
-		args = append(args, statusCode)
-		argIdx++
+		if statusCode == "transit" {
+			query += fmt.Sprintf(" AND status_code IN ($%d, 'failure')", argIdx)
+			args = append(args, "transit")
+			argIdx++
+		} else {
+			query += fmt.Sprintf(" AND status_code = $%d", argIdx)
+			args = append(args, statusCode)
+			argIdx++
+		}
 	}
 
 	if collectedFilter == "collected" {

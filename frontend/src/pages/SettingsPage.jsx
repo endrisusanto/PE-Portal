@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Activity, Trash2, Server, ShieldCheck, CheckCircle2, AlertTriangle, Mail, Send, Bot, Sparkles, RefreshCw, Database, FolderSync, FolderCheck } from 'lucide-react';
+import { Plus, Activity, Trash2, Server, ShieldCheck, CheckCircle2, AlertTriangle, Mail, Send, Bot, Sparkles, RefreshCw, Database, FolderSync, FolderCheck, FolderOpen, Folder, FolderPlus, CornerLeftUp } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -58,6 +58,14 @@ export const SettingsPage = () => {
   const [testingDatahub, setTestingDatahub] = useState(false);
   const [scanningWatch, setScanningWatch] = useState(false);
   const [datahubFeedback, setDatahubFeedback] = useState(null);
+
+  // Folder picker state
+  const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
+  const [browserData, setBrowserData] = useState({ current_path: '', parent_path: '', directories: [], quick_roots: [] });
+  const [loadingDirs, setLoadingDirs] = useState(false);
+  const [browserError, setBrowserError] = useState('');
+  const [newSubfolderName, setNewSubfolderName] = useState('');
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -273,6 +281,51 @@ export const SettingsPage = () => {
       setDatahubFeedback({ type: 'error', text: err.response?.data?.message || err.message || 'Gagal menjalankan scan folder lokal.' });
     } finally {
       setScanningWatch(false);
+    }
+  };
+
+  const fetchDirectories = async (targetPath) => {
+    setLoadingDirs(true);
+    setBrowserError('');
+    try {
+      const res = await api.get('/settings/browse-directories', {
+        params: targetPath ? { path: targetPath } : {},
+      });
+      setBrowserData(res.data || {});
+    } catch (err) {
+      setBrowserError(err.response?.data?.message || err.message || 'Gagal memuat direktori.');
+    } finally {
+      setLoadingDirs(false);
+    }
+  };
+
+  const handleOpenFolderPicker = () => {
+    setIsFolderPickerOpen(true);
+    setNewSubfolderName('');
+    fetchDirectories(datahubConfig.watch_folder_path || '/data/files/datahub_watch');
+  };
+
+  const handleSelectFolder = (path) => {
+    setDatahubConfig((prev) => ({ ...prev, watch_folder_path: path }));
+    setIsFolderPickerOpen(false);
+  };
+
+  const handleCreateSubfolder = async (e) => {
+    if (e) e.preventDefault();
+    if (!newSubfolderName.trim()) return;
+    setCreatingFolder(true);
+    setBrowserError('');
+    try {
+      const current = browserData.current_path || '/data/files';
+      const cleanCurrent = current.replace(/\/+$/, '');
+      const subpath = `${cleanCurrent}/${newSubfolderName.trim()}`;
+      await api.post('/settings/create-directory', { path: subpath });
+      setNewSubfolderName('');
+      await fetchDirectories(subpath);
+    } catch (err) {
+      setBrowserError(err.response?.data?.message || err.message || 'Gagal membuat folder.');
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
@@ -855,12 +908,28 @@ export const SettingsPage = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'center' }}>
-              <Input
-                label="Local Watch Folder Path"
-                value={datahubConfig.watch_folder_path || ''}
-                onChange={(e) => setDatahubConfig({ ...datahubConfig, watch_folder_path: e.target.value })}
-                placeholder="/data/files/datahub_watch"
-              />
+              <div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      label="Local Watch Folder Path"
+                      value={datahubConfig.watch_folder_path || ''}
+                      onChange={(e) => setDatahubConfig({ ...datahubConfig, watch_folder_path: e.target.value })}
+                      placeholder="/data/files/datahub_watch"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    icon={FolderOpen}
+                    onClick={handleOpenFolderPicker}
+                    title="Buka File Explorer untuk memilih folder root"
+                    style={{ marginBottom: '2px', whiteSpace: 'nowrap' }}
+                  >
+                    Pick Local Folder
+                  </Button>
+                </div>
+              </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '10px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}>
@@ -974,6 +1043,202 @@ export const SettingsPage = () => {
             placeholder={t('settings.server_description_placeholder', 'Tool capabilities and purpose')}
           />
         </form>
+      </Modal>
+
+      {/* Pick Local Root Folder Modal */}
+      <Modal
+        isOpen={isFolderPickerOpen}
+        onClose={() => setIsFolderPickerOpen(false)}
+        title="Pick Local Root Folder (Server Storage)"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+              Dipilih: <strong>{browserData.current_path || '-'}</strong>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button variant="secondary" onClick={() => setIsFolderPickerOpen(false)}>
+                {t('common.cancel', 'Batal')}
+              </Button>
+              <Button
+                variant="primary"
+                icon={FolderCheck}
+                onClick={() => handleSelectFolder(browserData.current_path)}
+                disabled={!browserData.current_path}
+              >
+                Pilih Folder Ini
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Quick Roots */}
+          <div>
+            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+              Lokasi Cepat (Quick Roots)
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {(browserData.quick_roots || [
+                { label: 'Watch Folder', path: '/data/files/datahub_watch' },
+                { label: 'File Storage', path: '/data/files' },
+                { label: 'App Root', path: '/app' },
+                { label: 'System Root', path: '/' },
+              ]).map((qr) => (
+                <button
+                  key={qr.path}
+                  type="button"
+                  onClick={() => fetchDirectories(qr.path)}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 'var(--font-size-xs)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: qr.path === browserData.current_path ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                    backgroundColor: qr.path === browserData.current_path ? 'var(--color-primary-subtle, rgba(59, 130, 246, 0.1))' : 'var(--color-bg-secondary)',
+                    color: qr.path === browserData.current_path ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {qr.label || qr.path}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Current Path Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            backgroundColor: 'var(--color-bg-secondary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+          }}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={CornerLeftUp}
+              disabled={!browserData.parent_path || browserData.parent_path === browserData.current_path}
+              onClick={() => fetchDirectories(browserData.parent_path)}
+              title="Naik ke Folder Parent"
+              style={{ padding: '4px 8px' }}
+            >
+              Naik
+            </Button>
+            <div style={{ flex: 1, fontFamily: 'monospace', fontSize: 'var(--font-size-xs)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {browserData.current_path || '/'}
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={RefreshCw}
+              loading={loadingDirs}
+              onClick={() => fetchDirectories(browserData.current_path)}
+              title="Muat Ulang"
+              style={{ padding: '4px 8px' }}
+            />
+          </div>
+
+          {/* Error notice if any */}
+          {browserError && (
+            <div style={{ padding: '8px 12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-sm)' }}>
+              {browserError}
+            </div>
+          )}
+
+          {/* Directory listing */}
+          <div style={{
+            maxHeight: '260px',
+            minHeight: '140px',
+            overflowY: 'auto',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--color-bg-primary)',
+          }}>
+            {loadingDirs ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                Memuat direktori...
+              </div>
+            ) : browserData.directories && browserData.directories.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {browserData.directories.map((dir) => (
+                  <div
+                    key={dir.path}
+                    onClick={() => fetchDirectories(dir.path)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderBottom: '1px solid var(--color-border-subtle)',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <Folder size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {dir.name}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectFolder(dir.path);
+                      }}
+                    >
+                      Pilih
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                Tidak ada subdirektori di folder ini.
+              </div>
+            )}
+          </div>
+
+          {/* Create Subfolder inline form */}
+          <form onSubmit={handleCreateSubfolder} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <input
+                type="text"
+                placeholder="Nama subfolder baru..."
+                value={newSubfolderName}
+                onChange={(e) => setNewSubfolderName(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '34px',
+                  padding: '0 10px',
+                  fontSize: 'var(--font-size-xs)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-primary)',
+                }}
+              />
+            </div>
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              icon={FolderPlus}
+              loading={creatingFolder}
+              disabled={!newSubfolderName.trim()}
+              style={{ height: '34px', whiteSpace: 'nowrap' }}
+            >
+              Buat Folder
+            </Button>
+          </form>
+        </div>
       </Modal>
     </div>
   );

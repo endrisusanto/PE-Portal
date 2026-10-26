@@ -792,23 +792,27 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
               </div>
               {mcpConnectors.length > 0 && (
                 <div
-                  title={`Terhubung dengan ${mcpConnectors.length} MCP Connector (${mcpConnectors.map((m) => m.name).join(', ')})`}
+                  title={`Terhubung dengan ${mcpConnectors.length} MCP Connector: ${mcpConnectors.map((m) => `${m.name} (${m.tools_count} tools: ${m.tools?.join(', ') || ''})`).join('; ')}`}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    gap: '5px',
                     fontSize: '11px',
-                    padding: '1px 6px',
+                    padding: '2px 8px',
                     borderRadius: '4px',
-                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                    color: '#3b82f6',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    color: '#10b981',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
                     cursor: 'pointer',
+                    fontWeight: 500,
                   }}
                   onClick={() => navigate('/settings')}
                 >
                   <span style={{ fontSize: '10px' }}>🔌</span>
-                  <span>{mcpConnectors[0]?.name || 'MCP'}</span>
+                  <span>
+                    {mcpConnectors[0]?.name || 'MCP'}
+                    {mcpConnectors[0]?.tools_count > 0 && ` (${mcpConnectors[0].tools_count} tools)`}
+                  </span>
                   {mcpConnectors.length > 1 && (
                     <span style={{ fontWeight: 700 }}>+{mcpConnectors.length - 1}</span>
                   )}

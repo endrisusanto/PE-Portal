@@ -304,6 +304,8 @@ func main() {
 	api.PUT("/settings/datahub", settingsHandler.UpdateDataHubConfig, middleware.RequireRole("admin"))
 	api.POST("/settings/datahub/test", settingsHandler.TestDataHubConnection, middleware.RequireRole("admin"))
 	api.POST("/settings/datahub/watch-scan", settingsHandler.TriggerDataHubWatchScan, middleware.RequireRole("admin"))
+	api.GET("/settings/browse-directories", settingsHandler.BrowseDirectories, middleware.RequireRole("admin"))
+	api.POST("/settings/create-directory", settingsHandler.CreateDirectory, middleware.RequireRole("admin"))
 	api.GET("/admin/audit-logs", settingsHandler.ListAuditLogs, middleware.RequireRole("admin"))
 	api.GET("/dashboard/stats", settingsHandler.DashboardStats)
 

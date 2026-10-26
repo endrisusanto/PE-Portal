@@ -31,10 +31,12 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { Table } from '../components/common/Table';
+import { useAuth } from '../contexts/AuthContext';
 import styles from './DocumentsPage.module.css';
 
 export const DocumentsPage = () => {
   const { t } = useTranslation();
+  const { requireAuth } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [fileType, setFileType] = useState('');
   const [loading, setLoading] = useState(true);
@@ -481,7 +483,7 @@ export const DocumentsPage = () => {
             {t('documents.subtitle', 'Centralized engineering archive with in-browser view-only support')}
           </p>
         </div>
-        <Button variant="primary" icon={Upload} onClick={() => setIsUploadOpen(true)}>
+        <Button variant="primary" icon={Upload} onClick={() => requireAuth('Upload Dokumen') && setIsUploadOpen(true)}>
           {t('documents.upload_btn', 'Upload File')}
         </Button>
       </div>
@@ -516,7 +518,7 @@ export const DocumentsPage = () => {
           title="No documents uploaded"
           description="Upload technical SOPs, BOM spreadsheets, JIG schematics, or inspection reports."
           actionLabel="Upload First File"
-          onAction={() => setIsUploadOpen(true)}
+          onAction={() => requireAuth('Upload Dokumen') && setIsUploadOpen(true)}
         />
       ) : (
         <Table columns={columns} data={documents} />

@@ -32,7 +32,7 @@ import { LoadingState } from '../components/common/LoadingState';
 // ponytail: parent group display labels and grouping helper
 const PARENT_GROUP_LABELS = {
   pe_mecha: 'PE Mecha',
-  pe_production: 'PE Production',
+  pe_production: 'PE Part',
   pe_solution: 'PE Solution Production',
 };
 
@@ -637,7 +637,7 @@ export const AdminPage = () => {
                 Dynamic Side Menu Visibility & Access Control
               </div>
               <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                Atur menu yang tampil di sidebar untuk setiap Role (Admin/Manager/Member/Guest) dan Part (PE Production, PE Mecha, PE Solution).
+                Atur menu yang tampil di sidebar untuk setiap Role (Admin/Manager/Member/Guest) dan Part (PE Part, PE Mecha, PE Solution).
               </div>
             </div>
 
@@ -887,7 +887,7 @@ export const AdminPage = () => {
                         <td style={{ padding: '14px 16px' }}>
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                             {[
-                              { id: 'pe_production', label: 'PE Production' },
+                              { id: 'pe_production', label: 'PE Part' },
                               { id: 'pe_mecha', label: 'PE Mecha' },
                               { id: 'pe_solution', label: 'PE Solution' },
                             ].map((g) => {

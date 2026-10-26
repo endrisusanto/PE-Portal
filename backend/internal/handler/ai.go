@@ -251,7 +251,7 @@ func (h *AIHandler) Chat(c echo.Context) error {
 
 	var uidPtr *uuid.UUID
 	if val := c.Get(middleware.ContextKeyUserID); val != nil {
-		if uid, ok := val.(uuid.UUID); ok {
+		if uid, ok := val.(uuid.UUID); ok && uid != uuid.Nil {
 			uidPtr = &uid
 		}
 	}
@@ -261,9 +261,33 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusServiceUnavailable, "LLM provider is not configured: "+err.Error())
 	}
 
+	// Extract current user info
+	userName := "Engineer"
+	userRole := "member"
+	if uVal := c.Get(middleware.ContextKeyUserRole); uVal != nil {
+		if r, ok := uVal.(string); ok && r != "" {
+			userRole = r
+		}
+	}
+	if claimsVal := c.Get(middleware.ContextKeyUserClaims); claimsVal != nil {
+		if claims, ok := claimsVal.(*model.UserClaims); ok && claims.Username != "" {
+			userName = claims.Username
+		}
+	}
+
+	lastUserMsg := ""
+	for i := len(req.Messages) - 1; i >= 0; i-- {
+		if req.Messages[i].Role == "user" {
+			lastUserMsg = fmt.Sprint(req.Messages[i].Content)
+			break
+		}
+	}
+
 	// ponytail: Inject registered active MCP servers from Settings into LLM context
 	var mcpContextBuilder strings.Builder
 	var activeMCPNames []string
+	var primaryMCPServer *model.MCPServer
+	var totalToolsCount int
 
 	if h.mcpRepo != nil {
 		servers, err := h.mcpRepo.List(c.Request().Context())
@@ -273,6 +297,10 @@ func (h *AIHandler) Chat(c echo.Context) error {
 					continue
 				}
 				activeMCPNames = append(activeMCPNames, s.Name)
+				if primaryMCPServer == nil {
+					sCopy := s
+					primaryMCPServer = &sCopy
+				}
 				desc := ""
 				if s.Description != nil {
 					desc = *s.Description
@@ -282,12 +310,10 @@ func (h *AIHandler) Chat(c echo.Context) error {
 				if h.mcpSvc != nil {
 					tools, _ := h.mcpSvc.FetchTools(c.Request().Context(), &s)
 					if len(tools) > 0 {
-						mcpContextBuilder.WriteString(" | Available Tools: ")
-						for i, t := range tools {
-							if i > 0 {
-								mcpContextBuilder.WriteString(", ")
-							}
-							mcpContextBuilder.WriteString(t.Name)
+						totalToolsCount += len(tools)
+						mcpContextBuilder.WriteString("\n  Available Tools:")
+						for _, t := range tools {
+							mcpContextBuilder.WriteString(fmt.Sprintf("\n  * %s: %s", t.Name, t.Description))
 						}
 					}
 				}
@@ -295,8 +321,33 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		}
 	}
 
+	// ponytail: If active MCP server is connected (like project-manager-mcp), try forwarding GBA/task/report queries to MCP chat
+	isMcpQuery := false
+	lowerMsg := strings.ToLower(lastUserMsg)
+	mcpKeywords := []string{"task", "tugas", "gba", "model", "deadline", "kinerja", "laporan", "report", "approval", "mcp", "proyek", "project", "ontime", "late", "status", "build", "ap", "cp", "csc", "pic"}
+	for _, kw := range mcpKeywords {
+		if strings.Contains(lowerMsg, kw) {
+			isMcpQuery = true
+			break
+		}
+	}
+
+	if isMcpQuery && primaryMCPServer != nil && h.mcpSvc != nil {
+		mcpReply, err := h.mcpSvc.CallMCPChat(c.Request().Context(), primaryMCPServer, lastUserMsg, req.Messages, userName, userRole)
+		if err == nil && strings.TrimSpace(mcpReply) != "" {
+			return c.JSON(http.StatusOK, map[string]interface{}{
+				"reply":       mcpReply,
+				"model":       "MCP: " + primaryMCPServer.Name,
+				"provider":    "MCP Connector",
+				"is_custom":   true,
+				"mcp_servers": activeMCPNames,
+			})
+		}
+	}
+
+	// Fallback to configured LLM with full MCP context injected
 	if mcpContextBuilder.Len() > 0 {
-		mcpNote := "You are directly connected to the following active MCP (Model Context Protocol) connectors registered in the portal Settings:" +
+		mcpNote := "You are directly connected to the following active MCP (Model Context Protocol) connectors registered in portal Settings:" +
 			mcpContextBuilder.String() +
 			"\nYou can reference these MCP connectors, their tools, and data capabilities when assisting engineers. If an engineer asks about GBA approvals, build verification, or tools from these connectors, provide accurate technical details based on these MCP connectors."
 

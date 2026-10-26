@@ -61,9 +61,9 @@ export function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <AuthProvider>
-          <ThemeAnimatedBackground />
-          <BrowserRouter>
+        <BrowserRouter>
+          <AuthProvider>
+            <ThemeAnimatedBackground />
             <Routes>
               {/* Public Login Route */}
               <Route path="/login" element={<LoginPage />} />
@@ -124,8 +124,8 @@ export function App() {
               {/* Catch-all Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </LanguageProvider>
     </ThemeProvider>
   );

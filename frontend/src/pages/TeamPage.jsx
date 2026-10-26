@@ -8,7 +8,7 @@ import { LoadingState } from '../components/common/LoadingState';
 
 const PARENT_GROUP_TITLES = {
   pe_management: 'PE Executive Management',
-  pe_production: 'PE Production',
+  pe_production: 'PE Part',
   pe_mecha: 'PE Mecha',
   pe_solution: 'PE Solution Production',
 };
