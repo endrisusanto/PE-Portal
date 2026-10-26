@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Activity, Trash2, Server, ShieldCheck, CheckCircle2, AlertTriangle, Mail, Send, Bot, Sparkles, RefreshCw } from 'lucide-react';
+import { Plus, Activity, Trash2, Server, ShieldCheck, CheckCircle2, AlertTriangle, Mail, Send, Bot, Sparkles, RefreshCw, Database, FolderSync, FolderCheck } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -43,6 +43,22 @@ export const SettingsPage = () => {
   const [savingLlm, setSavingLlm] = useState(false);
   const [llmFeedback, setLlmFeedback] = useState(null);
 
+  // DataHub Config state
+  const [datahubConfig, setDatahubConfig] = useState({
+    api_url: 'https://datahub-api.bigdata.samsung.com',
+    api_key: '',
+    default_project_id: 'PE_PORTAL',
+    default_folder_id: '',
+    watch_folder_path: '/data/files/datahub_watch',
+    auto_upload_enabled: false,
+    last_watch_scan_at: null,
+    is_active: true,
+  });
+  const [savingDatahub, setSavingDatahub] = useState(false);
+  const [testingDatahub, setTestingDatahub] = useState(false);
+  const [scanningWatch, setScanningWatch] = useState(false);
+  const [datahubFeedback, setDatahubFeedback] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -60,11 +76,12 @@ export const SettingsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const [mcpRes, authRes, smtpRes, llmRes] = await Promise.all([
+      const [mcpRes, authRes, smtpRes, llmRes, datahubRes] = await Promise.all([
         api.get('/mcp/servers'),
         api.get('/settings/auth').catch(() => ({ data: { provider: 'local' } })),
         api.get('/settings/smtp').catch(() => ({ data: null })),
         api.get('/ai/config').catch(() => ({ data: null })),
+        api.get('/settings/datahub').catch(() => ({ data: null })),
       ]);
       setServers(mcpRes.data);
       setAuthConfig(authRes.data);
@@ -73,6 +90,9 @@ export const SettingsPage = () => {
       }
       if (llmRes.data?.config) {
         setLlmConfig(llmRes.data.config);
+      }
+      if (datahubRes.data) {
+        setDatahubConfig(datahubRes.data);
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message);
@@ -195,6 +215,64 @@ export const SettingsPage = () => {
       setLlmFeedback({ type: 'error', text: err.response?.data?.message || err.message });
     } finally {
       setSavingLlm(false);
+    }
+  };
+
+  const handleSaveDatahub = async (e) => {
+    e.preventDefault();
+    setSavingDatahub(true);
+    setDatahubFeedback(null);
+    try {
+      const res = await api.put('/settings/datahub', datahubConfig);
+      if (res.data?.config) {
+        setDatahubConfig(res.data.config);
+      }
+      setDatahubFeedback({ type: 'success', text: 'Konfigurasi Samsung DataHub API berhasil disimpan.' });
+    } catch (err) {
+      setDatahubFeedback({ type: 'error', text: err.response?.data?.message || err.message || 'Gagal menyimpan konfigurasi DataHub.' });
+    } finally {
+      setSavingDatahub(false);
+    }
+  };
+
+  const handleTestDatahub = async () => {
+    setTestingDatahub(true);
+    setDatahubFeedback(null);
+    try {
+      const res = await api.post('/settings/datahub/test', {
+        api_url: datahubConfig.api_url,
+        api_key: datahubConfig.api_key,
+      });
+      if (res.data?.success) {
+        setDatahubFeedback({ type: 'success', text: `Koneksi berhasil terhubung! (${res.data.message || 'Status 200 OK'})` });
+      } else {
+        setDatahubFeedback({ type: 'error', text: `Koneksi gagal: ${res.data?.message || 'Server intranet tidak dapat dihubungi dari lingkungan saat ini.'}` });
+      }
+    } catch (err) {
+      setDatahubFeedback({ type: 'error', text: err.response?.data?.message || err.message || 'Gagal menguji koneksi DataHub.' });
+    } finally {
+      setTestingDatahub(false);
+    }
+  };
+
+  const handleTriggerWatchScan = async () => {
+    setScanningWatch(true);
+    setDatahubFeedback(null);
+    try {
+      const res = await api.post('/settings/datahub/watch-scan');
+      if (res.data?.success) {
+        const d = res.data.data;
+        const msg = `Scan selesai: ${d.scanned_files} file ditemukan, ${d.uploaded_files} berhasil di-upload ke DataHub & dipindahkan ke folder 'Uploaded'${d.failed_files > 0 ? `, ${d.failed_files} file gagal` : ''}.`;
+        setDatahubFeedback({ type: 'success', text: msg });
+        const ref = await api.get('/settings/datahub');
+        if (ref.data) setDatahubConfig(ref.data);
+      } else {
+        setDatahubFeedback({ type: 'error', text: `Scan gagal: ${res.data?.message || 'Terjadi kesalahan saat memproses folder'}` });
+      }
+    } catch (err) {
+      setDatahubFeedback({ type: 'error', text: err.response?.data?.message || err.message || 'Gagal menjalankan scan folder lokal.' });
+    } finally {
+      setScanningWatch(false);
     }
   };
 
@@ -656,6 +734,164 @@ export const SettingsPage = () => {
           <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--color-border-subtle)' }}>
             <Button type="submit" variant="primary" size="sm" loading={savingLlm}>
               {t('settings.llm_save', 'Save LLM API Configuration')}
+            </Button>
+          </div>
+        </form>
+      </section>
+
+      {/* Samsung Enterprise DataHub API Configuration */}
+      <section style={{
+        backgroundColor: 'var(--color-bg-secondary)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '24px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Database size={18} color="var(--color-accent)" />
+              {t('settings.datahub_title', 'Samsung Enterprise DataHub API (NDH Connector v3)')}
+            </h2>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+              {t('settings.datahub_desc', 'Konfigurasi kustom endpoint URL, Bearer API Key, dan target project/folder untuk upload berkas dokumen')}
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            icon={RefreshCw}
+            loading={testingDatahub}
+            onClick={handleTestDatahub}
+          >
+            {t('settings.datahub_test_btn', 'Test Intranet Connection')}
+          </Button>
+        </div>
+
+        {datahubFeedback && (
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '16px',
+            fontSize: 'var(--font-size-xs)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: datahubFeedback.type === 'success' ? 'var(--color-success-subtle)' : 'var(--color-error-subtle)',
+            color: datahubFeedback.type === 'success' ? 'var(--color-success)' : 'var(--color-error)',
+            border: `1px solid ${datahubFeedback.type === 'success' ? 'var(--color-success)' : 'var(--color-error)'}`,
+          }}>
+            {datahubFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+            <span>{datahubFeedback.text}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSaveDatahub} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          <Input
+            label="DataHub API Endpoint Base URL"
+            value={datahubConfig.api_url}
+            onChange={(e) => setDatahubConfig({ ...datahubConfig, api_url: e.target.value })}
+            required
+            placeholder="https://datahub-api.bigdata.samsung.com"
+          />
+
+          <Input
+            label="API Key / Bearer Token"
+            type="password"
+            value={datahubConfig.api_key}
+            onChange={(e) => setDatahubConfig({ ...datahubConfig, api_key: e.target.value })}
+            placeholder="Masukkan token Bearer (contoh: eyJhbGci...)"
+          />
+
+          <Input
+            label="Default Project ID"
+            value={datahubConfig.default_project_id}
+            onChange={(e) => setDatahubConfig({ ...datahubConfig, default_project_id: e.target.value })}
+            required
+            placeholder="PE_PORTAL"
+          />
+
+          <Input
+            label="Default Folder ID (Opsional)"
+            value={datahubConfig.default_folder_id}
+            onChange={(e) => setDatahubConfig({ ...datahubConfig, default_folder_id: e.target.value })}
+            placeholder="Biarkan kosong jika upload ke project langsung"
+          />
+
+          {/* Local Folder Watcher Sub-Section */}
+          <div style={{
+            gridColumn: '1 / -1',
+            backgroundColor: 'var(--color-bg-primary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            marginTop: '4px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FolderSync size={16} color="var(--color-accent)" />
+                  Local Folder Watcher & Auto-Upload
+                </h3>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)', marginTop: '2px' }}>
+                  Sistem memantau folder lokal server. File baru akan otomatis di-upload ke DataHub dan dipindahkan ke subfolder <code>Uploaded/</code> jika berhasil.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon={FolderSync}
+                loading={scanningWatch}
+                onClick={handleTriggerWatchScan}
+              >
+                Scan Folder Sekarang
+              </Button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'center' }}>
+              <Input
+                label="Local Watch Folder Path"
+                value={datahubConfig.watch_folder_path || ''}
+                onChange={(e) => setDatahubConfig({ ...datahubConfig, watch_folder_path: e.target.value })}
+                placeholder="/data/files/datahub_watch"
+              />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}>
+                  <input
+                    type="checkbox"
+                    checked={datahubConfig.auto_upload_enabled || false}
+                    onChange={(e) => setDatahubConfig({ ...datahubConfig, auto_upload_enabled: e.target.checked })}
+                  />
+                  <span>Otomatis upload & pindahkan file (Background auto-watcher setiap 30 detik)</span>
+                </label>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  Scan terakhir: {datahubConfig.last_watch_scan_at ? new Date(datahubConfig.last_watch_scan_at).toLocaleString() : 'Belum pernah di-scan'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '12px', gridColumn: '1 / -1' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}>
+              <input
+                type="checkbox"
+                checked={datahubConfig.is_active}
+                onChange={(e) => setDatahubConfig({ ...datahubConfig, is_active: e.target.checked })}
+              />
+              <span>Aktifkan integrasi DataHub untuk modul Documents</span>
+            </label>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--color-border-subtle)' }}>
+            <Button type="submit" variant="primary" size="sm" loading={savingDatahub}>
+              Simpan Konfigurasi DataHub
             </Button>
           </div>
         </form>

@@ -84,3 +84,76 @@ func (r *SettingsRepository) ListAuditLogs(ctx context.Context, limit int) ([]mo
 	}
 	return logs, nil
 }
+
+func (r *SettingsRepository) GetDataHubConfig(ctx context.Context) (*model.DataHubConfig, error) {
+	query := `
+		SELECT id, api_url, api_key, default_project_id, default_folder_id,
+		       COALESCE(watch_folder_path, '/data/files/datahub_watch') as watch_folder_path,
+		       COALESCE(auto_upload_enabled, false) as auto_upload_enabled,
+		       last_watch_scan_at, is_active, updated_by, created_at, updated_at
+		FROM datahub_configs
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+	var cfg model.DataHubConfig
+	err := r.pool.QueryRow(ctx, query).Scan(
+		&cfg.ID, &cfg.APIURL, &cfg.APIKey, &cfg.DefaultProjectID, &cfg.DefaultFolderID,
+		&cfg.WatchFolderPath, &cfg.AutoUploadEnabled, &cfg.LastWatchScanAt,
+		&cfg.IsActive, &cfg.UpdatedBy, &cfg.CreatedAt, &cfg.UpdatedAt,
+	)
+	if err != nil {
+		return &model.DataHubConfig{
+			APIURL:            "https://datahub-api.bigdata.samsung.com",
+			DefaultProjectID:  "PE_PORTAL",
+			WatchFolderPath:   "/data/files/datahub_watch",
+			AutoUploadEnabled: false,
+			IsActive:          true,
+		}, nil
+	}
+	return &cfg, nil
+}
+
+func (r *SettingsRepository) UpdateDataHubConfig(ctx context.Context, cfg *model.DataHubConfig) error {
+	if cfg.WatchFolderPath == "" {
+		cfg.WatchFolderPath = "/data/files/datahub_watch"
+	}
+	query := `
+		UPDATE datahub_configs
+		SET api_url = $1, api_key = $2, default_project_id = $3,
+		    default_folder_id = $4, watch_folder_path = $5, auto_upload_enabled = $6,
+		    is_active = $7, updated_by = $8, updated_at = NOW()
+		WHERE id = (SELECT id FROM datahub_configs ORDER BY created_at DESC LIMIT 1)
+	`
+	tag, err := r.pool.Exec(ctx, query,
+		cfg.APIURL, cfg.APIKey, cfg.DefaultProjectID, cfg.DefaultFolderID,
+		cfg.WatchFolderPath, cfg.AutoUploadEnabled,
+		cfg.IsActive, cfg.UpdatedBy,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		insertQuery := `
+			INSERT INTO datahub_configs (api_url, api_key, default_project_id, default_folder_id, watch_folder_path, auto_upload_enabled, is_active, updated_by)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		`
+		_, err = r.pool.Exec(ctx, insertQuery,
+			cfg.APIURL, cfg.APIKey, cfg.DefaultProjectID, cfg.DefaultFolderID,
+			cfg.WatchFolderPath, cfg.AutoUploadEnabled,
+			cfg.IsActive, cfg.UpdatedBy,
+		)
+		return err
+	}
+	return nil
+}
+
+func (r *SettingsRepository) UpdateDataHubScanTime(ctx context.Context) error {
+	query := `
+		UPDATE datahub_configs
+		SET last_watch_scan_at = NOW(), updated_at = NOW()
+		WHERE id = (SELECT id FROM datahub_configs ORDER BY created_at DESC LIMIT 1)
+	`
+	_, err := r.pool.Exec(ctx, query)
+	return err
+}
+

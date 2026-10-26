@@ -308,6 +308,22 @@ type MCPServer struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
+// DataHubConfig represents configuration for Samsung Enterprise BigData (NDH Connector)
+type DataHubConfig struct {
+	ID                uuid.UUID  `json:"id"`
+	APIURL            string     `json:"api_url"`
+	APIKey            string     `json:"api_key"`
+	DefaultProjectID  string     `json:"default_project_id"`
+	DefaultFolderID   string     `json:"default_folder_id"`
+	WatchFolderPath   string     `json:"watch_folder_path"`
+	AutoUploadEnabled bool       `json:"auto_upload_enabled"`
+	LastWatchScanAt   *time.Time `json:"last_watch_scan_at,omitempty"`
+	IsActive          bool       `json:"is_active"`
+	UpdatedBy         *uuid.UUID `json:"updated_by,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
 // AuditLog logs operations for transparency and activity feed
 type AuditLog struct {
 	ID         uuid.UUID       `json:"id"`

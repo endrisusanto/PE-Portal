@@ -6,17 +6,102 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 
+	"pe-portal/internal/middleware"
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
+	"pe-portal/internal/service"
+	"github.com/google/uuid"
 )
 
 type SettingsHandler struct {
 	settingsRepo *repository.SettingsRepository
+	docRepo      *repository.DocumentRepository
 	pool         *pgxpool.Pool
+	datahubSvc   *service.DataHubService
 }
 
-func NewSettingsHandler(settingsRepo *repository.SettingsRepository, pool *pgxpool.Pool) *SettingsHandler {
-	return &SettingsHandler{settingsRepo: settingsRepo, pool: pool}
+func NewSettingsHandler(settingsRepo *repository.SettingsRepository, docRepo *repository.DocumentRepository, pool *pgxpool.Pool, datahubSvc *service.DataHubService) *SettingsHandler {
+	return &SettingsHandler{settingsRepo: settingsRepo, docRepo: docRepo, pool: pool, datahubSvc: datahubSvc}
+}
+
+func (h *SettingsHandler) GetDataHubConfig(c echo.Context) error {
+	cfg, err := h.settingsRepo.GetDataHubConfig(c.Request().Context())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, cfg)
+}
+
+func (h *SettingsHandler) UpdateDataHubConfig(c echo.Context) error {
+	var cfg model.DataHubConfig
+	if err := c.Bind(&cfg); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
+	}
+
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			cfg.UpdatedBy = &uid
+		}
+	}
+
+	if err := h.settingsRepo.UpdateDataHubConfig(c.Request().Context(), &cfg); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "DataHub config updated successfully",
+		"config":  cfg,
+	})
+}
+
+func (h *SettingsHandler) TestDataHubConnection(c echo.Context) error {
+	var req struct {
+		APIURL string `json:"api_url"`
+		APIKey string `json:"api_key"`
+	}
+	_ = c.Bind(&req)
+
+	if h.datahubSvc != nil {
+		res, err := h.datahubSvc.TestConnection(c.Request().Context(), req.APIURL, req.APIKey)
+		if err != nil {
+			return c.JSON(http.StatusOK, map[string]interface{}{
+				"success": false,
+				"message": err.Error(),
+			})
+		}
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success": true,
+			"message": "Connected to Samsung DataHub endpoint successfully",
+			"data":    res,
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "DataHub service ready",
+	})
+}
+
+// ponytail: TriggerDataHubWatchScan performs an on-demand scan and upload of the local watch folder
+func (h *SettingsHandler) TriggerDataHubWatchScan(c echo.Context) error {
+	if h.datahubSvc == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "datahub service is not initialized")
+	}
+
+	res, err := h.datahubSvc.ScanAndUploadWatchFolder(c.Request().Context(), h.docRepo)
+	if err != nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success": false,
+			"message": err.Error(),
+			"data":    res,
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Watch folder scan completed",
+		"data":    res,
+	})
 }
 
 func (h *SettingsHandler) GetAuthConfig(c echo.Context) error {

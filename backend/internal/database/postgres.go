@@ -118,6 +118,23 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS datahub_object_id VARCHAR(255);
 		ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS datahub_synced_at TIMESTAMPTZ;
 		ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS datahub_error TEXT;
+		CREATE TABLE IF NOT EXISTS datahub_configs (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			api_url VARCHAR(500) NOT NULL DEFAULT 'https://datahub-api.bigdata.samsung.com',
+			api_key TEXT NOT NULL DEFAULT '',
+			default_project_id VARCHAR(100) NOT NULL DEFAULT 'PE_PORTAL',
+			default_folder_id VARCHAR(100) DEFAULT '',
+			is_active BOOLEAN NOT NULL DEFAULT true,
+			updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		INSERT INTO datahub_configs (api_url, api_key, default_project_id, is_active)
+		SELECT 'https://datahub-api.bigdata.samsung.com', '', 'PE_PORTAL', true
+		WHERE NOT EXISTS (SELECT 1 FROM datahub_configs);
+		ALTER TABLE IF EXISTS datahub_configs ADD COLUMN IF NOT EXISTS watch_folder_path VARCHAR(500) DEFAULT '/data/files/datahub_watch';
+		ALTER TABLE IF EXISTS datahub_configs ADD COLUMN IF NOT EXISTS auto_upload_enabled BOOLEAN DEFAULT false;
+		ALTER TABLE IF EXISTS datahub_configs ADD COLUMN IF NOT EXISTS last_watch_scan_at TIMESTAMPTZ;
 		CREATE TABLE IF NOT EXISTS user_group_parts (
 			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			group_part_id UUID NOT NULL REFERENCES group_parts(id) ON DELETE CASCADE,

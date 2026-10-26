@@ -31,7 +31,7 @@ type DocumentHandler struct {
 func NewDocumentHandler(repo *repository.DocumentRepository, storagePath string, jwtService *auth.JWTService, datahub *service.DataHubService) *DocumentHandler {
 	_ = os.MkdirAll(storagePath, 0755)
 	if datahub == nil {
-		datahub = service.NewDataHubService()
+		datahub = service.NewDataHubService(nil)
 	}
 	return &DocumentHandler{repo: repo, storagePath: storagePath, jwtService: jwtService, datahub: datahub}
 }
