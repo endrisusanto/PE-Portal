@@ -78,6 +78,9 @@ jobs:
           Copy-Item -Path "bin\pe-portal-backend.exe" -Destination "desktop\src-tauri\resources\pe-portal-backend.exe"
           New-Item -ItemType Directory -Force -Path "desktop\src-tauri\resources\frontend"
           Copy-Item -Path "frontend\dist\*" -Destination "desktop\src-tauri\resources\frontend" -Recurse
+          if (Test-Path "desktop\src-tauri\resources\frontend\models") {
+            Remove-Item -Recurse -Force "desktop\src-tauri\resources\frontend\models"
+          }
 
       - name: Install & Build Desktop UI
         shell: pwsh
