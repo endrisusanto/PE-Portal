@@ -41,7 +41,8 @@ export const VirtualOfficePage = () => {
   // Filter & Selection State
   const [selectedEngineer, setSelectedEngineer] = useState(null);
   const [filterTeam, setFilterTeam] = useState('ALL');
-  const [engineersList, setEngineersList] = useState(INITIAL_ENGINEERS);
+  // ponytail: Load registered users only from DB; start empty with no mock padding
+  const [engineersList, setEngineersList] = useState([]);
 
   // Audio Context ref for ambient chimes on phase change
   const audioCtxRef = useRef(null);
@@ -53,54 +54,52 @@ export const VirtualOfficePage = () => {
       try {
         const res = await api.get('/users');
         if (Array.isArray(res.data) && res.data.length > 0) {
-          // Filter actual 30 PE members (exclude global admin) and sort by employee_id PE001..PE030
-          const peUsers = res.data
-            .filter((u) => u.employee_id?.startsWith('PE') || (u.username !== 'admin' && u.employee_id !== 'ADMIN001'))
-            .sort((a, b) => (a.employee_id || '').localeCompare(b.employee_id || ''));
+          // ponytail: Filter out system admin and map strictly registered users
+          const registeredUsers = res.data
+            .filter((u) => u.username !== 'admin' && u.employee_id !== 'ADMIN001' && u.is_active !== false)
+            .sort((a, b) => (a.employee_id || '').localeCompare(b.employee_id || ''))
+            .map((u, idx) => {
+              const gName = (u.group_name || u.group_part_name || u.parent_group || '').toLowerCase();
+              let team = TEAMS.PRODUCTION;
+              if (gName.includes('mecha') || gName.includes('jig') || gName.includes('mro')) {
+                team = TEAMS.MECHA;
+              } else if (gName.includes('solution') || gName.includes('software') || gName.includes('release') || gName.includes('gba') || gName.includes('program')) {
+                team = TEAMS.SOLUTION;
+              } else if (gName.includes('management') || gName.includes('executive') || u.employee_id?.startsWith('PE_')) {
+                team = TEAMS.MANAGEMENT;
+              }
 
-          if (peUsers.length > 0) {
-            setEngineersList((prev) =>
-              prev.map((eng) => {
-                let dbUser = null;
-                if (eng.id === 31) {
-                  dbUser = res.data.find((u) => u.employee_id === 'PE_EXP01' || u.username?.includes('jinwoo'));
-                } else if (eng.id === 32) {
-                  dbUser = res.data.find((u) => u.employee_id === 'PE_GL01' || u.username?.includes('hendrik'));
-                } else {
-                  const targetEmp = `PE${String(eng.id).padStart(3, '0')}`;
-                  dbUser = res.data.find((u) => u.employee_id === targetEmp);
-                }
+              const isLeader = u.role === 'manager' || u.role === 'leader' || u.employee_id?.startsWith('PE_');
+              let roleTitle = u.role;
+              if (u.employee_id === 'PE_EXP01') roleTitle = 'Korean Expatriate Dispatcher';
+              else if (u.employee_id === 'PE_GL01') roleTitle = 'PE Group Leader / Group Manager';
+              else if (isLeader) roleTitle = `${team} Manager`;
+              else if (u.group_name || u.group_part_name) roleTitle = u.group_name || u.group_part_name;
 
-                if (dbUser) {
-                  let team = eng.team;
-                  if (dbUser.parent_group === 'pe_management' || dbUser.employee_id?.startsWith('PE_')) team = TEAMS.MANAGEMENT;
-                  else if (dbUser.parent_group === 'pe_production') team = TEAMS.PRODUCTION;
-                  else if (dbUser.parent_group === 'pe_mecha') team = TEAMS.MECHA;
-                  else if (dbUser.parent_group === 'pe_solution') team = TEAMS.SOLUTION;
+              let numId = idx + 1;
+              const numMatch = u.employee_id?.match(/\d+/);
+              if (numMatch) numId = parseInt(numMatch[0], 10);
+              if (u.employee_id === 'PE_EXP01') numId = 31;
+              if (u.employee_id === 'PE_GL01') numId = 32;
 
-                  const isManager = dbUser.role === 'manager' || dbUser.role === 'leader' || eng.isLeader;
-                  let roleTitle = eng.role;
-                  if (dbUser.employee_id === 'PE_EXP01') roleTitle = 'Korean Expatriate Dispatcher';
-                  else if (dbUser.employee_id === 'PE_GL01') roleTitle = 'PE Group Leader / Group Manager';
-                  else if (isManager) roleTitle = `${team} Manager`;
-                  else roleTitle = dbUser.group_part_name || eng.role;
+              return {
+                id: numId,
+                dbId: u.id,
+                employee_id: u.employee_id,
+                name: u.full_name || u.username,
+                role: roleTitle,
+                team,
+                isLeader,
+                currentTask: `Bekerja aktif di ${roleTitle}`,
+                avatarColor: ['#2563eb', '#059669', '#7c3aed', '#d97706', '#e11d48', '#0284c7'][idx % 6],
+                apiUser: u,
+              };
+            });
 
-                  return {
-                    ...eng,
-                    name: dbUser.full_name || eng.name,
-                    role: roleTitle,
-                    team,
-                    isLeader: isManager,
-                    apiUser: dbUser,
-                  };
-                }
-                return eng;
-              })
-            );
-          }
+          setEngineersList(registeredUsers);
         }
       } catch (err) {
-        // Fallback to INITIAL_ENGINEERS on error
+        // Leave engineersList empty if API fails; no fake mock users
       }
     };
     fetchRealUsers();
@@ -222,7 +221,7 @@ export const VirtualOfficePage = () => {
                 border: '1px solid rgba(16, 185, 129, 0.3)',
               }}
             >
-              {engineersList.length} Personil Active (30 Engineer + 2 Executive)
+              {engineersList.length} Personil Terdaftar Aktif
             </span>
           </div>
           <p

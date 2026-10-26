@@ -14,6 +14,7 @@ export const ZONES = {
   MEETING_1: 'Meeting 1',
   MEETING_2: 'Meeting 2',
   MEETING_3: 'Meeting 3',
+  JIG_DEVELOPMENT: 'JIG Development',
   UNITBOX_STORAGE: 'Unitbox Storage',
   SAMPLE_STORAGE: 'Sample Storage',
   STAIRS: 'Area Tangga',
@@ -34,48 +35,8 @@ export const ZONES = {
   TOILET_WANITA: 'Toilet Wanita',
 };
 
-// Initial SEIN PE Personnel (30 Engineers + 2 Executive Leaders)
-export const INITIAL_ENGINEERS = [
-  // --- PE Executive Management (2 Leaders: Korean Dispatcher & Group Leader) ---
-  { id: 31, name: 'Park Jin-woo (박진우)', role: 'Korean Expatriate Dispatcher', team: TEAMS.MANAGEMENT, isLeader: true, avatarColor: '#e11d48', currentTask: 'Supervisi Produksi & Koordinasi HQ Korea' },
-  { id: 32, name: 'Hendrik Setiawan', role: 'PE Group Leader / Group Manager', team: TEAMS.MANAGEMENT, isLeader: true, avatarColor: '#d97706', currentTask: 'Pengawasan Strategis 3 Divisi PE & Operational Review' },
-
-  // --- PE Production (10 Engineers) ---
-  { id: 1, name: 'Budi Santoso', role: 'SMT Process Engineer', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#2563eb', currentTask: 'Validasi Profil Reflow Oven' },
-  { id: 2, name: 'Citra Dewi', role: 'Assembly Tech Specialist', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#60a5fa', currentTask: 'Inspeksi Torque Screw Station' },
-  { id: 3, name: 'Dimas Anggara', role: 'GMES Operator Specialist', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#1d4ed8', currentTask: 'Audit Barcode Scanning Line 2' },
-  { id: 4, name: 'Eko Prasetyo', role: 'Production Quality Engineer', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#38bdf8', currentTask: 'Tracking First Pass Yield (FPY)' },
-  { id: 5, name: 'Fani Rahmawati', role: 'Packing & Final QC Tech', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#0ea5e9', currentTask: 'Verifikasi Pallet Labeling' },
-  { id: 6, name: 'Gilang Ramadhan', role: 'Line Support Technician', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#0284c7', currentTask: 'Penyelesaian Bottleneck Line 5' },
-  { id: 7, name: 'Hadi Nugroho', role: 'Maintenance Assistant', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#0369a1', currentTask: 'Preventive Maintenance Feeder' },
-  { id: 8, name: 'Indah Kusuma', role: 'Model Changeover Lead', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#bae6fd', currentTask: 'Persiapan Changeover Model SM-A55' },
-  { id: 9, name: 'Joko Widodo', role: 'Line Safety Officer', team: TEAMS.PRODUCTION, isLeader: false, avatarColor: '#7dd3fc', currentTask: 'Checklist K3 & ESD Grounding' },
-  { id: 10, name: 'Arka Pratama', role: 'Production Manager', team: TEAMS.PRODUCTION, isLeader: true, avatarColor: '#1e40af', currentTask: 'Daily Production Briefing & Kinerja Shift' },
-
-  // --- PE Mecha (10 Engineers) ---
-  { id: 11, name: 'Laras Wati', role: 'Pneumatics & Sensor Eng.', team: TEAMS.MECHA, isLeader: false, avatarColor: '#059669', currentTask: 'Kalibrasi Pressure Sensor Festo' },
-  { id: 12, name: 'Muhammad Fajar', role: 'PLC Automation Specialist', team: TEAMS.MECHA, isLeader: false, avatarColor: '#34d399', currentTask: 'Pemrograman Omron PLC Cell 3' },
-  { id: 13, name: 'Nadia Safitri', role: 'CNC Tooling Engineer', team: TEAMS.MECHA, isLeader: false, avatarColor: '#047857', currentTask: 'Milling Fixture Pin Akrilik' },
-  { id: 14, name: 'Oki Setiawan', role: 'Robot Cell Technician', team: TEAMS.MECHA, isLeader: false, avatarColor: '#6ee7b7', currentTask: 'Teaching Robot Arm Dobot' },
-  { id: 15, name: 'Putri Handayani', role: 'Failure Analysis Mechanics', team: TEAMS.MECHA, isLeader: false, avatarColor: '#065f46', currentTask: 'Inspeksi Keretakan Casing Jig' },
-  { id: 16, name: 'Qori Alamsyah', role: 'Jig Fabrication Tech', team: TEAMS.MECHA, isLeader: false, avatarColor: '#a7f3d0', currentTask: 'Assembling Base Plate Jig 04' },
-  { id: 17, name: 'Rian Hidayat', role: 'Automation Electrical Eng.', team: TEAMS.MECHA, isLeader: false, avatarColor: '#047857', currentTask: 'Wiring Panel Control Box' },
-  { id: 18, name: 'Salsa Bila', role: 'Mecha Material QC', team: TEAMS.MECHA, isLeader: false, avatarColor: '#10b981', currentTask: 'Uji Kekerasan Material Dural 7075' },
-  { id: 19, name: 'Taufik Ismail', role: 'Mecha Maintenance Specialist', team: TEAMS.MECHA, isLeader: false, avatarColor: '#059669', currentTask: 'Pelumasan Linear Guide Rail' },
-  { id: 20, name: 'Kurniawan Adi', role: 'Mecha Manager', team: TEAMS.MECHA, isLeader: true, avatarColor: '#064e3b', currentTask: 'Review Gambar CAD Jig & Progress Cell' },
-
-  // --- PE Solution (10 Engineers) ---
-  { id: 21, name: 'Vina Pandu', role: 'Fullstack Platform Dev', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#7c3aed', currentTask: 'Optimasi Real-time GBA Kanban' },
-  { id: 22, name: 'Wahyu Hidayat', role: 'Firmware Test Engineer', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#a78bfa', currentTask: 'Automated Flashing Test Suite' },
-  { id: 23, name: 'Xavier Kevin', role: 'Data & GMES Integration', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#6d28d9', currentTask: 'Sync API GMES Realtime Metrics' },
-  { id: 24, name: 'Yolanda Vega', role: 'AI Assistant & ML Engineer', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#c4b5fd', currentTask: 'Fine-tune Prompt Guardrails PE' },
-  { id: 25, name: 'Zack Lee', role: 'Hardware Test App Dev', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#5b21b6', currentTask: 'Build Test Tool RF Calibration' },
-  { id: 26, name: 'Adit Wicaksono', role: 'Backend Go Specialist', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#8b5cf6', currentTask: 'Refactor Handler Report Export' },
-  { id: 27, name: 'Bella Anggraini', role: 'UI/UX & Frontend Eng.', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#7c3aed', currentTask: 'Polish Virtual Office Isometric' },
-  { id: 28, name: 'Chandra Wijaya', role: 'DevOps & Server Admin', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#4c1d95', currentTask: 'Monitor CI/CD Runner Container' },
-  { id: 29, name: 'Doni Pratama', role: 'QA Automation Engineer', team: TEAMS.SOLUTION, isLeader: false, avatarColor: '#9333ea', currentTask: 'E2E Testing Sample DHL Tracker' },
-  { id: 30, name: 'Umar Bakri', role: 'Solution Manager', team: TEAMS.SOLUTION, isLeader: true, avatarColor: '#3b0764', currentTask: 'Sprint Planning & Arsitektur Portal' },
-];
+// ponytail: Empty default - office populates purely from registered users in DB
+export const INITIAL_ENGINEERS = [];
 
 // Helper: Convert time string "HH:MM" to minutes from 00:00
 export const timeToMinutes = (timeStr) => {
@@ -277,9 +238,14 @@ export const getCoordinatesForZone = (zoneKey, slotIndex = 0) => {
     case ZONES.MEETING_2:
       return { x: 21, y: 24, label: 'MTG-2' };
     case ZONES.MEETING_3:
-      return { x: 33, y: 24, label: 'MTG-3' };
+      return { x: 33, y: 30.5, label: 'MTG-3' };
     case ZONES.UNITBOX_STORAGE:
-      return { x: 44.5, y: 24, label: 'UB-STOR' };
+      return { x: 44.5, y: 30.5, label: 'UB-STOR' };
+    case ZONES.JIG_DEVELOPMENT: {
+      const col = slotIndex % 3;
+      const row = Math.floor(slotIndex / 3);
+      return { x: 33 + col * 5.5, y: 16.5 + row * 3, label: `JIG-${slotIndex + 1}` };
+    }
     case ZONES.SAMPLE_STORAGE:
       return { x: 55, y: 24, label: 'SMP-STOR' };
 
@@ -314,8 +280,9 @@ export const FEMALE_ENGINEER_IDS = [2, 5, 8, 11, 13, 15, 18, 21, 24, 27];
 // With human-like organic randomness: hydration to pantry (kopi/teh/air putih), toilet breaks, lab visits, and staying at desks
 export const getEngineerTargetPosition = (engineer, phase, index, currentTimeMins = 0) => {
   // Determine home desk zone
+  // ponytail: calculate homeSlot dynamically so any number of engineers sit at desks cleanly
   let homeZone = ZONES.PE_PRODUCTION;
-  let homeSlot = (engineer.id - 1) % 10;
+  let homeSlot = (engineer.slotIndex !== undefined ? engineer.slotIndex : (engineer.id ? (engineer.id - 1) : index)) % 9;
   if (engineer.id === 31 || engineer.role?.includes('Dispatcher') || engineer.employee_id === 'PE_EXP01') {
     homeZone = ZONES.PE_DISPATCHER;
   } else if (engineer.id === 32 || engineer.role?.includes('Group Leader') || engineer.employee_id === 'PE_GL01') {

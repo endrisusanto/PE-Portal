@@ -633,13 +633,39 @@ function drawFloorPlanRooms(ctx, width, height, project, isDark, isNight, tick) 
     drawMiniTable(ctx, width, height, project, 21, 24, 12, 7, '#a78bfa');
   });
 
-  drawRoomBox(ctx, width, height, project, { x1: 27, y1: 10, x2: 39, y2: 38 }, 'MEETING 3', '#8b5cf6', isDark, () => {
-    drawMiniTable(ctx, width, height, project, 33, 24, 12, 7, '#a78bfa');
+  // JIG DEVELOPMENT (di atas Meeting 3 dan Unitbox Storage, x: 27..50, y: 10..23)
+  drawRoomBox(ctx, width, height, project, { x1: 27, y1: 10, x2: 50, y2: 23 }, 'JIG DEVELOPMENT', '#10b981', isDark, () => {
+    const benchPos = project(38.5, 16.5, 0, width, height);
+    ctx.fillStyle = isDark ? '#064e3b' : '#a7f3d0';
+    ctx.fillRect(benchPos.x - 14, benchPos.y - 5, 28, 10);
+    ctx.strokeStyle = '#059669';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(benchPos.x - 14, benchPos.y - 5, 28, 10);
+
+    // Clamps & Fixture Pins
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(benchPos.x - 6, benchPos.y, 1.8, 0, Math.PI * 2);
+    ctx.arc(benchPos.x + 6, benchPos.y, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#059669';
+    ctx.font = 'bold 7.5px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚙️ JIG FIXTURE BENCH', benchPos.x, benchPos.y + 10);
   });
 
-  drawRoomBox(ctx, width, height, project, { x1: 39, y1: 10, x2: 50, y2: 38 }, 'UNITBOX STORAGE', '#f59e0b', isDark, () => {
-    const pos = project(44.5, 24, 0, width, height);
+  // MEETING 3 (di bawah JIG Development, x: 27..39, y: 23..38)
+  drawRoomBox(ctx, width, height, project, { x1: 27, y1: 23, x2: 39, y2: 38 }, 'MEETING 3', '#8b5cf6', isDark, () => {
+    drawMiniTable(ctx, width, height, project, 33, 30.5, 10, 6, '#a78bfa');
+  });
+
+  // UNITBOX STORAGE (di bawah JIG Development, x: 39..50, y: 23..38)
+  drawRoomBox(ctx, width, height, project, { x1: 39, y1: 23, x2: 50, y2: 38 }, 'UNITBOX STORAGE', '#f59e0b', isDark, () => {
+    const pos = project(44.5, 30.5, 0, width, height);
     ctx.fillStyle = '#d97706';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
     ctx.fillText('📦 UNITBOX', pos.x, pos.y);
   });
 
