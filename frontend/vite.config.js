@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // ponytail: lightweight reverse proxy config forwarding real client IP to backend
 const apiProxyConfig = {
-  target: process.env.VITE_BACKEND_URL || 'http://localhost:8085',
+  target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8085',
   changeOrigin: true,
   xfwd: true,
   configure: (proxy) => {
