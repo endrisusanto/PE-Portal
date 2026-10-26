@@ -2,6 +2,7 @@
 // Live Activity Feed, Zone Distribution Metrics, and Engineer Inspector Drawer
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Users, Coffee, Gamepad2, Laptop, FlaskConical, DoorOpen, Briefcase } from 'lucide-react';
 import { TEAMS, ZONES } from './virtualOfficeData';
 
@@ -13,6 +14,8 @@ export const VirtualOfficeActivityLog = ({
   filterTeam,
   onFilterTeam,
 }) => {
+  const { t } = useTranslation();
+
   // Compute zone statistics
   const zoneStats = {
     workstations: engineers.filter((e) => e.currentZone?.includes('PE ') || e.currentZone?.includes('Manager') || e.currentZone?.includes('Leader')).length,
@@ -45,17 +48,17 @@ export const VirtualOfficeActivityLog = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <h2 style={{ fontSize: '15px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Users size={16} color="var(--color-accent)" />
-            Aktivitas Personil PE
+            {t('virtual_office.activity_title', 'Aktivitas Personil PE')}
           </h2>
           <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-            Total {engineers.length} Personil
+            {t('virtual_office.total_personnel', { count: engineers.length, defaultValue: `Total ${engineers.length} Personil` })}
           </span>
         </div>
 
         {/* Team Filter Pills */}
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
           {[
-            { id: 'ALL', label: `Semua (${engineers.length})` },
+            { id: 'ALL', label: `${t('virtual_office.filter_all', 'Semua')} (${engineers.length})` },
             { id: TEAMS.MANAGEMENT, label: `Management (${engineers.filter((e) => e.team === TEAMS.MANAGEMENT).length})` },
             { id: TEAMS.PRODUCTION, label: `Production (${engineers.filter((e) => e.team === TEAMS.PRODUCTION).length})` },
             { id: TEAMS.MECHA, label: `Mecha (${engineers.filter((e) => e.team === TEAMS.MECHA).length})` },
@@ -99,7 +102,7 @@ export const VirtualOfficeActivityLog = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', fontSize: '10px', color: '#3b82f6', fontWeight: 600 }}>
-            <Briefcase size={11} /> Work
+            <Briefcase size={11} /> {t('virtual_office.workstations', 'Work')}
           </div>
           <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>{zoneStats.workstations}</div>
         </div>
@@ -114,7 +117,7 @@ export const VirtualOfficeActivityLog = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', fontSize: '10px', color: '#10b981', fontWeight: 600 }}>
-            <FlaskConical size={11} /> Labs
+            <FlaskConical size={11} /> {t('virtual_office.labs', 'Labs')}
           </div>
           <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>
             {zoneStats.labs}
@@ -131,7 +134,7 @@ export const VirtualOfficeActivityLog = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', fontSize: '10px', color: '#f59e0b', fontWeight: 600 }}>
-            <Coffee size={11} /> Pantry
+            <Coffee size={11} /> {t('virtual_office.pantry', 'Pantry')}
           </div>
           <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>
             {zoneStats.pantry}
@@ -148,7 +151,7 @@ export const VirtualOfficeActivityLog = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', fontSize: '10px', color: '#ec4899', fontWeight: 600 }}>
-            <Gamepad2 size={11} /> Gaming
+            <Gamepad2 size={11} /> {t('virtual_office.gaming', 'Gaming')}
           </div>
           <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }}>
             {zoneStats.gaming}
@@ -198,10 +201,10 @@ export const VirtualOfficeActivityLog = ({
             {selectedEngineer.role} • <strong>{selectedEngineer.team}</strong>
           </div>
           <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--color-text-primary)' }}>
-            <strong>Lokasi Saat Ini:</strong> {selectedEngineer.currentZone}
+            <strong>{t('virtual_office.current_location', 'Lokasi Saat Ini:')}</strong> {selectedEngineer.currentZone}
           </div>
           <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-            <strong>Aktivitas:</strong> {selectedEngineer.currentActivity}
+            <strong>{t('virtual_office.current_activity', 'Aktivitas:')}</strong> {selectedEngineer.currentActivity}
           </div>
         </div>
       )}

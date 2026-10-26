@@ -911,7 +911,7 @@ export const DocumentsPage = () => {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  📄 File Lokal / PDF Standar
+                  {t('documents.tab_local_file', '📄 File Lokal / PDF Standar')}
                 </button>
                 <button
                   type="button"
@@ -935,7 +935,7 @@ export const DocumentsPage = () => {
                   }}
                 >
                   <ShieldCheck size={14} />
-                  DataHub Reader (Bypass DRM NASCA)
+                  {t('documents.tab_datahub_reader', 'DataHub Reader (Bypass DRM NASCA)')}
                   <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.25)' }}>
                     Synced
                   </span>
@@ -959,7 +959,7 @@ export const DocumentsPage = () => {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertCircle size={16} />
-                  <span>Dokumen ini terdeteksi memiliki enkripsi Samsung DRM (Fasoo/NASCA). Pratinjau lokal mungkin tidak dapat dibuka.</span>
+                  <span>{t('documents.drm_warning', 'Dokumen ini terdeteksi memiliki enkripsi Samsung DRM (Fasoo/NASCA). Pratinjau lokal mungkin tidak dapat dibuka.')}</span>
                 </div>
                 {previewDoc.datahub_object_id && (
                   <Button
@@ -970,7 +970,7 @@ export const DocumentsPage = () => {
                       if (!datahubViewData) fetchDataHubView(previewDoc.id);
                     }}
                   >
-                    Buka via DataHub Reader
+                    {t('documents.open_datahub_reader', 'Buka via DataHub Reader')}
                   </Button>
                 )}
               </div>
@@ -983,7 +983,7 @@ export const DocumentsPage = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: '450px' }}>
                 {datahubViewLoading ? (
                   <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-                    <LoadingState message="Menghubungi Samsung DataHub API untuk memuat metadata & isi berkas..." />
+                    <LoadingState message={t('documents.datahub_connecting', 'Menghubungi Samsung DataHub API untuk memuat metadata & isi berkas...')} />
                   </div>
                 ) : datahubViewError ? (
                   <div style={{
@@ -994,13 +994,13 @@ export const DocumentsPage = () => {
                     textAlign: 'center',
                   }}>
                     <AlertCircle size={32} color="#ef4444" style={{ margin: '0 auto 10px' }} />
-                    <h4 style={{ margin: '0 0 6px', fontSize: '15px', color: '#ef4444' }}>Gagal Memuat Data dari DataHub</h4>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '15px', color: '#ef4444' }}>{t('documents.datahub_load_error', 'Gagal Memuat Data dari DataHub')}</h4>
                     <p style={{ margin: '0 0 16px', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
                       {datahubViewError}
                     </p>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                       <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => fetchDataHubView(previewDoc.id)}>
-                        Coba Lagi
+                        {t('documents.datahub_retry', 'Coba Lagi')}
                       </Button>
                       <Button
                         variant="primary"
@@ -1008,7 +1008,7 @@ export const DocumentsPage = () => {
                         icon={ExternalLink}
                         onClick={() => window.open(datahubViewData?.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
                       >
-                        Buka di Portal DataHub
+                        {t('documents.open_datahub_portal', 'Buka di Portal DataHub')}
                       </Button>
                     </div>
                   </div>
@@ -1026,13 +1026,13 @@ export const DocumentsPage = () => {
                       fontSize: '12px',
                     }}>
                       <div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>Object ID DataHub</div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>{t('documents.datahub_object_id', 'Object ID DataHub')}</div>
                         <div style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>
                           {datahubViewData.object_id}
                         </div>
                       </div>
                       <div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>Status Ingest / Parsing</div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>{t('documents.datahub_ingest_status', 'Status Ingest / Parsing')}</div>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{
                             padding: '2px 8px',
@@ -1048,7 +1048,7 @@ export const DocumentsPage = () => {
                         </div>
                       </div>
                       <div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>Nama File Remote</div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>{t('documents.datahub_remote_name', 'Nama File Remote')}</div>
                         <div style={{ fontWeight: 600 }}>
                           {String(datahubViewData.object?.name || datahubViewData.object?.title || previewDoc.file_name)}
                         </div>
@@ -1067,10 +1067,10 @@ export const DocumentsPage = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '8px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                           <FileText size={14} color="#2563eb" />
-                          Konten Teks & Ekstraksi DataHub AI
+                          {t('documents.datahub_extracted_content', 'Konten Teks & Ekstraksi DataHub AI')}
                         </span>
                         <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                          Bypass enkripsi NASCA client-side
+                          {t('documents.datahub_bypass_desc', 'Bypass enkripsi NASCA client-side')}
                         </span>
                       </div>
 
@@ -1098,10 +1098,10 @@ export const DocumentsPage = () => {
                         <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                           <Database size={36} style={{ margin: '0 auto 8px', color: 'var(--color-accent)' }} />
                           <p style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                            Dokumen Tersimpan di Samsung DataHub
+                            {t('documents.datahub_stored_notice', 'Dokumen Tersimpan di Samsung DataHub')}
                           </p>
                           <p style={{ margin: '0 auto 14px', maxWidth: '480px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                            Berkas telah terdaftar di DataHub dengan ID <code>{datahubViewData.object_id}</code>. Status parsing: {String(datahubViewData.object?.parse_status || 'PENDING')}. Anda dapat melihat pratinjau penuh langsung di platform DataHub resmi.
+                            {t('documents.datahub_stored_desc', { objectId: datahubViewData.object_id, status: String(datahubViewData.object?.parse_status || 'PENDING'), defaultValue: `Berkas telah terdaftar di DataHub dengan ID ${datahubViewData.object_id}. Status parsing: ${String(datahubViewData.object?.parse_status || 'PENDING')}. Anda dapat melihat pratinjau penuh langsung di platform DataHub resmi.` })}
                           </p>
                           <Button
                             variant="secondary"
@@ -1109,7 +1109,7 @@ export const DocumentsPage = () => {
                             icon={ExternalLink}
                             onClick={() => window.open(datahubViewData.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
                           >
-                            Buka di Web DataHub Samsung
+                            {t('documents.open_datahub_portal', 'Buka di Web DataHub Samsung')}
                           </Button>
                         </div>
                       )}
@@ -1118,7 +1118,7 @@ export const DocumentsPage = () => {
                 ) : (
                   <div style={{ padding: '40px', textAlign: 'center' }}>
                     <Button variant="primary" size="sm" icon={ShieldCheck} onClick={() => fetchDataHubView(previewDoc.id)}>
-                      Muat Isi Dokumen dari DataHub
+                      {t('documents.datahub_load_content_btn', 'Muat Isi Dokumen dari DataHub')}
                     </Button>
                   </div>
                 )}
@@ -1180,7 +1180,7 @@ export const DocumentsPage = () => {
                       </p>
                     </div>
                     <p style={{ maxWidth: '440px', fontSize: '12.5px', color: 'var(--color-text-muted)', margin: 0 }}>
-                      Format dokumen ini (office/spreadsheet) disarankan untuk dibuka melalui tab baru atau diunduh langsung untuk melihat konten penuh.
+                      {t('documents.office_preview_desc', 'Format dokumen ini (office/spreadsheet) disarankan untuk dibuka melalui tab baru atau diunduh langsung untuk melihat konten penuh.')}
                     </p>
                   </div>
                 )}
@@ -1197,7 +1197,7 @@ export const DocumentsPage = () => {
                     onClick={() => window.open(datahubViewData?.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
                     title="Buka langsung di Web Portal Samsung DataHub"
                   >
-                    Buka di Samsung DataHub
+                    {t('documents.open_datahub_samsung', 'Buka di Samsung DataHub')}
                   </Button>
                 )}
               </div>
@@ -1208,7 +1208,7 @@ export const DocumentsPage = () => {
                   icon={Share2}
                   onClick={() => handleOpenShare(previewDoc)}
                 >
-                  Bagikan Link
+                  {t('documents.share_link_btn', 'Bagikan Link')}
                 </Button>
                 <Button
                   variant="secondary"
@@ -1216,7 +1216,7 @@ export const DocumentsPage = () => {
                   icon={ExternalLink}
                   onClick={() => window.open(getDocUrl(previewDoc.id, 'preview'), '_blank')}
                 >
-                  Buka di Tab Baru
+                  {t('documents.open_new_tab', 'Buka di Tab Baru')}
                 </Button>
                 <a
                   href={getDocUrl(previewDoc.id, 'download')}
@@ -1236,7 +1236,7 @@ export const DocumentsPage = () => {
                     textDecoration: 'none',
                   }}
                 >
-                  <Download size={14} /> Download Original File
+                  <Download size={14} /> {t('documents.download_original', 'Download Original File')}
                 </a>
               </div>
             </div>

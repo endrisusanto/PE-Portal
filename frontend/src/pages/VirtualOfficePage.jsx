@@ -211,7 +211,7 @@ export const VirtualOfficePage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Building2 size={24} color="var(--color-accent)" />
             <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, margin: 0 }}>
-              Virtual Office HQ (2.5D Animated)
+              {t('virtual_office.title', 'Virtual Office HQ (2.5D Animated)')}
             </h1>
             <span
               style={{
@@ -224,7 +224,7 @@ export const VirtualOfficePage = () => {
                 border: '1px solid rgba(16, 185, 129, 0.3)',
               }}
             >
-              {engineersList.length} Personil Terdaftar Aktif
+              {t('virtual_office.personnel_active', { count: engineersList.length, defaultValue: `${engineersList.length} Personil Terdaftar Aktif` })}
             </span>
           </div>
           <p
@@ -235,7 +235,7 @@ export const VirtualOfficePage = () => {
               margin: 0,
             }}
           >
-            Representasi visual jam kerja tim SEIN PE (07:00 Mulai Kerja, 09:30 Break 10m, 11:40 Istirahat, 14:30 Break 10m, 16:10 Pulang)
+            {t('virtual_office.subtitle', 'Representasi visual jam kerja tim SEIN PE (07:00 Mulai Kerja, 09:30 Break 10m, 11:40 Istirahat, 14:30 Break 10m, 16:10 Pulang)')}
           </p>
         </div>
 
@@ -256,10 +256,10 @@ export const VirtualOfficePage = () => {
               border: '1px solid var(--color-border)',
               cursor: 'pointer',
             }}
-            title="Bunyi lonceng transisi pergantian jam kerja"
+            title={t('virtual_office.bell_title', 'Bunyi lonceng transisi pergantian jam kerja')}
           >
             {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            <span>{soundEnabled ? 'Suara Lonceng: On' : 'Suara Lonceng: Mute'}</span>
+            <span>{soundEnabled ? t('virtual_office.sound_on', 'Suara Lonceng: On') : t('virtual_office.sound_mute', 'Suara Lonceng: Mute')}</span>
           </button>
         </div>
       </div>

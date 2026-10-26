@@ -2,6 +2,7 @@
 // Interactive Time Scrubber, Live Clock toggle, and Schedule Phase Bookmark Bar
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Play, Pause, Clock, RotateCcw, Zap, Compass } from 'lucide-react';
 import { SCHEDULE_PHASES, minutesToTime, timeToMinutes } from './virtualOfficeData';
 
@@ -16,16 +17,18 @@ export const VirtualOfficeTimeline = ({
   onChangePlaybackSpeed,
   activePhase,
 }) => {
+  const { t } = useTranslation();
+
   // Key bookmark shortcuts as explicitly required
   const BOOKMARKS = [
-    { label: '07:00 Mulai Kerja', time: '07:00', type: 'work' },
-    { label: '09:30 Coffee Break 1', time: '09:30', type: 'break' },
-    { label: '09:40 Lanjut Kerja', time: '09:40', type: 'work' },
-    { label: '11:40 Istirahat Siang', time: '11:40', type: 'lunch' },
-    { label: '12:30 Selesai Istirahat', time: '12:30', type: 'work' },
-    { label: '14:30 Coffee Break 2', time: '14:30', type: 'break' },
-    { label: '14:40 Sesi Sore', time: '14:40', type: 'work' },
-    { label: '16:10 Jam Pulang', time: '16:10', type: 'off' },
+    { key: 'b0700', defaultLabel: '07:00 Mulai Kerja', time: '07:00', type: 'work' },
+    { key: 'b0930', defaultLabel: '09:30 Coffee Break 1', time: '09:30', type: 'break' },
+    { key: 'b0940', defaultLabel: '09:40 Lanjut Kerja', time: '09:40', type: 'work' },
+    { key: 'b1140', defaultLabel: '11:40 Istirahat Siang', time: '11:40', type: 'lunch' },
+    { key: 'b1230', defaultLabel: '12:30 Selesai Istirahat', time: '12:30', type: 'work' },
+    { key: 'b1430', defaultLabel: '14:30 Coffee Break 2', time: '14:30', type: 'break' },
+    { key: 'b1440', defaultLabel: '14:40 Sesi Sore', time: '14:40', type: 'work' },
+    { key: 'b1610', defaultLabel: '16:10 Jam Pulang', time: '16:10', type: 'off' },
   ];
 
   const handleSliderChange = (e) => {
@@ -102,7 +105,7 @@ export const VirtualOfficeTimeline = ({
                 display: 'inline-block',
               }}
             />
-            {isLiveMode ? 'Live Clock Aktif' : 'Mode Simulasi'}
+            {isLiveMode ? t('virtual_office.live_clock_active', 'Live Clock Aktif') : t('virtual_office.simulation_mode', 'Mode Simulasi')}
           </button>
         </div>
 
@@ -123,7 +126,7 @@ export const VirtualOfficeTimeline = ({
             }}
           >
             <span>●</span>
-            <span>{activePhase.name}</span>
+            <span>{t(`virtual_office.phases.${activePhase.id?.toLowerCase()}`, activePhase.name)}</span>
             <span style={{ fontSize: '11px', opacity: 0.85 }}>
               ({activePhase.start} - {activePhase.end})
             </span>
@@ -256,7 +259,7 @@ export const VirtualOfficeTimeline = ({
                 transition: 'all 0.15s',
               }}
             >
-              ⏱️ {bm.label}
+              ⏱️ {t(`virtual_office.bookmarks.${bm.key}`, bm.defaultLabel)}
             </button>
           );
         })}
