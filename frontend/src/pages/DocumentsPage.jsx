@@ -56,6 +56,7 @@ export const DocumentsPage = () => {
   const [datahubTags, setDatahubTags] = useState('');
   const [datahubOcr, setDatahubOcr] = useState(false);
   const [datahubPii, setDatahubPii] = useState(true);
+  const [datahubParsing, setDatahubParsing] = useState(true);
   const [datahubOverwrite, setDatahubOverwrite] = useState(true);
   const [syncingDatahubId, setSyncingDatahubId] = useState(null);
   const [datahubDetailModal, setDatahubDetailModal] = useState(null);
@@ -122,6 +123,7 @@ export const DocumentsPage = () => {
       if (datahubTags) formData.append('datahub_tags', datahubTags);
       formData.append('datahub_ocr', datahubOcr ? 'true' : 'false');
       formData.append('datahub_pii', datahubPii ? 'true' : 'false');
+      formData.append('datahub_parsing', datahubParsing ? 'true' : 'false');
       formData.append('datahub_overwrite', datahubOverwrite ? 'true' : 'false');
     }
 
@@ -138,6 +140,7 @@ export const DocumentsPage = () => {
       setDatahubDescription('');
       setDatahubTags('');
       setDatahubPii(true);
+      setDatahubParsing(true);
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     } finally {
@@ -707,6 +710,15 @@ export const DocumentsPage = () => {
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
+                      checked={datahubParsing}
+                      onChange={(e) => setDatahubParsing(e.target.checked)}
+                      style={{ accentColor: 'var(--color-accent)' }}
+                    />
+                    <span>Parsing (Parser Aktif)</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
                       checked={datahubOverwrite}
                       onChange={(e) => setDatahubOverwrite(e.target.checked)}
                       style={{ accentColor: 'var(--color-accent)' }}
@@ -729,9 +741,12 @@ export const DocumentsPage = () => {
                   }}
                 >
                   <Info size={14} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--color-accent)' }} />
-                  <span>
-                    Endpoint DataHub (<code>https://datahub-api.bigdata.samsung.com/</code>) berada di intranet. Jika upload dilakukan di luar jaringan intranet Samsung, berkas tetap aman disimpan di portal dan dapat disinkronkan saat terhubung intranet.
-                  </span>
+                  <div>
+                    <div>Endpoint DataHub berada di intranet Samsung.</div>
+                    <div style={{ marginTop: '2px', color: '#f59e0b', fontWeight: 500 }}>
+                      * Catatan DRM: Berkas tidak boleh terenkripsi DRM korporat (Fasoo DRM). Jika berkas diproteksi DRM, silakan Decrypt terlebih dahulu sebelum diunggah.
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

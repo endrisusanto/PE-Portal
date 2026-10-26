@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -143,6 +144,44 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 		projectID = defaultProj
 	}
 
+	authToken := apiKey
+	if customAuthToken != "" {
+		authToken = customAuthToken
+	}
+
+	// ponytail: Check if python uploader is available for maximum compatibility with Samsung N-DH
+	scriptPath := findUploaderScript()
+	if scriptPath != "" {
+		var localPath string
+		var cleanup func()
+		if f, ok := fileReader.(*os.File); ok && f.Name() != "" {
+			localPath = f.Name()
+		} else {
+			temp, err := os.CreateTemp("", "ndh_up_*_"+filename)
+			if err == nil {
+				_, _ = io.Copy(temp, fileReader)
+				_ = temp.Close()
+				localPath = temp.Name()
+				cleanup = func() { _ = os.Remove(localPath) }
+			}
+		}
+
+		if localPath != "" {
+			if cleanup != nil {
+				defer cleanup()
+			}
+			res, pyErr := s.IngestObjectWithPython(ctx, scriptPath, localPath, filename, authToken, baseURL, folderID, projectID, params)
+			if pyErr == nil {
+				return res, nil
+			}
+			// If python returned an error from the API (like DRM_ENCRYPTED_FILE or bad token), return it directly
+			if strings.Contains(pyErr.Error(), "datahub item error") || strings.Contains(pyErr.Error(), "HTTP ") || strings.Contains(pyErr.Error(), "DRM_ENCRYPTED_FILE") {
+				return nil, pyErr
+			}
+			// If python failed due to missing binary, fall back to Go HTTP below
+		}
+	}
+
 	// Strictly send EITHER folder_id OR project_id
 	if folderID != "" {
 		if len(folderID) > 50 {
@@ -251,6 +290,10 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 			for _, itemRaw := range items {
 				if itemMap, ok := itemRaw.(map[string]interface{}); ok {
 					if errVal, hasErr := itemMap["error"]; hasErr && errVal != nil && fmt.Sprint(errVal) != "" {
+						errStr := fmt.Sprint(errVal)
+						if strings.Contains(errStr, "DRM_ENCRYPTED_FILE") {
+							return nil, fmt.Errorf("datahub item error on '%v': DRM_ENCRYPTED_FILE (Berkas terenkripsi DRM Samsung/Fasoo. Harap lakukan Decrypt berkas di PC terlebih dahulu sebelum di-upload)", itemMap["name"])
+						}
 						return nil, fmt.Errorf("datahub item error on '%v': %v", itemMap["name"], errVal)
 					}
 					if id, ok := itemMap["object_id"].(string); ok && result.ObjectID == "" {
@@ -269,6 +312,82 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 	}
 
 	return result, nil
+}
+
+// findUploaderScript locates ndh_uploader.py script
+func findUploaderScript() string {
+	candidates := []string{
+		filepath.Join("scripts", "ndh_uploader.py"),
+		filepath.Join("backend", "scripts", "ndh_uploader.py"),
+		"/app/scripts/ndh_uploader.py",
+	}
+	for _, p := range candidates {
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	return ""
+}
+
+// IngestObjectWithPython invokes the headless Python uploader script
+func (s *DataHubService) IngestObjectWithPython(ctx context.Context, scriptPath string, filePath string, filename string, token string, apiURL string, folderID string, projectID string, params DataHubIngestParams) (*DataHubIngestResult, error) {
+	payload := map[string]interface{}{
+		"api_url":         apiURL,
+		"token":           token,
+		"file_path":       filePath,
+		"filename":        filename,
+		"folder_id":       folderID,
+		"project_id":      projectID,
+		"title":           params.Title,
+		"description":     params.Description,
+		"tags":            params.Tags,
+		"overwrite":       params.Overwrite,
+		"parsing_yn":      params.ParsingYN,
+		"ocr_enabled":     params.OCREnabled,
+		"pii_tag_enabled": params.PIITagEnabled,
+		"custom_info":     params.CustomInfo,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal python payload: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "python3", scriptPath)
+	cmd.Stdin = bytes.NewReader(payloadBytes)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if runErr := cmd.Run(); runErr != nil && stdout.Len() == 0 {
+		return nil, fmt.Errorf("python uploader execution error: %v (%s)", runErr, strings.TrimSpace(stderr.String()))
+	}
+
+	var pyResp struct {
+		Success    bool        `json:"success"`
+		StatusCode int         `json:"status_code"`
+		ObjectID   string      `json:"object_id"`
+		Error      string      `json:"error"`
+		Items      interface{} `json:"items"`
+	}
+
+	if err := json.Unmarshal(stdout.Bytes(), &pyResp); err != nil {
+		return nil, fmt.Errorf("failed to parse python uploader response: %w (%s)", err, stdout.String())
+	}
+
+	if !pyResp.Success {
+		errStr := pyResp.Error
+		if strings.Contains(errStr, "DRM_ENCRYPTED_FILE") {
+			return nil, fmt.Errorf("datahub item error on '%s': DRM_ENCRYPTED_FILE (Berkas terenkripsi DRM Samsung/Fasoo. Harap lakukan Decrypt berkas di PC terlebih dahulu sebelum di-upload)", filename)
+		}
+		return nil, fmt.Errorf("%s", errStr)
+	}
+
+	return &DataHubIngestResult{
+		ObjectID: pyResp.ObjectID,
+		Status:   "synced",
+		Raw:      stdout.String(),
+	}, nil
 }
 
 // TestConnection tests connectivity to DataHub by calling GET /v3/folders/{folder} or /v3/projects

@@ -265,12 +265,17 @@ func (h *DocumentHandler) SyncToDataHub(c echo.Context) error {
 		pii = &b
 	}
 
+	parsingYN := true
+	if pStr := c.FormValue("datahub_parsing"); pStr != "" {
+		parsingYN = pStr != "false"
+	}
+
 	params := service.DataHubIngestParams{
 		ProjectID:     projectID,
 		FolderID:      folderID,
 		Title:         doc.Title,
-		Overwrite:     true,
-		ParsingYN:     true,
+		Overwrite:     c.FormValue("datahub_overwrite") != "false",
+		ParsingYN:     parsingYN,
 		PIITagEnabled: pii,
 		OCREnabled:    c.FormValue("datahub_ocr") == "true",
 	}

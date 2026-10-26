@@ -17,7 +17,7 @@ FROM alpine:3.19
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata python3 py3-pillow ghostscript ffmpeg libva-intel-driver mesa-va-gallium
+RUN apk add --no-cache ca-certificates tzdata python3 py3-pillow py3-requests ghostscript ffmpeg libva-intel-driver mesa-va-gallium
 
 COPY --from=builder /app/pe-portal /app/pe-portal
 COPY --from=builder /app/migrations /app/migrations
