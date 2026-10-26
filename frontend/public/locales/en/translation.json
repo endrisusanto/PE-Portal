@@ -49,7 +49,8 @@
     "section_pinned": "PINNED",
     "pin_menu": "Pin to favorites (max 3)",
     "unpin_menu": "Unpin menu",
-    "pin_limit_reached": "Maximum of 3 pinned favorite menus reached. Please unpin an existing menu first."
+    "pin_limit_reached": "Maximum of 3 pinned favorite menus reached. Please unpin an existing menu first.",
+    "virtual_office": "Virtual Office PE"
   },
   "project_calendar": {
     "title": "Project Calendar",
@@ -1203,7 +1204,7 @@
     "download_file": "Download File"
   },
   "virtual_office": {
-    "title": "Virtual Office HQ (2.5D Animated)",
+    "title": "Virtual Office PE",
     "subtitle": "Visual representation of SEIN PE team work hours (07:00 Work Starts, 09:30 Break 10m, 11:40 Lunch, 14:30 Break 10m, 16:10 Off)",
     "personnel_active": "{{count}} Active Registered Personnel",
     "sound_on": "Bell Chime: On",

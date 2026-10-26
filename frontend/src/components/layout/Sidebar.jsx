@@ -343,7 +343,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     { key: 'project-calendar', to: '/project-calendar', label: t('nav.project_calendar', 'Project Calendar'), icon: CalendarDays },
     { key: 'projects', to: '/projects', label: t('nav.projects', 'ToDo List'), icon: FolderKanban },
     { key: 'team', to: '/team', label: t('nav.team'), icon: Users },
-    { key: 'virtual-office', to: '/virtual-office', label: t('nav.virtual_office', 'Virtual Office HQ'), icon: Building2 },
+    { key: 'virtual-office', to: '/virtual-office', label: t('nav.virtual_office', 'Virtual Office PE'), icon: Building2 },
     ...(toolsNestedGroups.length > 0
       ? [
           {

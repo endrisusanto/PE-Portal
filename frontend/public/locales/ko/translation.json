@@ -49,7 +49,8 @@
     "section_pinned": "고정된 메뉴",
     "pin_menu": "즐겨찾기 고정 (최대 3개)",
     "unpin_menu": "고정 해제",
-    "pin_limit_reached": "즐겨찾기는 최대 3개까지 고정할 수 있습니다. 기존 고정을 먼저 해제해주세요."
+    "pin_limit_reached": "즐겨찾기는 최대 3개까지 고정할 수 있습니다. 기존 고정을 먼저 해제해주세요.",
+    "virtual_office": "버추얼 오피스 PE"
   },
   "project_calendar": {
     "title": "프로젝트 캘린더",
@@ -1203,7 +1204,7 @@
     "download_file": "파일 다운로드"
   },
   "virtual_office": {
-    "title": "버추얼 오피스 HQ (2.5D 실시간 시뮬레이션)",
+    "title": "버추얼 오피스 PE (2.5D 실시간 시뮬레이션)",
     "subtitle": "SEIN PE 생산기술팀 근무시간 시각화 (07:00 근무시작, 09:30 휴식 10분, 11:40 점심시간, 14:30 휴식 10분, 16:10 퇴근)",
     "personnel_active": "{{count}}명 등록 인원 근무 중",
     "sound_on": "종소리 알림: 켜짐",

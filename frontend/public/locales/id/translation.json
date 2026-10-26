@@ -49,7 +49,8 @@
     "section_pinned": "FAVORIT",
     "pin_menu": "Pin ke favorit (maks 3)",
     "unpin_menu": "Lepas pin menu",
-    "pin_limit_reached": "Maksimal 3 menu favorit yang dapat di-pin. Lepas pin menu lain terlebih dahulu."
+    "pin_limit_reached": "Maksimal 3 menu favorit yang dapat di-pin. Lepas pin menu lain terlebih dahulu.",
+    "virtual_office": "Virtual Office PE"
   },
   "project_calendar": {
     "title": "Project Calendar",
@@ -1203,7 +1204,7 @@
     "download_file": "Unduh File"
   },
   "virtual_office": {
-    "title": "Virtual Office HQ (2.5D Animated)",
+    "title": "Virtual Office PE",
     "subtitle": "Representasi visual jam kerja tim SEIN PE (07:00 Mulai Kerja, 09:30 Break 10m, 11:40 Istirahat, 14:30 Break 10m, 16:10 Pulang)",
     "personnel_active": "{{count}} Personil Terdaftar Aktif",
     "sound_on": "Suara Lonceng: On",

@@ -18,7 +18,6 @@ import {
 } from '../components/office/virtualOfficeData';
 import { VirtualOfficeCanvas } from '../components/office/VirtualOfficeCanvas';
 import { VirtualOfficeTimeline } from '../components/office/VirtualOfficeTimeline';
-import { VirtualOfficeActivityLog } from '../components/office/VirtualOfficeActivityLog';
 
 // Helper: Get current local time in minutes from 00:00 (WIB)
 const getLocalTimeInMinutes = () => {
@@ -211,7 +210,7 @@ export const VirtualOfficePage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Building2 size={24} color="var(--color-accent)" />
             <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, margin: 0 }}>
-              {t('virtual_office.title', 'Virtual Office HQ (2.5D Animated)')}
+              {t('virtual_office.title', 'Virtual Office PE')}
             </h1>
             <span
               style={{
@@ -264,50 +263,28 @@ export const VirtualOfficePage = () => {
         </div>
       </div>
 
-      {/* Main Interactive Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) 340px',
-          gap: '16px',
-          alignItems: 'start',
-        }}
-      >
-        {/* Left Column: Timeline Scrubber + Canvas */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <VirtualOfficeTimeline
-            currentTimeMins={currentTimeMins}
-            onSeekTime={handleSeekTime}
-            isLiveMode={isLiveMode}
-            onToggleLiveMode={handleToggleLiveMode}
-            isPlaying={isPlaying}
-            onTogglePlay={() => setIsPlaying((prev) => !prev)}
-            playbackSpeed={playbackSpeed}
-            onChangePlaybackSpeed={setPlaybackSpeed}
-            activePhase={activePhase}
-          />
+      {/* Main Full-Width Timeline Scrubber & 3D Canvas */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <VirtualOfficeTimeline
+          currentTimeMins={currentTimeMins}
+          onSeekTime={handleSeekTime}
+          isLiveMode={isLiveMode}
+          onToggleLiveMode={handleToggleLiveMode}
+          isPlaying={isPlaying}
+          onTogglePlay={() => setIsPlaying((prev) => !prev)}
+          playbackSpeed={playbackSpeed}
+          onChangePlaybackSpeed={setPlaybackSpeed}
+          activePhase={activePhase}
+        />
 
-          <VirtualOfficeCanvas
-            engineers={engineersWithPositions}
-            activePhase={activePhase}
-            selectedEngineer={selectedEngineer}
-            onSelectEngineer={setSelectedEngineer}
-            filterTeam={filterTeam}
-            isDarkMode={isDarkMode}
-          />
-        </div>
-
-        {/* Right Column: Activity Log & Inspector */}
-        <div style={{ height: '100%' }}>
-          <VirtualOfficeActivityLog
-            engineers={engineersWithPositions}
-            activePhase={activePhase}
-            selectedEngineer={selectedEngineer}
-            onSelectEngineer={setSelectedEngineer}
-            filterTeam={filterTeam}
-            onFilterTeam={setFilterTeam}
-          />
-        </div>
+        <VirtualOfficeCanvas
+          engineers={engineersWithPositions}
+          activePhase={activePhase}
+          selectedEngineer={selectedEngineer}
+          onSelectEngineer={setSelectedEngineer}
+          filterTeam={filterTeam}
+          isDarkMode={isDarkMode}
+        />
       </div>
     </div>
   );
