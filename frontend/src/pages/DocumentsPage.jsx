@@ -48,14 +48,14 @@ export const DocumentsPage = () => {
   const [category, setCategory] = useState('manual');
   const [uploading, setUploading] = useState(false);
 
-  // DataHub upload options
+  // DataHub upload options (default: empty project_id, folder_id f-rd63m6, pii checked)
   const [uploadToDatahub, setUploadToDatahub] = useState(false);
-  const [datahubProjectId, setDatahubProjectId] = useState('PE_PORTAL');
-  const [datahubFolderId, setDatahubFolderId] = useState('');
+  const [datahubProjectId, setDatahubProjectId] = useState('');
+  const [datahubFolderId, setDatahubFolderId] = useState('f-rd63m6');
   const [datahubDescription, setDatahubDescription] = useState('');
   const [datahubTags, setDatahubTags] = useState('');
   const [datahubOcr, setDatahubOcr] = useState(false);
-  const [datahubPii, setDatahubPii] = useState(false);
+  const [datahubPii, setDatahubPii] = useState(true);
   const [datahubOverwrite, setDatahubOverwrite] = useState(true);
   const [syncingDatahubId, setSyncingDatahubId] = useState(null);
   const [datahubDetailModal, setDatahubDetailModal] = useState(null);
@@ -133,8 +133,11 @@ export const DocumentsPage = () => {
       setIsUploadOpen(false);
       setSelectedFile(null);
       setTitle('');
+      setDatahubProjectId('');
+      setDatahubFolderId('f-rd63m6');
       setDatahubDescription('');
       setDatahubTags('');
+      setDatahubPii(true);
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     } finally {
@@ -654,16 +657,16 @@ export const DocumentsPage = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <Input
-                    label="Project ID"
+                    label="Project ID (Opsional)"
                     value={datahubProjectId}
                     onChange={(e) => setDatahubProjectId(e.target.value)}
                     placeholder="Contoh: PE_PORTAL"
                   />
                   <Input
-                    label="Folder ID (Opsional)"
+                    label="Folder ID"
                     value={datahubFolderId}
                     onChange={(e) => setDatahubFolderId(e.target.value)}
-                    placeholder="ID Folder DataHub"
+                    placeholder="f-rd63m6"
                   />
                 </div>
 
