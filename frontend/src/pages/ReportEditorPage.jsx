@@ -423,7 +423,20 @@ export const ReportEditorPage = () => {
   const [synthesizing, setSynthesizing] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [activeMcpList, setActiveMcpList] = useState([]);
   const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    if (isAiModalOpen) {
+      api.get('/ai/mcp-connectors')
+        .then((res) => {
+          if (res.data?.mcp_connectors) {
+            setActiveMcpList(res.data.mcp_connectors);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isAiModalOpen]);
 
   // Global ticker for countdown widgets
   const [now, setNow] = useState(Date.now());
@@ -2968,9 +2981,46 @@ export const ReportEditorPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <p style={{ margin: '0 0 6px', fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-              {t('reports.ai_modal_desc', 'Type custom instructions for your report. The AI LLM will synthesize portal database records (Tasks, Projects, New Models, DHL, etc.) into ready-to-use report blocks.')}
+              {t('reports.ai_modal_desc', 'Ketik instruksi kustom untuk laporan Anda. AI LLM akan menyintesis data database portal (Tasks, Projects, New Models, DHL, dll.) serta MCP Connectors yang terdaftar ke dalam draf blok laporan siap pakai.')}
             </p>
           </div>
+
+          {/* Active MCP Connectors indicator */}
+          {activeMcpList && activeMcpList.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              fontSize: '12px',
+              flexWrap: 'wrap',
+            }}>
+              <span style={{ fontWeight: 600, color: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                🔌 Active MCP Connectors:
+              </span>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {activeMcpList.map((mcp, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: 'var(--color-bg-primary)',
+                      border: '1px solid var(--color-border)',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                    }}
+                    title={mcp.tools?.length ? `Available Tools: ${mcp.tools.map(t => t.name).join(', ')}` : 'Connected'}
+                  >
+                    {mcp.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
@@ -3014,6 +3064,7 @@ export const ReportEditorPage = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {[
                 { label: '📦 Status DHL (Table & Pie Chart)', prompt: 'Buatkan daily report terkait status DHL terbaru tampilkan dalam table dan piechart' },
+                { label: '🔌 Integrasi MCP & Eksternal', prompt: 'Sertakan status sinkronisasi sistem eksternal dan task dari MCP connector yang aktif ke dalam laporan' },
                 { label: '📋 Rekap Tugas & Progres Harian', prompt: 'Rekap tugas operasional saya hari ini dalam bentuk checklist beserta statusnya dan tambahkan rencana besok' },
                 { label: '🚀 Status Proyek & Milestone Model', prompt: 'Tampilkan ringkasan progres proyek yang sedang in-progress dalam tabel serta milestone model baru' },
                 { label: '⚠️ Kendala Lini & Action Plan', prompt: 'Susun laporan fokus pada kendala lini produksi hari ini dan action plan perbaikan' },

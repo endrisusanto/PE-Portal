@@ -18,6 +18,10 @@ import {
   CheckCircle2,
   Lock,
   AlertCircle,
+  Database,
+  CloudUpload,
+  RefreshCw,
+  Info,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -41,6 +45,18 @@ export const DocumentsPage = () => {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('manual');
   const [uploading, setUploading] = useState(false);
+
+  // DataHub upload options
+  const [uploadToDatahub, setUploadToDatahub] = useState(false);
+  const [datahubProjectId, setDatahubProjectId] = useState('PE_PORTAL');
+  const [datahubFolderId, setDatahubFolderId] = useState('');
+  const [datahubDescription, setDatahubDescription] = useState('');
+  const [datahubTags, setDatahubTags] = useState('');
+  const [datahubOcr, setDatahubOcr] = useState(false);
+  const [datahubPii, setDatahubPii] = useState(false);
+  const [datahubOverwrite, setDatahubOverwrite] = useState(true);
+  const [syncingDatahubId, setSyncingDatahubId] = useState(null);
+  const [datahubDetailModal, setDatahubDetailModal] = useState(null);
 
   // Preview modal
   const [previewDoc, setPreviewDoc] = useState(null);
@@ -96,6 +112,17 @@ export const DocumentsPage = () => {
     formData.append('title', title || selectedFile.name);
     formData.append('category', category);
 
+    if (uploadToDatahub) {
+      formData.append('upload_to_datahub', 'true');
+      if (datahubProjectId) formData.append('datahub_project_id', datahubProjectId);
+      if (datahubFolderId) formData.append('datahub_folder_id', datahubFolderId);
+      if (datahubDescription) formData.append('datahub_description', datahubDescription);
+      if (datahubTags) formData.append('datahub_tags', datahubTags);
+      formData.append('datahub_ocr', datahubOcr ? 'true' : 'false');
+      formData.append('datahub_pii', datahubPii ? 'true' : 'false');
+      formData.append('datahub_overwrite', datahubOverwrite ? 'true' : 'false');
+    }
+
     try {
       const res = await api.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -104,10 +131,32 @@ export const DocumentsPage = () => {
       setIsUploadOpen(false);
       setSelectedFile(null);
       setTitle('');
+      setDatahubDescription('');
+      setDatahubTags('');
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleSyncDatahub = async (doc) => {
+    setSyncingDatahubId(doc.id);
+    try {
+      const res = await api.post(`/documents/${doc.id}/datahub-sync`);
+      const updated = res.data?.document || res.data;
+      if (updated && updated.id) {
+        setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      }
+      if (res.data?.success) {
+        alert('Berhasil disinkronkan ke Samsung DataHub!');
+      } else {
+        alert(res.data?.message || 'Gagal sinkronisasi ke DataHub (server intranet tidak dapat dijangkau dari lingkungan saat ini).');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'DataHub sync failed');
+    } finally {
+      setSyncingDatahubId(null);
     }
   };
 
@@ -259,6 +308,123 @@ export const DocumentsPage = () => {
       title: t('documents.col_uploaded_at', 'Uploaded At'),
       key: 'created_at',
       render: (val) => <span>{new Date(val).toLocaleDateString()}</span>,
+    },
+    {
+      title: 'DataHub',
+      key: 'datahub_status',
+      render: (val, row) => {
+        const status = val || 'skipped';
+        const isSyncing = syncingDatahubId === row.id;
+
+        if (status === 'synced') {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDatahubDetailModal(row)}
+                title={row.datahub_synced_at ? `Synced: ${new Date(row.datahub_synced_at).toLocaleString()}` : 'Synced'}
+              >
+                <CheckCircle2 size={12} /> Synced
+              </span>
+            </div>
+          );
+        }
+
+        if (status === 'failed') {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                  color: '#ef4444',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setDatahubDetailModal(row)}
+                title={row.datahub_error || 'Gagal tersambung (Server intranet tidak terjangkau)'}
+              >
+                <AlertCircle size={12} /> Intranet Offline
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSyncDatahub(row)}
+                disabled={isSyncing}
+                title="Sync / Retry ke DataHub"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: isSyncing ? 'not-allowed' : 'pointer',
+                  color: 'var(--color-accent)',
+                  padding: '3px 5px',
+                  borderRadius: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                <RefreshCw size={13} className={isSyncing ? styles.spinAnimation : ''} />
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 8px',
+                borderRadius: '12px',
+                fontSize: '11px',
+                fontWeight: 500,
+                backgroundColor: 'var(--color-bg-primary)',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              Local Only
+            </span>
+            <button
+              type="button"
+              onClick={() => handleSyncDatahub(row)}
+              disabled={isSyncing}
+              title="Upload / Sync ke DataHub"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: isSyncing ? 'not-allowed' : 'pointer',
+                color: 'var(--color-text-secondary)',
+                padding: '3px 5px',
+                borderRadius: '4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              {isSyncing ? <RefreshCw size={13} className={styles.spinAnimation} /> : <CloudUpload size={13} />}
+            </button>
+          </div>
+        );
+      },
     },
     {
       title: t('common.actions', 'Actions'),
@@ -426,7 +592,247 @@ export const DocumentsPage = () => {
               <option value="other">General Archive</option>
             </select>
           </div>
+
+          {/* Samsung DataHub Integration Section */}
+          <div
+            style={{
+              padding: '14px',
+              borderRadius: 'var(--radius-md)',
+              border: uploadToDatahub
+                ? '1px solid rgba(59, 130, 246, 0.45)'
+                : '1px solid var(--color-border)',
+              backgroundColor: uploadToDatahub
+                ? 'rgba(59, 130, 246, 0.04)'
+                : 'var(--color-bg-primary)',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    backgroundColor: uploadToDatahub ? 'rgba(59, 130, 246, 0.15)' : 'var(--color-bg-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: uploadToDatahub ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                  }}
+                >
+                  <Database size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    Upload ke Samsung DataHub
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                    Enterprise BigData NDH Ingest (API v3)
+                  </div>
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={uploadToDatahub}
+                  onChange={(e) => setUploadToDatahub(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: uploadToDatahub ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
+                  {uploadToDatahub ? 'Aktif' : 'Lewati (Local Only)'}
+                </span>
+              </label>
+            </div>
+
+            {uploadToDatahub && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <Input
+                    label="Project ID"
+                    value={datahubProjectId}
+                    onChange={(e) => setDatahubProjectId(e.target.value)}
+                    placeholder="Contoh: PE_PORTAL"
+                  />
+                  <Input
+                    label="Folder ID (Opsional)"
+                    value={datahubFolderId}
+                    onChange={(e) => setDatahubFolderId(e.target.value)}
+                    placeholder="ID Folder DataHub"
+                  />
+                </div>
+
+                <Input
+                  label="Description (Opsional, max 200)"
+                  value={datahubDescription}
+                  onChange={(e) => setDatahubDescription(e.target.value)}
+                  placeholder="Keterangan singkat objek berkas di DataHub"
+                  maxLength={200}
+                />
+
+                <Input
+                  label="Tags (Opsional, pisahkan koma)"
+                  value={datahubTags}
+                  onChange={(e) => setDatahubTags(e.target.value)}
+                  placeholder="Contoh: SOP, PE, 2026"
+                />
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '2px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={datahubOcr}
+                      onChange={(e) => setDatahubOcr(e.target.checked)}
+                      style={{ accentColor: 'var(--color-accent)' }}
+                    />
+                    <span>OCR Enabled</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={datahubPii}
+                      onChange={(e) => setDatahubPii(e.target.checked)}
+                      style={{ accentColor: 'var(--color-accent)' }}
+                    />
+                    <span>PII Tagging</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={datahubOverwrite}
+                      onChange={(e) => setDatahubOverwrite(e.target.checked)}
+                      style={{ accentColor: 'var(--color-accent)' }}
+                    />
+                    <span>Overwrite jika ada</span>
+                  </label>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--color-text-secondary)',
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  <Info size={14} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--color-accent)' }} />
+                  <span>
+                    Endpoint DataHub (<code>https://datahub-api.bigdata.samsung.com/</code>) berada di intranet. Jika upload dilakukan di luar jaringan intranet Samsung, berkas tetap aman disimpan di portal dan dapat disinkronkan saat terhubung intranet.
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </form>
+      </Modal>
+
+      {/* DataHub Detail & Retry Modal */}
+      <Modal
+        isOpen={Boolean(datahubDetailModal)}
+        onClose={() => setDatahubDetailModal(null)}
+        title="Status Samsung DataHub Ingest"
+        maxWidth="540px"
+      >
+        {datahubDetailModal && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: datahubDetailModal.datahub_status === 'synced' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: datahubDetailModal.datahub_status === 'synced' ? '#10b981' : '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {datahubDetailModal.datahub_status === 'synced' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{datahubDetailModal.title}</h4>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                  {datahubDetailModal.file_name}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              fontSize: '12.5px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Status:</span>
+                <span style={{ fontWeight: 600, textTransform: 'uppercase' }}>
+                  {datahubDetailModal.datahub_status || 'skipped'}
+                </span>
+              </div>
+              {datahubDetailModal.datahub_object_id && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>DataHub Object ID:</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{datahubDetailModal.datahub_object_id}</span>
+                </div>
+              )}
+              {datahubDetailModal.datahub_synced_at && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Waktu Sinkronisasi:</span>
+                  <span>{new Date(datahubDetailModal.datahub_synced_at).toLocaleString()}</span>
+                </div>
+              )}
+              {datahubDetailModal.datahub_error && (
+                <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid var(--color-border)' }}>
+                  <span style={{ color: '#ef4444', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Log Detail / Network Response:</span>
+                  <div style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    backgroundColor: 'var(--color-bg-primary)',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    color: 'var(--color-text-primary)',
+                    wordBreak: 'break-all',
+                    maxHeight: '120px',
+                    overflowY: 'auto',
+                  }}>
+                    {datahubDetailModal.datahub_error}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+              <Button variant="secondary" onClick={() => setDatahubDetailModal(null)}>
+                Tutup
+              </Button>
+              <Button
+                variant="primary"
+                icon={RefreshCw}
+                loading={syncingDatahubId === datahubDetailModal.id}
+                onClick={async () => {
+                  const doc = datahubDetailModal;
+                  await handleSyncDatahub(doc);
+                  setDatahubDetailModal(null);
+                }}
+              >
+                Sinkronkan ke DataHub Sekarang
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* In-Browser View-Only Preview Modal */}

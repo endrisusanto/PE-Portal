@@ -242,6 +242,10 @@ type Document struct {
 	IsArchived    bool            `json:"is_archived"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
+	DataHubStatus string          `json:"datahub_status"` // 'skipped' | 'pending' | 'synced' | 'failed'
+	DataHubObjectID *string       `json:"datahub_object_id,omitempty"`
+	DataHubSyncedAt *time.Time    `json:"datahub_synced_at,omitempty"`
+	DataHubError    *string       `json:"datahub_error,omitempty"`
 }
 
 // DocumentShare represents sharing settings for a document (open public, login required, or password-locked)

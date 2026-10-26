@@ -90,12 +90,13 @@ func main() {
 	projectHandler := handler.NewProjectHandler(projectRepo, userRepo, reportRepo, smtpService)
 	modelHandler := handler.NewNewModelHandler(modelRepo)
 	articleHandler := handler.NewArticleHandler(articleRepo)
-	docHandler := handler.NewDocumentHandler(docRepo, cfg.FileStoragePath, jwtService)
+	datahubService := service.NewDataHubService()
+	docHandler := handler.NewDocumentHandler(docRepo, cfg.FileStoragePath, jwtService, datahubService)
 	commentHandler := handler.NewCommentHandler(commentRepo, cfg.FileStoragePath)
 	mcpHandler := handler.NewMCPHandler(mcpRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo, pgPool.Pool)
-	reportHandler := handler.NewReportHandler(reportRepo, smtpService, reportScheduler, llmRepo, llmService)
 	mcpClientService := service.NewMCPClientService()
+	reportHandler := handler.NewReportHandler(reportRepo, smtpService, reportScheduler, llmRepo, llmService, mcpRepo, mcpClientService)
 	aiHandler := handler.NewAIHandler(llmRepo, mcpRepo, mcpClientService, llmService)
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
 	sampleHandler := handler.NewSampleHandler(sampleRepo)
@@ -276,6 +277,7 @@ func main() {
 	api.POST("/documents/:id/share", docHandler.CreateOrUpdateShare)
 	api.GET("/documents/:id/share", docHandler.GetShare)
 	api.DELETE("/documents/:id/share", docHandler.RevokeShare)
+	api.POST("/documents/:id/datahub-sync", docHandler.SyncToDataHub)
 
 	// Comments & Reactions
 	api.GET("/comments", commentHandler.List)

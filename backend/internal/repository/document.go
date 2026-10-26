@@ -30,7 +30,9 @@ func (r *DocumentRepository) List(ctx context.Context, fileType, category string
 		SELECT d.id, d.title, d.file_name, d.file_path, d.file_size, d.mime_type, d.file_type,
 		       d.category, d.tags, d.uploaded_by, u.full_name as uploader_name,
 		       d.group_part_id, gp.name as group_part_name,
-		       d.project_id, d.model_id, d.version, d.is_archived, d.created_at, d.updated_at
+		       d.project_id, d.model_id, d.version, d.is_archived, d.created_at, d.updated_at,
+		       COALESCE(d.datahub_status, 'skipped') as datahub_status,
+		       d.datahub_object_id, d.datahub_synced_at, d.datahub_error
 		FROM documents d
 		LEFT JOIN users u ON d.uploaded_by = u.id
 		LEFT JOIN group_parts gp ON d.group_part_id = gp.id
@@ -58,6 +60,7 @@ func (r *DocumentRepository) List(ctx context.Context, fileType, category string
 			&d.Category, &d.Tags, &d.UploadedBy, &d.UploaderName,
 			&d.GroupPartID, &d.GroupPartName,
 			&d.ProjectID, &d.ModelID, &d.Version, &d.IsArchived, &d.CreatedAt, &d.UpdatedAt,
+			&d.DataHubStatus, &d.DataHubObjectID, &d.DataHubSyncedAt, &d.DataHubError,
 		)
 		if err != nil {
 			return nil, err
@@ -72,7 +75,9 @@ func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.
 		SELECT d.id, d.title, d.file_name, d.file_path, d.file_size, d.mime_type, d.file_type,
 		       d.category, d.tags, d.uploaded_by, u.full_name as uploader_name,
 		       d.group_part_id, gp.name as group_part_name,
-		       d.project_id, d.model_id, d.version, d.is_archived, d.created_at, d.updated_at
+		       d.project_id, d.model_id, d.version, d.is_archived, d.created_at, d.updated_at,
+		       COALESCE(d.datahub_status, 'skipped') as datahub_status,
+		       d.datahub_object_id, d.datahub_synced_at, d.datahub_error
 		FROM documents d
 		LEFT JOIN users u ON d.uploaded_by = u.id
 		LEFT JOIN group_parts gp ON d.group_part_id = gp.id
@@ -85,6 +90,7 @@ func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.
 		&d.Category, &d.Tags, &d.UploadedBy, &d.UploaderName,
 		&d.GroupPartID, &d.GroupPartName,
 		&d.ProjectID, &d.ModelID, &d.Version, &d.IsArchived, &d.CreatedAt, &d.UpdatedAt,
+		&d.DataHubStatus, &d.DataHubObjectID, &d.DataHubSyncedAt, &d.DataHubError,
 	)
 	if err != nil {
 		return nil, err
@@ -102,22 +108,40 @@ func (r *DocumentRepository) Create(ctx context.Context, d *model.Document) (*mo
 	if d.Version == 0 {
 		d.Version = 1
 	}
+	if d.DataHubStatus == "" {
+		d.DataHubStatus = "skipped"
+	}
 
 	query := `
-		INSERT INTO documents (id, title, file_name, file_path, file_size, mime_type, file_type, category, tags, uploaded_by, group_part_id, project_id, model_id, version, is_archived)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		INSERT INTO documents (id, title, file_name, file_path, file_size, mime_type, file_type, category, tags, uploaded_by, group_part_id, project_id, model_id, version, is_archived, datahub_status, datahub_object_id, datahub_synced_at, datahub_error)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		RETURNING created_at, updated_at
 	`
 
 	err := r.pool.QueryRow(ctx, query,
 		d.ID, d.Title, d.FileName, d.FilePath, d.FileSize, d.MimeType, d.FileType,
 		d.Category, d.Tags, d.UploadedBy, d.GroupPartID, d.ProjectID, d.ModelID, d.Version, d.IsArchived,
+		d.DataHubStatus, d.DataHubObjectID, d.DataHubSyncedAt, d.DataHubError,
 	).Scan(&d.CreatedAt, &d.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create document record: %w", err)
 	}
 
 	return r.GetByID(ctx, d.ID)
+}
+
+func (r *DocumentRepository) UpdateDataHubStatus(ctx context.Context, id uuid.UUID, status string, objectID *string, syncedAt *time.Time, errMsg *string) error {
+	query := `
+		UPDATE documents
+		SET datahub_status = $2,
+		    datahub_object_id = $3,
+		    datahub_synced_at = $4,
+		    datahub_error = $5,
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := r.pool.Exec(ctx, query, id, status, objectID, syncedAt, errMsg)
+	return err
 }
 
 func (r *DocumentRepository) Delete(ctx context.Context, id uuid.UUID) error {

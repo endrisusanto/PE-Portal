@@ -23,6 +23,8 @@ type ReportHandler struct {
 	scheduler *service.ReportScheduler
 	llmRepo   *repository.LLMRepository
 	llmSvc    *service.LLMService
+	mcpRepo   *repository.MCPRepository
+	mcpSvc    *service.MCPClientService
 }
 
 func NewReportHandler(
@@ -31,6 +33,8 @@ func NewReportHandler(
 	scheduler *service.ReportScheduler,
 	llmRepo *repository.LLMRepository,
 	llmSvc *service.LLMService,
+	mcpRepo *repository.MCPRepository,
+	mcpSvc *service.MCPClientService,
 ) *ReportHandler {
 	return &ReportHandler{
 		repo:      repo,
@@ -38,6 +42,8 @@ func NewReportHandler(
 		scheduler: scheduler,
 		llmRepo:   llmRepo,
 		llmSvc:    llmSvc,
+		mcpRepo:   mcpRepo,
+		mcpSvc:    mcpSvc,
 	}
 }
 
@@ -611,15 +617,57 @@ func (h *ReportHandler) generateDefaultRAGBlocks(activities *repository.ScrapedA
 }
 
 func (h *ReportHandler) callLLMForReport(ctx context.Context, cfg *model.LLMConfig, userPrompt string, act *repository.ScrapedActivities) (*SynthesizedReportResponse, error) {
+	// ponytail: Pull registered active MCP connectors and tools from Settings into Report context
+	var activeMCPs []map[string]interface{}
+	var mcpNoteBuilder strings.Builder
+
+	if h.mcpRepo != nil {
+		servers, err := h.mcpRepo.List(ctx)
+		if err == nil {
+			for _, s := range servers {
+				if !s.IsActive {
+					continue
+				}
+				mcpItem := map[string]interface{}{
+					"name":        s.Name,
+					"endpoint":    s.URL,
+					"description": s.Description,
+				}
+				mcpNoteBuilder.WriteString(fmt.Sprintf("\n- MCP Connector [%s] (URL: %s)", s.Name, s.URL))
+				if h.mcpSvc != nil {
+					tools, _ := h.mcpSvc.FetchTools(ctx, &s)
+					if len(tools) > 0 {
+						var toolNames []string
+						for _, t := range tools {
+							toolNames = append(toolNames, t.Name)
+						}
+						mcpItem["tools"] = toolNames
+						mcpNoteBuilder.WriteString(fmt.Sprintf(" | Tools: %s", strings.Join(toolNames, ", ")))
+					}
+				}
+				activeMCPs = append(activeMCPs, mcpItem)
+			}
+		}
+	}
+
 	// Prepare context summary
-	contextData, _ := json.Marshal(map[string]interface{}{
-		"user":     act.User.FullName,
-		"tasks":    act.Tasks,
-		"projects": act.Projects,
-		"models":   act.Models,
-		"dhl":      act.DHL,
-		"date":     time.Now().Format("2006-01-02"),
-	})
+	contextMap := map[string]interface{}{
+		"user":                  act.User.FullName,
+		"tasks":                 act.Tasks,
+		"projects":              act.Projects,
+		"models":                act.Models,
+		"dhl":                   act.DHL,
+		"date":                  time.Now().Format("2006-01-02"),
+		"active_mcp_connectors": activeMCPs,
+	}
+	contextData, _ := json.Marshal(contextMap)
+
+	mcpInstruction := ""
+	if mcpNoteBuilder.Len() > 0 {
+		mcpInstruction = "\n\nACTIVE MCP CONNECTORS:\nYou also have direct access to active MCP (Model Context Protocol) connectors registered in portal Settings:" +
+			mcpNoteBuilder.String() +
+			"\nIf the user's custom prompt asks to include or summarize capabilities, status, or tools from these MCP connectors (e.g. build systems, automated services, GBA approvals), synthesize them into the report's descriptive paragraphs or checklists."
+	}
 
 	systemPrompt := `You are the SEIN PE Engineering AI Report Synthesizer.
 The user wants to generate an interactive digital work report based on their prompt and real database records.
@@ -652,7 +700,7 @@ Supported block types in this portal:
    - Pie: {"type": "chart_pie", "title": "...", "data": [{"label": "A", "value": 10, "color": "#10b981"}]}
    - Donut: {"type": "chart_donut", "title": "...", "data": [{"label": "A", "value": 10, "color": "#8b5cf6"}]}
    - Bar: {"type": "chart_bar", "title": "...", "color": "#0284c7", "data": [{"label": "A", "value": 15}]}
-   - Line: {"type": "chart_line", "title": "...", "color": "#0d7377", "data": [{"label": "Mon", "value": 98.2}]}
+   - Line: {"type": "chart_line", "title": "...", "color": "#0d7377", "data": [{"label": "Mon", "value": 98.2}]}` + mcpInstruction + `
 
 CHART SELECTION RULES:
 1. If the user mentions "pie" or "piechart", choose "pie" chartType (db_widget with displayMode: "chart", chartType: "pie", or chart_pie).
@@ -661,7 +709,9 @@ CHART SELECTION RULES:
 4. If the user asks for BOTH table and chart (e.g. "tampilkan dalam table dan piechart" or "table and chart"):
    You MUST include BOTH:
    a) A table block: {"type": "db_widget", "widget": "dhl", "displayMode": "table", "title": "DHL Shipment Records"}
-   b) A chart block: {"type": "db_widget", "widget": "dhl", "displayMode": "chart", "chartType": "pie", "title": "DHL Status Distribution"}`
+   b) A chart block: {"type": "db_widget", "widget": "dhl", "displayMode": "chart", "chartType": "pie", "title": "DHL Status Distribution"}
+
+5. If the user mentions custom sections, metrics, or MCP-driven tools, synthesize them into professional engineering report blocks.`
 
 	userMsg := fmt.Sprintf("USER INSTRUCTION: %s\n\nPORTAL REAL DATABASE CONTEXT:\n%s", userPrompt, string(contextData))
 

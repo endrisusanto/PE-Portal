@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,17 +18,22 @@ import (
 	"pe-portal/internal/middleware"
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
+	"pe-portal/internal/service"
 )
 
 type DocumentHandler struct {
 	repo        *repository.DocumentRepository
 	storagePath string
 	jwtService  *auth.JWTService
+	datahub     *service.DataHubService
 }
 
-func NewDocumentHandler(repo *repository.DocumentRepository, storagePath string, jwtService *auth.JWTService) *DocumentHandler {
+func NewDocumentHandler(repo *repository.DocumentRepository, storagePath string, jwtService *auth.JWTService, datahub *service.DataHubService) *DocumentHandler {
 	_ = os.MkdirAll(storagePath, 0755)
-	return &DocumentHandler{repo: repo, storagePath: storagePath, jwtService: jwtService}
+	if datahub == nil {
+		datahub = service.NewDataHubService()
+	}
+	return &DocumentHandler{repo: repo, storagePath: storagePath, jwtService: jwtService, datahub: datahub}
 }
 
 func (h *DocumentHandler) List(c echo.Context) error {
@@ -142,20 +148,27 @@ func (h *DocumentHandler) Upload(c echo.Context) error {
 		mimeType = "application/octet-stream"
 	}
 
+	uploadToDatahub := c.FormValue("upload_to_datahub") == "true" || c.FormValue("upload_to_datahub") == "1"
+	datahubStatus := "skipped"
+	if uploadToDatahub {
+		datahubStatus = "pending"
+	}
+
 	doc := model.Document{
-		ID:          docID,
-		Title:       title,
-		FileName:    file.Filename,
-		FilePath:    dstPath,
-		FileSize:    file.Size,
-		MimeType:    mimeType,
-		FileType:    fileType,
-		Category:    &category,
-		Tags:        json.RawMessage("[]"),
-		UploadedBy:  uploaderID,
-		GroupPartID: groupID,
-		ProjectID:   projectID,
-		ModelID:     modelID,
+		ID:            docID,
+		Title:         title,
+		FileName:      file.Filename,
+		FilePath:      dstPath,
+		FileSize:      file.Size,
+		MimeType:      mimeType,
+		FileType:      fileType,
+		Category:      &category,
+		Tags:          json.RawMessage("[]"),
+		UploadedBy:    uploaderID,
+		GroupPartID:   groupID,
+		ProjectID:     projectID,
+		ModelID:       modelID,
+		DataHubStatus: datahubStatus,
 	}
 
 	created, err := h.repo.Create(c.Request().Context(), &doc)
@@ -164,7 +177,131 @@ func (h *DocumentHandler) Upload(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
+	// Ingest to DataHub if user opted in
+	if uploadToDatahub && h.datahub != nil {
+		fReader, openErr := os.Open(dstPath)
+		if openErr == nil {
+			defer fReader.Close()
+
+			var pii *bool
+			if piiStr := c.FormValue("datahub_pii"); piiStr != "" {
+				b := piiStr == "true"
+				pii = &b
+			}
+
+			var tags []string
+			if tagsStr := c.FormValue("datahub_tags"); tagsStr != "" {
+				for _, t := range strings.Split(tagsStr, ",") {
+					if trimmed := strings.TrimSpace(t); trimmed != "" {
+						tags = append(tags, trimmed)
+					}
+				}
+			}
+
+			params := service.DataHubIngestParams{
+				ProjectID:     c.FormValue("datahub_project_id"),
+				FolderID:      c.FormValue("datahub_folder_id"),
+				Title:         created.Title,
+				Description:   c.FormValue("datahub_description"),
+				Tags:          tags,
+				Overwrite:     c.FormValue("datahub_overwrite") != "false",
+				ParsingYN:     c.FormValue("datahub_parsing") != "false",
+				PIITagEnabled: pii,
+				OCREnabled:    c.FormValue("datahub_ocr") == "true",
+			}
+
+			res, dhErr := h.datahub.IngestObject(c.Request().Context(), fReader, created.FileName, params, "")
+			if dhErr != nil {
+				errMsg := dhErr.Error()
+				log.Printf("[DataHub] Ingest failed: %v", errMsg)
+				status := "failed"
+				_ = h.repo.UpdateDataHubStatus(c.Request().Context(), created.ID, status, nil, nil, &errMsg)
+				created.DataHubStatus = status
+				created.DataHubError = &errMsg
+			} else {
+				status := "synced"
+				now := time.Now()
+				_ = h.repo.UpdateDataHubStatus(c.Request().Context(), created.ID, status, &res.ObjectID, &now, nil)
+				created.DataHubStatus = status
+				created.DataHubObjectID = &res.ObjectID
+				created.DataHubSyncedAt = &now
+				created.DataHubError = nil
+			}
+		}
+	}
+
 	return c.JSON(http.StatusCreated, created)
+}
+
+func (h *DocumentHandler) SyncToDataHub(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid document id")
+	}
+
+	doc, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "document not found")
+	}
+
+	fReader, err := os.Open(doc.FilePath)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "document file is not accessible on disk")
+	}
+	defer fReader.Close()
+
+	projectID := c.FormValue("datahub_project_id")
+	if projectID == "" {
+		projectID = c.QueryParam("project_id")
+	}
+	folderID := c.FormValue("datahub_folder_id")
+	if folderID == "" {
+		folderID = c.QueryParam("folder_id")
+	}
+
+	var pii *bool
+	if piiStr := c.FormValue("datahub_pii"); piiStr != "" {
+		b := piiStr == "true"
+		pii = &b
+	}
+
+	params := service.DataHubIngestParams{
+		ProjectID:     projectID,
+		FolderID:      folderID,
+		Title:         doc.Title,
+		Overwrite:     true,
+		ParsingYN:     true,
+		PIITagEnabled: pii,
+		OCREnabled:    c.FormValue("datahub_ocr") == "true",
+	}
+
+	res, dhErr := h.datahub.IngestObject(c.Request().Context(), fReader, doc.FileName, params, "")
+	if dhErr != nil {
+		errMsg := dhErr.Error()
+		status := "failed"
+		_ = h.repo.UpdateDataHubStatus(c.Request().Context(), doc.ID, status, nil, nil, &errMsg)
+		doc.DataHubStatus = status
+		doc.DataHubError = &errMsg
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success":  false,
+			"message":  errMsg,
+			"document": doc,
+		})
+	}
+
+	status := "synced"
+	now := time.Now()
+	_ = h.repo.UpdateDataHubStatus(c.Request().Context(), doc.ID, status, &res.ObjectID, &now, nil)
+	doc.DataHubStatus = status
+	doc.DataHubObjectID = &res.ObjectID
+	doc.DataHubSyncedAt = &now
+	doc.DataHubError = nil
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success":  true,
+		"message":  "Successfully synced to DataHub",
+		"document": doc,
+	})
 }
 
 func (h *DocumentHandler) Download(c echo.Context) error {

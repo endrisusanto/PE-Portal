@@ -114,6 +114,10 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 	// Idempotent self-repair check: ensure critical columns and tables exist even if migration tracking was bypassed
 	_, _ = p.Pool.Exec(ctx, `
 		ALTER TABLE IF EXISTS dhl_shipments ADD COLUMN IF NOT EXISTS delivered_notified_at TIMESTAMPTZ;
+		ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS datahub_status VARCHAR(50) DEFAULT 'skipped';
+		ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS datahub_object_id VARCHAR(255);
+		ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS datahub_synced_at TIMESTAMPTZ;
+		ALTER TABLE IF EXISTS documents ADD COLUMN IF NOT EXISTS datahub_error TEXT;
 		CREATE TABLE IF NOT EXISTS user_group_parts (
 			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			group_part_id UUID NOT NULL REFERENCES group_parts(id) ON DELETE CASCADE,

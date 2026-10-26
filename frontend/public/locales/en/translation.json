@@ -590,7 +590,7 @@
     "col_details": "Details",
     "btn_ai_draft": "AI Prompt Draft",
     "ai_modal_title": "AI Report Generator & Custom Prompt",
-    "ai_modal_desc": "Type custom instructions for your report. The AI LLM will synthesize portal database records (Tasks, Projects, New Models, DHL, etc.) into ready-to-use report blocks.",
+    "ai_modal_desc": "Type custom instructions for your report. The AI LLM will synthesize portal database records (Tasks, Projects, New Models, DHL, etc.) and registered MCP Connectors into ready-to-use report blocks.",
     "custom_prompt_label": "Custom Prompt / Instructions:",
     "custom_prompt_placeholder": "Example: Generate a daily report on recent DHL status, display in table and piechart...",
     "ctrl_enter_hint": "Press Ctrl + Enter to generate immediately",

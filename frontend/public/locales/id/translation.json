@@ -590,7 +590,7 @@
     "col_details": "Rincian",
     "btn_ai_draft": "Draf Prompt AI",
     "ai_modal_title": "AI Report Generator & Custom Prompt",
-    "ai_modal_desc": "Ketik instruksi atau kebutuhan laporan Anda secara bebas. AI LLM akan memproses database portal (Tasks, Projects, New Models, DHL, dsb.) untuk menyusun blok laporan yang sesuai.",
+    "ai_modal_desc": "Ketik instruksi atau kebutuhan laporan Anda secara bebas. AI LLM akan memproses database portal (Tasks, Projects, New Models, DHL, dsb.) serta MCP Connectors yang terdaftar untuk menyusun blok laporan yang sesuai.",
     "custom_prompt_label": "Instruksi / Prompt Kustom:",
     "custom_prompt_placeholder": "Contoh: Buatkan daily report terkait status DHL terbaru tampilkan dalam table dan piechart...",
     "ctrl_enter_hint": "Tekan Ctrl + Enter untuk langsung generate",
