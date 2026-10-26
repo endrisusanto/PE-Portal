@@ -8,7 +8,8 @@
 INSERT INTO group_parts (name, parent_group, description, sort_order) VALUES
 ('BOM Bill of Material', 'pe_production', 'Bill of Materials management and verification', 1),
 ('Setup Working Instruction', 'pe_production', 'Standard Operating Procedures & Working Instructions setup', 2),
-('Support Production', 'pe_production', 'Line technical support for production engineering', 3)
+('Support Production', 'pe_production', 'Line technical support for production engineering', 3),
+('PIC Model', 'pe_production', 'Person In Charge of new model introduction & line readiness', 4)
 ON CONFLICT DO NOTHING;
 
 -- PE Mecha

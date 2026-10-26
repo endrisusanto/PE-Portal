@@ -385,7 +385,7 @@
 /* ========================================================================= */
 .bentoGrid {
   display: grid;
-  grid-template-columns: 1.55fr 1fr;
+  grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
   gap: 20px;
   align-items: start;
 }
@@ -400,6 +400,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
+  width: 100%;
 }
 
 .bentoSection {
@@ -1030,8 +1032,29 @@
   font-size: 10.5px;
   color: var(--color-text-muted);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+  padding-bottom: 2px;
+}
+
+.memberGroupPart::-webkit-scrollbar {
+  height: 3px;
+}
+
+.memberGroupPart::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.memberGroupPart::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.memberGroupPart::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
 }
 
 .statusChip {

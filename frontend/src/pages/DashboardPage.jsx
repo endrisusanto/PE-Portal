@@ -1009,7 +1009,9 @@ export const DashboardPage = () => {
                           <span className={styles.youBadge}>{t('dashboard.you_badge', 'Anda')}</span>
                         )}
                       </div>
-                      <span className={styles.memberGroupPart}>{m.groupName}</span>
+                      <div className={styles.memberGroupPart} title={m.groupName}>
+                        {m.groupName}
+                      </div>
                     </div>
 
                     {/* Badge Informasi Status */}
