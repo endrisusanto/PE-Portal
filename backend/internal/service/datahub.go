@@ -453,6 +453,106 @@ func (s *DataHubService) TestConnection(ctx context.Context, customURL string, c
 	}, nil
 }
 
+// GetObjectDetails retrieves object metadata, parsing status, and extracted content from DataHub
+func (s *DataHubService) GetObjectDetails(ctx context.Context, objectID string, customAuthToken string) (map[string]interface{}, error) {
+	if strings.TrimSpace(objectID) == "" {
+		return nil, fmt.Errorf("objectID is required")
+	}
+
+	baseURL, apiKey, _, _, _ := s.resolveConfig(ctx)
+	token := apiKey
+	if customAuthToken != "" {
+		token = customAuthToken
+	}
+	token = strings.TrimSpace(strings.TrimPrefix(token, "Bearer "))
+
+	// 1. Try Python Bridge first if available
+	pythonBin := "python3"
+	if _, err := exec.LookPath("python3"); err != nil {
+		if _, err := exec.LookPath("python"); err == nil {
+			pythonBin = "python"
+		}
+	}
+
+	scriptCandidates := []string{
+		"backend/scripts/ndh_uploader.py",
+		"scripts/ndh_uploader.py",
+		"/app/scripts/ndh_uploader.py",
+		"ndh_uploader.py",
+	}
+	var scriptPath string
+	for _, cand := range scriptCandidates {
+		if _, err := os.Stat(cand); err == nil {
+			scriptPath = cand
+			break
+		}
+	}
+
+	if scriptPath != "" {
+		pyPayload := map[string]interface{}{
+			"action":    "get_object",
+			"object_id": objectID,
+			"api_url":   baseURL,
+			"token":     token,
+		}
+		pyJSON, _ := json.Marshal(pyPayload)
+
+		pyCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
+		defer cancel()
+
+		cmd := exec.CommandContext(pyCtx, pythonBin, scriptPath, string(pyJSON))
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		if err := cmd.Run(); err == nil {
+			var pyResp struct {
+				Success    bool                   `json:"success"`
+				StatusCode int                    `json:"status_code"`
+				Object     map[string]interface{} `json:"object"`
+				Error      string                 `json:"error"`
+			}
+			if jErr := json.Unmarshal(stdout.Bytes(), &pyResp); jErr == nil && pyResp.Success && pyResp.Object != nil {
+				return pyResp.Object, nil
+			}
+		}
+	}
+
+	// 2. Direct HTTP Fallback
+	getURL := strings.TrimRight(baseURL, "/") + "/v3/objects/" + objectID
+	httpCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(httpCtx, http.MethodGet, getURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-API-KEY", token)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("DataHub connection failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("DataHub API returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var resObj map[string]interface{}
+	if err := json.Unmarshal(body, &resObj); err != nil {
+		return map[string]interface{}{"raw_text": string(body)}, nil
+	}
+
+	return resObj, nil
+}
+
 // ponytail: ScanAndUploadWatchFolder scans configured watch folder, ingests new files to DataHub,
 // and moves successfully ingested files to the Uploaded/ subfolder. If ingestion fails, files remain in the watch folder for retry.
 func (s *DataHubService) ScanAndUploadWatchFolder(ctx context.Context, docRepo *repository.DocumentRepository) (*WatchScanResult, error) {

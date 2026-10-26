@@ -63,6 +63,35 @@ export const DocumentsPage = () => {
 
   // Preview modal
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [previewMode, setPreviewMode] = useState('local'); // 'local' | 'datahub'
+  const [datahubViewLoading, setDatahubViewLoading] = useState(false);
+  const [datahubViewData, setDatahubViewData] = useState(null);
+  const [datahubViewError, setDatahubViewError] = useState(null);
+
+  const fetchDataHubView = async (docId) => {
+    setDatahubViewLoading(true);
+    setDatahubViewError(null);
+    try {
+      const res = await api.get(`/documents/${docId}/datahub-view`);
+      setDatahubViewData(res.data);
+    } catch (err) {
+      setDatahubViewError(err?.response?.data?.message || err?.message || 'Gagal memuat konten dari DataHub API');
+    } finally {
+      setDatahubViewLoading(false);
+    }
+  };
+
+  const handleOpenPreview = (doc) => {
+    setPreviewDoc(doc);
+    setDatahubViewData(null);
+    setDatahubViewError(null);
+    if (doc?.datahub_error?.includes('DRM_ENCRYPTED_FILE') && doc?.datahub_object_id) {
+      setPreviewMode('datahub');
+      fetchDataHubView(doc.id);
+    } else {
+      setPreviewMode('local');
+    }
+  };
 
   // Share modal state
   const [shareDoc, setShareDoc] = useState(null);
@@ -442,7 +471,7 @@ export const DocumentsPage = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setPreviewDoc(row)}
+            onClick={() => handleOpenPreview(row)}
             title={t('documents.preview_file', 'Preview file')}
           >
             <Eye size={14} />
@@ -863,88 +892,353 @@ export const DocumentsPage = () => {
         maxWidth="950px"
       >
         {previewDoc && (
-          <div style={{ minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {previewDoc.file_type === 'img' ? (
-              <img
-                src={getDocUrl(previewDoc.id, 'preview')}
-                alt={previewDoc.title}
-                style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain', margin: '0 auto', borderRadius: 'var(--radius-sm)' }}
-              />
-            ) : previewDoc.file_type === 'pdf' ? (
-              <iframe
-                src={getDocUrl(previewDoc.id, 'preview')}
-                title={previewDoc.title}
-                style={{
-                  width: '100%',
-                  height: '600px',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: '#ffffff',
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  padding: '40px 24px',
-                  textAlign: 'center',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-border)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <FileText size={48} color="var(--color-accent)" />
-                <div>
-                  <h4 style={{ margin: '0 0 6px', fontSize: '16px' }}>{previewDoc.title}</h4>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                    Format <strong>{previewDoc.file_type?.toUpperCase()}</strong> ({formatFileSize(previewDoc.file_size)})
-                  </p>
-                </div>
-                <p style={{ maxWidth: '440px', fontSize: '12.5px', color: 'var(--color-text-muted)', margin: 0 }}>
-                  Format dokumen ini (office/spreadsheet) disarankan untuk dibuka melalui tab baru atau diunduh langsung untuk melihat konten penuh.
-                </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Header Tab Switcher (Local Viewer vs DataHub Reader) */}
+            {previewDoc.datahub_object_id && (
+              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode('local')}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontWeight: 600,
+                    backgroundColor: previewMode === 'local' ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                    color: previewMode === 'local' ? '#ffffff' : 'var(--color-text-primary)',
+                    border: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  📄 File Lokal / PDF Standar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewMode('datahub');
+                    if (!datahubViewData) fetchDataHubView(previewDoc.id);
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontWeight: 600,
+                    backgroundColor: previewMode === 'datahub' ? '#2563eb' : 'var(--color-bg-tertiary)',
+                    color: previewMode === 'datahub' ? '#ffffff' : 'var(--color-text-primary)',
+                    border: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <ShieldCheck size={14} />
+                  DataHub Reader (Bypass DRM NASCA)
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.25)' }}>
+                    Synced
+                  </span>
+                </button>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', alignItems: 'center' }}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={Share2}
-                onClick={() => handleOpenShare(previewDoc)}
-              >
-                Bagikan Link
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={ExternalLink}
-                onClick={() => window.open(getDocUrl(previewDoc.id, 'preview'), '_blank')}
-              >
-                Buka di Tab Baru
-              </Button>
-              <a
-                href={getDocUrl(previewDoc.id, 'download')}
-                target="_blank"
-                rel="noreferrer"
-                download
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  fontSize: 'var(--font-size-xs)',
-                  backgroundColor: 'var(--color-accent)',
-                  color: '#ffffff',
-                  borderRadius: 'var(--radius-sm)',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                }}
-              >
-                <Download size={14} /> Download Original File
-              </a>
+
+            {/* DRM Encrypted Notice if in local mode */}
+            {previewMode === 'local' && previewDoc.datahub_error && previewDoc.datahub_error.includes('DRM_ENCRYPTED_FILE') && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#d97706',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={16} />
+                  <span>Dokumen ini terdeteksi memiliki enkripsi Samsung DRM (Fasoo/NASCA). Pratinjau lokal mungkin tidak dapat dibuka.</span>
+                </div>
+                {previewDoc.datahub_object_id && (
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={() => {
+                      setPreviewMode('datahub');
+                      if (!datahubViewData) fetchDataHubView(previewDoc.id);
+                    }}
+                  >
+                    Buka via DataHub Reader
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {previewMode === 'datahub' ? (
+              /* ========================================================================= */
+              /* DATAHUB READER (BYPASS DRM NASCA)                                         */
+              /* ========================================================================= */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: '450px' }}>
+                {datahubViewLoading ? (
+                  <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+                    <LoadingState message="Menghubungi Samsung DataHub API untuk memuat metadata & isi berkas..." />
+                  </div>
+                ) : datahubViewError ? (
+                  <div style={{
+                    padding: '24px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    textAlign: 'center',
+                  }}>
+                    <AlertCircle size={32} color="#ef4444" style={{ margin: '0 auto 10px' }} />
+                    <h4 style={{ margin: '0 0 6px', fontSize: '15px', color: '#ef4444' }}>Gagal Memuat Data dari DataHub</h4>
+                    <p style={{ margin: '0 0 16px', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
+                      {datahubViewError}
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => fetchDataHubView(previewDoc.id)}>
+                        Coba Lagi
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={ExternalLink}
+                        onClick={() => window.open(datahubViewData?.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
+                      >
+                        Buka di Portal DataHub
+                      </Button>
+                    </div>
+                  </div>
+                ) : datahubViewData ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* Status & Object Header */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '10px',
+                      backgroundColor: 'var(--color-bg-secondary)',
+                      padding: '14px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      fontSize: '12px',
+                    }}>
+                      <div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>Object ID DataHub</div>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>
+                          {datahubViewData.object_id}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>Status Ingest / Parsing</div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                          }}>
+                            {String(datahubViewData.object?.status || datahubViewData.object?.parse_status || 'CREATED')}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>Nama File Remote</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {String(datahubViewData.object?.name || datahubViewData.object?.title || previewDoc.file_name)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Extracted Text Content Box */}
+                    <div style={{
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--color-bg-primary)',
+                      padding: '16px',
+                      maxHeight: '480px',
+                      overflowY: 'auto',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '8px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <FileText size={14} color="#2563eb" />
+                          Konten Teks & Ekstraksi DataHub AI
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                          Bypass enkripsi NASCA client-side
+                        </span>
+                      </div>
+
+                      {datahubViewData.object?.content || datahubViewData.object?.parsed_content || datahubViewData.object?.text ? (
+                        <div style={{
+                          fontSize: '12.5px',
+                          lineHeight: '1.6',
+                          whiteSpace: 'pre-wrap',
+                          fontFamily: 'inherit',
+                          color: 'var(--color-text-primary)',
+                        }}>
+                          {String(datahubViewData.object.content || datahubViewData.object.parsed_content || datahubViewData.object.text)}
+                        </div>
+                      ) : datahubViewData.object?.raw_text ? (
+                        <div style={{
+                          fontSize: '12px',
+                          lineHeight: '1.5',
+                          whiteSpace: 'pre-wrap',
+                          fontFamily: 'monospace',
+                          color: 'var(--color-text-primary)',
+                        }}>
+                          {datahubViewData.object.raw_text}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                          <Database size={36} style={{ margin: '0 auto 8px', color: 'var(--color-accent)' }} />
+                          <p style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            Dokumen Tersimpan di Samsung DataHub
+                          </p>
+                          <p style={{ margin: '0 auto 14px', maxWidth: '480px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                            Berkas telah terdaftar di DataHub dengan ID <code>{datahubViewData.object_id}</code>. Status parsing: {String(datahubViewData.object?.parse_status || 'PENDING')}. Anda dapat melihat pratinjau penuh langsung di platform DataHub resmi.
+                          </p>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={ExternalLink}
+                            onClick={() => window.open(datahubViewData.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
+                          >
+                            Buka di Web DataHub Samsung
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '40px', textAlign: 'center' }}>
+                    <Button variant="primary" size="sm" icon={ShieldCheck} onClick={() => fetchDataHubView(previewDoc.id)}>
+                      Muat Isi Dokumen dari DataHub
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ========================================================================= */
+              /* LOCAL STANDARD VIEWER (PDF / IMG / OFFICE)                                */
+              /* ========================================================================= */
+              <>
+                {previewDoc.file_type === 'img' ? (
+                  <img
+                    src={getDocUrl(previewDoc.id, 'preview')}
+                    alt={previewDoc.title}
+                    style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain', margin: '0 auto', borderRadius: 'var(--radius-sm)' }}
+                  />
+                ) : previewDoc.file_type === 'pdf' ? (
+                  <iframe
+                    src={getDocUrl(previewDoc.id, 'preview')}
+                    title={previewDoc.title}
+                    style={{
+                      width: '100%',
+                      height: '600px',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: '#ffffff',
+                    }}
+                  />
+                ) : previewDoc.file_type === 'txt' ? (
+                  <iframe
+                    src={getDocUrl(previewDoc.id, 'preview')}
+                    title={previewDoc.title}
+                    style={{
+                      width: '100%',
+                      height: '500px',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--color-bg-primary)',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      padding: '28px 20px',
+                      textAlign: 'center',
+                      backgroundColor: 'var(--color-bg-secondary)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--color-border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '10px',
+                    }}
+                  >
+                    <FileText size={48} color="var(--color-accent)" />
+                    <div>
+                      <h4 style={{ margin: '0 0 6px', fontSize: '16px' }}>{previewDoc.title}</h4>
+                      <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                        Format <strong>{previewDoc.file_type?.toUpperCase()}</strong> ({formatFileSize(previewDoc.file_size)})
+                      </p>
+                    </div>
+                    <p style={{ maxWidth: '440px', fontSize: '12.5px', color: 'var(--color-text-muted)', margin: 0 }}>
+                      Format dokumen ini (office/spreadsheet) disarankan untuk dibuka melalui tab baru atau diunduh langsung untuk melihat konten penuh.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap', paddingTop: '8px', borderTop: '1px solid var(--color-border-subtle)' }}>
+              <div>
+                {previewDoc.datahub_object_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Database}
+                    onClick={() => window.open(datahubViewData?.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
+                    title="Buka langsung di Web Portal Samsung DataHub"
+                  >
+                    Buka di Samsung DataHub
+                  </Button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={Share2}
+                  onClick={() => handleOpenShare(previewDoc)}
+                >
+                  Bagikan Link
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={ExternalLink}
+                  onClick={() => window.open(getDocUrl(previewDoc.id, 'preview'), '_blank')}
+                >
+                  Buka di Tab Baru
+                </Button>
+                <a
+                  href={getDocUrl(previewDoc.id, 'download')}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    fontSize: 'var(--font-size-xs)',
+                    backgroundColor: 'var(--color-accent)',
+                    color: '#ffffff',
+                    borderRadius: 'var(--radius-sm)',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  <Download size={14} /> Download Original File
+                </a>
+              </div>
             </div>
           </div>
         )}

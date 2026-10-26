@@ -355,6 +355,40 @@ func (h *DocumentHandler) Preview(c echo.Context) error {
 	return c.File(doc.FilePath)
 }
 
+// GetDataHubView fetches metadata, status, and extracted content from Samsung DataHub for viewing DRM/NASCA-encrypted documents
+func (h *DocumentHandler) GetDataHubView(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid document id")
+	}
+
+	doc, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "document not found")
+	}
+
+	if doc.DataHubObjectID == nil || strings.TrimSpace(*doc.DataHubObjectID) == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "dokumen belum di-ingest ke DataHub (tidak memiliki object_id)")
+	}
+
+	objData, err := h.datahub.GetObjectDetails(c.Request().Context(), *doc.DataHubObjectID, "")
+	if err != nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success":    false,
+			"error":      err.Error(),
+			"object_id":  *doc.DataHubObjectID,
+			"portal_url": "https://datahub.bigdata.samsung.com/",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success":    true,
+		"object_id":  *doc.DataHubObjectID,
+		"portal_url": "https://datahub.bigdata.samsung.com/",
+		"object":     objData,
+	})
+}
+
 func (h *DocumentHandler) Delete(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

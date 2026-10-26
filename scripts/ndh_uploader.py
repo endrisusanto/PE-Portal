@@ -19,17 +19,59 @@ def main():
         print(json.dumps({"success": False, "error": f"Invalid JSON input: {e}"}))
         sys.exit(1)
 
+    token = data.get("token", "").strip()
+    if not token:
+        print(json.dumps({"success": False, "error": "Token N-DH is required"}))
+        sys.exit(1)
+
+    action = data.get("action", "ingest")
+    if action == "get_object":
+        object_id = (data.get("object_id") or "").strip()
+        if not object_id:
+            print(json.dumps({"success": False, "error": "object_id is required for get_object action"}))
+            sys.exit(1)
+
+        base_api = data.get("api_url", "https://datahub-api.bigdata.samsung.com")
+        if base_api.endswith("/v3/objects/ingest"):
+            base_api = base_api[:-len("/v3/objects/ingest")]
+        base_api = base_api.rstrip("/")
+        get_url = f"{base_api}/v3/objects/{object_id}"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-API-KEY": token,
+            "Accept": "application/json",
+        }
+        try:
+            resp = requests.get(get_url, headers=headers, timeout=20)
+            if resp.status_code == 200:
+                try:
+                    obj_data = resp.json()
+                except Exception:
+                    obj_data = {"raw_text": resp.text}
+                print(json.dumps({
+                    "success": True,
+                    "status_code": resp.status_code,
+                    "object": obj_data
+                }))
+                sys.exit(0)
+            else:
+                print(json.dumps({
+                    "success": False,
+                    "status_code": resp.status_code,
+                    "error": f"DataHub API returned HTTP {resp.status_code}: {resp.text[:300]}"
+                }))
+                sys.exit(1)
+        except Exception as e:
+            print(json.dumps({"success": False, "error": f"Connection error: {e}"}))
+            sys.exit(1)
+
     api_url = data.get("api_url", "https://datahub-api.bigdata.samsung.com/v3/objects/ingest")
     if not api_url.endswith("/v3/objects/ingest"):
         api_url = api_url.rstrip("/") + "/v3/objects/ingest"
 
-    token = data.get("token", "").strip()
     file_path = data.get("file_path", "").strip()
     filename = data.get("filename") or os.path.basename(file_path)
-
-    if not token:
-        print(json.dumps({"success": False, "error": "Token N-DH is required"}))
-        sys.exit(1)
 
     if not file_path or not os.path.isfile(file_path):
         print(json.dumps({"success": False, "error": f"File not found: {file_path}"}))

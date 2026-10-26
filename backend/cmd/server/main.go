@@ -279,6 +279,7 @@ func main() {
 	api.GET("/documents/:id/share", docHandler.GetShare)
 	api.DELETE("/documents/:id/share", docHandler.RevokeShare)
 	api.POST("/documents/:id/datahub-sync", docHandler.SyncToDataHub)
+	api.GET("/documents/:id/datahub-view", docHandler.GetDataHubView)
 
 	// Comments & Reactions
 	api.GET("/comments", commentHandler.List)
