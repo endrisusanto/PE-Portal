@@ -408,12 +408,13 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [mcpConnectors, setMcpConnectors] = useState([]);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Load active LLM config
+  // Load active LLM config and registered MCP connectors
   useEffect(() => {
     api
       .get('/ai/config')
@@ -421,6 +422,15 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
         if (res.data?.config) {
           setActiveModel(res.data.config.model_name || 'google/gemma-4-e4b');
           setActiveProvider(res.data.config.name || 'LM Studio');
+        }
+      })
+      .catch(() => {});
+
+    api
+      .get('/ai/mcp-connectors')
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setMcpConnectors(res.data);
         }
       })
       .catch(() => {});
@@ -775,9 +785,35 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
           </div>
           <div className={styles.headerText}>
             <h3>{t('ai_chat.title', 'SEIN PE AI Assistant')}</h3>
-            <div className={styles.headerModel}>
-              <span className={styles.onlineBadge} />
-              <span>{activeProvider} • {activeModel}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div className={styles.headerModel}>
+                <span className={styles.onlineBadge} />
+                <span>{activeProvider} • {activeModel}</span>
+              </div>
+              {mcpConnectors.length > 0 && (
+                <div
+                  title={`Terhubung dengan ${mcpConnectors.length} MCP Connector (${mcpConnectors.map((m) => m.name).join(', ')})`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11px',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    color: '#3b82f6',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => navigate('/settings')}
+                >
+                  <span style={{ fontSize: '10px' }}>🔌</span>
+                  <span>{mcpConnectors[0]?.name || 'MCP'}</span>
+                  {mcpConnectors.length > 1 && (
+                    <span style={{ fontWeight: 700 }}>+{mcpConnectors.length - 1}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

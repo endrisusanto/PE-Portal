@@ -95,7 +95,8 @@ func main() {
 	mcpHandler := handler.NewMCPHandler(mcpRepo)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo, pgPool.Pool)
 	reportHandler := handler.NewReportHandler(reportRepo, smtpService, reportScheduler, llmRepo, llmService)
-	aiHandler := handler.NewAIHandler(llmRepo, llmService)
+	mcpClientService := service.NewMCPClientService()
+	aiHandler := handler.NewAIHandler(llmRepo, mcpRepo, mcpClientService, llmService)
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
 	sampleHandler := handler.NewSampleHandler(sampleRepo)
 	softwareMRHandler := handler.NewSoftwareMRHandler(softwareMRRepo)
@@ -333,6 +334,7 @@ func main() {
 	api.PUT("/ai/config", aiHandler.UpdateConfig)
 	api.DELETE("/ai/config/user", aiHandler.DeleteUserCustom)
 	api.GET("/ai/models", aiHandler.ListModels)
+	api.GET("/ai/mcp-connectors", aiHandler.GetMCPConnectors)
 	api.POST("/ai/chat", aiHandler.Chat)
 
 	// Utility Tools (Local PDF compress & Python Background Remover)

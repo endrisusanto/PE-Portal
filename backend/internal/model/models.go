@@ -440,10 +440,11 @@ type ChatMessage struct {
 
 // AIChatRequest defines the payload sent to PE AI Assistant
 type AIChatRequest struct {
-	Messages    []ChatMessage `json:"messages"`
-	Model       string        `json:"model,omitempty"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
-	Temperature float64       `json:"temperature,omitempty"`
+	Messages     []ChatMessage `json:"messages"`
+	Model        string        `json:"model,omitempty"`
+	MaxTokens    int           `json:"max_tokens,omitempty"`
+	Temperature  float64       `json:"temperature,omitempty"`
+	SystemPrompt string        `json:"system_prompt,omitempty"`
 }
 
 // UserEmailList represents custom recipient contact groups saved by a member
