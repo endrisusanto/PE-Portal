@@ -1,16 +1,13 @@
-// VirtualOfficePage.jsx
-// Main Page: 2.5D Animated AI Engineering Office for 30 Persons
-// Represents SEIN PE work hours: 07:00 Start, 09:30 Break (10m), 11:40 Lunch, 12:30 Resume, 14:30 Break (10m), 16:10 Pulang
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building2, Users, Clock, Sparkles, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { Building2, Users, Clock, Sparkles, Volume2, VolumeX, Maximize2, X, Check } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import api from '../api/client';
 import {
   TEAMS,
   INITIAL_ENGINEERS,
   SCHEDULE_PHASES,
+  MANAGER_DESKS,
   getActivePhase,
   getEngineerTargetPosition,
   minutesToTime,
@@ -42,6 +39,20 @@ export const VirtualOfficePage = () => {
   const [filterTeam, setFilterTeam] = useState('ALL');
   // ponytail: Load registered users only from DB; start empty with no mock padding
   const [engineersList, setEngineersList] = useState([]);
+
+  // ponytail: Persist custom manager desk assignments in localStorage
+  const [deskAssignments, setDeskAssignments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pe_virtual_office_desk_assignments');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Active desk modal being assigned (e.g. clicked on canvas)
+  const [assigningDesk, setAssigningDesk] = useState(null);
+  const [selectedAssignee, setSelectedAssignee] = useState('');
 
   // Audio Context ref for ambient chimes on phase change
   const audioCtxRef = useRef(null);
@@ -99,6 +110,36 @@ export const VirtualOfficePage = () => {
             });
 
           setEngineersList(registeredUsers);
+
+          // ponytail: If deskAssignments is empty in localStorage, intelligently auto-seed based on parent_group & role
+          setDeskAssignments((current) => {
+            if (Object.keys(current).length > 0) return current;
+            const seeded = {};
+            registeredUsers.forEach((eng) => {
+              const u = eng.apiUser || {};
+              const pGroup = (u.parent_group || '').toLowerCase();
+              const fName = (eng.name || '').toLowerCase();
+              if (eng.isLeader || u.role === 'manager') {
+                if (pGroup.includes('production') || pGroup.includes('part')) {
+                  if (!seeded.PE_PRODUCTION_MANAGER) seeded.PE_PRODUCTION_MANAGER = eng.name;
+                } else if (pGroup.includes('mecha')) {
+                  if (!seeded.PE_MECHA_MANAGER) seeded.PE_MECHA_MANAGER = eng.name;
+                } else if (pGroup.includes('solution')) {
+                  if (!seeded.PE_SOLUTION_MANAGER) seeded.PE_SOLUTION_MANAGER = eng.name;
+                } else if (pGroup.includes('management')) {
+                  if (fName.includes('park') || fName.includes('jin-woo') || eng.employee_id === 'PE_EXP01') {
+                    if (!seeded.PE_DISPATCHER) seeded.PE_DISPATCHER = eng.name;
+                  } else {
+                    if (!seeded.PE_GROUP_LEADER) seeded.PE_GROUP_LEADER = eng.name;
+                  }
+                }
+              }
+            });
+            try {
+              localStorage.setItem('pe_virtual_office_desk_assignments', JSON.stringify(seeded));
+            } catch {}
+            return seeded;
+          });
         }
       } catch (err) {
         // Leave engineersList empty if API fails; no fake mock users
@@ -165,10 +206,10 @@ export const VirtualOfficePage = () => {
     }
   };
 
-  // Compute updated positions and activities for 30 engineers (updates smoothly on phase change and minute-by-minute hydration/toilet breaks)
+  // Compute updated positions and activities for engineers (updates smoothly on phase change and minute-by-minute hydration/toilet breaks)
   const engineersWithPositions = useMemo(() => {
     return engineersList.map((eng, idx) => {
-      const target = getEngineerTargetPosition(eng, activePhase, idx, currentTimeMins);
+      const target = getEngineerTargetPosition(eng, activePhase, idx, currentTimeMins, deskAssignments);
       return {
         ...eng,
         currentZone: target.zone,
@@ -176,7 +217,7 @@ export const VirtualOfficePage = () => {
         currentActivity: target.activity,
       };
     });
-  }, [engineersList, activePhase, Math.floor(currentTimeMins)]);
+  }, [engineersList, activePhase, Math.floor(currentTimeMins), deskAssignments]);
 
   // Handle Seek / Scrub Time
   const handleSeekTime = (mins) => {
@@ -238,8 +279,34 @@ export const VirtualOfficePage = () => {
           </p>
         </div>
 
-        {/* Audio Toggle */}
+        {/* Action Controls: Desk Manager Assignment & Audio Toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setAssigningDesk(MANAGER_DESKS[0]);
+              setSelectedAssignee(deskAssignments[MANAGER_DESKS[0].id] || '');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              backgroundColor: 'var(--color-bg-secondary)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title="Klik untuk memilih dan mengatur penempatan posisi meja manager"
+          >
+            <span>🪑</span>
+            <span>Atur Meja Manager</span>
+          </button>
+
           <button
             onClick={() => setSoundEnabled((prev) => !prev)}
             style={{
@@ -284,8 +351,220 @@ export const VirtualOfficePage = () => {
           onSelectEngineer={setSelectedEngineer}
           filterTeam={filterTeam}
           isDarkMode={isDarkMode}
+          deskAssignments={deskAssignments}
+          onSelectDesk={(desk) => {
+            setAssigningDesk(desk);
+            setSelectedAssignee(deskAssignments[desk.id] || '');
+          }}
         />
       </div>
+
+      {/* Modal Assign Manager Meja */}
+      {assigningDesk && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            backdropFilter: 'blur(4px)',
+            padding: '16px',
+          }}
+          onClick={() => setAssigningDesk(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--color-bg-primary)',
+              color: 'var(--color-text-primary)',
+              borderRadius: '12px',
+              border: '1px solid var(--color-border)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              width: '100%',
+              maxWidth: '460px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '24px' }}>{assigningDesk.icon}</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>
+                    Assign Manager Meja
+                  </h3>
+                  <span style={{ fontSize: '12px', color: assigningDesk.color, fontWeight: 600 }}>
+                    {assigningDesk.title}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssigningDesk(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Quick desk tabs */}
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              {MANAGER_DESKS.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => {
+                    setAssigningDesk(d);
+                    setSelectedAssignee(deskAssignments[d.id] || '');
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    border: `1px solid ${assigningDesk.id === d.id ? d.color : 'var(--color-border)'}`,
+                    backgroundColor: assigningDesk.id === d.id ? `${d.color}25` : 'var(--color-bg-secondary)',
+                    color: assigningDesk.id === d.id ? d.color : 'var(--color-text-secondary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {d.icon} {d.shortLabel}
+                </button>
+              ))}
+            </div>
+
+            {/* Current Occupant Info */}
+            <div
+              style={{
+                padding: '10px 12px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                fontSize: '12px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ color: 'var(--color-text-secondary)' }}>Manager Saat Ini:</span>
+              <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                {deskAssignments[assigningDesk.id] || '(Belum Terisi / Kosong)'}
+              </span>
+            </div>
+
+            {/* Dropdown Select Manager */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                Pilih Personil untuk Menduduki Kursi Ini:
+              </label>
+              <select
+                value={selectedAssignee}
+                onChange={(e) => setSelectedAssignee(e.target.value)}
+                style={{
+                  height: '38px',
+                  padding: '0 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="">-- Kosongkan Meja Ini --</option>
+                <optgroup label="Daftar Manager (Direkomendasikan)">
+                  {engineersList
+                    .filter((eng) => eng.isLeader || eng.role?.toLowerCase().includes('manager'))
+                    .map((eng) => (
+                      <option key={eng.dbId || eng.name} value={eng.name}>
+                        👔 {eng.name} ({eng.team} - {eng.role})
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label="Seluruh Anggota Personil">
+                  {engineersList
+                    .filter((eng) => !eng.isLeader && !eng.role?.toLowerCase().includes('manager'))
+                    .map((eng) => (
+                      <option key={eng.dbId || eng.name} value={eng.name}>
+                        👤 {eng.name} ({eng.team} - {eng.role})
+                      </option>
+                    ))}
+                </optgroup>
+              </select>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = { ...deskAssignments };
+                  delete updated[assigningDesk.id];
+                  setDeskAssignments(updated);
+                  try {
+                    localStorage.setItem('pe_virtual_office_desk_assignments', JSON.stringify(updated));
+                  } catch {}
+                  setAssigningDesk(null);
+                }}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Kosongkan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = { ...deskAssignments, [assigningDesk.id]: selectedAssignee };
+                  if (!selectedAssignee) {
+                    delete updated[assigningDesk.id];
+                  }
+                  setDeskAssignments(updated);
+                  try {
+                    localStorage.setItem('pe_virtual_office_desk_assignments', JSON.stringify(updated));
+                  } catch {}
+                  setAssigningDesk(null);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  backgroundColor: 'var(--color-accent)',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Check size={14} />
+                <span>Simpan &amp; Tempatkan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -4,7 +4,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { RotateCcw, RotateCw, ZoomIn, ZoomOut, Maximize2, Minimize2, Compass, Move, ArrowUp, ArrowDown } from 'lucide-react';
-import { TEAMS, ZONES } from './virtualOfficeData';
+import { TEAMS, ZONES, MANAGER_DESKS } from './virtualOfficeData';
 
 export const VirtualOfficeCanvas = ({
   engineers = [],
@@ -13,10 +13,13 @@ export const VirtualOfficeCanvas = ({
   onSelectEngineer,
   filterTeam = 'ALL',
   isDarkMode = false,
+  deskAssignments = {},
+  onSelectDesk = null,
 }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [hoveredEngineer, setHoveredEngineer] = useState(null);
+  const [hoveredDesk, setHoveredDesk] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 3D Camera State: Orbit Yaw, Pitch Tilt, Zoom, Pan
@@ -167,8 +170,8 @@ export const VirtualOfficeCanvas = ({
       // 2. Draw Rooms (Meeting 1-3, Storage, Labs, Toilets, Gaming Room, Teams)
       drawFloorPlanRooms(ctx, width, height, project3D, isDarkMode, isNight, tick);
 
-      // 3. Draw Workstation Desks + Leader Desks
-      drawWorkstationDesks(ctx, width, height, project3D, isDarkMode, isNight);
+      // 3. Draw Workstation Desks + Leader Desks with assignments and interactive hover
+      drawWorkstationDesks(ctx, width, height, project3D, isDarkMode, isNight, hoveredDesk?.id, deskAssignments, engineers);
 
       // 4. Update Avatar Walking Logic (Step along Waypoint Queue)
       engineers.forEach((eng) => {
@@ -329,13 +332,25 @@ export const VirtualOfficeCanvas = ({
       return;
     }
 
-    // Avatar hover test
+    // Manager Desk hover test (clicking a desk triggers manager assignment)
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     const width = rect.width;
     const height = rect.height;
 
+    let foundDesk = null;
+    for (const desk of MANAGER_DESKS) {
+      const screenPos = project3D(desk.x, desk.y, 0, width, height);
+      const dist = Math.hypot(mouseX - screenPos.x, mouseY - screenPos.y);
+      if (dist < 22 * cam.zoom) {
+        foundDesk = desk;
+        break;
+      }
+    }
+    setHoveredDesk(foundDesk);
+
+    // Avatar hover test
     let found = null;
     for (const eng of engineers) {
       const state = avatarStatesRef.current[eng.id];
@@ -362,6 +377,12 @@ export const VirtualOfficeCanvas = ({
   };
 
   const handleClick = (e) => {
+    // Priority 1: If clicked on a manager desk, open desk assign modal
+    if (hoveredDesk) {
+      onSelectDesk?.(hoveredDesk);
+      return;
+    }
+    // Priority 2: If clicked on an engineer avatar, select them
     if (hoveredEngineer) {
       onSelectEngineer?.(hoveredEngineer);
     } else if (!cameraRef.current.isDragging) {
@@ -429,7 +450,7 @@ export const VirtualOfficeCanvas = ({
         backgroundColor: isDarkMode
           ? (activePhase?.type === 'off' ? '#070b14' : '#0f172a')
           : (activePhase?.type === 'off' ? '#1e293b' : '#f8fafc'),
-        cursor: hoveredEngineer ? 'pointer' : (cameraRef.current.isDragging ? 'grabbing' : 'grab'),
+        cursor: (hoveredDesk || hoveredEngineer) ? 'pointer' : (cameraRef.current.isDragging ? 'grabbing' : 'grab'),
         userSelect: 'none',
       }}
       onMouseDown={handleMouseDown}
@@ -441,9 +462,39 @@ export const VirtualOfficeCanvas = ({
       onMouseLeave={() => {
         cameraRef.current.isDragging = false;
         setHoveredEngineer(null);
+        setHoveredDesk(null);
       }}
     >
       <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
+
+      {/* Floating Hovered Desk Tooltip Banner */}
+      {hoveredDesk && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '60px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 12px',
+            backgroundColor: 'rgba(15, 23, 42, 0.92)',
+            borderRadius: '8px',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid #f59e0b',
+            color: '#f8fafc',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            zIndex: 10,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+            pointerEvents: 'none',
+          }}
+        >
+          <span>{hoveredDesk.icon}</span>
+          <span>{hoveredDesk.title}</span>
+          <span style={{ color: '#fbbf24', fontSize: '10.5px' }}>• Klik untuk Assign Manager</span>
+        </div>
+      )}
 
       {/* Floating 3D Camera Toolbar (Top Right) */}
       <div
@@ -973,21 +1024,41 @@ function drawMiniTable(ctx, width, height, project, cx, cy, rx, ry, color) {
   ctx.stroke();
 }
 
-function drawWorkstationDesks(ctx, width, height, project, isDark, isNight) {
+function drawWorkstationDesks(ctx, width, height, project, isDark, isNight, hoveredDeskId, deskAssignments = {}, engineers = []) {
+  // Helper to find assigned person short name
+  const getAssignedName = (deskId) => {
+    const val = deskAssignments[deskId];
+    if (!val) return '';
+    const eng = engineers.find((e) => e.dbId === val || e.id === val || e.name === val || e.employee_id === val);
+    return eng ? eng.name.split(' ')[0] : (typeof val === 'string' && val.length < 15 ? val : '');
+  };
+
   // PE Production / PE Part (15 Members: 3x5 block + 1 Manager)
-  drawTeamDesks(ctx, width, height, project, 7, 52.5, 5, 5, 3, 5, 12, 83.5, '#3b82f6', isDark, isNight);
+  drawTeamDesks(
+    ctx, width, height, project, 7, 52.5, 5, 5, 3, 5, 12, 83.5, '#3b82f6', isDark, isNight,
+    'PE_PRODUCTION_MANAGER', hoveredDeskId, getAssignedName('PE_PRODUCTION_MANAGER')
+  );
 
   // PE Mecha (15 Members: 3x5 block + 1 Manager)
-  drawTeamDesks(ctx, width, height, project, 25, 52.5, 5, 5, 3, 5, 30, 83.5, '#10b981', isDark, isNight);
+  drawTeamDesks(
+    ctx, width, height, project, 25, 52.5, 5, 5, 3, 5, 30, 83.5, '#10b981', isDark, isNight,
+    'PE_MECHA_MANAGER', hoveredDeskId, getAssignedName('PE_MECHA_MANAGER')
+  );
 
   // PE Solution (15 Members: 3x5 block + 1 Manager)
-  drawTeamDesks(ctx, width, height, project, 43, 52.5, 5, 5, 3, 5, 48, 83.5, '#8b5cf6', isDark, isNight);
+  drawTeamDesks(
+    ctx, width, height, project, 43, 52.5, 5, 5, 3, 5, 48, 83.5, '#8b5cf6', isDark, isNight,
+    'PE_SOLUTION_MANAGER', hoveredDeskId, getAssignedName('PE_SOLUTION_MANAGER')
+  );
 
   // PE Executive Management (2 Boss Desks: Korean Dispatcher & PE Group Leader)
-  drawExecutiveBossDesks(ctx, width, height, project, isDark, isNight);
+  drawExecutiveBossDesks(
+    ctx, width, height, project, isDark, isNight, hoveredDeskId,
+    getAssignedName('PE_DISPATCHER'), getAssignedName('PE_GROUP_LEADER')
+  );
 }
 
-function drawTeamDesks(ctx, width, height, project, startX, startY, colStep, rowStep, cols, rows, leaderX, leaderY, color, isDark, isNight) {
+function drawTeamDesks(ctx, width, height, project, startX, startY, colStep, rowStep, cols, rows, leaderX, leaderY, color, isDark, isNight, leaderDeskId, hoveredDeskId, assignedName) {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const pos = project(startX + c * colStep, startY + r * rowStep, 0, width, height);
@@ -996,22 +1067,31 @@ function drawTeamDesks(ctx, width, height, project, startX, startY, colStep, row
   }
 
   const leaderPos = project(leaderX, leaderY, 0, width, height);
-  drawSingleDesk(ctx, leaderPos.x, leaderPos.y, color, isDark, isNight, true);
+  const isHovered = hoveredDeskId === leaderDeskId;
+  drawSingleDesk(ctx, leaderPos.x, leaderPos.y, color, isDark, isNight, true, isHovered, assignedName);
 }
 
-function drawExecutiveBossDesks(ctx, width, height, project, isDark, isNight) {
+function drawExecutiveBossDesks(ctx, width, height, project, isDark, isNight, hoveredDeskId, dispatcherName, groupLeaderName) {
   // 1. Dispatcher / Expatriat Korea Desk (x: 63.5, y: 60)
   const dPos = project(63.5, 60, 0, width, height);
-  drawBossDeskItem(ctx, dPos.x, dPos.y, '#e11d48', isDark, isNight, '🇰🇷 DISPATCHER', true);
+  const isHoveredD = hoveredDeskId === 'PE_DISPATCHER';
+  drawBossDeskItem(ctx, dPos.x, dPos.y, '#e11d48', isDark, isNight, '🇰🇷 DISPATCHER', true, isHoveredD, dispatcherName);
 
   // 2. Group Leader / Group Manager Desk (x: 63.5, y: 80)
   const glPos = project(63.5, 80, 0, width, height);
-  drawBossDeskItem(ctx, glPos.x, glPos.y, '#f59e0b', isDark, isNight, '👔 GROUP LEADER', false);
+  const isHoveredGL = hoveredDeskId === 'PE_GROUP_LEADER';
+  drawBossDeskItem(ctx, glPos.x, glPos.y, '#f59e0b', isDark, isNight, '👔 GROUP LEADER', false, isHoveredGL, groupLeaderName);
 }
 
-function drawBossDeskItem(ctx, x, y, accentColor, isDark, isNight, labelText, isKorean) {
+function drawBossDeskItem(ctx, x, y, accentColor, isDark, isNight, labelText, isKorean, isHovered = false, assignedLabel = '') {
   const deskWidth = 26;
   const deskHeight = 11;
+
+  if (isHovered) {
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(x - deskWidth / 2 - 3, y - deskHeight / 2 - 3, deskWidth + 6, deskHeight + 6);
+  }
 
   // Executive Mahogany Wood Table Top
   ctx.fillStyle = isDark
@@ -1020,8 +1100,8 @@ function drawBossDeskItem(ctx, x, y, accentColor, isDark, isNight, labelText, is
   ctx.fillRect(x - deskWidth / 2, y - deskHeight / 2, deskWidth, deskHeight);
 
   // Gold / Crimson Executive Trim
-  ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = isHovered ? '#f59e0b' : accentColor;
+  ctx.lineWidth = isHovered ? 2 : 1.6;
   ctx.strokeRect(x - deskWidth / 2, y - deskHeight / 2, deskWidth, deskHeight);
 
   // Dual Screens + Laptop
@@ -1037,7 +1117,7 @@ function drawBossDeskItem(ctx, x, y, accentColor, isDark, isNight, labelText, is
   ctx.beginPath();
   ctx.arc(x, y + 8, 4, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = accentColor;
+  ctx.strokeStyle = isHovered ? '#f59e0b' : accentColor;
   ctx.lineWidth = 0.8;
   ctx.stroke();
 
@@ -1046,17 +1126,30 @@ function drawBossDeskItem(ctx, x, y, accentColor, isDark, isNight, labelText, is
   ctx.font = 'bold 7.5px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(labelText, x, y + 2.5);
+
+  if (assignedLabel || isHovered) {
+    const text = isHovered ? '🪑 Klik Assign' : assignedLabel;
+    ctx.fillStyle = isHovered ? '#fbbf24' : (isDark ? '#e2e8f0' : '#0f172a');
+    ctx.font = 'bold 7px sans-serif';
+    ctx.fillText(text, x, y + 10);
+  }
 }
 
-function drawSingleDesk(ctx, x, y, tagColor, isDark, isNight, isManager) {
+function drawSingleDesk(ctx, x, y, tagColor, isDark, isNight, isManager, isHovered = false, assignedLabel = '') {
   const deskWidth = isManager ? 22 : 15;
   const deskHeight = isManager ? 9 : 6.5;
+
+  if (isHovered) {
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(x - deskWidth / 2 - 2, y - deskHeight / 2 - 2, deskWidth + 4, deskHeight + 4);
+  }
 
   ctx.fillStyle = isDark
     ? (isNight ? '#1e293b' : '#334155')
     : (isNight ? '#64748b' : '#e2e8f0');
   ctx.fillRect(x - deskWidth / 2, y - deskHeight / 2, deskWidth, deskHeight);
-  ctx.strokeStyle = tagColor;
+  ctx.strokeStyle = isHovered ? '#f59e0b' : tagColor;
   ctx.lineWidth = isManager ? 1.5 : 0.8;
   ctx.strokeRect(x - deskWidth / 2, y - deskHeight / 2, deskWidth, deskHeight);
 
@@ -1070,6 +1163,13 @@ function drawSingleDesk(ctx, x, y, tagColor, isDark, isNight, isManager) {
     ctx.font = 'bold 7px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('👔', x, y + 2);
+
+    if (assignedLabel || isHovered) {
+      const text = isHovered ? '🪑 Assign' : assignedLabel;
+      ctx.fillStyle = isHovered ? '#fbbf24' : (isDark ? '#e2e8f0' : '#0f172a');
+      ctx.font = 'bold 7px sans-serif';
+      ctx.fillText(text, x, y + 9);
+    }
   }
 }
 

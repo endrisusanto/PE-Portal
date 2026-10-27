@@ -35,6 +35,73 @@ export const ZONES = {
   TOILET_WANITA: 'Toilet Wanita',
 };
 
+// ponytail: Dedicated Manager and Boss Desks with direct assignment support
+export const MANAGER_DESKS = [
+  {
+    id: 'PE_PRODUCTION_MANAGER',
+    zone: ZONES.PE_PRODUCTION_MANAGER,
+    title: 'Meja Manager PE Part (Production)',
+    shortLabel: 'P-MGR',
+    team: TEAMS.PRODUCTION,
+    x: 12,
+    y: 83.5,
+    color: '#3b82f6',
+    icon: '👔',
+  },
+  {
+    id: 'PE_MECHA_MANAGER',
+    zone: ZONES.PE_MECHA_MANAGER,
+    title: 'Meja Manager PE Mecha',
+    shortLabel: 'M-MGR',
+    team: TEAMS.MECHA,
+    x: 30,
+    y: 83.5,
+    color: '#10b981',
+    icon: '👔',
+  },
+  {
+    id: 'PE_SOLUTION_MANAGER',
+    zone: ZONES.PE_SOLUTION_MANAGER,
+    title: 'Meja Manager PE Solution',
+    shortLabel: 'S-MGR',
+    team: TEAMS.SOLUTION,
+    x: 48,
+    y: 83.5,
+    color: '#8b5cf6',
+    icon: '👔',
+  },
+  {
+    id: 'PE_GROUP_LEADER',
+    zone: ZONES.PE_GROUP_LEADER,
+    title: 'Meja PE Group Leader (Group Manager)',
+    shortLabel: 'GL-MGR',
+    team: TEAMS.MANAGEMENT,
+    x: 63.5,
+    y: 80,
+    color: '#f59e0b',
+    icon: '👔',
+  },
+  {
+    id: 'PE_DISPATCHER',
+    zone: ZONES.PE_DISPATCHER,
+    title: 'Meja Dispatcher (Expat Korea)',
+    shortLabel: 'EXP-KOR',
+    team: TEAMS.MANAGEMENT,
+    x: 63.5,
+    y: 60,
+    color: '#e11d48',
+    icon: '🇰🇷',
+  },
+];
+
+export const DESK_ZONE_MAP = {
+  PE_PRODUCTION_MANAGER: ZONES.PE_PRODUCTION_MANAGER,
+  PE_MECHA_MANAGER: ZONES.PE_MECHA_MANAGER,
+  PE_SOLUTION_MANAGER: ZONES.PE_SOLUTION_MANAGER,
+  PE_GROUP_LEADER: ZONES.PE_GROUP_LEADER,
+  PE_DISPATCHER: ZONES.PE_DISPATCHER,
+};
+
 // ponytail: Empty default - office populates purely from registered users in DB
 export const INITIAL_ENGINEERS = [];
 
@@ -276,16 +343,42 @@ export const getCoordinatesForZone = (zoneKey, slotIndex = 0) => {
 // Female Engineer IDs for accurate Restroom / Toilet routing
 export const FEMALE_ENGINEER_IDS = [2, 5, 8, 11, 13, 15, 18, 21, 24, 27];
 
-// Target positioning logic for 30 engineers based on active phase and current minute
+// Target positioning logic for engineers based on active phase, current minute, and desk assignments
 // With human-like organic randomness: hydration to pantry (kopi/teh/air putih), toilet breaks, lab visits, and staying at desks
-export const getEngineerTargetPosition = (engineer, phase, index, currentTimeMins = 0) => {
+export const getEngineerTargetPosition = (
+  engineer,
+  phase,
+  index,
+  currentTimeMins = 0,
+  deskAssignments = {}
+) => {
+  // Check if engineer has an explicit desk assignment
+  let assignedDeskKey = null;
+  if (deskAssignments && typeof deskAssignments === 'object') {
+    for (const [deskKey, assignedId] of Object.entries(deskAssignments)) {
+      if (
+        assignedId &&
+        (assignedId === engineer.dbId ||
+          assignedId === engineer.id ||
+          assignedId === engineer.name ||
+          assignedId === engineer.employee_id)
+      ) {
+        assignedDeskKey = deskKey;
+        break;
+      }
+    }
+  }
+
   // Determine home desk zone
   // ponytail: calculate homeSlot dynamically so any number of engineers sit at desks cleanly
   let homeZone = ZONES.PE_PRODUCTION;
   let homeSlot = (engineer.slotIndex !== undefined ? engineer.slotIndex : (engineer.id ? (engineer.id - 1) : index)) % 15;
-  if (engineer.id === 31 || engineer.role?.includes('Dispatcher') || engineer.employee_id === 'PE_EXP01') {
+
+  if (assignedDeskKey && DESK_ZONE_MAP[assignedDeskKey]) {
+    homeZone = DESK_ZONE_MAP[assignedDeskKey];
+  } else if (engineer.id === 31 || engineer.role?.includes('Dispatcher') || engineer.employee_id === 'PE_EXP01' || engineer.name?.includes('Park')) {
     homeZone = ZONES.PE_DISPATCHER;
-  } else if (engineer.id === 32 || engineer.role?.includes('Group Leader') || engineer.employee_id === 'PE_GL01') {
+  } else if (engineer.id === 32 || engineer.role?.includes('Group Leader') || engineer.employee_id === 'PE_GL01' || engineer.team === TEAMS.MANAGEMENT) {
     homeZone = ZONES.PE_GROUP_LEADER;
   } else if (engineer.team === TEAMS.MECHA) {
     homeZone = ZONES.PE_MECHA;
@@ -295,12 +388,20 @@ export const getEngineerTargetPosition = (engineer, phase, index, currentTimeMin
 
   // Check if engineer is manager or leader
   const isExecutive = homeZone === ZONES.PE_DISPATCHER || homeZone === ZONES.PE_GROUP_LEADER;
-  const isManager = isExecutive || engineer.isLeader || engineer.id % 10 === 0;
+  const isManager = Boolean(assignedDeskKey) || isExecutive || engineer.isLeader || engineer.role?.toLowerCase().includes('manager') || engineer.id % 10 === 0;
   const isFemale = FEMALE_ENGINEER_IDS.includes(engineer.id);
 
   switch (phase.type) {
     case 'work': {
-      // 0. Executive Leaders at their dedicated desks
+      // 0. Explicit Assigned Desk or Executive Leaders at their dedicated desks
+      if (assignedDeskKey && DESK_ZONE_MAP[assignedDeskKey]) {
+        const assignedZone = DESK_ZONE_MAP[assignedDeskKey];
+        return {
+          zone: assignedZone,
+          coords: getCoordinatesForZone(assignedZone),
+          activity: engineer.currentTask || `Supervisi & koordinasi di ${assignedZone}`,
+        };
+      }
       if (homeZone === ZONES.PE_DISPATCHER) {
         return {
           zone: ZONES.PE_DISPATCHER,
@@ -388,7 +489,12 @@ export const getEngineerTargetPosition = (engineer, phase, index, currentTimeMin
       if (isManager) {
         let managerZone = ZONES.PE_PRODUCTION_MANAGER;
         if (engineer.team === TEAMS.MECHA) managerZone = ZONES.PE_MECHA_MANAGER;
-        if (engineer.team === TEAMS.SOLUTION) managerZone = ZONES.PE_SOLUTION_MANAGER;
+        else if (engineer.team === TEAMS.SOLUTION) managerZone = ZONES.PE_SOLUTION_MANAGER;
+        else if (engineer.team === TEAMS.MANAGEMENT) {
+          managerZone = (engineer.name?.includes('Park') || engineer.name?.includes('Jin-woo'))
+            ? ZONES.PE_DISPATCHER
+            : ZONES.PE_GROUP_LEADER;
+        }
         return {
           zone: managerZone,
           coords: getCoordinatesForZone(managerZone),
@@ -410,12 +516,23 @@ export const getEngineerTargetPosition = (engineer, phase, index, currentTimeMin
       // ~25% stay at their desk (focusing, watching video, or sipping drink at desk)
       const stayAtDeskIds = [2, 4, 12, 17, 21, 26, 28];
       if (stayAtDeskIds.includes(engineer.id)) {
-        let managerZone = isManager
-          ? (engineer.team === TEAMS.MECHA ? ZONES.PE_MECHA_MANAGER : (engineer.team === TEAMS.SOLUTION ? ZONES.PE_SOLUTION_MANAGER : ZONES.PE_PRODUCTION_MANAGER))
-          : homeZone;
+        let deskZone = homeZone;
+        if (assignedDeskKey && DESK_ZONE_MAP[assignedDeskKey]) {
+          deskZone = DESK_ZONE_MAP[assignedDeskKey];
+        } else if (isManager) {
+          if (engineer.team === TEAMS.MECHA) deskZone = ZONES.PE_MECHA_MANAGER;
+          else if (engineer.team === TEAMS.SOLUTION) deskZone = ZONES.PE_SOLUTION_MANAGER;
+          else if (engineer.team === TEAMS.MANAGEMENT) {
+            deskZone = (engineer.name?.includes('Park') || engineer.name?.includes('Jin-woo'))
+              ? ZONES.PE_DISPATCHER
+              : ZONES.PE_GROUP_LEADER;
+          } else {
+            deskZone = ZONES.PE_PRODUCTION_MANAGER;
+          }
+        }
         return {
-          zone: isManager ? managerZone : homeZone,
-          coords: isManager ? getCoordinatesForZone(managerZone) : getCoordinatesForZone(homeZone, homeSlot),
+          zone: deskZone,
+          coords: getCoordinatesForZone(deskZone, isManager ? 0 : homeSlot),
           activity: 'Stay di meja: Nanggung menyelesaikan tugas & minum air',
         };
       }
