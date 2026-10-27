@@ -43,7 +43,12 @@ import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
 import { RichNotesViewer } from '../components/common/RichNotesViewer';
-import { ModelMilestoneMatrix } from '../components/models/ModelMilestoneMatrix';
+import {
+  ModelMilestoneMatrix,
+  MODEL_CATEGORY_CONFIG,
+  getModelCategory,
+  getModelCategoryInfo,
+} from '../components/models/ModelMilestoneMatrix';
 import i18n from '../utils/i18n';
 
 export const PIPELINE_STAGES = [
@@ -117,6 +122,7 @@ export const ModelsPage = () => {
   const [codename, setCodename] = useState('');
   const [basicModelsStr, setBasicModelsStr] = useState('');
   const [stage, setStage] = useState('concept');
+  const [category, setCategory] = useState('mass_product');
   const [targetRelease, setTargetRelease] = useState('');
   const [description, setDescription] = useState('');
 
@@ -137,6 +143,7 @@ export const ModelsPage = () => {
   const [editMarketingName, setEditMarketingName] = useState('');
   const [editCodename, setEditCodename] = useState('');
   const [editBasicModelsStr, setEditBasicModelsStr] = useState('');
+  const [editCategory, setEditCategory] = useState('mass_product');
   const [editTargetRelease, setEditTargetRelease] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
@@ -224,6 +231,9 @@ export const ModelsPage = () => {
         stage,
         target_release: targetRelease || undefined,
         description: description || undefined,
+        specifications: {
+          category,
+        },
       });
       setModels((prev) => [res.data, ...prev]);
       setIsAddModalOpen(false);
@@ -231,6 +241,7 @@ export const ModelsPage = () => {
       setMarketingName('');
       setCodename('');
       setBasicModelsStr('');
+      setCategory('mass_product');
       setTargetRelease('');
       setDescription('');
 
@@ -390,6 +401,7 @@ export const ModelsPage = () => {
     setEditModelName(m.model_name || '');
     setEditMarketingName(m.marketing_name || '');
     setEditCodename(m.codename || '');
+    setEditCategory(getModelCategory(m));
     let bsmStr = '';
     try {
       const bsmArr = typeof m.basic_models === 'string' ? JSON.parse(m.basic_models) : m.basic_models;
@@ -410,6 +422,13 @@ export const ModelsPage = () => {
         ? editBasicModelsStr.split(',').map((s) => s.trim()).filter(Boolean)
         : [];
 
+      let existingSpecs = {};
+      try {
+        existingSpecs = typeof editingModel.specifications === 'string'
+          ? JSON.parse(editingModel.specifications)
+          : (editingModel.specifications || {});
+      } catch {}
+
       const res = await api.put(`/models/${editingModel.id}`, {
         model_name: editModelName,
         marketing_name: editMarketingName || undefined,
@@ -417,6 +436,10 @@ export const ModelsPage = () => {
         basic_models: bsmArray,
         target_release: editTargetRelease || undefined,
         description: editDescription || undefined,
+        specifications: {
+          ...existingSpecs,
+          category: editCategory,
+        },
       });
 
       const updated = { ...editingModel, ...res.data };
@@ -871,6 +894,31 @@ export const ModelsPage = () => {
                     >
                       {t('models.comments', 'Komentar')}
                     </Button>
+                    {/* ponytail: Badge Icon kecil kategori disamping button edit */}
+                    {(() => {
+                      const catInfo = getModelCategoryInfo(m);
+                      const CatIcon = catInfo.icon;
+                      return (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            backgroundColor: catInfo.bgColor,
+                            border: `1px solid ${catInfo.borderColor}`,
+                            color: catInfo.color,
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                          title={`Kategori: ${catInfo.label}`}
+                        >
+                          <CatIcon size={12} />
+                          <span>{catInfo.shortLabel}</span>
+                        </span>
+                      );
+                    })()}
                     <Button
                       variant="outline"
                       size="sm"
@@ -1783,6 +1831,54 @@ export const ModelsPage = () => {
             placeholder="e.g. BSM-S952BE/2D1, BSM-S952BE/5D1"
           />
 
+          {/* ponytail: Switch Button Kategori Model */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+              {t('models.model_category', 'Kategori Model')}
+            </label>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '6px',
+                padding: '4px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              {Object.values(MODEL_CATEGORY_CONFIG).map((cat) => {
+                const isSelected = category === cat.key;
+                const CatIcon = cat.icon;
+                return (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => setCategory(cat.key)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: isSelected ? `1px solid ${cat.borderColor}` : '1px solid transparent',
+                      backgroundColor: isSelected ? cat.activeBg : 'transparent',
+                      color: isSelected ? cat.color : 'var(--color-text-secondary)',
+                      fontWeight: isSelected ? 600 : 500,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <CatIcon size={14} style={{ color: cat.color }} />
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
               {t('models.initial_stage', 'Tahap Awal (Initial Stage)')}
@@ -1893,6 +1989,54 @@ export const ModelsPage = () => {
             onChange={(e) => setEditBasicModelsStr(e.target.value)}
             placeholder="e.g. BSM-S952BE/2D1, BSM-S952BE/5D1"
           />
+
+          {/* ponytail: Switch Button Kategori Model */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+              {t('models.model_category', 'Kategori Model')}
+            </label>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '6px',
+                padding: '4px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              {Object.values(MODEL_CATEGORY_CONFIG).map((cat) => {
+                const isSelected = editCategory === cat.key;
+                const CatIcon = cat.icon;
+                return (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => setEditCategory(cat.key)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: isSelected ? `1px solid ${cat.borderColor}` : '1px solid transparent',
+                      backgroundColor: isSelected ? cat.activeBg : 'transparent',
+                      color: isSelected ? cat.color : 'var(--color-text-secondary)',
+                      fontWeight: isSelected ? 600 : 500,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <CatIcon size={14} style={{ color: cat.color }} />
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <Input
             label="Target Release Date"

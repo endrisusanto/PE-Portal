@@ -420,6 +420,7 @@
     "title": "New Model Development",
     "subtitle": "Track product development stages: validation tables, test photos, document attachments & timeline",
     "add_model": "Register New Model",
+    "model_category": "Model Category",
     "model_name": "Model Name",
     "codename": "Codename",
     "current_stage": "Current Stage",

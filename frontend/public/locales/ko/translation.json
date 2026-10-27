@@ -420,6 +420,7 @@
     "title": "신모델 개발 관리",
     "subtitle": "제품 개발 단계 추적: 단계별 검증 데이터 표, 시험 사진, 첨부 문서 및 타임라인",
     "add_model": "신규 모델 등록",
+    "model_category": "모델 카테고리",
     "model_name": "모델명",
     "codename": "코드명",
     "current_stage": "현재 단계",

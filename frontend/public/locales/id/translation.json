@@ -420,6 +420,7 @@
     "title": "New Model Development",
     "subtitle": "Track product development stages: data validasi tabel, foto uji, lampiran dokumen per tahap & timeline",
     "add_model": "Daftarkan Model Baru",
+    "model_category": "Kategori Model",
     "model_name": "Nama Model",
     "codename": "Codename",
     "current_stage": "Tahap Saat Ini",

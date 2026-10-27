@@ -30,6 +30,8 @@ import {
   AlertTriangle,
   Flag,
   MessageSquare,
+  Crown,
+  Zap,
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
@@ -38,6 +40,81 @@ import { FormattingTextarea } from '../common/FormattingTextarea';
 import { CommentTimelineSection } from '../common/CommentTimelineSection';
 import api from '../../api/client';
 import styles from './ModelMilestoneMatrix.module.css';
+
+// ponytail: Model classification categories (Flagship / Premium, Mass Product, TNP)
+export const MODEL_CATEGORY_CONFIG = {
+  flagship: {
+    key: 'flagship',
+    label: 'Flagship / Premium',
+    shortLabel: 'Flagship',
+    icon: Crown,
+    color: '#d97706',
+    bgColor: 'rgba(245, 158, 11, 0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    activeBg: 'rgba(245, 158, 11, 0.2)',
+  },
+  mass_product: {
+    key: 'mass_product',
+    label: 'Mass Product',
+    shortLabel: 'Mass Product',
+    icon: Layers,
+    color: '#2563eb',
+    bgColor: 'rgba(59, 130, 246, 0.12)',
+    borderColor: 'rgba(59, 130, 246, 0.35)',
+    activeBg: 'rgba(59, 130, 246, 0.2)',
+  },
+  tnp: {
+    key: 'tnp',
+    label: 'TNP',
+    shortLabel: 'TNP',
+    icon: Zap,
+    color: '#7c3aed',
+    bgColor: 'rgba(139, 92, 246, 0.12)',
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+    activeBg: 'rgba(139, 92, 246, 0.2)',
+  },
+};
+
+export const getModelCategory = (m) => {
+  if (!m) return 'mass_product';
+  let cat = m.category || m.specifications?.category;
+  if (!cat && typeof m.specifications === 'string') {
+    try {
+      const parsed = JSON.parse(m.specifications);
+      cat = parsed?.category;
+    } catch {}
+  }
+  if (cat && MODEL_CATEGORY_CONFIG[cat.toLowerCase()]) {
+    return cat.toLowerCase();
+  }
+
+  // Smart heuristic based on Samsung model naming
+  const name = (m.model_name || '').toUpperCase();
+  const mkt = (m.marketing_name || '').toUpperCase();
+  const code = (m.codename || '').toUpperCase();
+
+  if (
+    name.includes('S95') ||
+    name.includes('S9') ||
+    name.includes('S2') ||
+    name.includes('FOLD') ||
+    name.includes('FLIP') ||
+    mkt.includes('ULTRA') ||
+    mkt.includes('PLUS') ||
+    code.includes('PARADIGM')
+  ) {
+    return 'flagship';
+  }
+  if (name.includes('TNP') || mkt.includes('TNP') || code.includes('TNP')) {
+    return 'tnp';
+  }
+  return 'mass_product';
+};
+
+export const getModelCategoryInfo = (modelOrKey) => {
+  const key = typeof modelOrKey === 'string' ? modelOrKey : getModelCategory(modelOrKey);
+  return MODEL_CATEGORY_CONFIG[key] || MODEL_CATEGORY_CONFIG.mass_product;
+};
 
 // Master milestone categories with modern visual groupings
 export const MODERN_CATEGORIES = [
@@ -1458,13 +1535,41 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                     </div>
                     <h3 className={styles.modelHeading}>{m.model_name}</h3>
                   </div>
-                  <button
-                    className={styles.editModelIconBtn}
-                    onClick={() => onEditModel && onEditModel(m)}
-                    title="Edit metadata model"
-                  >
-                    <Edit3 size={13} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* ponytail: Badge Icon kecil disamping button edit di card */}
+                    {(() => {
+                      const catInfo = getModelCategoryInfo(m);
+                      const CatIcon = catInfo.icon;
+                      return (
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 7px',
+                            borderRadius: '12px',
+                            backgroundColor: catInfo.bgColor,
+                            border: `1px solid ${catInfo.borderColor}`,
+                            color: catInfo.color,
+                            fontSize: '10.5px',
+                            fontWeight: 600,
+                            lineHeight: 1.2,
+                          }}
+                          title={`Kategori: ${catInfo.label}`}
+                        >
+                          <CatIcon size={12} />
+                          <span>{catInfo.shortLabel}</span>
+                        </div>
+                      );
+                    })()}
+                    <button
+                      className={styles.editModelIconBtn}
+                      onClick={() => onEditModel && onEditModel(m)}
+                      title="Edit metadata model"
+                    >
+                      <Edit3 size={13} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Basic Model variants (Informative Only) */}
@@ -1529,16 +1634,43 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                 <th rowSpan={2} className={styles.thTaskName}>
                   {t('models.matrix_col_task', 'Milestone Task / Tahapan')}
                 </th>
-                {filteredModels.map((m) => (
-                  <th key={m.id} colSpan={3} className={styles.thModelColumn}>
-                    <div className={styles.thModelWrap}>
-                      <span className={styles.thModelTitle}>{m.model_name}</span>
-                      <span className={styles.thModelSub}>
-                        {m.marketing_name || m.codename || 'Standard'}
-                      </span>
-                    </div>
-                  </th>
-                ))}
+                {filteredModels.map((m) => {
+                  const catInfo = getModelCategoryInfo(m);
+                  const CatIcon = catInfo.icon;
+                  return (
+                    <th key={m.id} colSpan={3} className={styles.thModelColumn}>
+                      <div className={styles.thModelWrap}>
+                        {/* ponytail: Chip kecil di pojok kiri tiap kolom title model */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%', marginBottom: '3px' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: catInfo.bgColor,
+                              border: `1px solid ${catInfo.borderColor}`,
+                              color: catInfo.color,
+                              fontSize: '9.5px',
+                              fontWeight: 700,
+                              letterSpacing: '0.02em',
+                              lineHeight: 1.3,
+                            }}
+                            title={`Kategori Model: ${catInfo.label}`}
+                          >
+                            <CatIcon size={10} />
+                            <span>{catInfo.shortLabel}</span>
+                          </span>
+                        </div>
+                        <span className={styles.thModelTitle}>{m.model_name}</span>
+                        <span className={styles.thModelSub}>
+                          {m.marketing_name || m.codename || 'Standard'}
+                        </span>
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
               <tr className={styles.subHeaderRow}>
                 {filteredModels.map((m) => (
