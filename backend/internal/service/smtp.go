@@ -214,7 +214,7 @@ func (s *SMTPService) TestConnection(cfg *model.SMTPConfig, testRecipient string
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; padding: 20px; color: #1f2937;">
-  <div style="width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; background: #ffffff;">
+  <div style="width: 100%%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; background: #ffffff;">
     <h2 style="color: #0d7377; margin-top: 0;">✓ SMTP Gateway Connected</h2>
     <p>This is an automated test message from <strong>SEIN PE-Portal</strong>.</p>
     <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; font-size: 13px; font-family: monospace;">

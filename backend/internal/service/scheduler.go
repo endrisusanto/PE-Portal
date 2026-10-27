@@ -267,7 +267,7 @@ func (s *ReportScheduler) RenderAutomatedReportHTML(title string, act *repositor
   <table width="100%%" border="0" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center">
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
           <!-- Header -->
           <tr>
             <td style="background-color: #0d7377; padding: 24px; color: #ffffff;">

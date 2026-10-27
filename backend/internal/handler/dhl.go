@@ -286,7 +286,7 @@ func (h *DHLHandler) sendDeliveredEmailNotification(ctx context.Context, s *repo
 
 	subject := fmt.Sprintf("[DHL Express] Sample Tiba (Delivered) - AWB #%s", s.ID)
 	htmlBody := fmt.Sprintf(`
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; width: 100%%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
   <div style="background: #1e293b; padding: 20px 24px; border-bottom: 3px solid #10b981;">
     <h2 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 700;">SEIN Production Engineer Portal</h2>
     <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Notifikasi Kedatangan Sample / Paket Hardware DHL Express</p>

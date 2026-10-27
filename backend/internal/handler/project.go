@@ -825,7 +825,7 @@ func buildProjectDetailEmailHTML(p *model.Project, comments []model.Comment, sen
 <meta charset="utf-8">
 </head>
 <body style="margin: 0; padding: 20px 10px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
-  <div style="width: 100%; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+  <div style="width: 100%%; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
     
     <!-- Top Branding Header -->
     <div style="background: #1e293b; padding: 18px 22px; border-bottom: 3px solid #2563eb;">

@@ -3319,7 +3319,7 @@ export const ProjectsPage = () => {
               </div>
             </div>
           }
-          maxWidth="760px"
+          maxWidth="1100px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: '6px', fontSize: '12px', border: '1px solid var(--color-border)' }}>
@@ -3330,7 +3330,7 @@ export const ProjectsPage = () => {
               <iframe
                 srcDoc={previewEmail.html}
                 title="Preview Email Body"
-                style={{ width: '100%', height: '560px', border: 'none', display: 'block', backgroundColor: '#f1f5f9' }}
+                style={{ width: '100%', height: '680px', border: 'none', display: 'block', backgroundColor: '#f1f5f9' }}
                 sandbox="allow-same-origin"
               />
             </div>
