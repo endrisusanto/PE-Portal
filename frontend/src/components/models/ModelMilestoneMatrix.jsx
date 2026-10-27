@@ -470,6 +470,16 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
   const [rangeStep, setRangeStep] = useState('start');
   const fileInputRef = useRef(null);
 
+  // Bulk Import state
+  const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState(false);
+  const [bulkInputText, setBulkInputText] = useState('');
+  const [bulkParsedModels, setBulkParsedModels] = useState(null);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkImportSuccess, setBulkImportSuccess] = useState('');
+  const [bulkImportError, setBulkImportError] = useState('');
+  const [bulkImportTab, setBulkImportTab] = useState('paste'); // 'paste' | 'upload'
+  const bulkFileInputRef = useRef(null);
+
   const monthNamesFull = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
@@ -749,33 +759,513 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     }
   };
 
-  const handleExportCSV = () => {
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    const headerCols = ['Category', 'Milestone Task'];
-    filteredModels.forEach((m) => {
-      headerCols.push(`"${m.model_name} [Jadwal]"`, `"${m.model_name} [Status]"`, `"${m.model_name} [Doc]"`);
-    });
-    csvContent += headerCols.join(',') + '\r\n';
+  // ponytail: robust milestone key mapper matching user's matrix table layout
+  const findMilestoneKey = (col0 = '', col1 = '') => {
+    const combined = `${col0} ${col1}`.toLowerCase();
+    const c0 = col0.toLowerCase();
+    const c1 = col1.toLowerCase();
 
+    if (combined.includes('pvr')) return 'pvr_basic';
+    if (combined.includes('pra')) return 'pra_sea';
+    if (combined.includes('sra')) return 'sra_sea';
+
+    if (combined.includes('lqva')) return 'lqva';
+    if (combined.includes('subline')) return 'lqv_subline';
+    if (combined.includes('smd sec') || combined.includes('smd secondary')) return 'lqv_smd_sec';
+    if (combined.includes('smd main')) return 'lqv_smd_main';
+    if (combined.includes('assembly')) return 'lqv_assembly';
+    if (combined.includes('inspection') && !combined.includes('final')) return 'lqv_inspection';
+
+    if (combined.includes('mp') && (combined.includes('sop') || combined.includes('base') || combined.includes('target') || combined.includes('plan'))) return 'mp_sop';
+
+    if (combined.includes('bom')) {
+      if (combined.includes('hq')) return 'bom_hq';
+      if (combined.includes('sein')) return 'bom_sein';
+    }
+    if (c0.includes('bom') && c1.includes('hq')) return 'bom_hq';
+    if (c0.includes('bom') && c1.includes('sein')) return 'bom_sein';
+
+    if (combined.includes('tkdn') && combined.includes('bom')) return 'sample_tkdn_bom';
+    if (combined.includes('std oqc') || combined.includes('oqc')) return 'sample_std_oqc';
+    if (combined.includes('std main')) return 'sample_std_main';
+    if (combined.includes('disassembly')) return 'sample_disassembly';
+
+    if (combined.includes('working spec')) return 'working_spec_register';
+    if (combined.includes('s/w') || combined.includes('sw confirm')) return 'sw_confirm_verify';
+    if (combined.includes('pgm')) return 'pgm_verify';
+
+    if (combined.includes('jig')) {
+      if (combined.includes('list')) return 'jig_list';
+      if (combined.includes('pr') || combined.includes('po')) return 'jig_pr_po';
+      if (combined.includes('eta')) return 'jig_eta';
+      if (combined.includes('verify')) return 'jig_verify';
+    }
+
+    if (combined.includes('cable')) {
+      if (combined.includes('list')) return 'cable_list';
+      if (combined.includes('pr') || combined.includes('po')) return 'cable_pr_po';
+      if (combined.includes('eta')) return 'cable_eta';
+    }
+
+    if (combined.includes('drawing')) return 'part_drawing';
+    if (combined.includes('bidding')) return 'part_bidding';
+    if (combined.includes('iqc')) return 'part_iqc';
+    if (combined.includes('local part') && combined.includes('sample')) return 'part_sample';
+    if (combined.includes('part') && combined.includes('approval')) return 'part_approval';
+
+    if (combined.includes('tkdn')) {
+      if (combined.includes('value')) return 'tkdn_value';
+      if (combined.includes('approved') || combined.includes('approval')) return 'tkdn_approved';
+    }
+
+    if (combined.includes('postel')) return 'postel_approved';
+    if (combined.includes('mkg') || combined.includes('kartu garansi') || combined.includes('manual')) return 'mkg_approved';
+
+    if (combined.includes('wpt')) return 'sp_wpt_bonding';
+    if (combined.includes('bonding')) return 'sp_bonding';
+    if (combined.includes('octa')) return 'sp_octa_pad';
+    if (combined.includes('act')) return 'sp_act';
+    if (combined.includes('final inspection') || combined.includes('final insp')) return 'sp_final_insp';
+    if (combined.includes('waterproof')) return 'sp_waterproof';
+
+    return null;
+  };
+
+  // ponytail: robust zero-dependency parser for Excel TSV and CSV
+  const parseBulkMatrixData = (rawText) => {
+    if (!rawText || !rawText.trim()) return null;
+
+    const lines = rawText.trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) return null;
+
+    // Detect delimiter: tab (Excel copy/paste) or comma (CSV) or semicolon
+    const firstLine = lines[0];
+    let delimiter = '\t';
+    if (firstLine.includes('\t')) {
+      delimiter = '\t';
+    } else if (firstLine.includes(';') && !firstLine.includes(',')) {
+      delimiter = ';';
+    } else {
+      delimiter = ',';
+    }
+
+    // Split line with delimiter handling quotes
+    const splitLine = (line) => {
+      if (delimiter === '\t') {
+        return line.split('\t').map((c) => c.trim().replace(/^"|"$/g, ''));
+      }
+      const cells = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === delimiter && !inQuotes) {
+          cells.push(cur.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      cells.push(cur.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+      return cells;
+    };
+
+    const parsedRows = lines.map(splitLine);
+
+    // Find header row with model names
+    let modelRowIndex = -1;
+    let modelColStartIndex = -1;
+
+    for (let r = 0; r < Math.min(5, parsedRows.length); r++) {
+      const row = parsedRows[r];
+      for (let c = 0; c < row.length; c++) {
+        const cell = (row[c] || '').toLowerCase();
+        if (cell === 'model' || cell.includes('sm-') || cell.includes('galaxy') || models.some((m) => m.model_name?.toLowerCase() === cell)) {
+          modelRowIndex = r;
+          modelColStartIndex = cell === 'model' ? c + 1 : c;
+          break;
+        }
+      }
+      if (modelRowIndex !== -1) break;
+    }
+
+    if (modelRowIndex === -1 || modelColStartIndex === -1) {
+      modelRowIndex = 0;
+      modelColStartIndex = parsedRows[0].length > 2 && (parsedRows[0][0].toLowerCase().includes('cat') || parsedRows[0][1].toLowerCase().includes('item') || parsedRows[0][1].toLowerCase().includes('milestone')) ? 2 : 1;
+    }
+
+    const modelRow = parsedRows[modelRowIndex];
+    const detectedModels = [];
+
+    for (let c = modelColStartIndex; c < modelRow.length; c++) {
+      const rawName = (modelRow[c] || '').trim();
+      if (rawName && rawName !== '-' && !rawName.toLowerCase().startsWith('doc') && !rawName.toLowerCase().startsWith('status')) {
+        detectedModels.push({
+          colIndex: c,
+          modelName: rawName,
+          marketingName: '',
+          basicModels: [],
+          milestones: [],
+        });
+      }
+    }
+
+    if (detectedModels.length === 0) return null;
+
+    // Process rows after modelRowIndex
+    for (let r = modelRowIndex + 1; r < parsedRows.length; r++) {
+      const row = parsedRows[r];
+      const col0 = (row[0] || '').trim();
+      const col1 = (row[1] || '').trim();
+      const rowLabel = `${col0} ${col1}`.trim().toLowerCase();
+
+      // Check if Marketing name row
+      if (rowLabel.includes('marketing') || rowLabel.includes('project name')) {
+        detectedModels.forEach((dm) => {
+          const val = (row[dm.colIndex] || '').trim();
+          if (val && val !== '-') dm.marketingName = val;
+        });
+        continue;
+      }
+
+      // Check if Basic model row
+      if (rowLabel.includes('basic model')) {
+        detectedModels.forEach((dm) => {
+          const val = (row[dm.colIndex] || '').trim();
+          if (val && val !== '-') {
+            const bsm = val.split(/[\r\n;]+/).map((s) => s.trim()).filter(Boolean);
+            dm.basicModels = bsm;
+          }
+        });
+        continue;
+      }
+
+      // Match milestone key
+      const milestoneKey = findMilestoneKey(col0, col1);
+      if (!milestoneKey) continue;
+
+      let itemDef = null;
+      let catDef = null;
+      for (const cat of MODERN_CATEGORIES) {
+        const found = cat.items.find((it) => it.key === milestoneKey);
+        if (found) {
+          itemDef = found;
+          catDef = cat;
+          break;
+        }
+      }
+      if (!itemDef) continue;
+
+      detectedModels.forEach((dm) => {
+        const rawVal = (row[dm.colIndex] || '').trim();
+        if (!rawVal || rawVal === '') return;
+
+        const { startDate, endDate } = parseDateRangeFromText(rawVal, rawVal);
+        let status = 'pending';
+        const u = rawVal.toUpperCase();
+        if (u.includes('PASS') || u.includes('OK') || u.includes('DONE')) {
+          status = 'completed';
+        } else if (u === 'N/A') {
+          status = 'not_applicable';
+        } else if (u === 'TBD') {
+          status = 'tbd';
+        } else if (rawVal !== '-') {
+          status = 'in_progress';
+        }
+
+        dm.milestones.push({
+          milestone_key: itemDef.key,
+          label: itemDef.label,
+          category: catDef.id,
+          sub_category: catDef.title,
+          plan_value: rawVal,
+          target_date: startDate && endDate && startDate !== endDate ? `${startDate} ~ ${endDate}` : (startDate || rawVal),
+          status,
+          variant_code: '',
+        });
+      });
+    }
+
+    return detectedModels;
+  };
+
+  // ponytail: Safe client-side file downloader that avoids Chromium blob-destruction race condition
+  const triggerDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      try {
+        if (link.parentNode) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        // ignore cleanup error
+      }
+    }, 15000);
+  };
+
+  // ponytail: Export directly to native Excel document (.xls) with full formatting, styling & gridlines
+  const handleExportExcel = () => {
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8"/>
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>SEIN Milestone Matrix</x:Name>
+                <x:WorksheetOptions>
+                  <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          th, td { font-family: Calibri, Arial, sans-serif; font-size: 11pt; border: 1px solid #cbd5e1; padding: 6px 10px; }
+          .header-main { background-color: #dbeafe; font-weight: bold; text-align: center; color: #1e3a8a; }
+          .header-sub { background-color: #f1f5f9; font-weight: bold; }
+          .cat-title { background-color: #f8fafc; font-weight: bold; color: #0f172a; }
+          .val-tbd { background-color: #fef3c7; color: #92400e; font-weight: 600; text-align: center; }
+          .val-ok { background-color: #d1fae5; color: #065f46; font-weight: 600; text-align: center; }
+          .val-mp { background-color: #fef08a; font-weight: bold; text-align: center; color: #854d0e; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th class="header-main" style="min-width: 140px;">Category</th>
+              <th class="header-main" style="min-width: 220px;">Milestone Task</th>
+              ${filteredModels.map((m) => `<th class="header-main" style="min-width: 160px;">${m.model_name}</th>`).join('')}
+            </tr>
+            <tr>
+              <td class="header-sub"></td>
+              <td class="header-sub">Marketing/Project Name</td>
+              ${filteredModels.map((m) => `<td class="header-sub" style="text-align: center;">${m.marketing_name || m.codename || '-'}</td>`).join('')}
+            </tr>
+            <tr>
+              <td class="header-sub"></td>
+              <td class="header-sub">Basic Model</td>
+              ${filteredModels.map((m) => `<td style="font-size: 10pt; text-align: center;">${getModelVariants(m).join(' / ') || '-'}</td>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${MODERN_CATEGORIES.map((cat) => `
+              <tr>
+                <td colspan="${filteredModels.length + 2}" style="background-color: #e2e8f0; font-weight: bold; padding: 8px;">
+                  ${cat.title}
+                </td>
+              </tr>
+              ${cat.items.map((item) => `
+                <tr>
+                  <td style="color: #64748b; font-size: 10pt;">${cat.title}</td>
+                  <td style="font-weight: 600;">${item.label}</td>
+                  ${filteredModels.map((m) => {
+                    const resolved = resolveMilestoneValue(m.id, item.key);
+                    const val = resolved.display || '-';
+                    let cls = '';
+                    if (item.key === 'mp_sop') cls = 'val-mp';
+                    else if (val.toUpperCase() === 'TBD') cls = 'val-tbd';
+                    else if (val.toUpperCase().includes('PASS') || val.toUpperCase().includes('OK') || val.toUpperCase().includes('DONE')) cls = 'val-ok';
+                    return `<td class="${cls}" style="text-align: center;">${val}</td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    triggerDownload(blob, `SEIN_Milestone_Matrix_${new Date().toISOString().slice(0, 10)}.xls`);
+  };
+
+  // ponytail: Native zero-dependency CSV download with UTF-8 BOM so Excel opens with proper matrix layout
+  const handleExportCSV = () => {
+    const rows = [];
+
+    // Row 1: Model names
+    const r1 = ['Category', 'Milestone Item'];
+    filteredModels.forEach((m) => r1.push(m.model_name));
+    rows.push(r1.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
+
+    // Row 2: Marketing/Project Name
+    const r2 = ['', 'Marketing/Project Name'];
+    filteredModels.forEach((m) => r2.push(m.marketing_name || m.codename || ''));
+    rows.push(r2.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
+
+    // Row 3: Basic Model
+    const r3 = ['', 'Basic Model'];
+    filteredModels.forEach((m) => {
+      const bsm = getModelVariants(m);
+      r3.push(bsm.join('; '));
+    });
+    rows.push(r3.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
+
+    // Category and milestone item rows
     MODERN_CATEGORIES.forEach((cat) => {
       cat.items.forEach((item) => {
-        const row = [`"${cat.title}"`, `"${item.label}"`];
+        const row = [cat.title, item.label];
         filteredModels.forEach((m) => {
           const resolved = resolveMilestoneValue(m.id, item.key);
-          const st = getCheckpointStatus(resolved.display, resolved.status);
-          row.push(`"${resolved.display || '-'}"`, `"${st.label}"`, `"${resolved.attachments?.length || 0}"`);
+          row.push(resolved.display || '-');
         });
-        csvContent += row.join(',') + '\r\n';
+        rows.push(row.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
       });
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `SEIN_New_Model_Milestone_Matrix_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    triggerDownload(blob, `SEIN_Milestone_Matrix_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  // ponytail: Download blank / populated template CSV
+  const handleDownloadTemplateCSV = () => {
+    const rows = [];
+    const r1 = ['Category', 'Milestone Item'];
+    const r2 = ['', 'Marketing/Project Name'];
+    const r3 = ['', 'Basic Model'];
+
+    const targetModels = filteredModels.length > 0 ? filteredModels : [
+      { model_name: 'SM-S952BE', marketing_name: 'ON1', basic_models: ['BSM-S952BE/2D1', 'BSM-S952BE/5D1'] },
+      { model_name: 'SM-S956BE', marketing_name: 'ON2', basic_models: ['BSM-S956BE/2D1', 'BSM-S956BE/5D1'] },
+      { model_name: 'SM-S957BE', marketing_name: 'ON3', basic_models: ['BSM-S957BE/2D1', 'BSM-S957BE/5D1'] },
+      { model_name: 'SM-S958BE', marketing_name: 'ON4', basic_models: ['BSM-S958BE/2D1', 'BSM-S958BE/5D1'] },
+      { model_name: 'SM-A086B (Luxshare)', marketing_name: 'Galaxy A08 5G', basic_models: ['BSM-A086B/6R4D'] },
+      { model_name: 'SM-A186', marketing_name: 'Galaxy A18 5G', basic_models: ['BSM-A186BE/1D8'] },
+    ];
+
+    targetModels.forEach((m) => {
+      r1.push(m.model_name);
+      r2.push(m.marketing_name || m.codename || '');
+      r3.push(getModelVariants(m).join('; '));
+    });
+
+    rows.push(r1.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
+    rows.push(r2.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
+    rows.push(r3.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
+
+    MODERN_CATEGORIES.forEach((cat) => {
+      cat.items.forEach((item) => {
+        const row = [cat.title, item.label];
+        targetModels.forEach((m) => {
+          const resolved = m.id ? resolveMilestoneValue(m.id, item.key) : {};
+          row.push(resolved.display || '-');
+        });
+        rows.push(row.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(','));
+      });
+    });
+
+    const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    triggerDownload(blob, `Template_Milestone_Matrix_SEIN.csv`);
+  };
+
+  // ponytail: Execute bulk import & save into PostgreSQL database
+  const handleExecuteBulkImport = async () => {
+    if (!bulkParsedModels || bulkParsedModels.length === 0) return;
+    setBulkImporting(true);
+    setBulkImportError('');
+    setBulkImportSuccess('');
+
+    try {
+      let savedCount = 0;
+      let newModelCount = 0;
+
+      for (const item of bulkParsedModels) {
+        let targetModel = models.find(
+          (m) =>
+            m.model_name.trim().toLowerCase() === item.modelName.trim().toLowerCase() ||
+            (m.codename && m.codename.trim().toLowerCase() === item.modelName.trim().toLowerCase())
+        );
+
+        if (!targetModel) {
+          const createRes = await api.post('/models', {
+            model_name: item.modelName,
+            marketing_name: item.marketingName || '',
+            codename: item.marketingName || item.modelName,
+            basic_models: item.basicModels || [],
+            stage: 'concept',
+            description: `Imported via Bulk Matrix on ${new Date().toLocaleDateString('id-ID')}`,
+          });
+          targetModel = createRes.data;
+          newModelCount++;
+        } else if (item.marketingName || (item.basicModels && item.basicModels.length > 0)) {
+          try {
+            await api.put(`/models/${targetModel.id}`, {
+              model_name: targetModel.model_name,
+              marketing_name: item.marketingName || targetModel.marketing_name,
+              codename: targetModel.codename,
+              basic_models: item.basicModels.length > 0 ? item.basicModels : targetModel.basic_models,
+              stage: targetModel.stage,
+              description: targetModel.description,
+            });
+          } catch (_) {}
+        }
+
+        if (item.milestones.length > 0) {
+          await api.post(`/models/${targetModel.id}/milestones/batch`, {
+            milestones: item.milestones,
+          });
+          savedCount += item.milestones.length;
+        }
+      }
+
+      setBulkImportSuccess(
+        `Berhasil menyimpan ${savedCount} checkpoint milestone untuk ${bulkParsedModels.length} model${
+          newModelCount > 0 ? ` (${newModelCount} model baru berhasil didaftarkan)` : ''
+        }.`
+      );
+
+      if (onRefresh) onRefresh();
+      await fetchAllMilestones();
+
+      setTimeout(() => {
+        setIsBulkImportModalOpen(false);
+        setBulkInputText('');
+        setBulkParsedModels(null);
+        setBulkImportSuccess('');
+      }, 1500);
+    } catch (err) {
+      console.error('Bulk import error:', err);
+      setBulkImportError(err.response?.data?.message || err.message || 'Gagal menyimpan data bulk import.');
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
+  const handleTextChange = (text) => {
+    setBulkInputText(text);
+    const parsed = parseBulkMatrixData(text);
+    setBulkParsedModels(parsed);
+  };
+
+  const handleBulkCSVUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (typeof content === 'string') {
+        setBulkInputText(content);
+        const parsed = parseBulkMatrixData(content);
+        setBulkParsedModels(parsed);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   // Helper to determine row checkpoint status across models
@@ -840,10 +1330,101 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               <RefreshCw size={14} />
               <span>{t('models.matrix_refresh', 'Segarkan')}</span>
             </button>
-            <button className={styles.btnPrimary} onClick={handleExportCSV} title="Ekspor ke Excel / CSV">
-              <FileSpreadsheet size={14} />
-              <span>{t('models.matrix_export', 'Ekspor Data')}</span>
-            </button>
+
+            {/* Switch Toolbar: Export Matrix (Excel / CSV) & Bulk Import */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '2px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)',
+                gap: '2px',
+              }}
+            >
+              {/* Ekspor Excel (.xls) */}
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 10px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: 'transparent',
+                  color: 'var(--color-text-primary)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                title="Unduh matriks dalam format spreadsheet Microsoft Excel (.xls) lengkap dengan format tabel & warna"
+              >
+                <FileSpreadsheet size={14} style={{ color: 'var(--color-success, #10b981)' }} />
+                <span>{t('models.matrix_export_excel', 'Excel (.xls)')}</span>
+              </button>
+
+              {/* Ekspor CSV */}
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 10px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: 'transparent',
+                  color: 'var(--color-text-primary)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                title="Unduh matriks dalam format teks CSV standar (.csv)"
+              >
+                <FileText size={14} style={{ color: 'var(--color-info, #0ea5e9)' }} />
+                <span>{t('models.matrix_export_csv', 'CSV')}</span>
+              </button>
+
+              <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--color-border)', margin: '0 2px' }} />
+
+              {/* Bulk Import */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBulkImportModalOpen(true);
+                  setBulkImportError('');
+                  setBulkImportSuccess('');
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: 'var(--color-accent, #0d9488)',
+                  color: '#ffffff',
+                }}
+                title="Bulk Insert / Import data milestone dari Excel atau CSV"
+              >
+                <Upload size={14} />
+                <span>{t('models.matrix_bulk_import', 'Bulk Import')}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1473,6 +2054,264 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         )}
       </Modal>
     )}
+
+      {/* 6. BULK IMPORT / UPDATE MILESTONE MATRIX MODAL */}
+      {isBulkImportModalOpen && (
+        <Modal
+          isOpen={isBulkImportModalOpen}
+          onClose={() => {
+            setIsBulkImportModalOpen(false);
+            setBulkImportError('');
+            setBulkImportSuccess('');
+          }}
+          title={t('models.bulk_import_title', 'Bulk Import / Update Milestone Matrix (Excel & CSV)')}
+          maxWidth="900px"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Informative Subtitle */}
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+              {t(
+                'models.bulk_import_subtitle',
+                'Salin data tabel langsung dari Microsoft Excel / Spreadsheet atau unggah file CSV untuk memperbarui seluruh jadwal milestone secara massal.'
+              )}
+            </p>
+
+            {/* Quick Actions & Tab Switcher */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '3px',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                  gap: '3px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setBulkImportTab('paste')}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    backgroundColor: bulkImportTab === 'paste' ? 'var(--color-accent)' : 'transparent',
+                    color: bulkImportTab === 'paste' ? '#ffffff' : 'var(--color-text-secondary)',
+                  }}
+                >
+                  📋 {t('models.bulk_import_tab_paste', 'Paste dari Excel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBulkImportTab('upload')}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    backgroundColor: bulkImportTab === 'upload' ? 'var(--color-accent)' : 'transparent',
+                    color: bulkImportTab === 'upload' ? '#ffffff' : 'var(--color-text-secondary)',
+                  }}
+                >
+                  📁 {t('models.bulk_import_tab_upload', 'Upload File CSV')}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadTemplateCSV}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: '1px dashed var(--color-border)',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
+                  cursor: 'pointer',
+                }}
+                title="Download template file CSV untuk format tabel matriks"
+              >
+                <Download size={13} />
+                <span>{t('models.bulk_import_template_btn', 'Unduh Template CSV')}</span>
+              </button>
+            </div>
+
+            {/* Tab 1: Paste Textarea */}
+            {bulkImportTab === 'paste' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <textarea
+                  value={bulkInputText}
+                  onChange={(e) => handleTextChange(e.target.value)}
+                  placeholder={t(
+                    'models.bulk_import_paste_placeholder',
+                    'Tempel (Ctrl+V) data tabel yang disalin dari Microsoft Excel di sini...'
+                  )}
+                  style={{
+                    width: '100%',
+                    height: '180px',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    backgroundColor: 'var(--color-bg-primary)',
+                    color: 'var(--color-text-primary)',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    lineHeight: 1.4,
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+            ) : (
+              /* Tab 2: File Upload */
+              <div
+                style={{
+                  border: '2px dashed var(--color-border)',
+                  borderRadius: '8px',
+                  padding: '36px 20px',
+                  textAlign: 'center',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => bulkFileInputRef.current?.click()}
+              >
+                <input
+                  type="file"
+                  ref={bulkFileInputRef}
+                  accept=".csv,.txt,.tsv"
+                  style={{ display: 'none' }}
+                  onChange={handleBulkCSVUpload}
+                />
+                <Upload size={32} style={{ color: 'var(--color-accent)', marginBottom: '8px' }} />
+                <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '14px' }}>
+                  Klik untuk memilih file CSV matriks
+                </p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                  Mendukung file .csv, .txt, atau .tsv yang diekspor dari Excel
+                </p>
+              </div>
+            )}
+
+            {/* Error or Success notification */}
+            {bulkImportError && (
+              <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', fontSize: '13px' }}>
+                ⚠️ {bulkImportError}
+              </div>
+            )}
+            {bulkImportSuccess && (
+              <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', color: '#10b981', fontSize: '13px' }}>
+                ✅ {bulkImportSuccess}
+              </div>
+            )}
+
+            {/* Parsed Models Summary & Preview */}
+            {bulkParsedModels && bulkParsedModels.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                    🎯 {t('models.bulk_import_detected_summary', {
+                      modelCount: bulkParsedModels.length,
+                      itemCount: bulkParsedModels.reduce((acc, m) => acc + m.milestones.length, 0),
+                      defaultValue: `${bulkParsedModels.length} Model terdeteksi • ${bulkParsedModels.reduce((acc, m) => acc + m.milestones.length, 0)} Checkpoint milestone siap disimpan`
+                    })}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--color-bg-primary)',
+                  }}
+                >
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Model</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Marketing / Codename</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Basic Model</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'center' }}>Jumlah Checkpoint</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Status DB</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkParsedModels.map((bm, idx) => {
+                        const exists = models.some(
+                          (m) => m.model_name?.trim().toLowerCase() === bm.modelName.trim().toLowerCase()
+                        );
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-subtle, rgba(255,255,255,0.05))' }}>
+                            <td style={{ padding: '8px 12px', fontWeight: 600 }}>{bm.modelName}</td>
+                            <td style={{ padding: '8px 12px', color: 'var(--color-text-secondary)' }}>{bm.marketingName || '-'}</td>
+                            <td style={{ padding: '8px 12px', color: 'var(--color-text-secondary)', fontSize: '11px' }}>
+                              {bm.basicModels.length > 0 ? bm.basicModels.join(', ') : '-'}
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                              <span style={{ padding: '2px 8px', borderRadius: '10px', backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent)', fontWeight: 600 }}>
+                                {bm.milestones.length} Item
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              {exists ? (
+                                <span style={{ color: 'var(--color-success, #10b981)', fontWeight: 600 }}>
+                                  ✓ Model Terdaftar
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--color-warning, #f59e0b)', fontWeight: 600 }}>
+                                  + Buat Model Baru
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Footer Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  setIsBulkImportModalOpen(false);
+                  setBulkImportError('');
+                  setBulkImportSuccess('');
+                }}
+              >
+                {t('common.cancel', 'Batal')}
+              </Button>
+              <Button
+                variant="primary"
+                type="button"
+                disabled={!bulkParsedModels || bulkParsedModels.length === 0 || bulkImporting}
+                loading={bulkImporting}
+                icon={Check}
+                onClick={handleExecuteBulkImport}
+              >
+                {t('models.bulk_import_save_btn', 'Terapkan & Simpan Bulk Data')}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
