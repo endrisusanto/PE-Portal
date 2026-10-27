@@ -352,13 +352,15 @@ func main() {
 	api.GET("/ai/mcp-connectors", aiHandler.GetMCPConnectors)
 	api.POST("/ai/chat", aiHandler.Chat)
 
-	// Utility Tools (Local PDF compress & Python Background Remover)
+	// Utility Tools (Local PDF compress & Python Background Remover & PPTX Auto Summary)
 	api.GET("/utility/status", utilityHandler.GetStatus)
 	api.POST("/utility/remove-bg", utilityHandler.RemoveBackground)
 	api.POST("/utility/compress-pdf", utilityHandler.CompressPDF)
 	api.POST("/utility/merge-pdf", utilityHandler.MergePDF)
 	api.POST("/utility/split-pdf", utilityHandler.SplitPDF)
 	api.POST("/utility/compress-video", utilityHandler.CompressVideo)
+	api.POST("/utility/pptx-summary", utilityHandler.SummarizePPTX)
+	api.GET("/utility/pptx-summary/download/:filename", utilityHandler.DownloadPPTXSummary)
 
 	// DHL Express Tracking Routes
 	api.GET("/dhl/status", dhlHandler.CheckAPIStatus)

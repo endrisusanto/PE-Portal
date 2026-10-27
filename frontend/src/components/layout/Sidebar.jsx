@@ -33,6 +33,7 @@ import {
   CalendarDays,
   Building2,
   Pin,
+  Presentation,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/client';
@@ -51,7 +52,11 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const isSampleManagementActive = location.pathname.startsWith('/samples');
 
   // Tools sub-category active checks
-  const isToolsDocsActive = location.pathname === '/tools/documents' || location.pathname === '/tools/pdf-merge-split';
+  const isToolsDocsActive =
+    location.pathname === '/tools/documents' ||
+    location.pathname === '/tools/pdf-merge-split' ||
+    location.pathname === '/tools/pptx-summary' ||
+    location.pathname === '/tools/powerpoint-summary';
   const isToolsMediaActive =
     location.pathname === '/tools/images' ||
     location.pathname === '/tools/remove-bg' ||
@@ -259,6 +264,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       children: [
         { key: 'tools-documents', to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
         { key: 'tools-pdf-merge-split', to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
+        { key: 'tools-pptx-summary', to: '/tools/pptx-summary', label: t('nav.tools_pptx_summary', 'PowerPoint Auto Summary'), icon: Presentation },
       ]
         .filter((sub) => isMenuAllowed(sub.key))
         .sort((a, b) => a.label.localeCompare(b.label)),

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -476,4 +477,146 @@ func (h *UtilityHandler) CompressVideo(c echo.Context) error {
 
 	return c.Attachment(outPath, downloadName)
 }
+
+// SummarizePPTX receives multiple .pptx files, extracts defect conclusions and countermeasures using Python script,
+// and returns the extracted table data along with the generated Excel download filename.
+func (h *UtilityHandler) SummarizePPTX(c echo.Context) error {
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Failed to parse multipart form"})
+	}
+
+	files := form.File["files"]
+	if len(files) == 0 {
+		files = form.File["pptx_files"]
+	}
+	if len(files) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No PowerPoint (.pptx) files provided"})
+	}
+
+	// Create temp directory for this batch
+	now := time.Now().UnixNano()
+	jobDir := filepath.Join(os.TempDir(), fmt.Sprintf("pptx_batch_%d", now))
+	if err := os.MkdirAll(jobDir, 0755); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create temp job directory"})
+	}
+	defer os.RemoveAll(jobDir)
+
+	// Save all uploaded files to jobDir
+	var savedPaths []string
+	for _, fileHeader := range files {
+		if !strings.HasSuffix(strings.ToLower(fileHeader.Filename), ".pptx") {
+			continue
+		}
+		src, err := fileHeader.Open()
+		if err != nil {
+			continue
+		}
+		dstPath := filepath.Join(jobDir, filepath.Base(fileHeader.Filename))
+		dst, err := os.Create(dstPath)
+		if err == nil {
+			io.Copy(dst, src)
+			dst.Close()
+			savedPaths = append(savedPaths, dstPath)
+		}
+		src.Close()
+	}
+
+	if len(savedPaths) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No valid .pptx files could be read"})
+	}
+
+	// Prepare output excel path in file storage or temp
+	storageDir := os.Getenv("FILE_STORAGE_PATH")
+	if storageDir == "" {
+		storageDir = "/data/files"
+	}
+	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
+		storageDir = filepath.Join(os.TempDir(), "pe_summary_reports")
+		_ = os.MkdirAll(storageDir, 0755)
+	}
+
+	excelFilename := fmt.Sprintf("Summary_Report_%s.xlsx", time.Now().Format("20060102_150405"))
+	outExcelPath := filepath.Join(storageDir, excelFilename)
+
+	// Locate pptx_summary.py
+	scriptPath := filepath.Join("scripts", "pptx_summary.py")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		scriptPath = filepath.Join("backend", "scripts", "pptx_summary.py")
+		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+			scriptPath = "/app/scripts/pptx_summary.py"
+		}
+	}
+
+	pythonBin := "python3"
+	if p, err := exec.LookPath("python3"); err == nil {
+		pythonBin = p
+	} else if p, err := exec.LookPath("python"); err == nil {
+		pythonBin = p
+	}
+
+	cmdArgs := []string{scriptPath, "--input-dir", jobDir, "--output-excel", outExcelPath}
+	cmd := exec.Command(pythonBin, cmdArgs...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"message": fmt.Sprintf("Python execution failed: %v", err),
+			"details": string(output),
+		})
+	}
+
+	// Parse JSON from output
+	var result map[string]interface{}
+	outStr := strings.TrimSpace(string(output))
+	startIdx := strings.Index(outStr, "{")
+	endIdx := strings.LastIndex(outStr, "}")
+	if startIdx >= 0 && endIdx > startIdx {
+		jsonStr := outStr[startIdx : endIdx+1]
+		if err := json.Unmarshal([]byte(jsonStr), &result); err == nil {
+			// Check what the actual excel file was named
+			actualExcelName := excelFilename
+			if nameFromRes, ok := result["excel_file"].(string); ok && nameFromRes != "" {
+				actualExcelName = nameFromRes
+			}
+			result["download_url"] = fmt.Sprintf("/api/v1/utility/pptx-summary/download/%s", actualExcelName)
+			return c.JSON(http.StatusOK, result)
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success":      true,
+		"raw_output":   outStr,
+		"download_url": fmt.Sprintf("/api/v1/utility/pptx-summary/download/%s", excelFilename),
+	})
+}
+
+// DownloadPPTXSummary serves the generated excel summary report
+func (h *UtilityHandler) DownloadPPTXSummary(c echo.Context) error {
+	filename := c.Param("filename")
+	if filename == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Filename required"})
+	}
+
+	// Clean filename to prevent path traversal
+	cleanName := filepath.Base(filename)
+	storageDir := os.Getenv("FILE_STORAGE_PATH")
+	if storageDir == "" {
+		storageDir = "/data/files"
+	}
+
+	filePath := filepath.Join(storageDir, cleanName)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// Try temp fallback
+		filePath = filepath.Join(os.TempDir(), "pe_summary_reports", cleanName)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			filePath = filepath.Join(os.TempDir(), cleanName)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				return c.JSON(http.StatusNotFound, map[string]string{"message": "Summary file not found or expired"})
+			}
+		}
+	}
+
+	return c.Attachment(filePath, cleanName)
+}
+
 

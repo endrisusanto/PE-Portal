@@ -26,6 +26,7 @@
     "tools_category_sw": "소프트웨어 개발",
     "tools_images": "이미지 변환 및 압축",
     "tools_docs": "PDF 문서 압축",
+    "tools_pptx_summary": "파워포인트 자동 요약",
     "tools_bg": "로컬 배경 제거 (PNG)",
     "tools_pdf_merge_split": "PDF 병합 및 분할 (Merge & Split)",
     "tools_cl_compare": "CL 비교 분석",
