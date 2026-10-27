@@ -9,13 +9,30 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"pe-portal/internal/model"
 )
 
-// NormalizeMCPURL adjusts hostnames for Docker container environments (ponytail: robust networking)
+// IsRunningInDocker detects if the current process is inside a container
+func IsRunningInDocker() bool {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	if os.Getenv("RUNNING_IN_DOCKER") == "true" || os.Getenv("DOCKER_CONTAINER") == "true" {
+		return true
+	}
+	if data, err := os.ReadFile("/proc/1/cgroup"); err == nil {
+		if strings.Contains(string(data), "docker") || strings.Contains(string(data), "containerd") {
+			return true
+		}
+	}
+	return false
+}
+
+// NormalizeMCPURL adjusts hostnames for Docker container vs baremetal environments (ponytail: robust networking)
 func NormalizeMCPURL(rawURL string) string {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
@@ -30,9 +47,27 @@ func NormalizeMCPURL(rawURL string) string {
 	host := u.Hostname()
 	port := u.Port()
 
-	// Inside Docker container, localhost/127.0.0.1 or unreachable local IPs route to host gateway
-	if host == "localhost" || host == "127.0.0.1" || host == "107.102.39.55" {
+	// If running on Baremetal (Windows / Linux host without Docker container):
+	if !IsRunningInDocker() {
+		// If DB has docker bridge IP 172.17.0.1 from Docker testing, map back to 127.0.0.1
+		if host == "172.17.0.1" {
+			targetHost := "127.0.0.1"
+			if port != "" {
+				u.Host = net.JoinHostPort(targetHost, port)
+			} else {
+				u.Host = targetHost
+			}
+		}
+		// On baremetal, keep localhost, 127.0.0.1, and LAN IPs (e.g. 107.102.39.55, 192.168.x.x) AS-IS!
+		return u.String()
+	}
+
+	// Inside Docker container: localhost / 127.0.0.1 routes to host machine gateway
+	if host == "localhost" || host == "127.0.0.1" {
 		targetHost := "172.17.0.1" // Default Docker bridge gateway to host machine
+		if envHost := os.Getenv("DOCKER_HOST_GATEWAY"); envHost != "" {
+			targetHost = envHost
+		}
 		if port != "" {
 			u.Host = net.JoinHostPort(targetHost, port)
 		} else {
@@ -60,7 +95,12 @@ type MCPClientService struct {
 func NewMCPClientService() *MCPClientService {
 	return &MCPClientService{
 		httpClient: &http.Client{
-			Timeout: 4 * time.Second, // fast timeout so chat inference is never held up
+			Timeout: 3 * time.Second, // fast timeout so chat inference is never held up
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout: 2 * time.Second,
+				}).DialContext,
+			},
 		},
 	}
 }
@@ -279,8 +319,15 @@ func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPSer
 		return "", err
 	}
 
-	// 60-second timeout for AI inference & database reasoning
-	chatClient := &http.Client{Timeout: 60 * time.Second}
+	// AI inference & database reasoning client with fast connection failure detection
+	chatClient := &http.Client{
+		Timeout: 45 * time.Second,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: 3 * time.Second, // Fail fast if endpoint host is unreachable
+			}).DialContext,
+		},
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, chatEndpoint, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", err
