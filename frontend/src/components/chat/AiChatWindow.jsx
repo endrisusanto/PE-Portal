@@ -43,6 +43,7 @@ const downloadBlob = (content, filename, mimeType = 'text/plain') => {
 // 1. LIVE SVG BLOCK COMPONENT
 // ----------------------------------------------------------------------------
 const SvgBlock = ({ rawSvg, id }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
 
@@ -81,16 +82,16 @@ const SvgBlock = ({ rawSvg, id }) => {
             title="Toggle Code / Preview"
           >
             {showCode ? <Eye size={12} /> : <Code2 size={12} />}
-            <span>{showCode ? 'Lihat Preview' : 'Kode SVG'}</span>
+            <span>{showCode ? t('common.view', 'Lihat Preview') : 'SVG'}</span>
           </button>
           <button
             type="button"
             className={styles.svgActionBtn}
             onClick={handleCopy}
-            title="Salin Kode SVG"
+            title={t('ai_chat.copy_code', 'Salin Kode SVG')}
           >
             {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-            <span>{copied ? 'Tersalin' : 'Salin'}</span>
+            <span>{copied ? t('common.copied', 'Tersalin') : t('common.copy', 'Salin')}</span>
           </button>
           <button
             type="button"
@@ -222,6 +223,7 @@ const formatInline = (text) => {
 };
 
 const TableBlock = ({ rawTableLines }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   // Parse Markdown Table Lines
@@ -270,15 +272,15 @@ const TableBlock = ({ rawTableLines }) => {
   return (
     <div className={styles.tableWrapper}>
       <div className={styles.tableHeaderBar}>
-        <span>Tabel Data ({rows.length} Baris)</span>
+        <span>Table ({rows.length})</span>
         <button
           type="button"
           onClick={handleCopyTable}
           className={styles.tableCopyBtn}
-          title="Salin untuk paste langsung ke Excel / Google Sheets"
+          title={t('ai_chat.copy_table_excel', 'Salin untuk paste langsung ke Excel / Google Sheets')}
         >
           {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-          <span>{copied ? 'Tersalin (Excel TSV)' : 'Salin ke Excel'}</span>
+          <span>{copied ? t('ai_chat.copy_table_copied', 'Tersalin (Excel TSV)') : t('ai_chat.copy_table', 'Salin ke Excel')}</span>
         </button>
       </div>
       <div className={styles.tableScroll}>
@@ -309,6 +311,7 @@ const TableBlock = ({ rawTableLines }) => {
 // 3. CODE BLOCK COMPONENT
 // ----------------------------------------------------------------------------
 const CodeBlock = ({ language, code }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -328,7 +331,7 @@ const CodeBlock = ({ language, code }) => {
           style={{ color: '#cdd6f4' }}
         >
           {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-          <span>{copied ? 'Tersalin' : 'Salin'}</span>
+          <span>{copied ? t('common.copied', 'Tersalin') : t('common.copy', 'Salin')}</span>
         </button>
       </div>
       <pre className={styles.codeContent}>

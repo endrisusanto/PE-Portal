@@ -474,7 +474,87 @@
     "not_found": "모델을 찾을 수 없습니다",
     "not_found_desc": "검색어 또는 단계 필터를 변경해 보세요.",
     "empty_title": "등록된 모델이 없습니다",
-    "empty_desc": "신규 제품 모델(예: S26 시리즈, 코드명 Paradigm)을 등록하여 개발 단계를 추적하세요."
+    "empty_desc": "신규 제품 모델(예: S26 시리즈, 코드명 Paradigm)을 등록하여 개발 단계를 추적하세요.",
+    "view_matrix": "마일스톤 매트릭스",
+    "view_cards": "파이프라인 카드",
+    "milestone_matrix_title": "신모델 개발 마일스톤 매트릭스",
+    "milestone_matrix_subtitle": "모델 및 SKU 변형별 일정(주차/일자), 체크포인트 상태 및 기술 문서 첨부 통합 관리",
+    "matrix_hero_badge": "SEIN 생산기술 • 신모델 프로그램",
+    "matrix_search_placeholder": "모델명 또는 프로젝트명 검색...",
+    "matrix_refresh": "새로고침",
+    "matrix_export": "데이터 내보내기",
+    "matrix_active_projects": "진행 중인 프로젝트 모델 목록",
+    "matrix_models_count": "{{count}}개 모델",
+    "matrix_verified_count": "{{count}}개 검증 완료",
+    "matrix_planned_count": "{{count}}개 예정됨",
+    "matrix_table_title": "전체 모델 세부 일정 및 실행 현황 매트릭스",
+    "matrix_col_task": "마일스톤 항목 / 개발 단계",
+    "matrix_col_target": "목표 일정",
+    "matrix_col_status": "상태",
+    "matrix_col_attachments": "첨부 문서",
+    "matrix_legend_completed": "완료 / PASS",
+    "matrix_legend_scheduled": "예정됨 (Wxx)",
+    "matrix_legend_warning": "주의 / 마감 임박",
+    "matrix_legend_overdue": "지연 / Overdue",
+    "modal_tab_details": "세부 항목 수정",
+    "modal_tab_comments": "댓글 및 히스토리",
+    "modal_target_schedule": "마일스톤 목표 일정 (일자 또는 주차 W01-W52):",
+    "modal_cal_prev": "이전 달",
+    "modal_cal_next": "다음 달",
+    "modal_select_hint": "1일 선택은 날짜를 클릭하고, 기간 범위 선택은 두 번째 날짜를 클릭하세요.",
+    "modal_status_label": "체크포인트 상태:",
+    "modal_notes_label": "기술 이슈 / 세부 기준 메모:",
+    "modal_notes_placeholder": "품질 인증 문제, 도면, 치공구, 테스트 파라미터 또는 파라미터 표/사진을 입력하세요...",
+    "modal_attachments_label": "첨부 문서 ({{count}}):",
+    "modal_upload_file": "파일 업로드",
+    "modal_uploading": "업로드 중...",
+    "modal_no_attachments": "첨부된 문서가 없습니다.",
+    "modal_btn_cancel": "취소",
+    "modal_btn_save": "저장",
+    "modal_btn_close": "닫기",
+    "alert_target_days": "목표까지 {{days}}일 남음 ({{date}})",
+    "alert_target_this_week": "이번 주 목표 (W{{week}})!",
+    "alert_target_next_week": "다음 주 목표 (W{{week}})",
+    "alert_target_weeks": "{{weeks}}주 후 목표 (W{{week}})",
+    "alert_overdue_days": "{{days}}일 지연됨 ({{date}})",
+    "alert_overdue_weeks": "{{weeks}}주 지연됨 (W{{week}})",
+    "categories": {
+      "gating": {
+        "title": "게이팅 승인 및 일정",
+        "subtitle": "SEIN 디자인 및 양산 타당성 게이트 단계",
+        "badge": "핵심 게이트"
+      },
+      "lqv": {
+        "title": "LQV & LQVA 라인 품질 검증",
+        "subtitle": "생산 라인 조립, 검사 및 준비 상태 검증",
+        "badge": "라인 품질"
+      },
+      "bom_sample": {
+        "title": "BOM 준비도 및 샘플 제작",
+        "subtitle": "BOM 배포 현황 및 검증 샘플 제작",
+        "badge": "자재 & 샘플"
+      },
+      "eng_verification": {
+        "title": "엔지니어링 및 소프트웨어 검증",
+        "subtitle": "표준 작업 사양, 펌웨어 확인 및 프로그램 검증",
+        "badge": "엔지니어링"
+      },
+      "tooling_equipment": {
+        "title": "JIG 치공구 및 케이블 하드웨어",
+        "subtitle": "제조 JIG 조달, 입고 예정일(ETA) 및 라인 검증",
+        "badge": "치공구 하드웨어"
+      },
+      "part_cert": {
+        "title": "로컬 부품 승인 및 인증",
+        "subtitle": "로컬 부품 검증, TKDN 및 Postel 인증",
+        "badge": "인증 및 로컬화"
+      },
+      "special_process": {
+        "title": "특수 공정 역량",
+        "subtitle": "핵심 공정 준비도: 본딩, 방수, 디스펜서 및 외관 검사",
+        "badge": "핵심 공정"
+      }
+    }
   },
   "settings": {
     "title": "포털 환경설정",
@@ -560,7 +640,45 @@
     "group_part": "소속 부서",
     "role": "시스템 권한",
     "save_success": "프로필 정보가 성공적으로 수정되었습니다",
-    "upload_success": "프로필 사진이 성공적으로 업로드되었습니다"
+    "upload_success": "프로필 사진이 성공적으로 업로드되었습니다",
+    "mcp_title": "Model Context Protocol (MCP) 서버 문서 및 연동",
+    "mcp_desc": "공식 SEIN PE-Portal Model Context Protocol 연동 가이드입니다. 실시간 양산 데이터, 신모델, 마일스톤, 프로젝트 작업, 샘플 재고 및 DHL 물류를 AI Assistant, Cursor IDE, Claude Desktop, Antigravity 및 자율 AI Agent와 연결합니다.",
+    "mcp_status_active": "MCP 서버 정상 작동 중 • {{count}}개 도구 제공",
+    "test_ping": "연결 핑 테스트",
+    "primary_endpoint": "기본 HTTP 엔드포인트 (JSON-RPC 2.0)",
+    "backend_port": "백엔드 직접 연결 포트 (Docker Host)",
+    "client_setup_title": "클라이언트 설정 및 연동 예시",
+    "tools_catalog_title": "PE-Portal MCP 도구 카탈로그 ({{count}}개 사용 가능)",
+    "tools_catalog_desc": "도구 카드를 클릭하면 파라미터 스키마와 JSON-RPC 페이로드 예시를 확인할 수 있습니다.",
+    "filter_all_tools": "전체 도구",
+    "filter_models": "모델 및 일정",
+    "filter_projects": "작업",
+    "filter_warehouse": "창고 및 DHL",
+    "filter_analytics": "분석 및 SQL",
+    "close_details": "상세 닫기",
+    "view_schema": "스키마 및 예시 페이로드 보기",
+    "parameters": "매개변수:",
+    "grounding_notice_title": "PE-Portal 챗봇 자동 연동:",
+    "grounding_notice_desc": "웹 포털 사용 시 별도 설정이 필요하지 않습니다! PE-Portal의 AI 어시스턴트는 이 MCP 서버에 이미 직접 연결되어 있습니다. 챗봇에게 \"현재 PVT 단계인 신모델 수는 몇 개입니까?\", \"SM-A186 마일스톤 일정은 어떻게 되나요?\", 또는 \"대여 중인 샘플이 있는지 확인해줘\"라고 바로 질문하면 데이터베이스에서 실시간 데이터를 즉시 조회하여 답변합니다.",
+    "email_group_title": "사용자 지정 수신 이메일 그룹 (빠른 공유)",
+    "email_group_desc": "파트 리더, 기구팀, 교대조 등 자주 사용하는 이메일 그룹을 저장하여 보고서 작성기 및 발송 스케줄러에서 1클릭으로 신속하게 입력할 수 있습니다.",
+    "add_email_group": "이메일 그룹 추가",
+    "close_form": "양식 닫기",
+    "group_name": "그룹 / 목록 이름",
+    "group_name_placeholder": "예: PE 파트 리더",
+    "group_desc": "설명 (선택사항)",
+    "group_desc_placeholder": "예: 일일 라인 운영 보고서 수신 그룹",
+    "email_addresses": "이메일 주소 (쉼표로 구분)",
+    "email_addresses_placeholder": "lead.prod@samsung.com, manager.pe@samsung.com, spv.line@samsung.com",
+    "save_email_group": "이메일 그룹 저장",
+    "empty_email_groups": "저장된 사용자 지정 이메일 그룹이 없습니다. 상단의 \"이메일 그룹 추가\"를 클릭하세요.",
+    "personal_llm_title": "개인 LLM API 키 설정 (OpenAI 호환)",
+    "personal_llm_desc": "공용 게이트웨이 대신 개인 API 키(LM Studio, OpenAI, Gemini, Claude 등)를 사용하려면 아래에 엔드포인트와 인증 정보를 입력하세요.",
+    "custom_base_url": "사용자 지정 Base URL (OpenAI 호환)",
+    "personal_api_key": "개인 API 키",
+    "model_name_label": "모델 ID / 이름",
+    "revert_default_llm": "포털 기본값(LM Studio)으로 복원",
+    "save_personal_api_key": "개인 API 키 저장"
   },
   "reports": {
     "title": "디지털 업무 보고서 및 자동화",
@@ -1101,7 +1219,12 @@
     "quick_prompt_1": "PCB 부품 불량 증상 정밀 분석",
     "quick_prompt_2": "첨부된 PDF SOP 표준 작업 가이드 요약",
     "quick_prompt_3": "일일 엔지니어링 업무 보고서 초안 작성",
-    "quick_prompt_4": "AP/CP 소프트웨어 바이너리 버전 비교 분석"
+    "quick_prompt_4": "AP/CP 소프트웨어 바이너리 버전 비교 분석",
+    "copy_table": "표 복사 (Excel용)",
+    "copy_table_copied": "복사됨!",
+    "copy_code": "코드 복사",
+    "copy_code_copied": "복사 완료!",
+    "mcp_grounding_active": "실시간 데이터베이스 MCP 조회 중..."
   },
   "theme": {
     "title": "장식 테마",
@@ -1202,7 +1325,39 @@
     "image_dropzone_desc": "JPG, PNG, WEBP, AVIF, BMP, GIF 파일의 대량 변환 및 압축을 지원합니다",
     "conversion_results_title": "변환 결과 목록 ({{count}}개 파일)",
     "calculating": "계산 중...",
-    "download_file": "파일 다운로드"
+    "download_file": "파일 다운로드",
+    "sub_pptx_summary": "여러 파워포인트(.pptx) 보고서를 자동으로 분석하여 데이터 요약 테이블로 정리하고 서식화된 Excel 파일로 다운로드합니다.",
+    "pptx_header_title": "파워포인트 기술 보고서 자동 요약 & AI 인사이트",
+    "pptx_header_desc": "PPTX 일괄 파싱, 서식화된 Excel(.xlsx) 테이블 추출, 전체 Markdown 변환 및 대화형 AI 인사이트 챗봇 지원.",
+    "pptx_files_parsed_badge": "✓ {{count}}개 파일 파싱 완료",
+    "pptx_dropzone_title": "여기로 파워포인트 (.pptx) 파일을 드래그 앤 드롭하세요",
+    "pptx_dropzone_desc": "또는 클릭하여 기기에서 여러 파워포인트 파일을 선택하세요",
+    "pptx_processing_title": "파워포인트 파일 {{count}}개 처리 및 추출 중...",
+    "pptx_step_1": "1단계/3: Python 엔진에 파일 일괄 업로드 중...",
+    "pptx_step_2": "2단계/3: 슬라이드 텍스트, 메타데이터 표, 결론 및 대책 추출 중...",
+    "pptx_step_3": "3단계/3: 서식화된 Excel(.xlsx) 및 Markdown 보고서 생성 중...",
+    "pptx_elapsed_time": "경과 시간: {{time}}",
+    "pptx_timer_note": "💡 참고: 고해상도 현미경 사진이 포함된 발표 자료는 추출에 다소 시간이 소요될 수 있습니다. 정상 처리 중입니다.",
+    "pptx_queue_title": "대기 파일 목록 ({{count}}개 파일 선택됨)",
+    "pptx_btn_clear": "비우기",
+    "pptx_btn_execute": "⚡ 자동 요약 및 Markdown 파싱 실행",
+    "pptx_btn_executing": "Python 엔진 추출 진행 중...",
+    "pptx_kpi_total_files": "총 PPTX 파일 수",
+    "pptx_kpi_models_identified": "식별된 모델 수",
+    "pptx_kpi_parsing_status": "파싱 및 추출 상태",
+    "pptx_kpi_completed": "100% 완료",
+    "pptx_kpi_excel_result": "SEIN 규격 Excel 요약 결과",
+    "pptx_btn_download_excel": "Excel 다운로드 (.xlsx)",
+    "pptx_search_placeholder": "모델명, 불량 내용, 부품, 위치 검색...",
+    "pptx_btn_show_markdown": "Markdown 형식 보기",
+    "pptx_btn_hide_markdown": "Markdown 숨기기",
+    "pptx_btn_copy_table": "테이블 복사",
+    "pptx_btn_copied_table": "복사 완료!",
+    "pptx_btn_download_csv": "CSV 다운로드",
+    "pptx_ai_greeting": "안녕하세요! SEIN 생산기술 AI 어시스턴트입니다.\n\n상단에서 **.pptx** 파일을 업로드하여 불량 보고서 데이터를 Excel 테이블 및 **Markdown** 형식으로 추출하세요. 추출 완료 후 이 채팅창에서 불량 분석, 모델 간 비교, 결론 및 대책 방안을 즉시 질의할 수 있습니다!",
+    "pptx_prompt_defects": "📊 전체 불량 종합 요약",
+    "pptx_prompt_comparison": "🔍 모델 간 불량 비교 분석",
+    "pptx_prompt_countermeasure": "💡 결론 및 대책(Countermeasure) 도출"
   },
   "virtual_office": {
     "title": "버추얼 오피스 PE (2.5D 실시간 시뮬레이션)",
@@ -1281,5 +1436,62 @@
     },
     "current_location": "현재 위치:",
     "current_activity": "현재 활동:"
+  },
+  "mcp_tools": {
+    "pe_get_portal_overview": {
+      "badge": "포털 현황 펄스",
+      "desc": "포털 실시간 핵심 지표 조회: 단계별(DVT/PVT/MP) 활성 모델 수, 프로젝트 작업 건수, 시료 재고(대여/보유), 혁신 제안 및 DHL 배송 현황.",
+      "params": "파라미터 없음 (빈 객체 {})."
+    },
+    "pe_list_new_models": {
+      "badge": "신모델 목록",
+      "desc": "SEIN PE에서 개발 중인 스마트폰 및 신규 기기 목록과 코드명, 마케팅명, 개발 단계 및 BSM 변형 조회.",
+      "params": "stage (문자열, 선택사항: concept, prototype, evt, dvt, pvt, mp), search (문자열), limit (정수, 기본값: 20)"
+    },
+    "pe_get_model_details": {
+      "badge": "41+ 체크포인트",
+      "desc": "단일 모델의 모든 세부 사항 조회: 41개 이상의 체크포인트 및 마일스톤(PVR, PRA, SRA, LQV, 본사/SEIN BOM, JIG, 사양 및 TKDN/Postel 인증).",
+      "params": "model_name (문자열, 예: \"SM-A186\", \"S26\") 또는 model_id (UUID)"
+    },
+    "pe_get_model_schedules": {
+      "badge": "타임라인 & 캘린더",
+      "desc": "캘린더 및 간트 차트 시각화를 위한 모델별 마일스톤 일정, 목표 출시일 및 ISO 주차(W01-W52) 조회.",
+      "params": "stage (문자열), start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), limit (정수)"
+    },
+    "pe_list_projects_and_tasks": {
+      "badge": "칸반 작업",
+      "desc": "엔지니어링 프로젝트 및 칸반 작업 조회: 상태(todo, in_progress, review, done), 우선순위, 마감일 및 담당자.",
+      "params": "status (문자열: todo, in_progress, done), priority (low, medium, high, urgent), search (문자열), limit (정수)"
+    },
+    "pe_list_samples": {
+      "badge": "시료 재고",
+      "desc": "하드웨어 시료 및 연구실 테스트 폰 조회: 대여 상태(AVAILABLE / BORROWED), 대여자 이름, 시리얼 번호, IMEI 및 보관 위치.",
+      "params": "status_pinjam (AVAILABLE, BORROWED), model (문자열), borrower (문자열), limit (정수)"
+    },
+    "pe_list_dhl_shipments": {
+      "badge": "DHL 배송 추적",
+      "desc": "DHL 국제 배송 추적 상태 조회: AWB 운송장 번호, 출발지/도착지, 수취 담당자(PIC), 배송 상태(transit/delivered) 및 최신 위치 업데이트.",
+      "params": "status (transit, delivered), search (AWB, PIC, 목적지), limit (정수)"
+    },
+    "pe_list_software_mrs": {
+      "badge": "소프트웨어 MR",
+      "desc": "소프트웨어 유지보수 릴리스(SMR) 조회: 소프트웨어 버전, 대상 모델, 출시 일정 및 컴패니언 릴리스 정보.",
+      "params": "search (모델/버전 키워드), limit (정수, 기본값: 20)"
+    },
+    "pe_list_innovations": {
+      "badge": "카이젠 & 아이디어",
+      "desc": "엔지니어링 혁신 제안 및 카이젠 아이디어 조회: 예상 비용 절감액, 파급 효과 점수(1-5점) 및 경영진 승인 상태.",
+      "params": "status (draft, submitted, approved), category (문자열), search (문자열), limit (정수)"
+    },
+    "pe_list_documents_and_reports": {
+      "badge": "기술 문서 & 보고서",
+      "desc": "PE 포털에 저장된 기술 엔지니어링 문서, 정기 디지털 업무 보고서 및 기술 가이드 아티클 아카이브 조회.",
+      "params": "search (제목/내용 키워드), limit (정수, 기본값: 20)"
+    },
+    "pe_query_database": {
+      "badge": "안전 SQL 읽기 전용",
+      "desc": "맞춤형 분석 및 데이터 집계를 위해 PE Portal PostgreSQL 데이터베이스에서 읽기 전용(SELECT) 쿼리를 직접 실행합니다. 데이터 수정 작업은 자동 차단됩니다.",
+      "params": "query (유효한 SQL SELECT 쿼리 문자열)"
+    }
   }
 }

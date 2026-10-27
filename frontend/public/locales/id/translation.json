@@ -474,7 +474,87 @@
     "not_found": "Model tidak ditemukan",
     "not_found_desc": "Coba ubah kata kunci pencarian atau filter tahap.",
     "empty_title": "Belum ada model terdaftar",
-    "empty_desc": "Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development."
+    "empty_desc": "Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development.",
+    "view_matrix": "Milestone Matrix",
+    "view_cards": "Pipeline Cards",
+    "milestone_matrix_title": "Model Development Milestone Matrix",
+    "milestone_matrix_subtitle": "Pelacakan terpadu jadwal (Week / Tanggal), status checkpoint, dan lampiran dokumen teknis per model & varian SKU.",
+    "matrix_hero_badge": "SEIN Product Engineering • New Model Program",
+    "matrix_search_placeholder": "Filter model / project name...",
+    "matrix_refresh": "Segarkan",
+    "matrix_export": "Ekspor Data",
+    "matrix_active_projects": "Daftar Project Active Model",
+    "matrix_models_count": "{{count}} Model",
+    "matrix_verified_count": "{{count}} Terverifikasi",
+    "matrix_planned_count": "{{count}} Terjadwal",
+    "matrix_table_title": "Matriks Rincian & Status Eksekusi Semua Model",
+    "matrix_col_task": "Milestone Task / Tahapan",
+    "matrix_col_target": "Target",
+    "matrix_col_status": "Status",
+    "matrix_col_attachments": "Lampiran",
+    "matrix_legend_completed": "Completed / PASS",
+    "matrix_legend_scheduled": "Scheduled (Wxx)",
+    "matrix_legend_warning": "Warning / Approaching",
+    "matrix_legend_overdue": "Terlambat / Overdue",
+    "modal_tab_details": "Detail Milestone & Lampiran",
+    "modal_tab_comments": "Diskusi & Komentar",
+    "modal_target_schedule": "Jadwal Target Milestone (Tanggal atau Week W01-W52):",
+    "modal_cal_prev": "Bulan sebelumnya",
+    "modal_cal_next": "Bulan berikutnya",
+    "modal_select_hint": "Klik tanggal untuk 1 hari, atau klik tanggal kedua untuk rentang.",
+    "modal_status_label": "Status Checkpoint:",
+    "modal_notes_label": "Catatan / Kendala Teknis & Kriteria:",
+    "modal_notes_placeholder": "Catat kendala kualifikasi, drawing, tooling, parameter uji, atau sisipkan tabel parameter & foto...",
+    "modal_attachments_label": "Lampiran Dokumen ({{count}}):",
+    "modal_upload_file": "Unggah File",
+    "modal_uploading": "Mengunggah...",
+    "modal_no_attachments": "Belum ada dokumen yang dilampirkan.",
+    "modal_btn_cancel": "Batal",
+    "modal_btn_save": "Simpan",
+    "modal_btn_close": "Tutup",
+    "alert_target_days": "Target {{days}} hari lagi ({{date}})",
+    "alert_target_this_week": "Target minggu ini (W{{week}})!",
+    "alert_target_next_week": "Target minggu depan (W{{week}})",
+    "alert_target_weeks": "Target dalam {{weeks}} minggu (W{{week}})",
+    "alert_overdue_days": "Terlambat {{days}} hari ({{date}})",
+    "alert_overdue_weeks": "Terlambat {{weeks}} minggu (W{{week}})",
+    "categories": {
+      "gating": {
+        "title": "Gating Approval & Schedule",
+        "subtitle": "Tahapan gerbang kelayakan desain & produksi SEIN",
+        "badge": "Core Gates"
+      },
+      "lqv": {
+        "title": "LQV & LQVA Line Quality Verification",
+        "subtitle": "Verifikasi kesiapan line produksi, perakitan & inspeksi",
+        "badge": "Line Quality"
+      },
+      "bom_sample": {
+        "title": "BOM Readiness & Sample Builds",
+        "subtitle": "Status rilis Bill of Materials dan fabrikasi sampel verifikasi",
+        "badge": "Material & Sample"
+      },
+      "eng_verification": {
+        "title": "Engineering & Software Verification",
+        "subtitle": "Spesifikasi kerja lini, konfirmasi firmware & verifikasi program",
+        "badge": "Engineering"
+      },
+      "tooling_equipment": {
+        "title": "JIG Tooling & Cable Hardware",
+        "subtitle": "Pengadaan, estimasi tiba (ETA), dan kualifikasi JIG manufaktur",
+        "badge": "Tooling Hardware"
+      },
+      "part_cert": {
+        "title": "Local Part Approval & Certification",
+        "subtitle": "Validasi komponen lokal (packing, label), sertifikasi TKDN & Postel",
+        "badge": "Compliance & Local"
+      },
+      "special_process": {
+        "title": "Special Process Capability",
+        "subtitle": "Kesiapan proses kritikal: bonding, waterproof, dispenser & inspeksi",
+        "badge": "Critical Process"
+      }
+    }
   },
   "settings": {
     "title": "Pengaturan Portal",
@@ -560,7 +640,45 @@
     "group_part": "Grup Bagian",
     "role": "Peran Sistem",
     "save_success": "Informasi profil berhasil diperbarui",
-    "upload_success": "Foto profil berhasil diunggah"
+    "upload_success": "Foto profil berhasil diunggah",
+    "mcp_title": "Dokumentasi & Integrasi Model Context Protocol (MCP)",
+    "mcp_desc": "Dokumentasi & panduan integrasi Model Context Protocol resmi SEIN PE-Portal. Menghubungkan seluruh data live produksi, model baru, milestone, task, inventaris sampel, hingga logistik DHL dengan AI Assistant, Cursor IDE, Claude Desktop, Antigravity, dan AI Agent otonom.",
+    "mcp_status_active": "MCP Server Active • {{count}} Tools",
+    "test_ping": "Test Ping",
+    "primary_endpoint": "Primary HTTP Endpoint (JSON-RPC 2.0)",
+    "backend_port": "Backend Direct Port (Docker Host)",
+    "client_setup_title": "Client Setup & Configuration Examples",
+    "tools_catalog_title": "Katalog Tool MCP PE-Portal ({{count}} Available Tools)",
+    "tools_catalog_desc": "Klik pada kartu tool untuk melihat skema parameter input dan contoh payload JSON-RPC.",
+    "filter_all_tools": "All Tools",
+    "filter_models": "Models & Schedules",
+    "filter_projects": "Tasks",
+    "filter_warehouse": "Warehouse & DHL",
+    "filter_analytics": "Analytics & SQL",
+    "close_details": "Tutup Rincian",
+    "view_schema": "Lihat Skema & Contoh Payload",
+    "parameters": "Parameters:",
+    "grounding_notice_title": "Terhubung Otomatis ke Chatbot PE-Portal:",
+    "grounding_notice_desc": "Anda tidak perlu konfigurasi manual untuk menggunakan fitur ini di web! AI Assistant di PE-Portal telah terhubung langsung ke MCP Server ini. Anda dapat langsung bertanya ke Chatbot: \"Berapa jumlah model baru yang sedang PVT?\", \"Bagaimana jadwal milestone SM-A186?\", atau \"Cek apakah ada sampel yang dipinjam\" dan AI akan mengambil data live real-time dari database.",
+    "email_group_title": "Custom Email Lists (Email Quick Action)",
+    "email_group_desc": "Simpan grup email (misal: Part Leader, Mecha Team, Shift 1) untuk quick-insert otomatis dengan 1-klik di editor laporan & jadwal pengiriman email.",
+    "add_email_group": "Add Email Group",
+    "close_form": "Close Form",
+    "group_name": "Group / List Name",
+    "group_name_placeholder": "e.g. PE Part Leads",
+    "group_desc": "Description (Optional)",
+    "group_desc_placeholder": "e.g. Recipients for daily line operations report",
+    "email_addresses": "Email Addresses (Comma separated)",
+    "email_addresses_placeholder": "lead.prod@samsung.com, manager.pe@samsung.com, spv.line@samsung.com",
+    "save_email_group": "Save Email Group",
+    "empty_email_groups": "Belum ada grup email kustom tersimpan. Klik \"Add Email Group\" di atas untuk membuat baru.",
+    "personal_llm_title": "Personal LLM API Key (OpenAI-Compatible)",
+    "personal_llm_desc": "Gunakan API Key pribadi Anda (LM Studio, OpenAI, Gemini, Claude) alih-alih gateway bersama portal dengan mengisi kredensial endpoint di bawah ini.",
+    "custom_base_url": "Custom Base URL (OpenAI-Compatible)",
+    "personal_api_key": "Personal API Key",
+    "model_name_label": "Model ID / Name",
+    "revert_default_llm": "Kembalikan ke Default Portal Bersama",
+    "save_personal_api_key": "Simpan Personal API Key"
   },
   "reports": {
     "title": "Laporan Kerja Digital & Otomasi",
@@ -1101,7 +1219,12 @@
     "drop_files": "Lepaskan dokumen di sini untuk dilampirkan",
     "open_standalone": "Buka di Jendela Baru (Detach Standalone)",
     "confirm_clear": "Kosongkan riwayat percakapan AI Assistant?",
-    "history_cleared": "Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!"
+    "history_cleared": "Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!",
+    "copy_table": "Salin Tabel (Excel)",
+    "copy_table_copied": "Tersalin!",
+    "copy_code": "Salin Kode",
+    "copy_code_copied": "Tersalin!",
+    "mcp_grounding_active": "Mengakses data live database via MCP..."
   },
   "theme": {
     "title": "Tema Dekoratif",
@@ -1202,7 +1325,39 @@
     "image_dropzone_desc": "Mendukung file JPG, PNG, WEBP, AVIF, BMP, GIF dalam jumlah banyak (bulk)",
     "conversion_results_title": "Daftar Hasil Konversi ({{count}} file)",
     "calculating": "Menghitung...",
-    "download_file": "Unduh File"
+    "download_file": "Unduh File",
+    "sub_pptx_summary": "Rangkum multiple laporan PowerPoint (.pptx) secara otomatis menjadi tabel rekapitulasi data dan unduh ke format Excel terformat.",
+    "pptx_header_title": "Technical Report Auto Summary & AI Insight",
+    "pptx_header_desc": "Ekstraksi batch berkas PPTX ke tabel terformat Excel (.xlsx), parsing Markdown lengkap, dan AI Insight Chatbox langsung di satu halaman.",
+    "pptx_files_parsed_badge": "✓ {{count}} Berkas Diparsing",
+    "pptx_dropzone_title": "Tarik & Lepaskan berkas PowerPoint (.pptx) ke sini",
+    "pptx_dropzone_desc": "atau klik untuk memilih multiple berkas PowerPoint dari perangkat Anda",
+    "pptx_processing_title": "Sedang Memproses & Mengekstrak {{count}} Berkas PowerPoint...",
+    "pptx_step_1": "Tahap 1/3: Mengunggah berkas batch ke Python Engine...",
+    "pptx_step_2": "Tahap 2/3: Mengekstrak teks slide, tabel metadata, kesimpulan & countermeasure...",
+    "pptx_step_3": "Tahap 3/3: Mengkompilasi tabel terformat Excel (.xlsx) & Markdown report...",
+    "pptx_elapsed_time": "Waktu Berjalan: {{time}}",
+    "pptx_timer_note": "💡 Catatan: Berkas presentasi dengan foto mikroskopis resolusi tinggi membutuhkan beberapa saat untuk diekstrak. Proses tetap berjalan aman.",
+    "pptx_queue_title": "Antrean Berkas ({{count}} file dipilih)",
+    "pptx_btn_clear": "Kosongkan",
+    "pptx_btn_execute": "⚡ Eksekusi Auto Summary & Parsing Markdown",
+    "pptx_btn_executing": "Mengekstrak via Python...",
+    "pptx_kpi_total_files": "Total Berkas PPTX",
+    "pptx_kpi_models_identified": "Model Teridentifikasi",
+    "pptx_kpi_parsing_status": "Status Parsing & Ekstraksi",
+    "pptx_kpi_completed": "100% Selesai",
+    "pptx_kpi_excel_result": "Hasil Excel Terformat SEIN",
+    "pptx_btn_download_excel": "Unduh Excel (.xlsx)",
+    "pptx_search_placeholder": "Cari Model, Problem, CN, Lokasi...",
+    "pptx_btn_show_markdown": "Lihat Format Markdown",
+    "pptx_btn_hide_markdown": "Sembunyikan Markdown",
+    "pptx_btn_copy_table": "Copy Tabel",
+    "pptx_btn_copied_table": "Tersalin!",
+    "pptx_btn_download_csv": "Unduh CSV",
+    "pptx_ai_greeting": "Halo! Saya asisten AI teknis SEIN Production Engineering.\n\nUnggah berkas **.pptx** di atas untuk mengekstrak seluruh data laporan defect ke dalam tabel Excel dan format **Markdown**. Setelah diekstrak, Anda dapat menanyakan insight, perbandingan defect antar model, kesimpulan, maupun countermeasure langsung di chatbox ini!",
+    "pptx_prompt_defects": "📊 Ringkasan Seluruh Defect",
+    "pptx_prompt_comparison": "🔍 Perbandingan Antar Model",
+    "pptx_prompt_countermeasure": "💡 Kesimpulan & Countermeasure"
   },
   "virtual_office": {
     "title": "Virtual Office PE",
@@ -1281,5 +1436,62 @@
     },
     "current_location": "Lokasi Saat Ini:",
     "current_activity": "Aktivitas:"
+  },
+  "mcp_tools": {
+    "pe_get_portal_overview": {
+      "badge": "Executive Pulse",
+      "desc": "Ambil statistik eksekutif real-time portal: total model aktif per tahap (DVT/PVT/MP), jumlah tugas proyek, unit sampel tersedia/dipinjam, inovasi, dan tracking DHL.",
+      "params": "Tidak memerlukan parameter (empty arguments)."
+    },
+    "pe_list_new_models": {
+      "badge": "New Models",
+      "desc": "Query daftar model smartphone & perangkat baru yang dikembangkan di SEIN PE beserta codename, marketing name, tahap pengembangan, dan varian BSM.",
+      "params": "stage (string, optional: concept, prototype, evt, dvt, pvt, mp), search (string), limit (int, default: 20)"
+    },
+    "pe_get_model_details": {
+      "badge": "41+ Checkpoints",
+      "desc": "Dapatkan rincian menyeluruh satu model: seluruh 41+ checkpoint & milestone (PVR, PRA, SRA, LQV, BOM HQ/SEIN, JIG, spesifikasi, dan sertifikasi TKDN/Postel).",
+      "params": "model_name (string, e.g. \"SM-A186\", \"S26\") atau model_id (UUID)"
+    },
+    "pe_get_model_schedules": {
+      "badge": "Timeline & Calendar",
+      "desc": "Ambil seluruh jadwal milestone, target tanggal rilis, dan ISO week number (W01-W52) lintas model untuk visualisasi kalender dan Gantt chart.",
+      "params": "stage (string), start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), limit (int)"
+    },
+    "pe_list_projects_and_tasks": {
+      "badge": "Kanban Tasks",
+      "desc": "Query proyek rekayasa dan tugas Kanban: status (todo, in_progress, review, done), prioritas, tenggat waktu, dan anggota yang ditugaskan.",
+      "params": "status (string: todo, in_progress, done), priority (low, medium, high, urgent), search (string), limit (int)"
+    },
+    "pe_list_samples": {
+      "badge": "Sample Inventory",
+      "desc": "Query unit sampel hardware, ponsel uji laboratorium, status peminjaman (AVAILABLE / BORROWED), nama peminjam, nomor seri, IMEI, dan lokasi fisik.",
+      "params": "status_pinjam (AVAILABLE, BORROWED), model (string), borrower (string), limit (int)"
+    },
+    "pe_list_dhl_shipments": {
+      "badge": "DHL Tracking",
+      "desc": "Query status pelacakan pengiriman internasional DHL, nomor resi AWB, rute asal/tujuan, PIC penerima, status transit/delivered, dan update lokasi terakhir.",
+      "params": "status (transit, delivered), search (AWB, PIC, tujuan), limit (int)"
+    },
+    "pe_list_software_mrs": {
+      "badge": "Software MR",
+      "desc": "Query rilis pemeliharaan perangkat lunak (Software Maintenance Release), versi software, model target, jadwal rilis, dan companion release.",
+      "params": "search (keyword model / versi), limit (int, default: 20)"
+    },
+    "pe_list_innovations": {
+      "badge": "Kaizen & Ideas",
+      "desc": "Query proposal inovasi teknik, ide Kaizen efisiensi, estimasi penghematan biaya, skor dampak (1-5), dan status persetujuan manajemen.",
+      "params": "status (draft, submitted, approved), category (string), search (string), limit (int)"
+    },
+    "pe_list_documents_and_reports": {
+      "badge": "Tech Docs & Reports",
+      "desc": "Query arsip dokumen rekayasa teknik, laporan digital berkala, dan artikel panduan teknis yang tersimpan di PE Portal.",
+      "params": "search (keyword judul / konten), limit (int, default: 20)"
+    },
+    "pe_query_database": {
+      "badge": "Safe SQL Read-Only",
+      "desc": "Eksekusi kueri SQL SELECT read-only langsung pada database PostgreSQL PE Portal untuk analisa kustom dan agregasi data. Operasi mutasi data otomatis diblokir.",
+      "params": "query (string, query SQL SELECT yang valid)"
+    }
   }
 }

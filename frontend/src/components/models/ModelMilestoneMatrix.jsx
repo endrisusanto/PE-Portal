@@ -809,11 +809,11 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         <div className={styles.heroTextSection}>
           <div className={styles.heroBadge}>
             <Compass size={13} />
-            <span>SEIN Product Engineering • New Model Program</span>
+            <span>{t('models.matrix_hero_badge', 'SEIN Product Engineering • New Model Program')}</span>
           </div>
-          <h2 className={styles.heroTitle}>Model Development Milestone Matrix</h2>
+          <h2 className={styles.heroTitle}>{t('models.milestone_matrix_title', 'Model Development Milestone Matrix')}</h2>
           <p className={styles.heroDesc}>
-            Pelacakan terpadu jadwal (Week / Tanggal), status checkpoint, dan lampiran dokumen teknis per model & varian SKU.
+            {t('models.milestone_matrix_subtitle', 'Pelacakan terpadu jadwal (Week / Tanggal), status checkpoint, dan lampiran dokumen teknis per model & varian SKU.')}
           </p>
         </div>
 
@@ -825,7 +825,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               type="text"
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Filter model / project name..."
+              placeholder={t('models.matrix_search_placeholder', 'Filter model / project name...')}
               className={styles.modernInput}
             />
             {filterQuery && (
@@ -838,11 +838,11 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
           <div className={styles.deckButtons}>
             <button className={styles.btnSecondary} onClick={fetchAllMilestones} title="Muat ulang milestone">
               <RefreshCw size={14} />
-              <span>Segarkan</span>
+              <span>{t('models.matrix_refresh', 'Segarkan')}</span>
             </button>
             <button className={styles.btnPrimary} onClick={handleExportCSV} title="Ekspor ke Excel / CSV">
               <FileSpreadsheet size={14} />
-              <span>Ekspor Data</span>
+              <span>{t('models.matrix_export', 'Ekspor Data')}</span>
             </button>
           </div>
         </div>
@@ -853,8 +853,8 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         <div className={styles.parentCardHeader}>
           <div className={styles.parentCardTitleGroup}>
             <Layers size={14} className={styles.parentCardIcon} />
-            <span className={styles.parentCardTitle}>Daftar Project Active Model</span>
-            <span className={styles.parentCardBadge}>{filteredModels.length} Model</span>
+            <span className={styles.parentCardTitle}>{t('models.matrix_active_projects', 'Daftar Project Active Model')}</span>
+            <span className={styles.parentCardBadge}>{t('models.matrix_models_count', { count: filteredModels.length, defaultValue: `${filteredModels.length} Model` })}</span>
           </div>
         </div>
 
@@ -896,8 +896,8 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                 <div className={styles.cardFooterStats}>
                   <span className={styles.statVerified}>
                     {stats.verifiedCount > 0
-                      ? `${stats.verifiedCount} Terverifikasi`
-                      : `${stats.plannedCount} Terjadwal`}
+                      ? t('models.matrix_verified_count', { count: stats.verifiedCount, defaultValue: `${stats.verifiedCount} Terverifikasi` })
+                      : t('models.matrix_planned_count', { count: stats.plannedCount, defaultValue: `${stats.plannedCount} Terjadwal` })}
                   </span>
                   {stats.tbdCount > 0 && (
                     <span className={styles.tbdCounter}>{stats.tbdCount} TBD</span>
@@ -914,24 +914,24 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         <div className={styles.tableHeaderBar}>
           <div className={styles.tableHeaderTitle}>
             <SlidersHorizontal size={16} />
-            <span>Matriks Rincian & Status Eksekusi Semua Model</span>
+            <span>{t('models.matrix_table_title', 'Matriks Rincian & Status Eksekusi Semua Model')}</span>
           </div>
           <div className={styles.legendBar}>
             <div className={styles.legendItem}>
               <span className={`${styles.legendDot} ${styles.dotEmerald}`} />
-              <span>Completed / PASS</span>
+              <span>{t('models.matrix_legend_completed', 'Completed / PASS')}</span>
             </div>
             <div className={styles.legendItem}>
               <span className={`${styles.legendDot} ${styles.dotIndigo}`} />
-              <span>Scheduled (Wxx)</span>
+              <span>{t('models.matrix_legend_scheduled', 'Scheduled (Wxx)')}</span>
             </div>
             <div className={styles.legendItem}>
               <span className={`${styles.legendDot} ${styles.dotAmber}`} />
-              <span>Warning / Approaching</span>
+              <span>{t('models.matrix_legend_warning', 'Warning / Approaching')}</span>
             </div>
             <div className={styles.legendItem}>
               <span className={`${styles.legendDot} ${styles.dotRose}`} />
-              <span>Terlambat / Overdue</span>
+              <span>{t('models.matrix_legend_overdue', 'Terlambat / Overdue')}</span>
             </div>
           </div>
         </div>
@@ -941,7 +941,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
             <thead>
               <tr>
                 <th rowSpan={2} className={styles.thTaskName}>
-                  Milestone Task / Tahapan
+                  {t('models.matrix_col_task', 'Milestone Task / Tahapan')}
                 </th>
                 {filteredModels.map((m) => (
                   <th key={m.id} colSpan={3} className={styles.thModelColumn}>
@@ -957,9 +957,9 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               <tr className={styles.subHeaderRow}>
                 {filteredModels.map((m) => (
                   <React.Fragment key={m.id}>
-                    <th className={styles.thSubDate}>Jadwal</th>
-                    <th className={styles.thSubStatus}>Status</th>
-                    <th className={styles.thSubAttach}>Doc</th>
+                    <th className={styles.thSubDate}>{t('models.matrix_col_target', 'Jadwal')}</th>
+                    <th className={styles.thSubStatus}>{t('models.matrix_col_status', 'Status')}</th>
+                    <th className={styles.thSubAttach}>{t('models.matrix_col_attachments', 'Doc')}</th>
                   </React.Fragment>
                 ))}
               </tr>
@@ -979,10 +979,10 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                             <button className={styles.toggleChevronBtn}>
                               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             </button>
-                            <span className={styles.catTitle}>{cat.title}</span>
-                            <span className={styles.catSubtitle}>• {cat.subtitle}</span>
+                            <span className={styles.catTitle}>{t(`models.categories.${cat.id}.title`, cat.title)}</span>
+                            <span className={styles.catSubtitle}>• {t(`models.categories.${cat.id}.subtitle`, cat.subtitle)}</span>
                           </div>
-                          <span className={styles.catBadge}>{cat.badge}</span>
+                          <span className={styles.catBadge}>{t(`models.categories.${cat.id}.badge`, cat.badge)}</span>
                         </div>
                       </td>
                     </tr>
@@ -1117,7 +1117,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               onClick={() => setModalActiveTab('checkpoint')}
             >
               <SlidersHorizontal size={13} />
-              <span>Data Checkpoint & Catatan</span>
+              <span>{t('models.modal_tab_details', 'Data Checkpoint & Catatan')}</span>
             </button>
             <button
               type="button"
@@ -1125,7 +1125,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               onClick={() => setModalActiveTab('comments')}
             >
               <MessageSquare size={13} />
-              <span>Diskusi & Komentar Tim</span>
+              <span>{t('models.modal_tab_comments', 'Diskusi & Komentar Tim')}</span>
             </button>
           </div>
 
@@ -1137,7 +1137,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               <div className={styles.fieldGroup}>
                 <div className={styles.fieldLabelRow}>
                   <label className={styles.fieldLabel}>
-                    Rentang Jadwal / Tanggal Checkpoint:
+                    {t('models.modal_target_schedule', 'Rentang Jadwal / Tanggal Checkpoint:')}
                   </label>
                   {editingCell.value && (
                     <span className={styles.scheduleBadgePreview}>
@@ -1208,7 +1208,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                               : { ...prev, month: prev.month - 1 }
                           );
                         }}
-                        title="Bulan sebelumnya"
+                        title={t('models.modal_cal_prev', 'Bulan sebelumnya')}
                       >
                         <ChevronLeft size={14} />
                       </button>
@@ -1227,7 +1227,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                               : { ...prev, month: prev.month + 1 }
                           );
                         }}
-                        title="Bulan berikutnya"
+                        title={t('models.modal_cal_next', 'Bulan berikutnya')}
                       >
                         <ChevronRight size={14} />
                       </button>
@@ -1292,7 +1292,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                             <>Terpilih: <strong>{editingCell.value}</strong> (Rentang Hari)</>
                           )
                         ) : (
-                          'Klik tanggal untuk 1 hari, atau klik tanggal kedua untuk rentang.'
+                          t('models.modal_select_hint', 'Klik tanggal untuk 1 hari, atau klik tanggal kedua untuk rentang.')
                         )}
                       </span>
                       {editingCell.startDate && (
@@ -1321,7 +1321,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               {/* Status Checkpoint: Button states with distinct outline */}
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>
-                  Status Checkpoint:
+                  {t('models.modal_status_label', 'Status Checkpoint:')}
                 </label>
                 <div className={styles.statusSegmentedBar}>
                   {[
@@ -1365,12 +1365,12 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               {/* Catatan / Kendala Teknis dengan FormattingTextarea (Full Toolbar, Table Insert, Image Render) */}
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>
-                  Catatan / Kendala Teknis & Kriteria:
+                  {t('models.modal_notes_label', 'Catatan / Kendala Teknis & Kriteria:')}
                 </label>
                 <FormattingTextarea
                   value={editingCell.notes || ''}
                   onChange={(e) => setEditingCell((prev) => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Catat kendala kualifikasi, drawing, tooling, parameter uji, atau sisipkan tabel parameter & foto..."
+                  placeholder={t('models.modal_notes_placeholder', 'Catat kendala kualifikasi, drawing, tooling, parameter uji, atau sisipkan tabel parameter & foto...')}
                   rows={6}
                   minHeight="140px"
                 />
@@ -1379,7 +1379,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
               {/* Lampiran Dokumen */}
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>
-                  Lampiran Dokumen ({editingCell.attachments?.length || 0}):
+                  {t('models.modal_attachments_label', { count: editingCell.attachments?.length || 0, defaultValue: `Lampiran Dokumen (${editingCell.attachments?.length || 0}):` })}
                 </label>
                 <div className={styles.compactUploadBox}>
                   <div className={styles.uploadTriggerRow}>
@@ -1391,7 +1391,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                       disabled={uploadingFile}
                     >
                       <Upload size={12} />
-                      <span>{uploadingFile ? 'Mengunggah...' : 'Unggah File'}</span>
+                      <span>{uploadingFile ? t('models.modal_uploading', 'Mengunggah...') : t('models.modal_upload_file', 'Unggah File')}</span>
                     </button>
                     <input
                       type="file"
@@ -1428,7 +1428,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                     </div>
                   ) : (
                     <span className={styles.uploadHintText}>
-                      Belum ada dokumen yang dilampirkan.
+                      {t('models.modal_no_attachments', 'Belum ada dokumen yang dilampirkan.')}
                     </span>
                   )}
                 </div>
@@ -1437,10 +1437,10 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
 
             <div className={styles.modalFooterBar}>
               <Button variant="outline" type="button" onClick={() => setEditingCell(null)}>
-                Batal
+                {t('common.cancel', 'Batal')}
               </Button>
               <Button variant="primary" type="submit" loading={savingCell} icon={Check}>
-                Simpan
+                {t('common.save', 'Simpan')}
               </Button>
             </div>
           </form>
@@ -1454,7 +1454,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
             />
             <div className={styles.modalFooterBar}>
               <Button variant="outline" type="button" onClick={() => setEditingCell(null)}>
-                Tutup
+                {t('common.close', 'Tutup')}
               </Button>
             </div>
           </div>

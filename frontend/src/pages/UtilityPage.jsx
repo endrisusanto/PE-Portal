@@ -3756,9 +3756,9 @@ Instruksi Analisis:
   };
 
   const promptSuggestions = [
-    { label: '📊 Ringkasan Seluruh Defect', prompt: 'Berdasarkan data markdown laporan PPTX di atas, buatkan ringkasan komprehensif mengenai seluruh defect dan problem yang ditemukan.' },
-    { label: '🔍 Analisis Model & Frekuensi', prompt: 'Model mana saja yang mengalami defect? Analisis frekuensi kejadian dan pola penyebab utamanya berdasarkan data laporan.' },
-    { label: '🛠️ Tindakan Countermeasure', prompt: 'Rangkum seluruh Action & Countermeasure yang telah direncanakan untuk masing-masing problem dalam bentuk daftar prioritas PIC.' },
+    { label: t('tools.pptx_prompt_defects', '📊 Ringkasan Seluruh Defect'), prompt: 'Berdasarkan data markdown laporan PPTX di atas, buatkan ringkasan komprehensif mengenai seluruh defect dan problem yang ditemukan.' },
+    { label: t('tools.pptx_prompt_comparison', '🔍 Perbandingan Antar Model'), prompt: 'Model mana saja yang mengalami defect? Analisis frekuensi kejadian dan pola penyebab utamanya berdasarkan data laporan.' },
+    { label: t('tools.pptx_prompt_countermeasure', '💡 Kesimpulan & Countermeasure'), prompt: 'Rangkum seluruh Action & Countermeasure yang telah direncanakan untuk masing-masing problem dalam bentuk daftar prioritas PIC.' },
     { label: '📋 Draft Executive Summary', prompt: 'Buatkan draft Executive Summary 1 halaman formal untuk dilaporkan kepada manajemen/pimpinan mengenai status investigasi defect ini.' },
   ];
 
@@ -3789,10 +3789,10 @@ Instruksi Analisis:
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Technical Report Auto Summary &amp; AI Insight
+              {t('tools.pptx_header_title', 'Technical Report Auto Summary & AI Insight')}
             </h2>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-              Ekstraksi batch berkas PPTX ke tabel terformat Excel (.xlsx), parsing Markdown lengkap, dan AI Insight Chatbox langsung di satu halaman.
+              {t('tools.pptx_header_desc', 'Ekstraksi batch berkas PPTX ke tabel terformat Excel (.xlsx), parsing Markdown lengkap, dan AI Insight Chatbox langsung di satu halaman.')}
             </p>
           </div>
         </div>
@@ -3807,7 +3807,7 @@ Instruksi Analisis:
               color: '#ffffff',
               fontWeight: 700,
             }}>
-              ✓ {results.length} Berkas Diparsing
+              {t('tools.pptx_files_parsed_badge', { count: results.length, defaultValue: `✓ ${results.length} Berkas Diparsing` })}
             </span>
           </div>
         )}
@@ -3826,10 +3826,10 @@ Instruksi Analisis:
         <Presentation size={48} className={styles.dropzoneIcon} />
         <div>
           <h3 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700 }}>
-            Tarik &amp; Lepaskan berkas PowerPoint (.pptx) ke sini
+            {t('tools.pptx_dropzone_title', 'Tarik & Lepaskan berkas PowerPoint (.pptx) ke sini')}
           </h3>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            atau klik untuk memilih multiple berkas PowerPoint dari perangkat Anda
+            {t('tools.pptx_dropzone_desc', 'atau klik untuk memilih multiple berkas PowerPoint dari perangkat Anda')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
@@ -3901,14 +3901,14 @@ Instruksi Analisis:
               </div>
               <div>
                 <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                  Sedang Memproses &amp; Mengekstrak {files.length} Berkas PowerPoint...
+                  {t('tools.pptx_processing_title', { count: files.length, defaultValue: `Sedang Memproses & Mengekstrak ${files.length} Berkas PowerPoint...` })}
                 </h4>
                 <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
                   {executingElapsed < 3
-                    ? 'Tahap 1/3: Mengunggah berkas batch ke Python Engine...'
+                    ? t('tools.pptx_step_1', 'Tahap 1/3: Mengunggah berkas batch ke Python Engine...')
                     : executingElapsed < 8
-                    ? 'Tahap 2/3: Mengekstrak teks slide, tabel metadata, kesimpulan & countermeasure...'
-                    : 'Tahap 3/3: Mengkompilasi tabel terformat Excel (.xlsx) & Markdown report...'}
+                    ? t('tools.pptx_step_2', 'Tahap 2/3: Mengekstrak teks slide, tabel metadata, kesimpulan & countermeasure...')
+                    : t('tools.pptx_step_3', 'Tahap 3/3: Mengkompilasi tabel terformat Excel (.xlsx) & Markdown report...')}
                 </p>
               </div>
             </div>
@@ -3926,7 +3926,7 @@ Instruksi Analisis:
               color: 'var(--color-accent)',
             }}>
               <Clock size={14} />
-              <span>Waktu Berjalan: {Math.floor(executingElapsed / 60).toString().padStart(2, '0')}:{(executingElapsed % 60).toString().padStart(2, '0')}</span>
+              <span>{t('tools.pptx_elapsed_time', { time: `${Math.floor(executingElapsed / 60).toString().padStart(2, '0')}:${(executingElapsed % 60).toString().padStart(2, '0')}`, defaultValue: `Waktu Berjalan: ${Math.floor(executingElapsed / 60).toString().padStart(2, '0')}:${(executingElapsed % 60).toString().padStart(2, '0')}` })}</span>
             </div>
           </div>
 
@@ -3948,7 +3948,7 @@ Instruksi Analisis:
           </div>
 
           <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>💡 <em>Catatan: Berkas presentasi dengan foto mikroskopis resolusi tinggi membutuhkan beberapa saat untuk diekstrak. Proses tetap berjalan aman.</em></span>
+            <span>{t('tools.pptx_timer_note', '💡 Catatan: Berkas presentasi dengan foto mikroskopis resolusi tinggi membutuhkan beberapa saat untuk diekstrak. Proses tetap berjalan aman.')}</span>
           </div>
         </div>
       )}
@@ -3968,7 +3968,7 @@ Instruksi Analisis:
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <FileStack size={18} color="var(--color-accent)" />
               <strong style={{ fontSize: '14px' }}>
-                Antrean Berkas ({files.length} file dipilih)
+                {t('tools.pptx_queue_title', { count: files.length, defaultValue: `Antrean Berkas (${files.length} file dipilih)` })}
               </strong>
             </div>
 
@@ -3980,7 +3980,7 @@ Instruksi Analisis:
                 onClick={handleClearAll}
                 disabled={isExecuting}
               >
-                Kosongkan
+                {t('tools.pptx_btn_clear', 'Kosongkan')}
               </Button>
               <Button
                 variant="primary"
@@ -3994,7 +3994,7 @@ Instruksi Analisis:
                   color: '#ffffff',
                 }}
               >
-                {isExecuting ? 'Mengekstrak via Python...' : '⚡ Eksekusi Auto Summary & Parsing Markdown'}
+                {isExecuting ? t('tools.pptx_btn_executing', 'Mengekstrak via Python...') : t('tools.pptx_btn_execute', '⚡ Eksekusi Auto Summary & Parsing Markdown')}
               </Button>
             </div>
           </div>
@@ -4089,7 +4089,7 @@ Instruksi Analisis:
               border: '1px solid var(--color-border)',
             }}>
               <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
-                Total Berkas PPTX
+                {t('tools.pptx_kpi_total_files', 'Total Berkas PPTX')}
               </span>
               <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: 'var(--color-text-primary)' }}>
                 {results.length}
@@ -4103,7 +4103,7 @@ Instruksi Analisis:
               border: '1px solid var(--color-border)',
             }}>
               <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
-                Model Teridentifikasi
+                {t('tools.pptx_kpi_models_identified', 'Model Teridentifikasi')}
               </span>
               <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: '#38bdf8' }}>
                 {uniqueModels.length > 0 ? uniqueModels.length : '-'}
@@ -4117,10 +4117,10 @@ Instruksi Analisis:
               border: '1px solid var(--color-border)',
             }}>
               <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
-                Status Parsing &amp; Ekstraksi
+                {t('tools.pptx_kpi_parsing_status', 'Status Parsing & Ekstraksi')}
               </span>
               <div style={{ fontSize: '14px', fontWeight: 700, marginTop: '8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle2 size={16} /> 100% Selesai
+                <CheckCircle2 size={16} /> {t('tools.pptx_kpi_completed', '100% Selesai')}
               </div>
             </div>
 
@@ -4135,7 +4135,7 @@ Instruksi Analisis:
               gap: '6px',
             }}>
               <span style={{ fontSize: '11px', color: '#1F4E78', fontWeight: 700 }}>
-                Hasil Excel Terformat SEIN
+                {t('tools.pptx_kpi_excel_result', 'Hasil Excel Terformat SEIN')}
               </span>
               <button
                 type="button"
@@ -4157,7 +4157,7 @@ Instruksi Analisis:
                 }}
               >
                 <Download size={14} />
-                <span>Unduh Excel (.xlsx)</span>
+                <span>{t('tools.pptx_btn_download_excel', 'Unduh Excel (.xlsx)')}</span>
               </button>
             </div>
           </div>
@@ -4186,7 +4186,7 @@ Instruksi Analisis:
               <Search size={15} color="var(--color-text-muted)" />
               <input
                 type="text"
-                placeholder="Cari Model, Problem, CN, Lokasi..."
+                placeholder={t('tools.pptx_search_placeholder', 'Cari Model, Problem, CN, Lokasi...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -4219,7 +4219,7 @@ Instruksi Analisis:
                 title="Tampilkan teks Markdown hasil parsing dari seluruh PPTX"
                 style={showMarkdownPreview ? { backgroundColor: 'var(--color-accent)', borderColor: 'var(--color-accent)' } : {}}
               >
-                {showMarkdownPreview ? 'Sembunyikan Markdown' : 'Lihat Format Markdown'}
+                {showMarkdownPreview ? t('tools.pptx_btn_hide_markdown', 'Sembunyikan Markdown') : t('tools.pptx_btn_show_markdown', 'Lihat Format Markdown')}
               </Button>
               <Button
                 variant="secondary"
@@ -4228,7 +4228,7 @@ Instruksi Analisis:
                 onClick={handleCopyTable}
                 title="Salin seluruh baris tabel ke clipboard"
               >
-                {copied ? 'Tersalin!' : 'Copy Tabel'}
+                {copied ? t('tools.pptx_btn_copied_table', 'Tersalin!') : t('tools.pptx_btn_copy_table', 'Copy Tabel')}
               </Button>
               <Button
                 variant="secondary"
@@ -4237,7 +4237,7 @@ Instruksi Analisis:
                 onClick={handleExportCSV}
                 title="Download dalam format CSV"
               >
-                Unduh CSV
+                {t('tools.pptx_btn_download_csv', 'Unduh CSV')}
               </Button>
               <Button
                 variant="primary"
@@ -4251,7 +4251,7 @@ Instruksi Analisis:
                 }}
                 title="Download dalam format Excel (.xlsx)"
               >
-                Download Excel (.xlsx)
+                {t('tools.pptx_btn_download_excel', 'Download Excel (.xlsx)')}
               </Button>
             </div>
           </div>

@@ -474,7 +474,87 @@
     "not_found": "No models found",
     "not_found_desc": "Try changing your search query or stage filter.",
     "empty_title": "No models registered yet",
-    "empty_desc": "Register a new product model (e.g. S26 Series, codename Paradigm) to start tracking development stages."
+    "empty_desc": "Register a new product model (e.g. S26 Series, codename Paradigm) to start tracking development stages.",
+    "view_matrix": "Milestone Matrix",
+    "view_cards": "Pipeline Cards",
+    "milestone_matrix_title": "Model Development Milestone Matrix",
+    "milestone_matrix_subtitle": "Integrated tracking of schedules (Week / Date), checkpoint statuses, and technical attachments per model & SKU variant.",
+    "matrix_hero_badge": "SEIN Product Engineering • New Model Program",
+    "matrix_search_placeholder": "Filter model / project name...",
+    "matrix_refresh": "Refresh",
+    "matrix_export": "Export Data",
+    "matrix_active_projects": "Active Model Projects",
+    "matrix_models_count": "{{count}} Models",
+    "matrix_verified_count": "{{count}} Verified",
+    "matrix_planned_count": "{{count}} Scheduled",
+    "matrix_table_title": "Detailed Schedule & Execution Status Matrix",
+    "matrix_col_task": "Milestone Task / Phase",
+    "matrix_col_target": "Target",
+    "matrix_col_status": "Status",
+    "matrix_col_attachments": "Attachments",
+    "matrix_legend_completed": "Completed / PASS",
+    "matrix_legend_scheduled": "Scheduled (Wxx)",
+    "matrix_legend_warning": "Warning / Approaching",
+    "matrix_legend_overdue": "Overdue",
+    "modal_tab_details": "Milestone Details & Attachments",
+    "modal_tab_comments": "Discussion & Comments",
+    "modal_target_schedule": "Milestone Target Schedule (Date or Week W01-W52):",
+    "modal_cal_prev": "Previous month",
+    "modal_cal_next": "Next month",
+    "modal_select_hint": "Click date for 1 day, or click second date for range.",
+    "modal_status_label": "Checkpoint Status:",
+    "modal_notes_label": "Technical Notes / Constraints & Criteria:",
+    "modal_notes_placeholder": "Note qualification constraints, drawings, tooling, test parameters, or insert parameter tables & photos...",
+    "modal_attachments_label": "Document Attachments ({{count}}):",
+    "modal_upload_file": "Upload File",
+    "modal_uploading": "Uploading...",
+    "modal_no_attachments": "No documents attached yet.",
+    "modal_btn_cancel": "Cancel",
+    "modal_btn_save": "Save",
+    "modal_btn_close": "Close",
+    "alert_target_days": "Target in {{days}} days ({{date}})",
+    "alert_target_this_week": "Target this week (W{{week}})!",
+    "alert_target_next_week": "Target next week (W{{week}})",
+    "alert_target_weeks": "Target in {{weeks}} weeks (W{{week}})",
+    "alert_overdue_days": "Overdue by {{days}} days ({{date}})",
+    "alert_overdue_weeks": "Overdue by {{weeks}} weeks (W{{week}})",
+    "categories": {
+      "gating": {
+        "title": "Gating Approval & Schedule",
+        "subtitle": "Design & manufacturing feasibility gates at SEIN",
+        "badge": "Core Gates"
+      },
+      "lqv": {
+        "title": "LQV & LQVA Line Quality Verification",
+        "subtitle": "Assembly line readiness, trial run & inspection verification",
+        "badge": "Line Quality"
+      },
+      "bom_sample": {
+        "title": "BOM Readiness & Sample Builds",
+        "subtitle": "Bill of Materials release status & verification sample fabrication",
+        "badge": "Material & Sample"
+      },
+      "eng_verification": {
+        "title": "Engineering & Software Verification",
+        "subtitle": "Line working specs, firmware confirmation & flashing verification",
+        "badge": "Engineering"
+      },
+      "tooling_equipment": {
+        "title": "JIG Tooling & Cable Hardware",
+        "subtitle": "Procurement, arrival estimate (ETA), and line qualification for JIG tooling",
+        "badge": "Tooling Hardware"
+      },
+      "part_cert": {
+        "title": "Local Part Approval & Certification",
+        "subtitle": "Local parts validation (packing, label), TKDN & Postel compliance",
+        "badge": "Compliance & Local"
+      },
+      "special_process": {
+        "title": "Special Process Capability",
+        "subtitle": "Critical process readiness: bonding, waterproof, dispenser & inspection",
+        "badge": "Critical Process"
+      }
+    }
   },
   "settings": {
     "title": "Portal Settings",
@@ -560,7 +640,45 @@
     "group_part": "Group Part",
     "role": "System Role",
     "save_success": "Profile information updated successfully",
-    "upload_success": "Profile picture updated successfully"
+    "upload_success": "Profile picture updated successfully",
+    "mcp_title": "Model Context Protocol (MCP) Server Documentation",
+    "mcp_desc": "Official SEIN PE-Portal Model Context Protocol integration guide. Connects live manufacturing data, new models, milestones, tasks, sample inventory, and DHL logistics with AI Assistant, Cursor IDE, Claude Desktop, Antigravity, and autonomous AI Agents.",
+    "mcp_status_active": "MCP Server Active • {{count}} Tools",
+    "test_ping": "Test Ping",
+    "primary_endpoint": "Primary HTTP Endpoint (JSON-RPC 2.0)",
+    "backend_port": "Backend Direct Port (Docker Host)",
+    "client_setup_title": "Client Setup & Configuration Examples",
+    "tools_catalog_title": "PE-Portal MCP Tools Catalog ({{count}} Available Tools)",
+    "tools_catalog_desc": "Click on tool card to view input parameter schema and JSON-RPC payload example.",
+    "filter_all_tools": "All Tools",
+    "filter_models": "Models & Schedules",
+    "filter_projects": "Tasks",
+    "filter_warehouse": "Warehouse & DHL",
+    "filter_analytics": "Analytics & SQL",
+    "close_details": "Close Details",
+    "view_schema": "View Schema & Payload Example",
+    "parameters": "Parameters:",
+    "grounding_notice_title": "Automatically Connected to PE-Portal Chatbot:",
+    "grounding_notice_desc": "No manual configuration is required to use this feature on the web! The AI Assistant in PE-Portal is directly connected to this MCP Server. You can directly ask the Chatbot: \"How many new models are currently in PVT?\", \"What is the milestone schedule for SM-A186?\", or \"Check if there are any borrowed samples\" and AI will retrieve real-time data from the database.",
+    "email_group_title": "Custom Email Lists (Email Quick Action)",
+    "email_group_desc": "Save email groups (e.g. Part Leader, Mecha Team, Shift 1) for 1-click quick insertion in report editor and automated scheduling.",
+    "add_email_group": "Add Email Group",
+    "close_form": "Close Form",
+    "group_name": "Group / List Name",
+    "group_name_placeholder": "e.g. PE Part Leads",
+    "group_desc": "Description (Optional)",
+    "group_desc_placeholder": "e.g. Recipients for daily line operations report",
+    "email_addresses": "Email Addresses (Comma separated)",
+    "email_addresses_placeholder": "lead.prod@samsung.com, manager.pe@samsung.com, spv.line@samsung.com",
+    "save_email_group": "Save Email Group",
+    "empty_email_groups": "No custom email groups saved yet. Click \"Add Email Group\" above to create one.",
+    "personal_llm_title": "Personal LLM API Key (OpenAI-Compatible)",
+    "personal_llm_desc": "If you prefer to use your own personal API key (LM Studio, OpenAI, Gemini, or Claude) instead of the portal shared gateway, enter your endpoint credentials below.",
+    "custom_base_url": "Custom Base URL (OpenAI-Compatible)",
+    "personal_api_key": "Personal API Key",
+    "model_name_label": "Model ID / Name",
+    "revert_default_llm": "Revert to Shared Portal Default",
+    "save_personal_api_key": "Save Personal API Key"
   },
   "reports": {
     "title": "Digital Work Reports & Automation",
@@ -1101,7 +1219,12 @@
     "drop_files": "Drop files here to attach",
     "open_standalone": "Open in New Window (Standalone Mode)",
     "confirm_clear": "Clear AI Assistant conversation history?",
-    "history_cleared": "Conversation history cleared. Feel free to ask a new question or attach documents!"
+    "history_cleared": "Conversation history cleared. Feel free to ask a new question or attach documents!",
+    "copy_table": "Copy Table (Excel)",
+    "copy_table_copied": "Copied!",
+    "copy_code": "Copy Code",
+    "copy_code_copied": "Copied!",
+    "mcp_grounding_active": "Querying live database via MCP..."
   },
   "theme": {
     "title": "Decorative Theme",
@@ -1202,7 +1325,39 @@
     "image_dropzone_desc": "Supports JPG, PNG, WEBP, AVIF, BMP, GIF files in bulk",
     "conversion_results_title": "Conversion Results ({{count}} files)",
     "calculating": "Calculating...",
-    "download_file": "Download File"
+    "download_file": "Download File",
+    "sub_pptx_summary": "Automatically summarize multiple PowerPoint (.pptx) reports into formatted data tables and download to styled Excel format.",
+    "pptx_header_title": "Technical Report Auto Summary & AI Insight",
+    "pptx_header_desc": "Batch PPTX extraction into formatted Excel (.xlsx) tables, full Markdown parsing, and inline AI Insight Chatbot in one page.",
+    "pptx_files_parsed_badge": "✓ {{count}} Files Parsed",
+    "pptx_dropzone_title": "Drag & drop PowerPoint (.pptx) files here",
+    "pptx_dropzone_desc": "or click to select multiple PowerPoint presentation files from your computer",
+    "pptx_processing_title": "Processing & extracting {{count}} PowerPoint files...",
+    "pptx_step_1": "Stage 1/3: Uploading batch files to Python Engine...",
+    "pptx_step_2": "Stage 2/3: Extracting slide text, metadata tables, conclusions & countermeasures...",
+    "pptx_step_3": "Stage 3/3: Compiling styled Excel (.xlsx) & Markdown report...",
+    "pptx_elapsed_time": "Elapsed Time: {{time}}",
+    "pptx_timer_note": "💡 Note: Presentation decks with high-resolution microscope photos take a few moments to extract. Processing safely.",
+    "pptx_queue_title": "Queued Files ({{count}} files selected)",
+    "pptx_btn_clear": "Clear All",
+    "pptx_btn_execute": "⚡ Execute Auto Summary & Markdown Parsing",
+    "pptx_btn_executing": "Extracting via Python...",
+    "pptx_kpi_total_files": "Total PPTX Files",
+    "pptx_kpi_models_identified": "Identified Models",
+    "pptx_kpi_parsing_status": "Parsing & Extraction Status",
+    "pptx_kpi_completed": "100% Completed",
+    "pptx_kpi_excel_result": "SEIN Styled Excel Output",
+    "pptx_btn_download_excel": "Download Excel (.xlsx)",
+    "pptx_search_placeholder": "Search Model, Problem, CN, Location...",
+    "pptx_btn_show_markdown": "View Markdown Format",
+    "pptx_btn_hide_markdown": "Hide Markdown",
+    "pptx_btn_copy_table": "Copy Table",
+    "pptx_btn_copied_table": "Copied!",
+    "pptx_btn_download_csv": "Download CSV",
+    "pptx_ai_greeting": "Hello! I am your SEIN Production Engineering technical AI assistant.\n\nUpload **.pptx** files above to extract defect reports into formatted Excel tables and **Markdown**. Once extracted, you can ask for insights, model comparisons, conclusions, and countermeasures right in this chatbox!",
+    "pptx_prompt_defects": "📊 Comprehensive Defects Summary",
+    "pptx_prompt_comparison": "🔍 Cross-Model Defect Comparison",
+    "pptx_prompt_countermeasure": "💡 Conclusions & Countermeasures"
   },
   "virtual_office": {
     "title": "Virtual Office PE",
@@ -1281,5 +1436,62 @@
     },
     "current_location": "Current Location:",
     "current_activity": "Current Activity:"
+  },
+  "mcp_tools": {
+    "pe_get_portal_overview": {
+      "badge": "Executive Pulse",
+      "desc": "Retrieve real-time executive statistics: active models per stage (DVT/PVT/MP), project task counts, sample inventory (available/borrowed), innovations, and DHL logistics.",
+      "params": "No parameters required (empty arguments)."
+    },
+    "pe_list_new_models": {
+      "badge": "New Models",
+      "desc": "Query new smartphone and device models developed at SEIN PE with codename, marketing name, development stage, and BSM variants.",
+      "params": "stage (string, optional: concept, prototype, evt, dvt, pvt, mp), search (string), limit (int, default: 20)"
+    },
+    "pe_get_model_details": {
+      "badge": "41+ Checkpoints",
+      "desc": "Get comprehensive details for a model: all 41+ checkpoints & milestones (PVR, PRA, SRA, LQV, BOM HQ/SEIN, JIG, specs, and TKDN/Postel certifications).",
+      "params": "model_name (string, e.g. \"SM-A186\", \"S26\") or model_id (UUID)"
+    },
+    "pe_get_model_schedules": {
+      "badge": "Timeline & Calendar",
+      "desc": "Retrieve all milestone schedules, target release dates, and ISO week numbers (W01-W52) across models for calendar and Gantt chart visualization.",
+      "params": "stage (string), start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), limit (int)"
+    },
+    "pe_list_projects_and_tasks": {
+      "badge": "Kanban Tasks",
+      "desc": "Query engineering projects and Kanban tasks: status (todo, in_progress, review, done), priority, due date, and assigned members.",
+      "params": "status (string: todo, in_progress, done), priority (low, medium, high, urgent), search (string), limit (int)"
+    },
+    "pe_list_samples": {
+      "badge": "Sample Inventory",
+      "desc": "Query hardware sample units, lab test phones, borrow status (AVAILABLE / BORROWED), borrower name, serial number, IMEI, and physical location.",
+      "params": "status_pinjam (AVAILABLE, BORROWED), model (string), borrower (string), limit (int)"
+    },
+    "pe_list_dhl_shipments": {
+      "badge": "DHL Tracking",
+      "desc": "Query DHL international shipment tracking status, AWB tracking number, route, recipient PIC, transit/delivered status, and latest location update.",
+      "params": "status (transit, delivered), search (AWB, PIC, destination), limit (int)"
+    },
+    "pe_list_software_mrs": {
+      "badge": "Software MR",
+      "desc": "Query software maintenance releases (SMR), software versions, target models, release schedules, and companion releases.",
+      "params": "search (model / version keyword), limit (int, default: 20)"
+    },
+    "pe_list_innovations": {
+      "badge": "Kaizen & Ideas",
+      "desc": "Query engineering innovation proposals, Kaizen efficiency ideas, estimated cost savings, impact score (1-5), and management approval status.",
+      "params": "status (draft, submitted, approved), category (string), search (string), limit (int)"
+    },
+    "pe_list_documents_and_reports": {
+      "badge": "Tech Docs & Reports",
+      "desc": "Query technical engineering document archives, periodic digital reports, and technical guide articles stored in PE Portal.",
+      "params": "search (title / content keyword), limit (int, default: 20)"
+    },
+    "pe_query_database": {
+      "badge": "Safe SQL Read-Only",
+      "desc": "Execute safe read-only SQL SELECT queries directly on the PE Portal PostgreSQL database for custom analytics and data aggregation. Mutation operations are automatically blocked.",
+      "params": "query (valid SQL SELECT query string)"
+    }
   }
 }

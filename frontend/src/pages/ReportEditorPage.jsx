@@ -1247,7 +1247,7 @@ export const ReportEditorPage = () => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; padding: 24px 16px; margin: 0; color: #1e293b; }
-    .email-container { width: 100%; max-width: 960px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05); }
+    .email-container { width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05); }
     .email-header { background: #0d7377; padding: 24px 28px; color: #ffffff; }
     .email-content { padding: 28px; }
     .email-footer { background: #f8fafc; padding: 14px 28px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; }
@@ -1263,7 +1263,7 @@ export const ReportEditorPage = () => {
   <table width="100%" border="0" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center">
-        <table class="email-container" border="0" cellspacing="0" cellpadding="0" style="width: 100%; max-width: 960px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <table class="email-container" border="0" cellspacing="0" cellpadding="0" style="width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
           <tr>
             <td class="email-header" style="background-color: #0d7377; padding: 24px 28px; color: #ffffff;">
               <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px;">SEIN PE PORTAL</span>

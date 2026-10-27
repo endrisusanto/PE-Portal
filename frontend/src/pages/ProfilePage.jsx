@@ -961,7 +961,7 @@ export const ProfilePage = () => {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
             <h2 className={styles.cardTitle} style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <KeyRound size={18} color="var(--color-accent)" />
-              Personal LLM API Key & Endpoint (Custom Provider)
+              {t('profile.personal_llm_title', 'Personal LLM API Key (OpenAI-Compatible)')}
             </h2>
             <span style={{
               fontSize: '11px',
@@ -977,19 +977,19 @@ export const ProfilePage = () => {
           </div>
 
           <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-            If you prefer to use your own personal API key (LM Studio, OpenAI, Gemini, or Claude) instead of the portal's shared gateway, enter your endpoint credentials below.
+            {t('profile.personal_llm_desc', "If you prefer to use your own personal API key (LM Studio, OpenAI, Gemini, or Claude) instead of the portal's shared gateway, enter your endpoint credentials below.")}
           </p>
 
           <form onSubmit={handleSavePersonalLlm} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '12px' }}>
             <Input
-              label="Custom Base URL (OpenAI-Compatible)"
+              label={t('profile.custom_base_url', 'Custom Base URL (OpenAI-Compatible)')}
               value={customBaseUrl}
               onChange={(e) => setCustomBaseUrl(e.target.value)}
               placeholder="https://lmstudio.endrisusanto.my.id/v1"
             />
 
             <Input
-              label="Personal API Key"
+              label={t('profile.personal_api_key', 'Personal API Key')}
               type="password"
               value={customApiKey}
               onChange={(e) => setCustomApiKey(e.target.value)}
@@ -997,7 +997,7 @@ export const ProfilePage = () => {
             />
 
             <Input
-              label="Model ID / Name"
+              label={t('profile.model_name_label', 'Model ID / Name')}
               value={customModelName}
               onChange={(e) => setCustomModelName(e.target.value)}
               placeholder="google/gemma-4-e4b"
@@ -1011,7 +1011,7 @@ export const ProfilePage = () => {
                   size="sm"
                   onClick={handleResetPersonalLlm}
                 >
-                  Revert to Shared Portal Default
+                  {t('profile.revert_default_llm', 'Revert to Shared Portal Default')}
                 </Button>
               ) : <div />}
 
@@ -1021,7 +1021,7 @@ export const ProfilePage = () => {
                 size="sm"
                 loading={savingCustomLlm}
               >
-                Save Personal API Key
+                {t('profile.save_personal_api_key', 'Save Personal API Key')}
               </Button>
             </div>
           </form>
@@ -1034,10 +1034,10 @@ export const ProfilePage = () => {
           <div>
             <h2 className={styles.cardTitle} style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <Users size={18} color="var(--color-accent)" />
-              Custom Email Lists (Email Quick Action)
+              {t('profile.email_group_title', 'Custom Email Lists (Email Quick Action)')}
             </h2>
             <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Simpan grup email (misal: Part Leader, Mecha Team, Shift 1) untuk quick-insert otomatis dengan 1-klik di editor laporan & jadwal pengiriman email.
+              {t('profile.email_group_desc', 'Simpan grup email (misal: Part Leader, Mecha Team, Shift 1) untuk quick-insert otomatis dengan 1-klik di editor laporan & jadwal pengiriman email.')}
             </p>
           </div>
 
@@ -1048,7 +1048,7 @@ export const ProfilePage = () => {
             icon={Plus}
             onClick={() => setIsAddingList(!isAddingList)}
           >
-            {isAddingList ? 'Close Form' : 'Add Email Group'}
+            {isAddingList ? t('profile.close_form', 'Close Form') : t('profile.add_email_group', 'Add Email Group')}
           </Button>
         </div>
 
@@ -1069,25 +1069,25 @@ export const ProfilePage = () => {
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
               <Input
-                label="Group / List Name"
+                label={t('profile.group_name', 'Group / List Name')}
                 value={newListName}
                 onChange={(e) => setNewListName(e.target.value)}
-                placeholder="e.g. PE Part Leads"
+                placeholder={t('profile.group_name_placeholder', 'e.g. PE Part Leads')}
                 required
               />
               <Input
-                label="Description (Optional)"
+                label={t('profile.group_desc', 'Description (Optional)')}
                 value={newListDesc}
                 onChange={(e) => setNewListDesc(e.target.value)}
-                placeholder="e.g. Recipients for daily line operations report"
+                placeholder={t('profile.group_desc_placeholder', 'e.g. Recipients for daily line operations report')}
               />
             </div>
 
             <Input
-              label="Email Addresses (Comma separated)"
+              label={t('profile.email_addresses', 'Email Addresses (Comma separated)')}
               value={newListEmails}
               onChange={(e) => setNewListEmails(e.target.value)}
-              placeholder="lead.prod@samsung.com, manager.pe@samsung.com, spv.line@samsung.com"
+              placeholder={t('profile.email_addresses_placeholder', 'lead.prod@samsung.com, manager.pe@samsung.com, spv.line@samsung.com')}
               required
             />
 
@@ -1098,7 +1098,7 @@ export const ProfilePage = () => {
                 size="sm"
                 onClick={() => setIsAddingList(false)}
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </Button>
               <Button
                 type="submit"
@@ -1106,7 +1106,7 @@ export const ProfilePage = () => {
                 size="sm"
                 loading={savingList}
               >
-                Save Email Group
+                {t('profile.save_email_group', 'Save Email Group')}
               </Button>
             </div>
           </form>
@@ -1116,7 +1116,7 @@ export const ProfilePage = () => {
         <div className={styles.emailListContainer}>
           {emailLists.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-              No custom email groups saved yet. Click "Add Email Group" above to create one.
+              {t('profile.empty_email_groups', 'No custom email groups saved yet. Click "Add Email Group" above to create one.')}
             </div>
           ) : (
             emailLists.map((list) => {
@@ -1160,17 +1160,17 @@ export const ProfilePage = () => {
           <div>
             <h2 className={styles.cardTitle} style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <Terminal size={19} color="var(--color-accent)" />
-              Model Context Protocol (MCP) Server Documentation
+              {t('profile.mcp_title', 'Model Context Protocol (MCP) Server Documentation')}
             </h2>
             <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Dokumentasi & panduan integrasi Model Context Protocol resmi SEIN PE-Portal. Menghubungkan seluruh data live produksi, model baru, milestone, task, inventaris sampel, hingga logistik DHL dengan AI Assistant, Cursor IDE, Claude Desktop, Antigravity, dan AI Agent otonom.
+              {t('profile.mcp_desc', 'Dokumentasi & panduan integrasi Model Context Protocol resmi SEIN PE-Portal. Menghubungkan seluruh data live produksi, model baru, milestone, task, inventaris sampel, hingga logistik DHL dengan AI Assistant, Cursor IDE, Claude Desktop, Antigravity, dan AI Agent otonom.')}
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div className={styles.mcpStatusBadge}>
               <span className={styles.mcpStatusDot} />
-              <span>MCP Server Active • 11 Tools</span>
+              <span>{t('profile.mcp_status_active', { count: MCP_TOOLS_CATALOG.length, defaultValue: `MCP Server Active • ${MCP_TOOLS_CATALOG.length} Tools` })}</span>
             </div>
 
             <Button
@@ -1182,7 +1182,7 @@ export const ProfilePage = () => {
               onClick={handleTestMcp}
               title="Test real-time connection to PE Portal MCP Server"
             >
-              Test Ping
+              {t('profile.test_ping', 'Test Ping')}
             </Button>
           </div>
         </div>
@@ -1205,7 +1205,7 @@ export const ProfilePage = () => {
           <div className={styles.mcpEndpointBox}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
               <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                Primary HTTP Endpoint (JSON-RPC 2.0)
+                {t('profile.primary_endpoint', 'Primary HTTP Endpoint (JSON-RPC 2.0)')}
               </span>
               <span style={{ color: 'var(--color-accent)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}
@@ -1218,14 +1218,14 @@ export const ProfilePage = () => {
               icon={copiedKey === 'endpoint' ? Check : Copy}
               onClick={() => handleCopyText(typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp', 'endpoint')}
             >
-              {copiedKey === 'endpoint' ? 'Copied' : 'Copy'}
+              {copiedKey === 'endpoint' ? t('common.copied', 'Copied') : t('common.copy', 'Copy')}
             </Button>
           </div>
 
           <div className={styles.mcpEndpointBox}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
               <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                Backend Direct Port (Docker Host)
+                {t('profile.backend_port', 'Backend Direct Port (Docker Host)')}
               </span>
               <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
                 http://localhost:8085/api/v1/mcp
@@ -1238,7 +1238,7 @@ export const ProfilePage = () => {
               icon={copiedKey === 'backend-port' ? Check : Copy}
               onClick={() => handleCopyText('http://localhost:8085/api/v1/mcp', 'backend-port')}
             >
-              {copiedKey === 'backend-port' ? 'Copied' : 'Copy'}
+              {copiedKey === 'backend-port' ? t('common.copied', 'Copied') : t('common.copy', 'Copy')}
             </Button>
           </div>
         </div>
@@ -1248,7 +1248,7 @@ export const ProfilePage = () => {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
             <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Code2 size={16} color="var(--color-accent)" />
-              Client Setup & Configuration Examples
+              {t('profile.client_setup_title', 'Client Setup & Configuration Examples')}
             </span>
           </div>
 
@@ -1390,21 +1390,21 @@ print(data_text)`}
             <div>
               <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Layers size={16} color="var(--color-accent)" />
-                Katalog Tool MCP PE-Portal ({MCP_TOOLS_CATALOG.length} Available Tools)
+                {t('profile.tools_catalog_title', { count: MCP_TOOLS_CATALOG.length, defaultValue: `Katalog Tool MCP PE-Portal (${MCP_TOOLS_CATALOG.length} Available Tools)` })}
               </span>
               <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: '2px 0 0 0' }}>
-                Klik pada kartu tool untuk melihat skema parameter input dan contoh payload JSON-RPC.
+                {t('profile.tools_catalog_desc', 'Klik pada kartu tool untuk melihat skema parameter input dan contoh payload JSON-RPC.')}
               </p>
             </div>
 
             {/* Category Filter Pills */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {[
-                { id: 'all', label: 'All Tools' },
-                { id: 'models', label: 'Models & Schedules' },
-                { id: 'projects', label: 'Tasks' },
-                { id: 'warehouse', label: 'Warehouse & DHL' },
-                { id: 'analytics', label: 'Analytics & SQL' },
+                { id: 'all', label: t('profile.filter_all_tools', 'All Tools') },
+                { id: 'models', label: t('profile.filter_models', 'Models & Schedules') },
+                { id: 'projects', label: t('profile.filter_projects', 'Tasks') },
+                { id: 'warehouse', label: t('profile.filter_warehouse', 'Warehouse & DHL') },
+                { id: 'analytics', label: t('profile.filter_analytics', 'Analytics & SQL') },
               ].map((cat) => (
                 <button
                   key={cat.id}
@@ -1452,24 +1452,24 @@ print(data_text)`}
                         fontWeight: 600,
                         border: '1px solid var(--color-border-subtle)',
                       }}>
-                        {tool.badge}
+                        {t(`mcp_tools.${tool.name}.badge`, tool.badge)}
                       </span>
                     </div>
 
                     <div className={styles.mcpToolDesc}>
-                      {tool.desc}
+                      {t(`mcp_tools.${tool.name}.desc`, tool.desc)}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-accent)', marginTop: '4px', fontWeight: 600 }}>
-                      <span>{isExpanded ? 'Tutup Rincian' : 'Lihat Skema & Contoh Payload'}</span>
+                      <span>{isExpanded ? t('profile.close_details', 'Tutup Rincian') : t('profile.view_schema', 'Lihat Skema & Contoh Payload')}</span>
                       {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     </div>
 
                     {isExpanded && (
                       <div className={styles.mcpToolSchema} onClick={(e) => e.stopPropagation()}>
                         <div style={{ marginBottom: '4px' }}>
-                          <strong style={{ color: 'var(--color-text-primary)' }}>Parameters: </strong>
-                          <span>{tool.params}</span>
+                          <strong style={{ color: 'var(--color-text-primary)' }}>{t('profile.parameters', 'Parameters:')} </strong>
+                          <span>{t(`mcp_tools.${tool.name}.params`, tool.params)}</span>
                         </div>
 
                         <div style={{ position: 'relative', marginTop: '6px' }}>
@@ -1515,7 +1515,7 @@ print(data_text)`}
         }}>
           <Bot size={20} color="var(--color-accent)" style={{ flexShrink: 0, marginTop: '2px' }} />
           <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-            <strong style={{ color: 'var(--color-text-primary)' }}>Terhubung Otomatis ke Chatbot PE-Portal:</strong> Anda tidak perlu konfigurasi manual untuk menggunakan fitur ini di web! AI Assistant di PE-Portal telah terhubung langsung ke MCP Server ini. Anda dapat langsung bertanya ke Chatbot: <em>"Berapa jumlah model baru yang sedang PVT?", "Bagaimana jadwal milestone SM-A186?",</em> atau <em>"Cek apakah ada sampel yang dipinjam"</em> dan AI akan mengambil data live real-time dari database.
+            <strong style={{ color: 'var(--color-text-primary)' }}>{t('profile.grounding_notice_title', 'Terhubung Otomatis ke Chatbot PE-Portal:')}</strong> {t('profile.grounding_notice_desc', 'Anda tidak perlu konfigurasi manual untuk menggunakan fitur ini di web! AI Assistant di PE-Portal telah terhubung langsung ke MCP Server ini. Anda dapat langsung bertanya ke Chatbot: "Berapa jumlah model baru yang sedang PVT?", "Bagaimana jadwal milestone SM-A186?", atau "Cek apakah ada sampel yang dipinjam" dan AI akan mengambil data live real-time dari database.')}
           </div>
         </div>
       </div>

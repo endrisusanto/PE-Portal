@@ -511,7 +511,7 @@ export const ModelsPage = () => {
               }}
             >
               <TableIcon size={14} />
-              <span>Milestone Matrix</span>
+              <span>{t('models.view_matrix', 'Milestone Matrix')}</span>
             </button>
             <button
               type="button"
@@ -532,7 +532,7 @@ export const ModelsPage = () => {
               }}
             >
               <Layers size={14} />
-              <span>Pipeline Cards</span>
+              <span>{t('models.view_cards', 'Pipeline Cards')}</span>
             </button>
           </div>
 
