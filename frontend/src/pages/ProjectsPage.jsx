@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -109,6 +109,7 @@ export const ProjectsPage = () => {
   const location = useLocation();
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('kanban'); // Default: 'kanban' | 'matrix' | 'table'
   const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'my_tasks'
@@ -177,7 +178,7 @@ export const ProjectsPage = () => {
   // Technical Report State for Edit Modal
   const [editTechReportDrafter, setEditTechReportDrafter] = useState('');
   const [editTechReportPartLeader, setEditTechReportPartLeader] = useState('');
-  const [editTechReportGroupLeader, setEditTechReportGroupLeader] = useState('');
+  const [editTechReportGroupLeader, setEditTechReportGroupLeader] = useState('hendra.n@samsung.com');
   const [editTechReportModel, setEditTechReportModel] = useState('');
   const [editTechReportDefectDate, setEditTechReportDefectDate] = useState('');
   const [editTechReportProblem, setEditTechReportProblem] = useState('');
@@ -187,6 +188,67 @@ export const ProjectsPage = () => {
   const [editTechReportSymptoms, setEditTechReportSymptoms] = useState('');
   const [editTechReportCountermeasure, setEditTechReportCountermeasure] = useState('');
   const [isTechReportExpanded, setIsTechReportExpanded] = useState(true);
+
+  // ponytail: Auto-fetch Part Leader manager from team structure based on member's parent group
+  const getSuggestedPartLeader = useCallback((targetUser) => {
+    if (!targetUser) return 'Umar Bakri';
+    const parent = targetUser.parent_group
+      || groups.find((g) => g.id === targetUser.group_part_id)?.parent_group
+      || groups.find((g) => g.name === targetUser.group_part_name)?.parent_group;
+    if (parent) {
+      const mgr = users.find((u) => (u.role === 'manager' || u.role === 'admin') && u.parent_group === parent);
+      if (mgr) return mgr.full_name;
+      const fallbackMap = {
+        pe_solution: 'Umar Bakri',
+        pe_production: 'Arka Pratama',
+        pe_mecha: 'Kurniawan Adi',
+        pe_management: 'Hendrik Setiawan',
+      };
+      if (fallbackMap[parent]) return fallbackMap[parent];
+    }
+    return 'Umar Bakri';
+  }, [groups, users]);
+
+  // ponytail: Dropdown options for Part Leader sourced from team structure
+  const partLeaderOptions = useMemo(() => {
+    const list = [
+      { value: 'Umar Bakri', label: 'Umar Bakri (Manager PE Solution)' },
+      { value: 'Arka Pratama', label: 'Arka Pratama (Manager PE Production)' },
+      { value: 'Kurniawan Adi', label: 'Kurniawan Adi (Manager PE Mecha)' },
+    ];
+    users
+      .filter((u) => u.role === 'manager' || u.role === 'admin')
+      .forEach((u) => {
+        if (!list.some((item) => item.value === u.full_name)) {
+          const groupLabel = u.parent_group ? ` (${u.parent_group.replace('pe_', 'PE ').toUpperCase()})` : '';
+          list.push({
+            value: u.full_name,
+            label: `${u.full_name}${groupLabel}`,
+          });
+        }
+      });
+    return list;
+  }, [users]);
+
+  // ponytail: Dropdown options for Group Leader defaulting to hendra.n@samsung.com
+  const groupLeaderOptions = useMemo(() => {
+    const list = [
+      { value: 'hendra.n@samsung.com', label: 'hendra.n@samsung.com (PE Group Leader)' },
+      { value: 'Hendrik Setiawan', label: 'Hendrik Setiawan (Group Manager PE)' },
+      { value: 'Park Jin-woo (박진우)', label: 'Park Jin-woo (PE Dispatcher)' },
+    ];
+    users
+      .filter((u) => u.parent_group === 'pe_management' || u.role === 'admin' || u.role === 'manager')
+      .forEach((u) => {
+        if (!list.some((item) => item.value === u.full_name || item.value === u.email)) {
+          list.push({
+            value: u.full_name,
+            label: `${u.full_name} (${u.email || u.role})`,
+          });
+        }
+      });
+    return list;
+  }, [users]);
 
   // Detail Modal Quick Attachment State
   const [uploadingDetailAttachment, setUploadingDetailAttachment] = useState(false);
@@ -294,12 +356,14 @@ export const ProjectsPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [projRes, userRes] = await Promise.all([
+      const [projRes, userRes, groupRes] = await Promise.all([
         api.get('/projects'),
         api.get('/users').catch(() => ({ data: [] })),
+        api.get('/groups').catch(() => ({ data: [] })),
       ]);
       setProjects(projRes.data || []);
       setUsers(userRes.data || []);
+      setGroups(groupRes.data || []);
     } catch (err) {
       console.error('Failed to load projects/users:', err);
     } finally {
@@ -550,8 +614,17 @@ export const ProjectsPage = () => {
 
     const techReport = meta.technical_report || {};
     setEditTechReportDrafter(techReport.drafter || p.owner_name || user?.full_name || '');
-    setEditTechReportPartLeader(techReport.part_leader || '');
-    setEditTechReportGroupLeader(techReport.group_leader || '');
+
+    // ponytail: Auto-fetch Part Leader & Group Leader from team structure if not already explicitly saved
+    const drafterUser = users.find((u) => u.id === p.owner_id)
+      || users.find((u) => u.full_name === (techReport.drafter || p.owner_name))
+      || (initialPics.length > 0 ? initialPics[0] : null)
+      || users.find((u) => u.full_name === user?.full_name)
+      || user;
+    const autoPartLeader = getSuggestedPartLeader(drafterUser);
+
+    setEditTechReportPartLeader(techReport.part_leader || autoPartLeader);
+    setEditTechReportGroupLeader(techReport.group_leader || 'hendra.n@samsung.com');
     setEditTechReportModel(techReport.model || p.model_id || '');
     setEditTechReportDefectDate(techReport.defect_date || (p.start_date ? p.start_date.substring(0, 10) : ''));
     setEditTechReportProblem(techReport.problem || p.title || '');
@@ -2166,6 +2239,11 @@ export const ProjectsPage = () => {
                     onClick={() => {
                       setEditSelectedPics((prev) => [...prev, user]);
                       if (!editOwnerId) setEditOwnerId(user.id);
+                      // ponytail: Auto-update Part Leader if currently using auto-manager
+                      if (!editTechReportPartLeader || partLeaderOptions.some((o) => o.value === editTechReportPartLeader)) {
+                        const suggested = getSuggestedPartLeader(user);
+                        if (suggested) setEditTechReportPartLeader(suggested);
+                      }
                     }}
                     style={{
                       background: 'transparent',
@@ -2193,6 +2271,11 @@ export const ProjectsPage = () => {
                     if (targetUser && !editSelectedPics.some((p) => p.id === targetUser.id || (p.email && targetUser.email && p.email.toLowerCase() === targetUser.email.toLowerCase()))) {
                       setEditSelectedPics((prev) => [...prev, targetUser]);
                       if (!editOwnerId) setEditOwnerId(targetUser.id);
+                      // ponytail: Auto-update Part Leader if currently using auto-manager
+                      if (!editTechReportPartLeader || partLeaderOptions.some((o) => o.value === editTechReportPartLeader)) {
+                        const suggested = getSuggestedPartLeader(targetUser);
+                        if (suggested) setEditTechReportPartLeader(suggested);
+                      }
                     }
                   }}
                   style={{
@@ -2529,11 +2612,9 @@ export const ProjectsPage = () => {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Part Leader</label>
-                        <input
-                          type="text"
+                        <select
                           value={editTechReportPartLeader}
                           onChange={(e) => setEditTechReportPartLeader(e.target.value)}
-                          placeholder="Nama Part Leader"
                           style={{
                             height: '34px',
                             padding: '0 10px',
@@ -2542,16 +2623,25 @@ export const ProjectsPage = () => {
                             background: 'var(--color-bg-primary)',
                             color: 'var(--color-text-primary)',
                             fontSize: '12px',
+                            cursor: 'pointer',
                           }}
-                        />
+                        >
+                          <option value="">-- Pilih Part Leader --</option>
+                          {partLeaderOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                          {editTechReportPartLeader && !partLeaderOptions.some((o) => o.value === editTechReportPartLeader) && (
+                            <option value={editTechReportPartLeader}>{editTechReportPartLeader}</option>
+                          )}
+                        </select>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Group Leader</label>
-                        <input
-                          type="text"
+                        <select
                           value={editTechReportGroupLeader}
                           onChange={(e) => setEditTechReportGroupLeader(e.target.value)}
-                          placeholder="Nama Group Leader"
                           style={{
                             height: '34px',
                             padding: '0 10px',
@@ -2560,8 +2650,19 @@ export const ProjectsPage = () => {
                             background: 'var(--color-bg-primary)',
                             color: 'var(--color-text-primary)',
                             fontSize: '12px',
+                            cursor: 'pointer',
                           }}
-                        />
+                        >
+                          <option value="">-- Pilih Group Leader --</option>
+                          {groupLeaderOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                          {editTechReportGroupLeader && !groupLeaderOptions.some((o) => o.value === editTechReportGroupLeader) && (
+                            <option value={editTechReportGroupLeader}>{editTechReportGroupLeader}</option>
+                          )}
+                        </select>
                       </div>
                     </div>
                   </div>

@@ -30,7 +30,7 @@ export const TaskAnalystTechnicalReportCard = ({ project = {}, onEdit }) => {
   // Report fields with clean actual data from task/PIC, no fake hardcoded defaults
   const drafter = report.drafter || project.owner_name || '—';
   const partLeader = report.part_leader || '—';
-  const groupLeader = report.group_leader || '—';
+  const groupLeader = report.group_leader || 'hendra.n@samsung.com';
 
   const modelCode = report.model || project.model_id || '—';
   const defectDate = report.defect_date || (project.start_date ? project.start_date.substring(0, 10) : (project.created_at ? new Date(project.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'));
