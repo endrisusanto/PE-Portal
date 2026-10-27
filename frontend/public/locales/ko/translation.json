@@ -1224,7 +1224,8 @@
     "copy_table_copied": "복사됨!",
     "copy_code": "코드 복사",
     "copy_code_copied": "복사 완료!",
-    "mcp_grounding_active": "실시간 데이터베이스 MCP 조회 중..."
+    "mcp_grounding_active": "실시간 데이터베이스 MCP 조회 중...",
+    "welcome_greeting": "안녕하세요! **SEIN PE AI 어시스턴트**입니다. 기술 문서/로그 분석, JIG CAD, BOM 검증, GBA 태스크 승인, Software MR 데이터 분석을 지원하며, 데이터를 **인터랙티브 테이블**로 표시하고 **순서도 / SVG 다이어그램**을 즉시 생성할 수 있습니다.\n\n질문을 입력하거나 문서를 첨부하여 시작해 보세요!"
   },
   "theme": {
     "title": "장식 테마",
@@ -1357,7 +1358,9 @@
     "pptx_ai_greeting": "안녕하세요! SEIN 생산기술 AI 어시스턴트입니다.\n\n상단에서 **.pptx** 파일을 업로드하여 불량 보고서 데이터를 Excel 테이블 및 **Markdown** 형식으로 추출하세요. 추출 완료 후 이 채팅창에서 불량 분석, 모델 간 비교, 결론 및 대책 방안을 즉시 질의할 수 있습니다!",
     "pptx_prompt_defects": "📊 전체 불량 종합 요약",
     "pptx_prompt_comparison": "🔍 모델 간 불량 비교 분석",
-    "pptx_prompt_countermeasure": "💡 결론 및 대책(Countermeasure) 도출"
+    "pptx_prompt_countermeasure": "💡 결론 및 대책(Countermeasure) 도출",
+    "pptx_chat_cleared": "채팅 기록이 초기화되었습니다. PPTX 보고서에 대해 새로운 질문을 입력해 주세요.",
+    "pptx_prompt_executive": "📋 임원 보고용 요약 초안"
   },
   "virtual_office": {
     "title": "버추얼 오피스 PE (2.5D 실시간 시뮬레이션)",

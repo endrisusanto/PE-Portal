@@ -1224,7 +1224,8 @@
     "copy_table_copied": "Tersalin!",
     "copy_code": "Salin Kode",
     "copy_code_copied": "Tersalin!",
-    "mcp_grounding_active": "Mengakses data live database via MCP..."
+    "mcp_grounding_active": "Mengakses data live database via MCP...",
+    "welcome_greeting": "Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!"
   },
   "theme": {
     "title": "Tema Dekoratif",
@@ -1357,7 +1358,9 @@
     "pptx_ai_greeting": "Halo! Saya asisten AI teknis SEIN Production Engineering.\n\nUnggah berkas **.pptx** di atas untuk mengekstrak seluruh data laporan defect ke dalam tabel Excel dan format **Markdown**. Setelah diekstrak, Anda dapat menanyakan insight, perbandingan defect antar model, kesimpulan, maupun countermeasure langsung di chatbox ini!",
     "pptx_prompt_defects": "📊 Ringkasan Seluruh Defect",
     "pptx_prompt_comparison": "🔍 Perbandingan Antar Model",
-    "pptx_prompt_countermeasure": "💡 Kesimpulan & Countermeasure"
+    "pptx_prompt_countermeasure": "💡 Kesimpulan & Countermeasure",
+    "pptx_chat_cleared": "Riwayat obrolan telah dibersihkan. Silakan tanyakan hal baru seputar laporan PPTX.",
+    "pptx_prompt_executive": "📋 Draft Executive Summary"
   },
   "virtual_office": {
     "title": "Virtual Office PE",

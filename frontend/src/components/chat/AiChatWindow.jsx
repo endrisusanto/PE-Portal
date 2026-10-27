@@ -121,7 +121,7 @@ const SvgBlock = ({ rawSvg, id }) => {
 // 2. INLINE FORMATTER & MARKDOWN TABLE COMPONENT
 // ----------------------------------------------------------------------------
 // Universal inline markdown formatter (bold, italic, bold-italic, underline, strikethrough, inline code, links)
-const formatInline = (text) => {
+export const formatInline = (text) => {
   if (!text || typeof text !== 'string') return text;
 
   // Regex matches:
@@ -344,7 +344,7 @@ const CodeBlock = ({ language, code }) => {
 // ----------------------------------------------------------------------------
 // 4. RICH CONTENT RENDERER (Markdown, SVG, Tables, Formatting)
 // ----------------------------------------------------------------------------
-const RichMessageContent = ({ content }) => {
+export const RichMessageContent = ({ content }) => {
   if (!content) return null;
 
   // Split content into blocks: Code blocks, Markdown tables, and Paragraphs
@@ -548,15 +548,48 @@ const RichMessageContent = ({ content }) => {
 // 5. MAIN AI CHAT WINDOW COMPONENT
 // ----------------------------------------------------------------------------
 export const AiChatWindow = ({ isDrawer = true, onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+
+  const welcomeGreetingText = t(
+    'ai_chat.welcome_greeting',
+    'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!'
+  );
+
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content:
-        'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!',
+      isWelcome: true,
+      content: welcomeGreetingText,
     },
   ]);
+
+  // Dynamically update greeting / cleared message when language toggle changes
+  useEffect(() => {
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.isWelcome) {
+          return {
+            ...m,
+            content: t(
+              'ai_chat.welcome_greeting',
+              'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!'
+            ),
+          };
+        }
+        if (m.isCleared) {
+          return {
+            ...m,
+            content: t(
+              'ai_chat.history_cleared',
+              'Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!'
+            ),
+          };
+        }
+        return m;
+      })
+    );
+  }, [i18n.language, t]);
   const [inputVal, setInputVal] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [activeModel, setActiveModel] = useState('google/gemma-4-e4b');
@@ -638,6 +671,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
       setMessages([
         {
           role: 'assistant',
+          isCleared: true,
           content: t('ai_chat.history_cleared', 'Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!'),
         },
       ]);
@@ -1093,7 +1127,23 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                     : (typeof m.content === 'string' ? formatInline(m.content) : 'Analisa foto/dokumen')}
                 </div>
               ) : (
-                <RichMessageContent content={m.content} />
+                <RichMessageContent
+                  content={
+                    m.isWelcome
+                      ? t(
+                          'ai_chat.welcome_greeting',
+                          m.content ||
+                            'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!'
+                        )
+                      : m.isCleared
+                      ? t(
+                          'ai_chat.history_cleared',
+                          m.content ||
+                            'Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!'
+                        )
+                      : m.content
+                  }
+                />
               )}
             </div>
           </div>

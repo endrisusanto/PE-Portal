@@ -45,6 +45,7 @@ import { PDFDocument } from 'pdf-lib';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
+import { RichMessageContent, formatInline } from '../components/chat/AiChatWindow';
 import styles from './UtilityPage.module.css';
 
 // Safe universal blob download helper ensuring Chrome does not revert to UUID
@@ -3412,7 +3413,7 @@ const VideoCompressTab = () => {
 // ============================================================================
 // ponytail: Clean, lightweight, modular PPTX auto-summary with dual-engine parser
 const PPTXAutoSummaryTab = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -3428,12 +3429,18 @@ const PPTXAutoSummaryTab = () => {
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef(null);
 
+  const defaultGreeting = t(
+    'tools.pptx_ai_greeting',
+    'Halo! Saya asisten AI teknis SEIN Production Engineering.\n\nUnggah berkas **.pptx** di atas untuk mengekstrak seluruh data laporan defect ke dalam tabel Excel dan format **Markdown**. Setelah diekstrak, Anda dapat menanyakan insight, perbandingan defect antar model, kesimpulan, maupun countermeasure langsung di chatbox ini!'
+  );
+
   // AI Chatbox states
   const [chatMessages, setChatMessages] = useState([
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Halo! Saya asisten AI teknis SEIN Production Engineering.\n\nUnggah berkas **.pptx** di atas untuk mengekstrak seluruh data laporan defect ke dalam tabel Excel dan format **Markdown**. Setelah diekstrak, Anda dapat menanyakan insight, perbandingan defect antar model, kesimpulan, maupun countermeasure langsung di chatbox ini!',
+      isWelcome: true,
+      content: defaultGreeting,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -3442,6 +3449,33 @@ const PPTXAutoSummaryTab = () => {
   const [copiedMsgId, setCopiedMsgId] = useState(null);
   const [executingElapsed, setExecutingElapsed] = useState(0);
   const chatMessagesEndRef = useRef(null);
+
+  // Dynamic greeting update when language toggle changes
+  useEffect(() => {
+    setChatMessages((prev) =>
+      prev.map((m) => {
+        if (m.isWelcome) {
+          return {
+            ...m,
+            content: t(
+              'tools.pptx_ai_greeting',
+              'Halo! Saya asisten AI teknis SEIN Production Engineering.\n\nUnggah berkas **.pptx** di atas untuk mengekstrak seluruh data laporan defect ke dalam tabel Excel dan format **Markdown**. Setelah diekstrak, Anda dapat menanyakan insight, perbandingan defect antar model, kesimpulan, maupun countermeasure langsung di chatbox ini!'
+            ),
+          };
+        }
+        if (m.isCleared) {
+          return {
+            ...m,
+            content: t(
+              'tools.pptx_chat_cleared',
+              'Riwayat obrolan telah dibersihkan. Silakan tanyakan hal baru seputar laporan PPTX.'
+            ),
+          };
+        }
+        return m;
+      })
+    );
+  }, [i18n.language, t]);
 
   // Live timer for executing fallback
   useEffect(() => {
@@ -3759,7 +3793,7 @@ Instruksi Analisis:
     { label: t('tools.pptx_prompt_defects', '📊 Ringkasan Seluruh Defect'), prompt: 'Berdasarkan data markdown laporan PPTX di atas, buatkan ringkasan komprehensif mengenai seluruh defect dan problem yang ditemukan.' },
     { label: t('tools.pptx_prompt_comparison', '🔍 Perbandingan Antar Model'), prompt: 'Model mana saja yang mengalami defect? Analisis frekuensi kejadian dan pola penyebab utamanya berdasarkan data laporan.' },
     { label: t('tools.pptx_prompt_countermeasure', '💡 Kesimpulan & Countermeasure'), prompt: 'Rangkum seluruh Action & Countermeasure yang telah direncanakan untuk masing-masing problem dalam bentuk daftar prioritas PIC.' },
-    { label: '📋 Draft Executive Summary', prompt: 'Buatkan draft Executive Summary 1 halaman formal untuk dilaporkan kepada manajemen/pimpinan mengenai status investigasi defect ini.' },
+    { label: t('tools.pptx_prompt_executive', '📋 Draft Executive Summary'), prompt: 'Buatkan draft Executive Summary 1 halaman formal untuk dilaporkan kepada manajemen/pimpinan mengenai status investigasi defect ini.' },
   ];
 
   return (
@@ -4532,15 +4566,16 @@ Instruksi Analisis:
               onClick={() =>
                 setChatMessages([
                   {
-                    id: 'welcome',
+                    id: 'cleared',
                     role: 'assistant',
-                    content: 'Riwayat obrolan telah dibersihkan. Silakan tanyakan hal baru seputar laporan PPTX.',
+                    isCleared: true,
+                    content: t('tools.pptx_chat_cleared', 'Riwayat obrolan telah dibersihkan. Silakan tanyakan hal baru seputar laporan PPTX.'),
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                   },
                 ])
               }
             >
-              Reset Chat
+              {t('ai_chat.clear_btn', 'Reset Chat')}
             </Button>
           </div>
         </div>
@@ -4600,6 +4635,20 @@ Instruksi Analisis:
         }}>
           {chatMessages.map((msg) => {
             const isAssistant = msg.role === 'assistant';
+            const displayContent = msg.isWelcome
+              ? t(
+                  'tools.pptx_ai_greeting',
+                  msg.content ||
+                    'Halo! Saya asisten AI teknis SEIN Production Engineering.\n\nUnggah berkas **.pptx** di atas untuk mengekstrak seluruh data laporan defect ke dalam tabel Excel dan format **Markdown**. Setelah diekstrak, Anda dapat menanyakan insight, perbandingan defect antar model, kesimpulan, maupun countermeasure langsung di chatbox ini!'
+                )
+              : msg.isCleared
+              ? t(
+                  'tools.pptx_chat_cleared',
+                  msg.content ||
+                    'Riwayat obrolan telah dibersihkan. Silakan tanyakan hal baru seputar laporan PPTX.'
+                )
+              : msg.content;
+
             return (
               <div
                 key={msg.id}
@@ -4625,7 +4674,7 @@ Instruksi Analisis:
                 </div>
 
                 <div style={{
-                  maxWidth: '85%',
+                  maxWidth: '88%',
                   padding: '12px 16px',
                   borderRadius: isAssistant ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
                   backgroundColor: isAssistant ? 'var(--color-bg-primary)' : 'var(--color-accent)',
@@ -4633,11 +4682,15 @@ Instruksi Analisis:
                   border: isAssistant ? '1px solid var(--color-border)' : 'none',
                   fontSize: '13px',
                   lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
+                  whiteSpace: isAssistant ? 'normal' : 'pre-wrap',
                   wordBreak: 'break-word',
                   position: 'relative',
                 }}>
-                  {msg.content}
+                  {isAssistant ? (
+                    <RichMessageContent content={displayContent} />
+                  ) : (
+                    <div>{formatInline(displayContent)}</div>
+                  )}
 
                   {isAssistant && (
                     <div style={{
@@ -4645,11 +4698,11 @@ Instruksi Analisis:
                       justifyContent: 'flex-end',
                       marginTop: '8px',
                       paddingTop: '6px',
-                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderTop: '1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08))',
                     }}>
                       <button
                         type="button"
-                        onClick={() => handleCopyMessage(msg.id, msg.content)}
+                        onClick={() => handleCopyMessage(msg.id, displayContent)}
                         style={{
                           background: 'none',
                           border: 'none',
@@ -4664,7 +4717,7 @@ Instruksi Analisis:
                         title="Salin pesan balasan ini"
                       >
                         {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
-                        <span>{copiedMsgId === msg.id ? 'Tersalin' : 'Salin'}</span>
+                        <span>{copiedMsgId === msg.id ? t('common.copied', 'Tersalin') : t('common.copy', 'Salin')}</span>
                       </button>
                     </div>
                   )}

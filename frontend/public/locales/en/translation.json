@@ -1224,7 +1224,8 @@
     "copy_table_copied": "Copied!",
     "copy_code": "Copy Code",
     "copy_code_copied": "Copied!",
-    "mcp_grounding_active": "Querying live database via MCP..."
+    "mcp_grounding_active": "Querying live database via MCP...",
+    "welcome_greeting": "Hello! I am **SEIN PE AI Assistant**. I can assist with technical documents/log analysis, JIG CAD, BOM verification, GBA Task approval, Software MR data, presenting data in **Interactive Tables**, and generating **Flowcharts / SVG Diagrams** right here.\n\nType your question or attach documents to get started!"
   },
   "theme": {
     "title": "Decorative Theme",
@@ -1357,7 +1358,9 @@
     "pptx_ai_greeting": "Hello! I am your SEIN Production Engineering technical AI assistant.\n\nUpload **.pptx** files above to extract defect reports into formatted Excel tables and **Markdown**. Once extracted, you can ask for insights, model comparisons, conclusions, and countermeasures right in this chatbox!",
     "pptx_prompt_defects": "📊 Comprehensive Defects Summary",
     "pptx_prompt_comparison": "🔍 Cross-Model Defect Comparison",
-    "pptx_prompt_countermeasure": "💡 Conclusions & Countermeasures"
+    "pptx_prompt_countermeasure": "💡 Conclusions & Countermeasures",
+    "pptx_chat_cleared": "Chat history cleared. Please feel free to ask new questions regarding the PPTX report.",
+    "pptx_prompt_executive": "📋 Draft Executive Summary"
   },
   "virtual_office": {
     "title": "Virtual Office PE",
