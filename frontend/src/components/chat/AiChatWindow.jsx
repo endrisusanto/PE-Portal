@@ -117,8 +117,110 @@ const SvgBlock = ({ rawSvg, id }) => {
 };
 
 // ----------------------------------------------------------------------------
-// 2. MARKDOWN TABLE COMPONENT
+// 2. INLINE FORMATTER & MARKDOWN TABLE COMPONENT
 // ----------------------------------------------------------------------------
+// Universal inline markdown formatter (bold, italic, bold-italic, underline, strikethrough, inline code, links)
+const formatInline = (text) => {
+  if (!text || typeof text !== 'string') return text;
+
+  // Regex matches:
+  // 1. Bold-italic: ***text*** or ___text___
+  // 2. Bold: **text** or __text__
+  // 3. Italic: *text* (no leading/trailing whitespace inside) or _text_
+  // 4. Underline: <u>text</u>
+  // 5. Strikethrough: ~~text~~
+  // 6. Inline code: `text`
+  // 7. Link: [label](url)
+  const regex = /(\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|(?:\*|_)(?!\s)[\s\S]+?(?<!\s)(?:\*|_)|<u>[\s\S]+?<\/u>|~~[\s\S]+?~~|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    const token = match[0];
+    const key = `inline-${match.index}`;
+
+    if (
+      (token.startsWith('***') && token.endsWith('***')) ||
+      (token.startsWith('___') && token.endsWith('___'))
+    ) {
+      parts.push(
+        <strong key={key} className={styles.chatStrong}>
+          <em className={styles.chatEm}>{token.slice(3, -3)}</em>
+        </strong>
+      );
+    } else if (
+      (token.startsWith('**') && token.endsWith('**')) ||
+      (token.startsWith('__') && token.endsWith('__'))
+    ) {
+      parts.push(
+        <strong key={key} className={styles.chatStrong}>
+          {token.slice(2, -2)}
+        </strong>
+      );
+    } else if (
+      (token.startsWith('*') && token.endsWith('*')) ||
+      (token.startsWith('_') && token.endsWith('_'))
+    ) {
+      parts.push(
+        <em key={key} className={styles.chatEm}>
+          {token.slice(1, -1)}
+        </em>
+      );
+    } else if (token.startsWith('<u>') && token.endsWith('</u>')) {
+      parts.push(
+        <u key={key} className={styles.chatUnderline}>
+          {token.slice(3, -4)}
+        </u>
+      );
+    } else if (token.startsWith('~~') && token.endsWith('~~')) {
+      parts.push(
+        <del key={key} style={{ opacity: 0.65 }}>
+          {token.slice(2, -2)}
+        </del>
+      );
+    } else if (token.startsWith('`') && token.endsWith('`')) {
+      parts.push(
+        <code key={key} className={styles.inlineCode}>
+          {token.slice(1, -1)}
+        </code>
+      );
+    } else if (token.startsWith('[') && token.includes('](')) {
+      const linkMatch = token.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (linkMatch) {
+        parts.push(
+          <a
+            key={key}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.chatLink}
+          >
+            {linkMatch[1]}
+            <ArrowUpRight size={11} style={{ marginLeft: 2, display: 'inline-block' }} />
+          </a>
+        );
+      } else {
+        parts.push(token);
+      }
+    } else {
+      parts.push(token);
+    }
+
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
 const TableBlock = ({ rawTableLines }) => {
   const [copied, setCopied] = useState(false);
 
@@ -144,9 +246,18 @@ const TableBlock = ({ rawTableLines }) => {
 
   const handleCopyTable = () => {
     // Generate TSV for direct paste into Excel / Google Sheets
+    const cleanCell = (str) =>
+      str
+        ? str
+            .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/\*(.*?)\*/g, '$1')
+            .replace(/`(.*?)`/g, '$1')
+            .replace(/<u>(.*?)<\/u>/g, '$1')
+        : '';
     const tsvContent = [
-      headers.join('\t'),
-      ...rows.map((row) => row.join('\t')),
+      headers.map(cleanCell).join('\t'),
+      ...rows.map((row) => row.map(cleanCell).join('\t')),
     ].join('\n');
 
     navigator.clipboard.writeText(tsvContent);
@@ -175,7 +286,7 @@ const TableBlock = ({ rawTableLines }) => {
           <thead>
             <tr>
               {headers.map((h, i) => (
-                <th key={i}>{h}</th>
+                <th key={i}>{formatInline(h)}</th>
               ))}
             </tr>
           </thead>
@@ -183,7 +294,7 @@ const TableBlock = ({ rawTableLines }) => {
             {rows.map((row, rIdx) => (
               <tr key={rIdx}>
                 {row.map((cell, cIdx) => (
-                  <td key={cIdx}>{cell}</td>
+                  <td key={cIdx}>{formatInline(cell)}</td>
                 ))}
               </tr>
             ))}
@@ -321,53 +432,95 @@ const RichMessageContent = ({ content }) => {
     return result;
   }, [content]);
 
-  // Render inline formatting (bold, inline code, links)
-  const renderFormattedText = (text) => {
-    // Process line by line
-    return text.split('\n').map((line, idx) => {
-      // Bold + Inline code regex replacement
-      const parts = [];
-      let lastIndex = 0;
-      const regex = /(\*\*.*?\*\*|`.*?`)/g;
-      let match;
+  // Render block-level elements (Headers, Blockquotes, Dividers, Lists, Paragraphs)
+  const renderFormattedParagraph = (text) => {
+    if (!text) return null;
+    const lines = text.split('\n');
 
-      while ((match = regex.exec(line)) !== null) {
-        if (match.index > lastIndex) {
-          parts.push(line.substring(lastIndex, match.index));
-        }
-        const token = match[0];
-        if (token.startsWith('**') && token.endsWith('**')) {
-          parts.push(<strong key={match.index}>{token.slice(2, -2)}</strong>);
-        } else if (token.startsWith('`') && token.endsWith('`')) {
-          parts.push(
-            <code
-              key={match.index}
-              style={{
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                padding: '2px 5px',
-                borderRadius: '4px',
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                color: 'var(--color-accent)',
-              }}
-            >
-              {token.slice(1, -1)}
-            </code>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        {lines.map((line, idx) => {
+          const trimmed = line.trim();
+
+          // 1. Horizontal divider
+          if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+            return <hr key={idx} className={styles.chatDivider} />;
+          }
+
+          // 2. Headings
+          if (trimmed.startsWith('#### ')) {
+            return (
+              <h4 key={idx} className={styles.chatH4}>
+                {formatInline(trimmed.substring(5))}
+              </h4>
+            );
+          }
+          if (trimmed.startsWith('### ')) {
+            return (
+              <h3 key={idx} className={styles.chatH3}>
+                {formatInline(trimmed.substring(4))}
+              </h3>
+            );
+          }
+          if (trimmed.startsWith('## ')) {
+            return (
+              <h2 key={idx} className={styles.chatH2}>
+                {formatInline(trimmed.substring(3))}
+              </h2>
+            );
+          }
+          if (trimmed.startsWith('# ')) {
+            return (
+              <h1 key={idx} className={styles.chatH1}>
+                {formatInline(trimmed.substring(2))}
+              </h1>
+            );
+          }
+
+          // 3. Blockquotes (> quote)
+          if (trimmed.startsWith('>')) {
+            return (
+              <blockquote key={idx} className={styles.chatBlockquote}>
+                {formatInline(trimmed.replace(/^>\s*/, ''))}
+              </blockquote>
+            );
+          }
+
+          // 4. Bullet list (* item, - item, • item)
+          if (/^[\*\-•]\s+/.test(trimmed)) {
+            return (
+              <div key={idx} className={styles.chatListItem}>
+                <span className={styles.chatBullet}>•</span>
+                <div>{formatInline(trimmed.replace(/^[\*\-•]\s+/, ''))}</div>
+              </div>
+            );
+          }
+
+          // 5. Numbered list (1. item, 2. item)
+          const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+          if (numMatch) {
+            return (
+              <div key={idx} className={styles.chatListItem}>
+                <span className={styles.chatNumberBadge}>{numMatch[1]}.</span>
+                <div>{formatInline(numMatch[2])}</div>
+              </div>
+            );
+          }
+
+          // 6. Blank line spacer
+          if (trimmed === '') {
+            return <div key={idx} style={{ height: '6px' }} />;
+          }
+
+          // 7. Regular paragraph line
+          return (
+            <div key={idx} className={styles.chatParagraphLine}>
+              {formatInline(line)}
+            </div>
           );
-        }
-        lastIndex = match.index + token.length;
-      }
-      if (lastIndex < line.length) {
-        parts.push(line.substring(lastIndex));
-      }
-
-      return (
-        <React.Fragment key={idx}>
-          {parts.length > 0 ? parts : line}
-          {idx < text.split('\n').length - 1 && <br />}
-        </React.Fragment>
-      );
-    });
+        })}
+      </div>
+    );
   };
 
   return (
@@ -382,7 +535,7 @@ const RichMessageContent = ({ content }) => {
         if (b.type === 'code') {
           return <CodeBlock key={idx} language={b.language} code={b.code} />;
         }
-        return <div key={idx}>{renderFormattedText(b.content)}</div>;
+        return <div key={idx}>{renderFormattedParagraph(b.content)}</div>;
       })}
     </div>
   );
@@ -931,7 +1084,11 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
 
               {/* Message Content with Markdown & Table & SVG parsing */}
               {m.role === 'user' ? (
-                <div>{typeof m.displayContent === 'string' ? m.displayContent : (typeof m.content === 'string' ? m.content : 'Analisa foto/dokumen')}</div>
+                <div>
+                  {typeof m.displayContent === 'string'
+                    ? formatInline(m.displayContent)
+                    : (typeof m.content === 'string' ? formatInline(m.content) : 'Analisa foto/dokumen')}
+                </div>
               ) : (
                 <RichMessageContent content={m.content} />
               )}

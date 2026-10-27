@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -19,14 +21,16 @@ type AIHandler struct {
 	mcpRepo *repository.MCPRepository
 	mcpSvc  *service.MCPClientService
 	llmSvc  *service.LLMService
+	peMCP   *service.PEMCPService
 }
 
-func NewAIHandler(repo *repository.LLMRepository, mcpRepo *repository.MCPRepository, mcpSvc *service.MCPClientService, llmSvc *service.LLMService) *AIHandler {
+func NewAIHandler(repo *repository.LLMRepository, mcpRepo *repository.MCPRepository, mcpSvc *service.MCPClientService, llmSvc *service.LLMService, peMCP *service.PEMCPService) *AIHandler {
 	return &AIHandler{
 		repo:    repo,
 		mcpRepo: mcpRepo,
 		mcpSvc:  mcpSvc,
 		llmSvc:  llmSvc,
+		peMCP:   peMCP,
 	}
 }
 
@@ -359,6 +363,27 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		}
 	}
 
+	// Real-time PE Portal live data access via PE-Portal MCP
+	if h.peMCP != nil {
+		if peData := h.detectAndFetchPEData(c.Request().Context(), lastUserMsg); peData != "" {
+			if req.SystemPrompt != "" {
+				req.SystemPrompt += "\n\n" + peData
+			} else {
+				req.SystemPrompt = peData
+			}
+			hasPEMCPName := false
+			for _, n := range activeMCPNames {
+				if n == "SEIN PE Portal MCP" {
+					hasPEMCPName = true
+					break
+				}
+			}
+			if !hasPEMCPName {
+				activeMCPNames = append(activeMCPNames, "SEIN PE Portal MCP")
+			}
+		}
+	}
+
 	// For general engineering queries without custom prompt, inject active MCP servers info
 	if !hasSpecializedContext && mcpContextBuilder.Len() > 0 {
 		mcpNote := "You are directly connected to the following active MCP (Model Context Protocol) connectors registered in portal Settings:" +
@@ -377,6 +402,23 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadGateway, fmt.Sprintf("AI inference failed: %v", err))
 	}
 
+	// Tool-calling loop: If LLM emits a tool call, execute it via PEMCP and feed back to get final answer
+	if toolName, toolArgs, ok := parseToolCall(reply); ok && h.peMCP != nil {
+		res, err := h.peMCP.CallTool(c.Request().Context(), toolName, toolArgs)
+		if err == nil {
+			resBytes, _ := json.Marshal(res)
+			followUpReq := req
+			followUpReq.Messages = append(followUpReq.Messages,
+				model.ChatMessage{Role: "assistant", Content: reply},
+				model.ChatMessage{Role: "user", Content: fmt.Sprintf("[TOOL RESULT FROM %s]:\n%s\n\nJawab pertanyaan engineer secara komprehensif, terstruktur, dan gunakan Markdown tables berdasarkan data tool di atas.", toolName, string(resBytes))},
+			)
+			secondReply, err2 := h.llmSvc.ChatCompletion(c.Request().Context(), cfg, &followUpReq)
+			if err2 == nil && strings.TrimSpace(secondReply) != "" {
+				reply = secondReply
+			}
+		}
+	}
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"reply":       reply,
 		"model":       cfg.ModelName,
@@ -384,4 +426,206 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		"is_custom":   isCustom,
 		"mcp_servers": activeMCPNames,
 	})
+}
+
+// detectAndFetchPEData automatically queries relevant PE-Portal MCP tools to ground LLM responses with real portal data
+func (h *AIHandler) detectAndFetchPEData(ctx context.Context, userMsg string) string {
+	if h.peMCP == nil {
+		return ""
+	}
+
+	lower := strings.ToLower(userMsg)
+
+	// Check if user is asking about portal entities
+	isPortalQuery := false
+	keywords := []string{
+		"portal", "pe portal", "sein", "model", "jadwal", "milestone",
+		"schedule", "checkpoint", "task", "project", "proyek", "tugas",
+		"kanban", "sample", "sampel", "pinjam", "dhl", "awb", "shipment",
+		"inovasi", "innovation", "kaizen", "ringkasan", "overview",
+		"summary", "statistik", "database", "unit", "mr release", "companion",
+		"evt", "dvt", "pvt", "sop", "s26", "s25",
+	}
+	for _, kw := range keywords {
+		if strings.Contains(lower, kw) {
+			isPortalQuery = true
+			break
+		}
+	}
+
+	if !isPortalQuery {
+		return ""
+	}
+
+	var dataBlocks []string
+
+	// 1. Models & Milestones
+	if strings.Contains(lower, "model") || strings.Contains(lower, "s26") || strings.Contains(lower, "s25") || strings.Contains(lower, "paradigm") {
+		// Specific model details or milestones
+		if strings.Contains(lower, "milestone") || strings.Contains(lower, "checkpoint") || strings.Contains(lower, "jadwal") || strings.Contains(lower, "detail") || strings.Contains(lower, "status") {
+			modelName := ""
+			if strings.Contains(lower, "s26") {
+				modelName = "S26"
+			} else if strings.Contains(lower, "s25") {
+				modelName = "S25"
+			} else if strings.Contains(lower, "paradigm") {
+				modelName = "Paradigm"
+			} else {
+				for _, w := range strings.Fields(lower) {
+					wClean := strings.Trim(w, `",.?!'()[]`)
+					if strings.HasPrefix(wClean, "sm-") || strings.HasPrefix(wClean, "a1") || strings.HasPrefix(wClean, "a0") || strings.HasPrefix(wClean, "on") {
+						modelName = wClean
+						break
+					}
+				}
+			}
+			if modelName != "" {
+				res, err := h.peMCP.CallTool(ctx, "pe_get_model_details", map[string]interface{}{"model_name": modelName})
+				if err == nil {
+					b, _ := json.Marshal(res)
+					dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_get_model_details (%s) ===\n%s", modelName, string(b)))
+				}
+			}
+		}
+		// Also list models
+		res, err := h.peMCP.CallTool(ctx, "pe_list_new_models", map[string]interface{}{"limit": float64(20)})
+		if err == nil {
+			b, _ := json.Marshal(res)
+			dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_list_new_models ===\n%s", string(b)))
+		}
+	}
+
+	// 2. Schedules / Calendar / Milestones
+	if strings.Contains(lower, "jadwal") || strings.Contains(lower, "schedule") || strings.Contains(lower, "milestone") || strings.Contains(lower, "timeline") || strings.Contains(lower, "kalender") {
+		alreadyFetched := false
+		for _, b := range dataBlocks {
+			if strings.Contains(b, "pe_get_model_schedules") {
+				alreadyFetched = true
+				break
+			}
+		}
+		if !alreadyFetched {
+			res, err := h.peMCP.CallTool(ctx, "pe_get_model_schedules", map[string]interface{}{"limit": float64(50)})
+			if err == nil {
+				b, _ := json.Marshal(res)
+				dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_get_model_schedules ===\n%s", string(b)))
+			}
+		}
+	}
+
+	// 3. Projects & Tasks
+	if strings.Contains(lower, "task") || strings.Contains(lower, "project") || strings.Contains(lower, "tugas") || strings.Contains(lower, "proyek") || strings.Contains(lower, "kanban") {
+		res, err := h.peMCP.CallTool(ctx, "pe_list_projects_and_tasks", map[string]interface{}{"limit": float64(30)})
+		if err == nil {
+			b, _ := json.Marshal(res)
+			dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_list_projects_and_tasks ===\n%s", string(b)))
+		}
+	}
+
+	// 4. Samples
+	if strings.Contains(lower, "sample") || strings.Contains(lower, "sampel") || strings.Contains(lower, "pinjam") || strings.Contains(lower, "unit") {
+		res, err := h.peMCP.CallTool(ctx, "pe_list_samples", map[string]interface{}{"limit": float64(30)})
+		if err == nil {
+			b, _ := json.Marshal(res)
+			dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_list_samples ===\n%s", string(b)))
+		}
+	}
+
+	// 5. Innovations
+	if strings.Contains(lower, "inovasi") || strings.Contains(lower, "innovation") || strings.Contains(lower, "kaizen") || strings.Contains(lower, "ide") {
+		res, err := h.peMCP.CallTool(ctx, "pe_list_innovations", map[string]interface{}{"limit": float64(25)})
+		if err == nil {
+			b, _ := json.Marshal(res)
+			dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_list_innovations ===\n%s", string(b)))
+		}
+	}
+
+	// 6. DHL Shipments
+	if strings.Contains(lower, "dhl") || strings.Contains(lower, "awb") || strings.Contains(lower, "tracking") || strings.Contains(lower, "kirim") || strings.Contains(lower, "shipment") {
+		res, err := h.peMCP.CallTool(ctx, "pe_list_dhl_shipments", map[string]interface{}{"limit": float64(25)})
+		if err == nil {
+			b, _ := json.Marshal(res)
+			dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_list_dhl_shipments ===\n%s", string(b)))
+		}
+	}
+
+	// 7. Overview fallback / pulse
+	if len(dataBlocks) == 0 || strings.Contains(lower, "overview") || strings.Contains(lower, "summary") || strings.Contains(lower, "ringkasan") || strings.Contains(lower, "statistik") || strings.Contains(lower, "portal") {
+		res, err := h.peMCP.CallTool(ctx, "pe_get_portal_overview", map[string]interface{}{})
+		if err == nil {
+			b, _ := json.Marshal(res)
+			dataBlocks = append([]string{fmt.Sprintf("=== TOOL: pe_get_portal_overview ===\n%s", string(b))}, dataBlocks...)
+		}
+	}
+
+	if len(dataBlocks) == 0 {
+		return ""
+	}
+
+	return "\n\n[REAL-TIME DATA ACCESSED VIA SEIN PE-PORTAL MCP SERVER]:\n" +
+		strings.Join(dataBlocks, "\n\n") +
+		"\n[INSTRUCTION]: You have direct, live access to the PE Portal database via PE-Portal MCP. The above live data was retrieved in real-time from the database for this query. Answer authoritatively using this real data. Format lists, stages, milestones, dates, or comparisons using clean, well-aligned Markdown tables."
+}
+
+// parseToolCall detects and parses tool-call syntax emitted by fine-tuned LLMs (Gemma, Llama, Ollama, OpenAI)
+func parseToolCall(reply string) (string, map[string]interface{}, bool) {
+	clean := strings.TrimSpace(reply)
+
+	// Check if wrapped in <|tool_call>...<tool_call|> or <tool_call>...</tool_call>
+	callStr := clean
+	if idx := strings.Index(clean, "<|tool_call>"); idx >= 0 {
+		endIdx := strings.Index(clean, "<tool_call|>")
+		if endIdx > idx {
+			callStr = strings.TrimSpace(clean[idx+len("<|tool_call>") : endIdx])
+		} else {
+			callStr = strings.TrimSpace(clean[idx+len("<|tool_call>"):])
+		}
+	} else if idx := strings.Index(clean, "<tool_call>"); idx >= 0 {
+		endIdx := strings.Index(clean, "</tool_call>")
+		if endIdx > idx {
+			callStr = strings.TrimSpace(clean[idx+len("<tool_call>") : endIdx])
+		} else {
+			callStr = strings.TrimSpace(clean[idx+len("<tool_call>"):])
+		}
+	}
+
+	callStr = strings.TrimPrefix(callStr, "call:")
+	callStr = strings.TrimSpace(callStr)
+
+	// Match: tool_name(arg1="val1", arg2="val2")
+	parenStart := strings.Index(callStr, "(")
+	parenEnd := strings.LastIndex(callStr, ")")
+	if parenStart > 0 && parenEnd > parenStart {
+		toolName := strings.TrimSpace(callStr[:parenStart])
+		argsRaw := strings.TrimSpace(callStr[parenStart+1 : parenEnd])
+		args := make(map[string]interface{})
+
+		if argsRaw != "" {
+			parts := strings.Split(argsRaw, ",")
+			for _, p := range parts {
+				kv := strings.SplitN(p, "=", 2)
+				if len(kv) == 2 {
+					k := strings.TrimSpace(kv[0])
+					v := strings.TrimSpace(kv[1])
+					v = strings.Trim(v, `"' `)
+					args[k] = v
+				}
+			}
+		}
+		return toolName, args, true
+	}
+
+	// JSON fallback: {"name": "...", "arguments": {...}}
+	var jsonCall struct {
+		Name      string                 `json:"name"`
+		Arguments map[string]interface{} `json:"arguments"`
+	}
+	if err := json.Unmarshal([]byte(callStr), &jsonCall); err == nil && jsonCall.Name != "" {
+		if jsonCall.Arguments == nil {
+			jsonCall.Arguments = make(map[string]interface{})
+		}
+		return jsonCall.Name, jsonCall.Arguments, true
+	}
+
+	return "", nil, false
 }

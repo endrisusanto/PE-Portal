@@ -664,3 +664,125 @@
   z-index: 50;
   backdrop-filter: blur(2px);
 }
+
+/* Rich Markdown Typography & Formatting */
+.inlineCode {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.chatStrong {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.chatEm {
+  font-style: italic;
+  color: var(--color-text-primary);
+}
+
+.chatUnderline {
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent);
+  text-underline-offset: 3px;
+}
+
+.chatDivider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 10px 0;
+  opacity: 0.7;
+}
+
+.chatH1 {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 10px 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chatH2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 9px 0 5px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 3px;
+}
+
+.chatH3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 8px 0 4px 0;
+}
+
+.chatH4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 6px 0 3px 0;
+}
+
+.chatBlockquote {
+  margin: 6px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--color-accent);
+  background-color: var(--color-accent-subtle);
+  border-radius: 0 4px 4px 0;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.chatListItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 2px 0;
+}
+
+.chatBullet {
+  color: var(--color-accent);
+  font-weight: 900;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.chatNumberBadge {
+  font-weight: 700;
+  color: var(--color-accent);
+  font-size: 11.5px;
+  min-width: 18px;
+}
+
+.chatParagraphLine {
+  min-height: 1.2em;
+  line-height: 1.5;
+  font-size: 12.5px;
+}
+
+.chatLink {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.chatLink:hover {
+  filter: brightness(1.2);
+}
+

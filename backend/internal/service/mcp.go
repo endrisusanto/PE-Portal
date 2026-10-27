@@ -62,8 +62,12 @@ func NormalizeMCPURL(rawURL string) string {
 		return u.String()
 	}
 
-	// Inside Docker container: localhost / 127.0.0.1 routes to host machine gateway
+	// Inside Docker container: localhost / 127.0.0.1 routes to host machine gateway,
+	// EXCEPT if targeting PE Portal's own backend container (port 8080 or path /api/v1/mcp)
 	if host == "localhost" || host == "127.0.0.1" {
+		if port == "8080" || strings.Contains(u.Path, "/api/v1/mcp") || strings.Contains(u.Path, "/mcp") {
+			return u.String()
+		}
 		targetHost := "172.17.0.1" // Default Docker bridge gateway to host machine
 		if envHost := os.Getenv("DOCKER_HOST_GATEWAY"); envHost != "" {
 			targetHost = envHost
@@ -90,18 +94,20 @@ func GetBaseURL(rawURL string) string {
 // MCPClientService connects the AI Assistant with registered MCP server connectors
 type MCPClientService struct {
 	httpClient *http.Client
+	peMCPSvc   *PEMCPService
 }
 
-func NewMCPClientService() *MCPClientService {
+func NewMCPClientService(peMCPSvc *PEMCPService) *MCPClientService {
 	return &MCPClientService{
 		httpClient: &http.Client{
-			Timeout: 3 * time.Second, // fast timeout so chat inference is never held up
+			Timeout: 4 * time.Second, // fast timeout so chat inference is never held up
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{
 					Timeout: 2 * time.Second,
 				}).DialContext,
 			},
 		},
+		peMCPSvc: peMCPSvc,
 	}
 }
 
@@ -123,7 +129,7 @@ type mcpToolsListResp struct {
 		Tools []MCPToolDef `json:"tools"`
 	} `json:"result"`
 	Error *struct {
-		Message string `json:"message"`
+		Message string `json:"error,omitempty"`
 	} `json:"error,omitempty"`
 }
 
@@ -131,6 +137,11 @@ type mcpToolsListResp struct {
 func (s *MCPClientService) FetchTools(ctx context.Context, server *model.MCPServer) ([]MCPToolDef, error) {
 	if server == nil || !server.IsActive || server.URL == "" {
 		return nil, nil
+	}
+
+	// In-memory zero-latency lookup for PE Portal's own MCP service
+	if s.peMCPSvc != nil && (server.Name == "SEIN PE Portal MCP" || strings.Contains(server.URL, "/api/v1/mcp")) {
+		return s.peMCPSvc.GetTools(), nil
 	}
 
 	normalizedURL := NormalizeMCPURL(server.URL)
@@ -217,6 +228,16 @@ func (s *MCPClientService) FetchTools(ctx context.Context, server *model.MCPServ
 func (s *MCPClientService) CallTool(ctx context.Context, server *model.MCPServer, toolName string, args map[string]interface{}) (string, error) {
 	if server == nil || !server.IsActive || server.URL == "" {
 		return "", fmt.Errorf("server inactive")
+	}
+
+	// In-memory execution for PE Portal's own MCP service
+	if s.peMCPSvc != nil && (server.Name == "SEIN PE Portal MCP" || strings.Contains(server.URL, "/api/v1/mcp")) {
+		res, err := s.peMCPSvc.CallTool(ctx, toolName, args)
+		if err != nil {
+			return "", err
+		}
+		resBytes, _ := json.MarshalIndent(res, "", "  ")
+		return string(resBytes), nil
 	}
 
 	normalizedURL := NormalizeMCPURL(server.URL)

@@ -29,6 +29,15 @@ import {
   Monitor,
   Terminal,
   Check,
+  Copy,
+  ExternalLink,
+  Layers,
+  Database,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  BookOpen,
+  Code2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -61,6 +70,97 @@ const renderFontIcon = (iconKey, size = 14) => {
     default: return <Type size={size} />;
   }
 };
+
+const MCP_TOOLS_CATALOG = [
+  {
+    name: 'pe_get_portal_overview',
+    category: 'analytics',
+    badge: 'Executive Pulse',
+    desc: 'Ambil statistik eksekutif real-time portal: total model aktif per tahap (DVT/PVT/MP), jumlah tugas proyek, unit sampel tersedia/dipinjam, inovasi, dan tracking DHL.',
+    params: 'Tidak memerlukan parameter (empty arguments).',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_get_portal_overview",\n    "arguments": {}\n  }\n}',
+  },
+  {
+    name: 'pe_list_new_models',
+    category: 'models',
+    badge: 'New Models',
+    desc: 'Query daftar model smartphone & perangkat baru yang dikembangkan di SEIN PE beserta codename, marketing name, tahap pengembangan, dan varian BSM.',
+    params: 'stage (string, optional: concept, prototype, evt, dvt, pvt, mp), search (string), limit (int, default: 20)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 2,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_list_new_models",\n    "arguments": { "stage": "pvt", "limit": 10 }\n  }\n}',
+  },
+  {
+    name: 'pe_get_model_details',
+    category: 'models',
+    badge: '41+ Checkpoints',
+    desc: 'Dapatkan rincian menyeluruh satu model: seluruh 41+ checkpoint & milestone (PVR, PRA, SRA, LQV, BOM HQ/SEIN, JIG, spesifikasi, dan sertifikasi TKDN/Postel).',
+    params: 'model_name (string, e.g. "SM-A186", "S26") atau model_id (UUID)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 3,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_get_model_details",\n    "arguments": { "model_name": "SM-A186" }\n  }\n}',
+  },
+  {
+    name: 'pe_get_model_schedules',
+    category: 'models',
+    badge: 'Timeline & Calendar',
+    desc: 'Ambil seluruh jadwal milestone, target tanggal rilis, dan ISO week number (W01-W52) lintas model untuk visualisasi kalender dan Gantt chart.',
+    params: 'stage (string), start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), limit (int)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 4,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_get_model_schedules",\n    "arguments": { "stage": "dvt" }\n  }\n}',
+  },
+  {
+    name: 'pe_list_projects_and_tasks',
+    category: 'projects',
+    badge: 'Kanban Tasks',
+    desc: 'Query proyek rekayasa dan tugas Kanban: status (todo, in_progress, review, done), prioritas, tenggat waktu, dan anggota yang ditugaskan.',
+    params: 'status (string: todo, in_progress, done), priority (low, medium, high, urgent), search (string), limit (int)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 5,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_list_projects_and_tasks",\n    "arguments": { "status": "in_progress" }\n  }\n}',
+  },
+  {
+    name: 'pe_list_samples',
+    category: 'warehouse',
+    badge: 'Sample Inventory',
+    desc: 'Query unit sampel hardware, ponsel uji laboratorium, status peminjaman (AVAILABLE / BORROWED), nama peminjam, nomor seri, IMEI, dan lokasi fisik.',
+    params: 'status_pinjam (AVAILABLE, BORROWED), model (string), borrower (string), limit (int)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 6,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_list_samples",\n    "arguments": { "status_pinjam": "BORROWED" }\n  }\n}',
+  },
+  {
+    name: 'pe_list_dhl_shipments',
+    category: 'warehouse',
+    badge: 'DHL Tracking',
+    desc: 'Query status pelacakan pengiriman internasional DHL, nomor resi AWB, rute asal/tujuan, PIC penerima, status transit/delivered, dan update lokasi terakhir.',
+    params: 'status (transit, delivered), search (AWB, PIC, tujuan), limit (int)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 7,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_list_dhl_shipments",\n    "arguments": { "search": "DELIVERED" }\n  }\n}',
+  },
+  {
+    name: 'pe_list_software_mrs',
+    category: 'warehouse',
+    badge: 'Software MR',
+    desc: 'Query rilis pemeliharaan perangkat lunak (Software Maintenance Release), versi software, model target, jadwal rilis, dan companion release.',
+    params: 'search (keyword model / versi), limit (int, default: 20)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 8,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_list_software_mrs",\n    "arguments": { "search": "S25" }\n  }\n}',
+  },
+  {
+    name: 'pe_list_innovations',
+    category: 'analytics',
+    badge: 'Kaizen & Ideas',
+    desc: 'Query proposal inovasi teknik, ide Kaizen efisiensi, estimasi penghematan biaya, skor dampak (1-5), dan status persetujuan manajemen.',
+    params: 'status (draft, submitted, approved), category (string), search (string), limit (int)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 9,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_list_innovations",\n    "arguments": { "status": "approved" }\n  }\n}',
+  },
+  {
+    name: 'pe_list_documents_and_reports',
+    category: 'analytics',
+    badge: 'Tech Docs & Reports',
+    desc: 'Query arsip dokumen rekayasa teknik, laporan digital berkala, dan artikel panduan teknis yang tersimpan di PE Portal.',
+    params: 'search (keyword judul / konten), limit (int, default: 20)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 10,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_list_documents_and_reports",\n    "arguments": { "search": "BOM" }\n  }\n}',
+  },
+  {
+    name: 'pe_query_database',
+    category: 'analytics',
+    badge: 'Safe SQL Read-Only',
+    desc: 'Eksekusi kueri SQL SELECT read-only langsung pada database PostgreSQL PE Portal untuk analisa kustom dan agregasi data. Operasi mutasi data otomatis diblokir.',
+    params: 'query (string, query SQL SELECT yang valid)',
+    example: '{\n  "jsonrpc": "2.0",\n  "id": 11,\n  "method": "tools/call",\n  "params": {\n    "name": "pe_query_database",\n    "arguments": { "query": "SELECT model_name, stage, marketing_name FROM new_models WHERE deleted_at IS NULL LIMIT 5" }\n  }\n}',
+  },
+];
 
 export const ProfilePage = () => {
   const { t } = useTranslation();
@@ -104,6 +204,48 @@ export const ProfilePage = () => {
   const [newListDesc, setNewListDesc] = useState('');
   const [isAddingList, setIsAddingList] = useState(false);
   const [savingList, setSavingList] = useState(false);
+
+  // MCP Documentation state
+  const [mcpConfigTab, setMcpConfigTab] = useState('claude'); // 'claude' | 'cursor' | 'curl' | 'python'
+  const [copiedKey, setCopiedKey] = useState(null);
+  const [expandedTool, setExpandedTool] = useState(null);
+  const [mcpCategoryFilter, setMcpCategoryFilter] = useState('all');
+  const [mcpSearchFilter, setMcpSearchFilter] = useState('');
+  const [mcpTesting, setMcpTesting] = useState(false);
+  const [mcpTestResult, setMcpTestResult] = useState(null);
+
+  const handleCopyText = (text, key) => {
+    navigator.clipboard?.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleTestMcp = async () => {
+    setMcpTesting(true);
+    setMcpTestResult(null);
+    const start = Date.now();
+    try {
+      const res = await api.post('/mcp', {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/call',
+        params: {
+          name: 'pe_get_portal_overview',
+          arguments: {},
+        },
+      });
+      const latency = Date.now() - start;
+      if (res.data?.result) {
+        setMcpTestResult({ success: true, latency, message: 'MCP Server responding smoothly!' });
+      } else {
+        setMcpTestResult({ success: false, latency, message: res.data?.error?.message || 'Unexpected response' });
+      }
+    } catch (err) {
+      setMcpTestResult({ success: false, latency: Date.now() - start, message: err.message });
+    } finally {
+      setMcpTesting(false);
+    }
+  };
 
   const fetchEmailLists = () => {
     api.get('/users/me/email-lists')
@@ -1006,6 +1148,375 @@ export const ProfilePage = () => {
               );
             })
           )}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MODEL CONTEXT PROTOCOL (MCP) SERVER DOCUMENTATION SECTION                  */}
+      {/* ========================================================================= */}
+      <div className={styles.card} style={{ marginTop: 'var(--space-2)' }}>
+        {/* Header */}
+        <div className={styles.mcpHeader}>
+          <div>
+            <h2 className={styles.cardTitle} style={{ borderBottom: 'none', paddingBottom: 0 }}>
+              <Terminal size={19} color="var(--color-accent)" />
+              Model Context Protocol (MCP) Server Documentation
+            </h2>
+            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+              Dokumentasi & panduan integrasi Model Context Protocol resmi SEIN PE-Portal. Menghubungkan seluruh data live produksi, model baru, milestone, task, inventaris sampel, hingga logistik DHL dengan AI Assistant, Cursor IDE, Claude Desktop, Antigravity, dan AI Agent otonom.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className={styles.mcpStatusBadge}>
+              <span className={styles.mcpStatusDot} />
+              <span>MCP Server Active • 11 Tools</span>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              icon={Zap}
+              loading={mcpTesting}
+              onClick={handleTestMcp}
+              title="Test real-time connection to PE Portal MCP Server"
+            >
+              Test Ping
+            </Button>
+          </div>
+        </div>
+
+        {/* Live Test Feedback Banner */}
+        {mcpTestResult && (
+          <div
+            className={`${styles.alert} ${mcpTestResult.success ? styles.alertSuccess : styles.alertError}`}
+            style={{ margin: 0, padding: '8px 14px' }}
+          >
+            {mcpTestResult.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            <span style={{ fontSize: '12px' }}>
+              <strong>Status:</strong> {mcpTestResult.message} (Latency: {mcpTestResult.latency}ms)
+            </span>
+          </div>
+        )}
+
+        {/* Server Endpoint Details Box */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
+          <div className={styles.mcpEndpointBox}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+              <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                Primary HTTP Endpoint (JSON-RPC 2.0)
+              </span>
+              <span style={{ color: 'var(--color-accent)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={copiedKey === 'endpoint' ? Check : Copy}
+              onClick={() => handleCopyText(typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp', 'endpoint')}
+            >
+              {copiedKey === 'endpoint' ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+
+          <div className={styles.mcpEndpointBox}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+              <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                Backend Direct Port (Docker Host)
+              </span>
+              <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                http://localhost:8085/api/v1/mcp
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={copiedKey === 'backend-port' ? Check : Copy}
+              onClick={() => handleCopyText('http://localhost:8085/api/v1/mcp', 'backend-port')}
+            >
+              {copiedKey === 'backend-port' ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Client Setup Configuration Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Code2 size={16} color="var(--color-accent)" />
+              Client Setup & Configuration Examples
+            </span>
+          </div>
+
+          {/* Config Tabs */}
+          <div className={styles.mcpTabs}>
+            <button
+              type="button"
+              className={`${styles.mcpTab} ${mcpConfigTab === 'claude' ? styles.mcpTabActive : ''}`}
+              onClick={() => setMcpConfigTab('claude')}
+            >
+              Claude Desktop
+            </button>
+            <button
+              type="button"
+              className={`${styles.mcpTab} ${mcpConfigTab === 'cursor' ? styles.mcpTabActive : ''}`}
+              onClick={() => setMcpConfigTab('cursor')}
+            >
+              Cursor IDE / Antigravity
+            </button>
+            <button
+              type="button"
+              className={`${styles.mcpTab} ${mcpConfigTab === 'curl' ? styles.mcpTabActive : ''}`}
+              onClick={() => setMcpConfigTab('curl')}
+            >
+              cURL (JSON-RPC)
+            </button>
+            <button
+              type="button"
+              className={`${styles.mcpTab} ${mcpConfigTab === 'python' ? styles.mcpTabActive : ''}`}
+              onClick={() => setMcpConfigTab('python')}
+            >
+              Python Client
+            </button>
+          </div>
+
+          {/* Code Container */}
+          <div className={styles.mcpCodeContainer}>
+            <button
+              type="button"
+              className={styles.mcpCopyBtn}
+              onClick={() => {
+                let code = '';
+                if (mcpConfigTab === 'claude') {
+                  code = `{\n  "mcpServers": {\n    "sein-pe-portal": {\n      "url": "${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}"\n    }\n  }\n}`;
+                } else if (mcpConfigTab === 'cursor') {
+                  code = `{\n  "mcpServers": {\n    "sein-pe-portal": {\n      "url": "${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}",\n      "type": "http"\n    }\n  }\n}`;
+                } else if (mcpConfigTab === 'curl') {
+                  code = `curl -X POST ${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'} \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "jsonrpc": "2.0",\n    "id": 1,\n    "method": "tools/call",\n    "params": {\n      "name": "pe_get_portal_overview",\n      "arguments": {}\n    }\n  }'`;
+                } else if (mcpConfigTab === 'python') {
+                  code = `import requests\n\nMCP_URL = "${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}"\n\npayload = {\n    "jsonrpc": "2.0",\n    "id": 1,\n    "method": "tools/call",\n    "params": {\n        "name": "pe_list_new_models",\n        "arguments": {"stage": "pvt"}\n    }\n}\n\nres = requests.post(MCP_URL, json=payload)\nprint(res.json()["result"]["content"][0]["text"])`;
+                }
+                handleCopyText(code, 'mcp-config');
+              }}
+            >
+              {copiedKey === 'mcp-config' ? <Check size={13} /> : <Copy size={13} />}
+              <span>{copiedKey === 'mcp-config' ? 'Copied!' : 'Copy Config'}</span>
+            </button>
+
+            {mcpConfigTab === 'claude' && (
+              <pre style={{ margin: 0 }}>
+                <code>
+{`// File: %APPDATA%\\Claude\\claude_desktop_config.json (Windows)
+// atau ~/Library/Application Support/Claude/claude_desktop_config.json (Mac)
+{
+  "mcpServers": {
+    "sein-pe-portal": {
+      "url": "${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}"
+    }
+  }
+}`}
+                </code>
+              </pre>
+            )}
+
+            {mcpConfigTab === 'cursor' && (
+              <pre style={{ margin: 0 }}>
+                <code>
+{`// File: .cursor/mcp.json atau Settings > Features > MCP Servers
+{
+  "mcpServers": {
+    "sein-pe-portal": {
+      "url": "${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}",
+      "type": "http"
+    }
+  }
+}`}
+                </code>
+              </pre>
+            )}
+
+            {mcpConfigTab === 'curl' && (
+              <pre style={{ margin: 0 }}>
+                <code>
+{`# Test query ringkasan data portal via terminal
+curl -X POST ${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "pe_get_portal_overview",
+      "arguments": {}
+    }
+  }'`}
+                </code>
+              </pre>
+            )}
+
+            {mcpConfigTab === 'python' && (
+              <pre style={{ margin: 0 }}>
+                <code>
+{`import requests
+
+MCP_URL = "${typeof window !== 'undefined' ? `${window.location.origin}/api/v1/mcp` : 'http://localhost:8085/api/v1/mcp'}"
+
+payload = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+        "name": "pe_list_new_models",
+        "arguments": {"stage": "pvt"}
+    }
+}
+
+response = requests.post(MCP_URL, json=payload)
+data_text = response.json()["result"]["content"][0]["text"]
+print(data_text)`}
+                </code>
+              </pre>
+            )}
+          </div>
+        </div>
+
+        {/* MCP Tools Catalog Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Layers size={16} color="var(--color-accent)" />
+                Katalog Tool MCP PE-Portal ({MCP_TOOLS_CATALOG.length} Available Tools)
+              </span>
+              <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: '2px 0 0 0' }}>
+                Klik pada kartu tool untuk melihat skema parameter input dan contoh payload JSON-RPC.
+              </p>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: 'All Tools' },
+                { id: 'models', label: 'Models & Schedules' },
+                { id: 'projects', label: 'Tasks' },
+                { id: 'warehouse', label: 'Warehouse & DHL' },
+                { id: 'analytics', label: 'Analytics & SQL' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setMcpCategoryFilter(cat.id)}
+                  style={{
+                    fontSize: '11px',
+                    padding: '3px 9px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid',
+                    borderColor: mcpCategoryFilter === cat.id ? 'var(--color-accent)' : 'var(--color-border)',
+                    backgroundColor: mcpCategoryFilter === cat.id ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
+                    color: mcpCategoryFilter === cat.id ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                    fontWeight: mcpCategoryFilter === cat.id ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tools Grid */}
+          <div className={styles.mcpToolsGrid}>
+            {MCP_TOOLS_CATALOG
+              .filter((tool) => mcpCategoryFilter === 'all' || tool.category === mcpCategoryFilter)
+              .map((tool) => {
+                const isExpanded = expandedTool === tool.name;
+                return (
+                  <div
+                    key={tool.name}
+                    className={`${styles.mcpToolCard} ${isExpanded ? styles.mcpToolCardActive : ''}`}
+                    onClick={() => setExpandedTool(isExpanded ? null : tool.name)}
+                  >
+                    <div className={styles.mcpToolName}>
+                      <span>{tool.name}</span>
+                      <span style={{
+                        fontSize: '9px',
+                        padding: '1px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'var(--color-bg-secondary)',
+                        color: 'var(--color-text-muted)',
+                        fontWeight: 600,
+                        border: '1px solid var(--color-border-subtle)',
+                      }}>
+                        {tool.badge}
+                      </span>
+                    </div>
+
+                    <div className={styles.mcpToolDesc}>
+                      {tool.desc}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-accent)', marginTop: '4px', fontWeight: 600 }}>
+                      <span>{isExpanded ? 'Tutup Rincian' : 'Lihat Skema & Contoh Payload'}</span>
+                      {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </div>
+
+                    {isExpanded && (
+                      <div className={styles.mcpToolSchema} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ marginBottom: '4px' }}>
+                          <strong style={{ color: 'var(--color-text-primary)' }}>Parameters: </strong>
+                          <span>{tool.params}</span>
+                        </div>
+
+                        <div style={{ position: 'relative', marginTop: '6px' }}>
+                          <pre style={{
+                            backgroundColor: '#0d1117',
+                            color: '#7ee787',
+                            padding: '8px',
+                            borderRadius: 'var(--radius-sm)',
+                            margin: 0,
+                            fontSize: '11px',
+                            overflowX: 'auto',
+                          }}>
+                            <code>{tool.example}</code>
+                          </pre>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            style={{ position: 'absolute', top: '4px', right: '4px', padding: '2px 6px', height: '22px' }}
+                            onClick={() => handleCopyText(tool.example, `tool-${tool.name}`)}
+                          >
+                            {copiedKey === `tool-${tool.name}` ? <Check size={11} /> : <Copy size={11} />}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* AI Assistant Direct Grounding Notice */}
+        <div style={{
+          marginTop: '8px',
+          padding: '12px 14px',
+          backgroundColor: 'var(--color-bg-primary)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--color-border)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '10px',
+        }}>
+          <Bot size={20} color="var(--color-accent)" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            <strong style={{ color: 'var(--color-text-primary)' }}>Terhubung Otomatis ke Chatbot PE-Portal:</strong> Anda tidak perlu konfigurasi manual untuk menggunakan fitur ini di web! AI Assistant di PE-Portal telah terhubung langsung ke MCP Server ini. Anda dapat langsung bertanya ke Chatbot: <em>"Berapa jumlah model baru yang sedang PVT?", "Bagaimana jadwal milestone SM-A186?",</em> atau <em>"Cek apakah ada sampel yang dipinjam"</em> dan AI akan mengambil data live real-time dari database.
+          </div>
         </div>
       </div>
     </div>
