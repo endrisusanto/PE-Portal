@@ -111,7 +111,7 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 		       u.full_name, u.avatar_path, u.preferred_lang, u.group_part_id,
 		       u.role, u.auth_provider, u.is_active, u.created_at, u.updated_at
 		FROM users u
-		WHERE (u.username = $1 OR LOWER(u.username) = LOWER($1)) AND u.deleted_at IS NULL
+		WHERE (u.username = $1 OR LOWER(u.username) = LOWER($1))
 	`
 	var existing model.User
 	err = l.pool.QueryRow(ctx, query, username).Scan(
@@ -120,13 +120,11 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 		&existing.Role, &existing.AuthProvider, &existing.IsActive, &existing.CreatedAt, &existing.UpdatedAt,
 	)
 	if err == nil {
-		if !existing.IsActive {
-			return nil, errors.New("user account is deactivated")
-		}
-		// Update last login timestamp asynchronously
+		// ponytail: If user was previously soft-deleted or deactivated, reactivate immediately upon verified LDAP authentication
 		go func(uid string) {
-			_, _ = l.pool.Exec(context.Background(), "UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1", uid)
+			_, _ = l.pool.Exec(context.Background(), "UPDATE users SET deleted_at = NULL, is_active = true, last_login_at = NOW(), updated_at = NOW() WHERE id = $1", uid)
 		}(existing.ID.String())
+		existing.IsActive = true
 		return &existing, nil
 	}
 
@@ -177,6 +175,8 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 		ON CONFLICT (username) DO UPDATE
 		SET full_name = EXCLUDED.full_name,
 		    email = EXCLUDED.email,
+		    is_active = true,
+		    deleted_at = NULL,
 		    last_login_at = NOW(),
 		    updated_at = NOW()
 		RETURNING id, employee_id, username, email, full_name, avatar_path, preferred_lang, group_part_id, role, auth_provider, is_active, created_at, updated_at

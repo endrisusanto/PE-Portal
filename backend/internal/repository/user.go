@@ -191,6 +191,16 @@ func (r *UserRepository) CreateUser(ctx context.Context, u *model.User, rawPassw
 	query := `
 		INSERT INTO users (id, employee_id, username, email, password_hash, full_name, avatar_path, preferred_lang, group_part_id, role, auth_provider, is_active, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		ON CONFLICT (username) DO UPDATE
+		SET employee_id = EXCLUDED.employee_id,
+		    email = EXCLUDED.email,
+		    password_hash = EXCLUDED.password_hash,
+		    full_name = EXCLUDED.full_name,
+		    group_part_id = EXCLUDED.group_part_id,
+		    role = EXCLUDED.role,
+		    is_active = true,
+		    deleted_at = NULL,
+		    updated_at = NOW()
 		RETURNING id
 	`
 
@@ -276,7 +286,8 @@ func (r *UserRepository) UpdateRole(ctx context.Context, userID uuid.UUID, role 
 }
 
 func (r *UserRepository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
-	query := `UPDATE users SET deleted_at = NOW(), is_active = false WHERE id = $1`
+	_, _ = r.pool.Exec(ctx, "DELETE FROM user_group_parts WHERE user_id = $1", userID)
+	query := `DELETE FROM users WHERE id = $1`
 	_, err := r.pool.Exec(ctx, query, userID)
 	return err
 }

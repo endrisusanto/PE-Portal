@@ -437,6 +437,62 @@ def create_pure_xlsx(rows, headers, output_path):
         z.writestr('xl/worksheets/sheet1.xml', sheet1)
 
 
+def generate_markdown_summary(items):
+    """Menghasilkan teks Markdown terstruktur dari seluruh berkas PowerPoint yang diekstrak."""
+    if not items:
+        return "# Ringkasan Laporan PowerPoint (PE-Portal)\n\nTidak ada berkas yang berhasil diekstrak."
+
+    lines = [
+        "# 📑 Ringkasan Laporan Defect PowerPoint (PE-Portal SEIN)",
+        f"**Total Laporan:** {len(items)} berkas  ",
+        f"**Waktu Ekstraksi:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ",
+        "",
+        "---",
+        "",
+        "## 📊 Tabel Rekapitulasi Ekstraksi",
+        "",
+        "| # | File Name | Model | Problem | CN | Defect Date | Location | Qty |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+
+    for idx, r in enumerate(items, 1):
+        fn = r.get("File Name", "-")
+        model = r.get("Model", "-") or "-"
+        problem = (r.get("Problem", "-") or "-").replace("|", "/")
+        cn = r.get("CN", "-") or "-"
+        date = r.get("Defect Date", "-") or "-"
+        loc = r.get("Defect Location", "-") or "-"
+        qty = r.get("Defect Qty", "-") or "-"
+        lines.append(f"| {idx} | {fn} | {model} | {problem} | {cn} | {date} | {loc} | {qty} |")
+
+    lines.extend([
+        "",
+        "---",
+        "",
+        "## 🔍 Detail Analisis per Laporan",
+        ""
+    ])
+
+    for idx, r in enumerate(items, 1):
+        lines.append(f"### {idx}. {r.get('File Name', 'Laporan')}")
+        lines.append(f"- **Model:** {r.get('Model') or '-'}")
+        lines.append(f"- **Problem:** {r.get('Problem') or '-'}")
+        lines.append(f"- **CN:** {r.get('CN') or '-'}")
+        lines.append(f"- **Defect Date:** {r.get('Defect Date') or '-'}")
+        lines.append(f"- **Defect Location:** {r.get('Defect Location') or '-'}")
+        lines.append(f"- **Defect Qty:** {r.get('Defect Qty') or '-'}")
+        lines.append("")
+        lines.append("#### 📌 Symptom / Analysis / Conclusion:")
+        lines.append(r.get("Symptom/Analysis/Conclusion") or "(Tidak ditemukan)")
+        lines.append("")
+        lines.append("#### 🛡️ Action & Countermeasure:")
+        lines.append(r.get("Action & Countermeasure") or "(Tidak ditemukan)")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    return "\n".join(lines)
+
 
 def main():
     parser = argparse.ArgumentParser(description="SEIN PE-Portal PowerPoint Auto Summary Extractor")
@@ -444,6 +500,7 @@ def main():
     parser.add_argument("--input-dir", help="Direktori berisi kumpulan file .pptx")
     parser.add_argument("--output-excel", help="Path tujuan output berkas Excel (.xlsx)")
     parser.add_argument("--output-json", help="Path tujuan output berkas JSON hasil ekstraksi")
+    parser.add_argument("--output-md", help="Path tujuan output berkas Markdown (.md)")
     parser.add_argument("--json-input", help="File JSON berisi daftar path berkas .pptx")
     args = parser.parse_args()
 
@@ -529,6 +586,8 @@ def main():
                 "error": f"Failed to generate Excel file: {e}"
             })
 
+    markdown_content = generate_markdown_summary(summary_results)
+
     output_payload = {
         "success": True,
         "total": len(unique_files),
@@ -537,8 +596,16 @@ def main():
         "excel_file": os.path.basename(actual_excel_path) if actual_excel_path else "",
         "excel_path": actual_excel_path,
         "items": summary_results,
+        "markdown": markdown_content,
         "errors": failed_files
     }
+
+    if args.output_md:
+        try:
+            with open(args.output_md, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
+        except Exception:
+            pass
 
     if args.output_json:
         try:
