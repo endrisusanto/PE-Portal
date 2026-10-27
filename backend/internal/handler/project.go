@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
+	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,23 +22,26 @@ import (
 )
 
 type ProjectHandler struct {
-	repo       *repository.ProjectRepository
-	userRepo   *repository.UserRepository
-	reportRepo *repository.ReportRepository
-	smtpSvc    *service.SMTPService
+	repo        *repository.ProjectRepository
+	userRepo    *repository.UserRepository
+	reportRepo  *repository.ReportRepository
+	commentRepo *repository.CommentRepository
+	smtpSvc     *service.SMTPService
 }
 
 func NewProjectHandler(
 	repo *repository.ProjectRepository,
 	userRepo *repository.UserRepository,
 	reportRepo *repository.ReportRepository,
+	commentRepo *repository.CommentRepository,
 	smtpSvc *service.SMTPService,
 ) *ProjectHandler {
 	return &ProjectHandler{
-		repo:       repo,
-		userRepo:   userRepo,
-		reportRepo: reportRepo,
-		smtpSvc:    smtpSvc,
+		repo:        repo,
+		userRepo:    userRepo,
+		reportRepo:  reportRepo,
+		commentRepo: commentRepo,
+		smtpSvc:     smtpSvc,
 	}
 }
 
@@ -86,17 +92,40 @@ type CreateProjectRequest struct {
 	SendEmail      bool            `json:"send_email"`
 }
 
+type technicalReportHelper struct {
+	Drafter                  string `json:"drafter"`
+	PartLeader               string `json:"part_leader"`
+	GroupLeader              string `json:"group_leader"`
+	Model                    string `json:"model"`
+	DefectDate               string `json:"defect_date"`
+	DefectLocation           string `json:"defect_location"`
+	Problem                  string `json:"problem"`
+	CN                       string `json:"cn"`
+	DefectQty                string `json:"defect_qty"`
+	SymptomsAnalysis         string `json:"symptoms_analysis"`
+	Symptoms                 string `json:"symptoms"`
+	ConclusionCountermeasure string `json:"conclusion_countermeasure"`
+	Countermeasure           string `json:"countermeasure"`
+}
+
+type taskAttachmentHelper struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+	URL  string `json:"url"`
+}
+
 type projectMetadataHelper struct {
-	Visibility    string `json:"visibility"`
-	CreatedByID   string `json:"created_by_id"`
-	CreatedByName string `json:"created_by_name"`
-	AssignedPics  []struct {
+	Visibility      string                 `json:"visibility"`
+	CreatedByID     string                 `json:"created_by_id"`
+	CreatedByName   string                 `json:"created_by_name"`
+	AssignedPics    []struct {
 		ID       string `json:"id"`
 		FullName string `json:"full_name"`
 		Name     string `json:"name"`
 		Email    string `json:"email"`
 		Role     string `json:"role"`
 	} `json:"assigned_pics"`
+	TechnicalReport *technicalReportHelper `json:"technical_report"`
 }
 
 // ponytail: helper to extract distinct emails from assigned_pics

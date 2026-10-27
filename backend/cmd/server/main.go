@@ -87,7 +87,7 @@ func main() {
 	userHandler := handler.NewUserHandler(userRepo, cfg.FileStoragePath)
 	groupHandler := handler.NewGroupHandler(groupRepo)
 	innovationHandler := handler.NewInnovationHandler(innovationRepo)
-	projectHandler := handler.NewProjectHandler(projectRepo, userRepo, reportRepo, smtpService)
+	projectHandler := handler.NewProjectHandler(projectRepo, userRepo, reportRepo, commentRepo, smtpService)
 	modelHandler := handler.NewNewModelHandler(modelRepo)
 	articleHandler := handler.NewArticleHandler(articleRepo)
 	datahubService := service.NewDataHubService(settingsRepo)

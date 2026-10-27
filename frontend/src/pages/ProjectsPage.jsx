@@ -189,38 +189,35 @@ export const ProjectsPage = () => {
   const [editTechReportCountermeasure, setEditTechReportCountermeasure] = useState('');
   const [isTechReportExpanded, setIsTechReportExpanded] = useState(true);
 
-  // ponytail: Auto-fetch Part Leader manager from team structure based on member's parent group
+  // ponytail: Auto-fetch Part Leader manager purely from active users and team structure (no mock data)
   const getSuggestedPartLeader = useCallback((targetUser) => {
-    if (!targetUser) return 'Umar Bakri';
+    if (!targetUser) return '';
     const parent = targetUser.parent_group
       || groups.find((g) => g.id === targetUser.group_part_id)?.parent_group
       || groups.find((g) => g.name === targetUser.group_part_name)?.parent_group;
     if (parent) {
-      const mgr = users.find((u) => (u.role === 'manager' || u.role === 'admin') && u.parent_group === parent);
+      const mgr = users.find((u) =>
+        (u.role === 'manager' || u.role === 'admin') &&
+        (u.parent_group === parent || groups.find((g) => g.id === u.group_part_id)?.parent_group === parent)
+      );
       if (mgr) return mgr.full_name;
-      const fallbackMap = {
-        pe_solution: 'Umar Bakri',
-        pe_production: 'Arka Pratama',
-        pe_mecha: 'Kurniawan Adi',
-        pe_management: 'Hendrik Setiawan',
-      };
-      if (fallbackMap[parent]) return fallbackMap[parent];
     }
-    return 'Umar Bakri';
+    return '';
   }, [groups, users]);
 
-  // ponytail: Dropdown options for Part Leader sourced from team structure
+  // ponytail: Dropdown options for Part Leader sourced purely from active users (role manager/admin)
   const partLeaderOptions = useMemo(() => {
-    const list = [
-      { value: 'Umar Bakri', label: 'Umar Bakri (Manager PE Solution)' },
-      { value: 'Arka Pratama', label: 'Arka Pratama (Manager PE Production)' },
-      { value: 'Kurniawan Adi', label: 'Kurniawan Adi (Manager PE Mecha)' },
-    ];
+    const list = [];
     users
       .filter((u) => u.role === 'manager' || u.role === 'admin')
       .forEach((u) => {
         if (!list.some((item) => item.value === u.full_name)) {
-          const groupLabel = u.parent_group ? ` (${u.parent_group.replace('pe_', 'PE ').toUpperCase()})` : '';
+          const groupObj = groups.find((g) => g.id === u.group_part_id);
+          const parentGroup = u.parent_group || groupObj?.parent_group;
+          const groupName = u.group_part_name || groupObj?.name;
+          const groupLabel = parentGroup
+            ? ` (${parentGroup.replace('pe_', 'PE ').toUpperCase()}${groupName ? ` - ${groupName}` : ''})`
+            : (groupName ? ` (${groupName})` : ` (${u.role})`);
           list.push({
             value: u.full_name,
             label: `${u.full_name}${groupLabel}`,
@@ -228,14 +225,12 @@ export const ProjectsPage = () => {
         }
       });
     return list;
-  }, [users]);
+  }, [users, groups]);
 
-  // ponytail: Dropdown options for Group Leader defaulting to hendra.n@samsung.com
+  // ponytail: Dropdown options for Group Leader defaulting to hendra.n@samsung.com with active management users
   const groupLeaderOptions = useMemo(() => {
     const list = [
       { value: 'hendra.n@samsung.com', label: 'hendra.n@samsung.com (PE Group Leader)' },
-      { value: 'Hendrik Setiawan', label: 'Hendrik Setiawan (Group Manager PE)' },
-      { value: 'Park Jin-woo (박진우)', label: 'Park Jin-woo (PE Dispatcher)' },
     ];
     users
       .filter((u) => u.parent_group === 'pe_management' || u.role === 'admin' || u.role === 'manager')
