@@ -190,7 +190,7 @@ export const ProjectsPage = () => {
   const [editTechReportCountermeasure, setEditTechReportCountermeasure] = useState('');
   const [isTechReportExpanded, setIsTechReportExpanded] = useState(true);
 
-  // ponytail: Auto-fetch Part Leader manager purely from active users and team structure (no mock data)
+  // ponytail: Auto-fetch Part Leader manager purely from active users with role manager (excluding admin)
   const getSuggestedPartLeader = useCallback((targetUser) => {
     if (!targetUser) return '';
     const parent = targetUser.parent_group
@@ -198,7 +198,7 @@ export const ProjectsPage = () => {
       || groups.find((g) => g.name === targetUser.group_part_name)?.parent_group;
     if (parent) {
       const mgr = users.find((u) =>
-        (u.role === 'manager' || u.role === 'admin') &&
+        u.role === 'manager' &&
         (u.parent_group === parent || groups.find((g) => g.id === u.group_part_id)?.parent_group === parent)
       );
       if (mgr) return mgr.full_name;
@@ -206,11 +206,11 @@ export const ProjectsPage = () => {
     return '';
   }, [groups, users]);
 
-  // ponytail: Dropdown options for Part Leader sourced purely from active users (role manager/admin)
+  // ponytail: Dropdown options for Part Leader sourced purely from role manager only (admin excluded)
   const partLeaderOptions = useMemo(() => {
     const list = [];
     users
-      .filter((u) => u.role === 'manager' || u.role === 'admin')
+      .filter((u) => u.role === 'manager')
       .forEach((u) => {
         if (!list.some((item) => item.value === u.full_name)) {
           const groupObj = groups.find((g) => g.id === u.group_part_id);
@@ -218,7 +218,7 @@ export const ProjectsPage = () => {
           const groupName = u.group_part_name || groupObj?.name;
           const groupLabel = parentGroup
             ? ` (${parentGroup.replace('pe_', 'PE ').toUpperCase()}${groupName ? ` - ${groupName}` : ''})`
-            : (groupName ? ` (${groupName})` : ` (${u.role})`);
+            : (groupName ? ` (${groupName})` : ' (Manager)');
           list.push({
             value: u.full_name,
             label: `${u.full_name}${groupLabel}`,
