@@ -554,6 +554,10 @@ func (h *UtilityHandler) SummarizePPTX(c echo.Context) error {
 
 	cmdArgs := []string{scriptPath, "--input-dir", jobDir, "--output-excel", outExcelPath}
 	cmd := exec.Command(pythonBin, cmdArgs...)
+	cmd.Env = append(os.Environ(),
+		"PYTHONIOENCODING=utf-8",
+		"PYTHONUTF8=1",
+	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{

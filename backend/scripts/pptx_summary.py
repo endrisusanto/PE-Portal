@@ -20,6 +20,18 @@ from datetime import datetime
 import zipfile
 import xml.etree.ElementTree as ET
 
+# Force UTF-8 encoding on standard I/O streams for Windows baremetal compatibility
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 # Try optional third-party libraries
 try:
     from pptx import Presentation
@@ -41,11 +53,37 @@ except ImportError:
     HAS_PANDAS = False
 
 
+def clean_text(text):
+    """
+    Membersihkan karakter anomali / Private Use Area (e.g. Wingdings bullets \\uf0e0)
+    agar tidak merusak encoding stdout Windows cp1252 maupun tampilan di Excel.
+    """
+    if not text:
+        return ""
+    res = []
+    for ch in str(text):
+        cp = ord(ch)
+        # Filter private-use area characters (\uf000-\uf8ff) sering digunakan oleh font Wingdings/Symbol
+        if 0xF000 <= cp <= 0xF8FF:
+            # Ubah bullet/symbol glyph umum menjadi bullet standar
+            if cp in (0xF0A7, 0xF0B7, 0xF0D8, 0xF0E0, 0xF076, 0xF0FC):
+                res.append("• ")
+            else:
+                res.append(" ")
+        elif cp < 32 and ch not in "\r\n\t":
+            continue
+        else:
+            res.append(ch)
+    return "".join(res).strip()
+
+
 def extract_sections_from_text(text, data):
     """Mengekstrak conclusion dan action/countermeasure dari potongan teks."""
     if not text:
         return
-    text_str = str(text).strip()
+    text_str = clean_text(text)
+    if not text_str:
+        return
     text_lower = text_str.lower()
 
     # 1. Ekstraksi Conclusion
@@ -69,9 +107,10 @@ def extract_sections_from_text(text, data):
 def match_table_metadata(row_texts, data):
     """Mencocokkan baris tabel metadata standar Samsung OQC / PE (Model, Problem, CN, dll)."""
     for i, cell_text in enumerate(row_texts):
-        cell_lower = cell_text.lower().strip()
+        cell_clean = clean_text(cell_text)
+        cell_lower = cell_clean.lower()
         if i + 1 < len(row_texts):
-            next_val = row_texts[i + 1].strip()
+            next_val = clean_text(row_texts[i + 1])
             if not next_val:
                 continue
 
@@ -508,8 +547,17 @@ def main():
         except Exception:
             pass
 
-    # Print output payload to stdout
-    print(json.dumps(output_payload, indent=2, ensure_ascii=False))
+    # Print output payload to stdout safely bypassing Windows cp1252 / charmap encoder
+    json_bytes = json.dumps(output_payload, indent=2, ensure_ascii=False).encode('utf-8', errors='replace')
+    try:
+        if hasattr(sys.stdout, 'buffer') and sys.stdout.buffer:
+            sys.stdout.buffer.write(json_bytes)
+            sys.stdout.buffer.write(b'\n')
+            sys.stdout.buffer.flush()
+        else:
+            print(json.dumps(output_payload, indent=2, ensure_ascii=True))
+    except Exception:
+        print(json.dumps(output_payload, indent=2, ensure_ascii=True))
 
 
 if __name__ == "__main__":
