@@ -316,3 +316,59 @@ func (r *DocumentRepository) RevokeShare(ctx context.Context, docID uuid.UUID) e
 	_, err := r.pool.Exec(ctx, `DELETE FROM document_shares WHERE document_id = $1`, docID)
 	return err
 }
+
+// ponytail: UpdateCategory allows updating the category of a document
+func (r *DocumentRepository) UpdateCategory(ctx context.Context, id uuid.UUID, category string) (*model.Document, error) {
+	query := `
+		UPDATE documents
+		SET category = $2, updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	res, err := r.pool.Exec(ctx, query, id, category)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update document category: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return nil, errors.New("document not found")
+	}
+	return r.GetByID(ctx, id)
+}
+
+// ponytail: GetByIDs retrieves documents matching a list of UUIDs for batch operations
+func (r *DocumentRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model.Document, error) {
+	query := `
+		SELECT d.id, d.title, d.file_name, d.file_path, d.file_size, d.mime_type, d.file_type,
+		       d.category, d.tags, d.uploaded_by, u.full_name as uploader_name,
+		       d.group_part_id, gp.name as group_part_name,
+		       d.project_id, d.model_id, d.version, d.is_archived, d.created_at, d.updated_at,
+		       COALESCE(d.datahub_status, 'skipped') as datahub_status,
+		       d.datahub_object_id, d.datahub_synced_at, d.datahub_error
+		FROM documents d
+		LEFT JOIN users u ON d.uploaded_by = u.id
+		LEFT JOIN group_parts gp ON d.group_part_id = gp.id
+		WHERE d.id = ANY($1) AND d.deleted_at IS NULL
+		ORDER BY d.created_at DESC
+	`
+	rows, err := r.pool.Query(ctx, query, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query documents by ids: %w", err)
+	}
+	defer rows.Close()
+
+	var docs []model.Document
+	for rows.Next() {
+		var d model.Document
+		err := rows.Scan(
+			&d.ID, &d.Title, &d.FileName, &d.FilePath, &d.FileSize, &d.MimeType, &d.FileType,
+			&d.Category, &d.Tags, &d.UploadedBy, &d.UploaderName,
+			&d.GroupPartID, &d.GroupPartName,
+			&d.ProjectID, &d.ModelID, &d.Version, &d.IsArchived, &d.CreatedAt, &d.UpdatedAt,
+			&d.DataHubStatus, &d.DataHubObjectID, &d.DataHubSyncedAt, &d.DataHubError,
+		)
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, d)
+	}
+	return docs, nil
+}

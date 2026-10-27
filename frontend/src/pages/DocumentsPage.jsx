@@ -22,6 +22,10 @@ import {
   CloudUpload,
   RefreshCw,
   Info,
+  Edit2,
+  Archive,
+  CheckSquare,
+  Loader2,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -34,9 +38,17 @@ import { Table } from '../components/common/Table';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './DocumentsPage.module.css';
 
+const CATEGORY_MAP = {
+  manual: 'Working Instruction / SOP',
+  bom: 'Bill of Materials (BOM)',
+  drawing: 'JIG / Mecha Drawing',
+  report: 'Quality & Failure Analysis',
+  other: 'General Archive',
+};
+
 export const DocumentsPage = () => {
   const { t } = useTranslation();
-  const { requireAuth } = useAuth();
+  const { user, requireAuth } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [fileType, setFileType] = useState('');
   const [loading, setLoading] = useState(true);
@@ -106,6 +118,86 @@ export const DocumentsPage = () => {
   const [savingShare, setSavingShare] = useState(false);
   const [shareError, setShareError] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // ponytail: State for editing category (admin, manager, or uploader)
+  const [editingCategoryDoc, setEditingCategoryDoc] = useState(null);
+  const [newCategoryVal, setNewCategoryVal] = useState('manual');
+  const [savingCategory, setSavingCategory] = useState(false);
+
+  // ponytail: State for multi-select ZIP download
+  const [selectedDocIds, setSelectedDocIds] = useState([]);
+  const [downloadingZip, setDownloadingZip] = useState(false);
+
+  // ponytail: Permission check: admin, manager, or original uploader can edit category
+  const canEditCategory = (doc) => {
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'manager') return true;
+    return doc?.uploaded_by && doc.uploaded_by === user.id;
+  };
+
+  const handleOpenEditCategory = (doc) => {
+    setEditingCategoryDoc(doc);
+    setNewCategoryVal(doc.category || 'manual');
+  };
+
+  const handleSaveCategory = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!editingCategoryDoc) return;
+    setSavingCategory(true);
+    try {
+      const res = await api.put(`/documents/${editingCategoryDoc.id}/category`, {
+        category: newCategoryVal,
+      });
+      const updated = res.data;
+      setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      setEditingCategoryDoc(null);
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Gagal mengubah kategori dokumen');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  // ponytail: Multi-select handlers for direct ZIP download
+  const handleToggleSelectDoc = (id) => {
+    setSelectedDocIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedDocIds.length === documents.length) {
+      setSelectedDocIds([]);
+    } else {
+      setSelectedDocIds(documents.map((d) => d.id));
+    }
+  };
+
+  const handleDownloadZip = async () => {
+    if (selectedDocIds.length === 0) return;
+    setDownloadingZip(true);
+    try {
+      const res = await api.post(
+        '/documents/download-zip',
+        { ids: selectedDocIds },
+        { responseType: 'blob' }
+      );
+      const blob = new Blob([res.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      link.download = `pe_documents_${dateStr}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || 'Gagal mengunduh dokumen sebagai ZIP');
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
 
   const getDocUrl = (id, action = 'preview') => {
     const token = localStorage.getItem('pe_portal_token');
@@ -300,6 +392,31 @@ export const DocumentsPage = () => {
 
   const columns = [
     {
+      title: (
+        <input
+          type="checkbox"
+          checked={documents.length > 0 && selectedDocIds.length === documents.length}
+          onChange={handleToggleSelectAll}
+          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-accent)' }}
+          aria-label="Pilih Semua Dokumen"
+        />
+      ),
+      key: 'select',
+      sortable: false,
+      render: (_, row) => (
+        <input
+          type="checkbox"
+          checked={selectedDocIds.includes(row.id)}
+          onChange={(e) => {
+            e.stopPropagation();
+            handleToggleSelectDoc(row.id);
+          }}
+          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-accent)' }}
+          aria-label={`Pilih ${row.title || row.file_name}`}
+        />
+      ),
+    },
+    {
       title: t('documents.col_file_title', 'File & Title'),
       key: 'title',
       render: (val, row) => (
@@ -334,7 +451,47 @@ export const DocumentsPage = () => {
     {
       title: t('documents.col_category', 'Category'),
       key: 'category',
-      render: (val) => <span>{val || 'General'}</span>,
+      render: (val, row) => {
+        const isAuth = canEditCategory(row);
+        const label = CATEGORY_MAP[val] || val || 'General Archive';
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{
+              fontSize: '11.5px',
+              fontWeight: 500,
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm, 4px)',
+              backgroundColor: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+            }}>
+              {label}
+            </span>
+            {isAuth && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenEditCategory(row);
+                }}
+                title="Ubah Kategori Dokumen (Admin / Manager / Uploader)"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  color: 'var(--color-accent)',
+                  borderRadius: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Edit2 size={13} />
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: t('documents.col_uploader', 'Uploader'),
@@ -468,6 +625,16 @@ export const DocumentsPage = () => {
       key: 'id',
       render: (val, row) => (
         <div style={{ display: 'flex', gap: '4px' }}>
+          {canEditCategory(row) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenEditCategory(row)}
+              title="Ubah Kategori Dokumen"
+            >
+              <Edit2 size={14} color="var(--color-accent)" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -545,6 +712,42 @@ export const DocumentsPage = () => {
           </Button>
         ))}
       </div>
+
+      {/* Multi-select Bulk Action Bar */}
+      {selectedDocIds.length > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 16px',
+          borderRadius: 'var(--radius-sm, 6px)',
+          backgroundColor: 'rgba(37, 99, 235, 0.08)',
+          border: '1px solid rgba(37, 99, 235, 0.25)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            <CheckSquare size={16} color="var(--color-accent)" />
+            <span>{selectedDocIds.length} dokumen dipilih</span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setSelectedDocIds([])}
+            >
+              Batal Pilih
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={downloadingZip ? Loader2 : Archive}
+              onClick={handleDownloadZip}
+              disabled={downloadingZip}
+            >
+              {downloadingZip ? 'Menyiapkan ZIP...' : `Download as ZIP (${selectedDocIds.length})`}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <LoadingState message="Loading documents archive..." />
@@ -1491,6 +1694,67 @@ export const DocumentsPage = () => {
               </div>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* ponytail: Ubah Kategori Modal */}
+      <Modal
+        isOpen={Boolean(editingCategoryDoc)}
+        onClose={() => setEditingCategoryDoc(null)}
+        title="Ubah Kategori Dokumen"
+        maxWidth="480px"
+      >
+        {editingCategoryDoc && (
+          <form onSubmit={handleSaveCategory} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>
+                Nama Dokumen
+              </label>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                {editingCategoryDoc.title || editingCategoryDoc.file_name}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                {editingCategoryDoc.file_name}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label htmlFor="edit-doc-category-select" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                Kategori
+              </label>
+              <select
+                id="edit-doc-category-select"
+                value={newCategoryVal}
+                onChange={(e) => setNewCategoryVal(e.target.value)}
+                style={{
+                  height: '38px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="manual">Working Instruction / SOP</option>
+                <option value="bom">Bill of Materials (BOM)</option>
+                <option value="drawing">JIG / Mecha Drawing</option>
+                <option value="report">Quality &amp; Failure Analysis</option>
+                <option value="other">General Archive</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <Button variant="secondary" onClick={() => setEditingCategoryDoc(null)} type="button">
+                {t('common.cancel', 'Batal')}
+              </Button>
+              <Button variant="primary" type="submit" disabled={savingCategory}>
+                {savingCategory ? t('common.loading', 'Menyimpan...') : 'Simpan Kategori'}
+              </Button>
+            </div>
+          </form>
         )}
       </Modal>
     </div>

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -608,4 +609,133 @@ func (h *DocumentHandler) PreviewSharedFile(c echo.Context) error {
 	}
 
 	return c.File(share.Document.FilePath)
+}
+
+// ponytail: UpdateCategory allows admin, manager, or uploader to update document category
+func (h *DocumentHandler) UpdateCategory(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid document id")
+	}
+
+	doc, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "document not found")
+	}
+
+	var currentUserID uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			currentUserID = uid
+		}
+	}
+	role := ""
+	if roleVal := c.Get(middleware.ContextKeyUserRole); roleVal != nil {
+		if r, ok := roleVal.(string); ok {
+			role = r
+		}
+	}
+
+	// Authorized: admin, manager, or original uploader
+	isAuthorized := role == "admin" || role == "manager" || (doc.UploadedBy != nil && *doc.UploadedBy == currentUserID)
+	if !isAuthorized {
+		return echo.NewHTTPError(http.StatusForbidden, "you are not authorized to update this document category")
+	}
+
+	var req struct {
+		Category string `json:"category"`
+	}
+	if err := c.Bind(&req); err != nil || strings.TrimSpace(req.Category) == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "category is required")
+	}
+
+	updated, err := h.repo.UpdateCategory(c.Request().Context(), id, strings.TrimSpace(req.Category))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, updated)
+}
+
+// ponytail: DownloadZip streams multiple selected documents as a single ZIP archive using standard library archive/zip
+func (h *DocumentHandler) DownloadZip(c echo.Context) error {
+	var ids []uuid.UUID
+
+	// Check JSON body if POST
+	if c.Request().Method == http.MethodPost {
+		var req struct {
+			IDs []string `json:"ids"`
+		}
+		if err := c.Bind(&req); err == nil && len(req.IDs) > 0 {
+			for _, s := range req.IDs {
+				if id, err := uuid.Parse(s); err == nil {
+					ids = append(ids, id)
+				}
+			}
+		}
+	}
+
+	// Check query param (?ids=uuid1,uuid2)
+	if len(ids) == 0 {
+		idsParam := c.QueryParam("ids")
+		for _, s := range strings.Split(idsParam, ",") {
+			trimmed := strings.TrimSpace(s)
+			if id, err := uuid.Parse(trimmed); err == nil {
+				ids = append(ids, id)
+			}
+		}
+	}
+
+	if len(ids) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "no valid document ids provided")
+	}
+
+	docs, err := h.repo.GetByIDs(c.Request().Context(), ids)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	if len(docs) == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "documents not found")
+	}
+
+	zipFileName := fmt.Sprintf("pe_documents_%s.zip", time.Now().Format("20060102_150405"))
+	c.Response().Header().Set(echo.HeaderContentType, "application/zip")
+	c.Response().Header().Set(echo.HeaderContentDisposition, fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
+	c.Response().WriteHeader(http.StatusOK)
+
+	zipWriter := zip.NewWriter(c.Response().Writer)
+	defer zipWriter.Close()
+
+	usedNames := make(map[string]int)
+
+	for _, doc := range docs {
+		f, err := os.Open(doc.FilePath)
+		if err != nil {
+			log.Printf("[DocumentZip] Skipping missing file %s: %v", doc.FilePath, err)
+			continue
+		}
+
+		name := doc.FileName
+		if name == "" {
+			name = doc.Title
+		}
+		if count, exists := usedNames[name]; exists {
+			usedNames[name] = count + 1
+			ext := filepath.Ext(name)
+			base := strings.TrimSuffix(name, ext)
+			name = fmt.Sprintf("%s_%d%s", base, count+1, ext)
+		} else {
+			usedNames[name] = 1
+		}
+
+		w, err := zipWriter.Create(name)
+		if err != nil {
+			f.Close()
+			continue
+		}
+
+		_, _ = io.Copy(w, f)
+		f.Close()
+	}
+
+	return nil
 }
