@@ -912,10 +912,10 @@ export const ModelsPage = () => {
                             fontSize: '11px',
                             fontWeight: 600,
                           }}
-                          title={`Kategori: ${catInfo.label}`}
+                          title={`${t('models.category_prefix', 'Kategori')}: ${t(catInfo.labelKey, catInfo.label)}`}
                         >
                           <CatIcon size={12} />
-                          <span>{catInfo.shortLabel}</span>
+                          <span>{t(catInfo.shortLabelKey, catInfo.shortLabel)}</span>
                         </span>
                       );
                     })()}
@@ -1872,7 +1872,7 @@ export const ModelsPage = () => {
                     }}
                   >
                     <CatIcon size={14} style={{ color: cat.color }} />
-                    <span>{cat.label}</span>
+                    <span>{t(cat.labelKey, cat.label)}</span>
                   </button>
                 );
               })}
@@ -2031,7 +2031,7 @@ export const ModelsPage = () => {
                     }}
                   >
                     <CatIcon size={14} style={{ color: cat.color }} />
-                    <span>{cat.label}</span>
+                    <span>{t(cat.labelKey, cat.label)}</span>
                   </button>
                 );
               })}

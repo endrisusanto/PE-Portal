@@ -45,6 +45,8 @@ import styles from './ModelMilestoneMatrix.module.css';
 export const MODEL_CATEGORY_CONFIG = {
   flagship: {
     key: 'flagship',
+    labelKey: 'models.category_flagship',
+    shortLabelKey: 'models.category_flagship_short',
     label: 'Flagship / Premium',
     shortLabel: 'Flagship',
     icon: Crown,
@@ -55,6 +57,8 @@ export const MODEL_CATEGORY_CONFIG = {
   },
   mass_product: {
     key: 'mass_product',
+    labelKey: 'models.category_mass_product',
+    shortLabelKey: 'models.category_mass_product_short',
     label: 'Mass Product',
     shortLabel: 'Mass Product',
     icon: Layers,
@@ -65,6 +69,8 @@ export const MODEL_CATEGORY_CONFIG = {
   },
   tnp: {
     key: 'tnp',
+    labelKey: 'models.category_tnp',
+    shortLabelKey: 'models.category_tnp_short',
     label: 'TNP',
     shortLabel: 'TNP',
     icon: Zap,
@@ -1555,10 +1561,10 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                             fontWeight: 600,
                             lineHeight: 1.2,
                           }}
-                          title={`Kategori: ${catInfo.label}`}
+                          title={`${t('models.category_prefix', 'Kategori')}: ${t(catInfo.labelKey, catInfo.label)}`}
                         >
                           <CatIcon size={12} />
-                          <span>{catInfo.shortLabel}</span>
+                          <span>{t(catInfo.shortLabelKey, catInfo.shortLabel)}</span>
                         </div>
                       );
                     })()}
@@ -1644,7 +1650,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                         <span className={styles.thModelSub}>
                           {m.marketing_name || m.codename || 'Standard'}
                         </span>
-                        {/* ponytail: Badge kategori di bawah codename */}
+                        {/* ponytail: Badge kategori di bawah codename dengan i18n */}
                         <div style={{ marginTop: '3px' }}>
                           <span
                             style={{
@@ -1660,10 +1666,10 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                               fontWeight: 600,
                               lineHeight: 1.2,
                             }}
-                            title={`Kategori Model: ${catInfo.label}`}
+                            title={`${t('models.category_prefix', 'Kategori')}: ${t(catInfo.labelKey, catInfo.label)}`}
                           >
                             <CatIcon size={10} />
-                            <span>{catInfo.shortLabel}</span>
+                            <span>{t(catInfo.shortLabelKey, catInfo.shortLabel)}</span>
                           </span>
                         </div>
                       </div>
