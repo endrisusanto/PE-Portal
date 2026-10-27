@@ -1640,22 +1640,25 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                   return (
                     <th key={m.id} colSpan={3} className={styles.thModelColumn}>
                       <div className={styles.thModelWrap}>
-                        {/* ponytail: Chip kecil di pojok kiri tiap kolom title model */}
-                        <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%', marginBottom: '3px' }}>
+                        <span className={styles.thModelTitle}>{m.model_name}</span>
+                        <span className={styles.thModelSub}>
+                          {m.marketing_name || m.codename || 'Standard'}
+                        </span>
+                        {/* ponytail: Badge kategori di bawah codename */}
+                        <div style={{ marginTop: '3px' }}>
                           <span
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '3px',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
+                              padding: '1px 7px',
+                              borderRadius: '10px',
                               backgroundColor: catInfo.bgColor,
                               border: `1px solid ${catInfo.borderColor}`,
                               color: catInfo.color,
                               fontSize: '9.5px',
-                              fontWeight: 700,
-                              letterSpacing: '0.02em',
-                              lineHeight: 1.3,
+                              fontWeight: 600,
+                              lineHeight: 1.2,
                             }}
                             title={`Kategori Model: ${catInfo.label}`}
                           >
@@ -1663,10 +1666,6 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                             <span>{catInfo.shortLabel}</span>
                           </span>
                         </div>
-                        <span className={styles.thModelTitle}>{m.model_name}</span>
-                        <span className={styles.thModelSub}>
-                          {m.marketing_name || m.codename || 'Standard'}
-                        </span>
                       </div>
                     </th>
                   );
