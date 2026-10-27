@@ -385,3 +385,55 @@
   background: #1e293b;
   border-color: #334155;
 }
+
+.detailColSingle {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 1px solid #94a3b8;
+  border-right: 1px solid #94a3b8;
+  border-bottom: 1px solid #94a3b8;
+}
+
+[data-theme='dark'] .detailColSingle {
+  border-color: #475569;
+}
+
+.emptyDetailNotice {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  background: var(--color-bg-secondary, rgba(0, 0, 0, 0.02));
+  border-left: 1px solid #94a3b8;
+  border-right: 1px solid #94a3b8;
+  border-bottom: 1px solid #94a3b8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+[data-theme='dark'] .emptyDetailNotice {
+  border-color: #475569;
+}
+
+.editReportBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.editReportBtn:hover {
+  opacity: 0.9;
+}

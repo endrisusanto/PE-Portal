@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Bold,
   Italic,
@@ -11,8 +11,11 @@ import {
   Code,
   Table,
   Link2,
-  Minus
+  Minus,
+  Image as ImageIcon,
+  Loader2,
 } from 'lucide-react';
+import api from '../../api/client';
 import styles from './FormattingTextarea.module.css';
 
 /**
@@ -85,6 +88,10 @@ export const applyFormat = (textarea, formatType) => {
       replacement = `[${selected || 'Tautan Link'}](https://)`;
       cursorOffset = replacement.length - 1;
       break;
+    case 'image':
+      replacement = `\n![${selected || 'Keterangan Gambar'}](https://)\n`;
+      cursorOffset = replacement.length - 2;
+      break;
     case 'hr':
       replacement = `\n---\n`;
       cursorOffset = replacement.length;
@@ -121,11 +128,69 @@ export const applyFormat = (textarea, formatType) => {
  * Reusable Formatting Toolbar Component
  */
 export const FormattingToolbar = ({ textareaRef, onFormat }) => {
+  const imageInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const handleAction = (type) => {
     if (onFormat) {
       onFormat(type);
     } else if (textareaRef?.current) {
       applyFormat(textareaRef.current, type);
+    }
+  };
+
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/comments/upload-attachment', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const fileUrl = res.data.url;
+      const fileName = res.data.name || file.name || 'Foto Lampiran';
+      const imgMarkdown = `\n![${fileName}](${fileUrl})\n`;
+
+      if (textareaRef?.current) {
+        const textarea = textareaRef.current;
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const text = textarea.value || '';
+        textarea.focus();
+        let inserted = false;
+        if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+          inserted = document.execCommand('insertText', false, imgMarkdown);
+        }
+        if (!inserted) {
+          const newText = text.substring(0, start) + imgMarkdown + text.substring(end);
+          const nativeSetter = Object.getOwnPropertyDescriptor(
+            window.HTMLTextAreaElement.prototype,
+            'value'
+          )?.set;
+          if (nativeSetter) {
+            nativeSetter.call(textarea, newText);
+          } else {
+            textarea.value = newText;
+          }
+          const ev = new Event('input', { bubbles: true });
+          textarea.dispatchEvent(ev);
+        }
+        const newPos = start + imgMarkdown.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }
+    } catch (err) {
+      const altUrl = prompt('Gagal mengunggah gambar otomatis. Masukkan URL Gambar langsung:', 'https://');
+      if (altUrl && textareaRef?.current) {
+        const fallbackMarkdown = `\n![Foto Lampiran](${altUrl})\n`;
+        const textarea = textareaRef.current;
+        textarea.focus();
+        document.execCommand('insertText', false, fallbackMarkdown);
+      }
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
 
@@ -216,10 +281,36 @@ export const FormattingToolbar = ({ textareaRef, onFormat }) => {
         type="button"
         className={styles.toolBtn}
         onClick={() => handleAction('table')}
-        title="Format Tabel Markdown"
+        title="Sisipkan Format Tabel Markdown"
       >
         <Table size={13} />
       </button>
+      <button
+        type="button"
+        className={styles.toolBtn}
+        onClick={() => {
+          if (imageInputRef.current) {
+            imageInputRef.current.click();
+          } else {
+            handleAction('image');
+          }
+        }}
+        disabled={uploadingImage}
+        title="Sisipkan / Unggah Gambar (Foto Bukti Lampiran)"
+      >
+        {uploadingImage ? (
+          <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+        ) : (
+          <ImageIcon size={13} />
+        )}
+      </button>
+      <input
+        type="file"
+        ref={imageInputRef}
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleImageFileChange}
+      />
       <button
         type="button"
         className={styles.toolBtn}

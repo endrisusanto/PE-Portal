@@ -6,19 +6,15 @@ import {
   ChevronDown,
   ChevronUp,
   Printer,
-  Cpu,
-  Layers,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Zap,
+  Edit3,
 } from 'lucide-react';
+import { RichNotesViewer } from './RichNotesViewer';
 import styles from './TaskAnalystTechnicalReportCard.module.css';
 
-export const TaskAnalystTechnicalReportCard = ({ project = {} }) => {
+export const TaskAnalystTechnicalReportCard = ({ project = {}, onEdit }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // Safely extract metadata report if stored, otherwise default to user's exact report specs
+  // Safely extract metadata report if stored, default to empty so PIC can fill
   const meta = (() => {
     try {
       if (!project.metadata) return {};
@@ -31,17 +27,22 @@ export const TaskAnalystTechnicalReportCard = ({ project = {} }) => {
 
   const report = meta.technical_report || {};
 
-  // Report fields with graceful fallbacks to the provided SEIN MX Technical Report
-  const drafter = report.drafter || project.owner_name || 'Santono, Rifki Z';
-  const partLeader = report.part_leader || 'Aulia AM';
-  const groupLeader = report.group_leader || 'Hendra N.';
+  // Report fields with clean actual data from task/PIC, no fake hardcoded defaults
+  const drafter = report.drafter || project.owner_name || '—';
+  const partLeader = report.part_leader || '—';
+  const groupLeader = report.group_leader || '—';
 
-  const modelCode = report.model || project.model_id || 'SM-A276B';
-  const defectDate = report.defect_date || (project.created_at ? new Date(project.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'July, 20, 2026');
-  const problemTitle = report.problem || project.title || 'LTE B1,B2) TX POWER Fail';
-  const defectLocation = report.defect_location || 'Main Line Production (Block6-3 07)';
+  const modelCode = report.model || project.model_id || '—';
+  const defectDate = report.defect_date || (project.start_date ? project.start_date.substring(0, 10) : (project.created_at ? new Date(project.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'));
+  const problemTitle = report.problem || project.title || '—';
+  const defectLocation = report.defect_location || '—';
   const cnCode = report.cn || '—';
-  const defectQty = report.defect_qty || '14 ea';
+  const defectQty = report.defect_qty || '—';
+
+  // Detail Report: 2 textareas (Symptoms & Analysis + Conclusion & Countermeasure)
+  const symptomsAnalysis = report.symptoms_analysis || report.symptoms || '';
+  const conclusionCountermeasure = report.conclusion_countermeasure || report.countermeasure || '';
+  const hasDetailContent = !!(symptomsAnalysis.trim() || conclusionCountermeasure.trim());
 
   const handlePrint = (e) => {
     e.stopPropagation();
@@ -64,6 +65,21 @@ export const TaskAnalystTechnicalReportCard = ({ project = {} }) => {
         </div>
 
         <div className={styles.headerActions}>
+          {onEdit && (
+            <button
+              type="button"
+              className={styles.actionBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              title="Edit dan perbarui data Technical Report ini"
+            >
+              <Edit3 size={13} />
+              <span>Edit Laporan</span>
+            </button>
+          )}
+
           <button
             type="button"
             className={styles.actionBtn}
@@ -143,193 +159,45 @@ export const TaskAnalystTechnicalReportCard = ({ project = {} }) => {
               DETAIL REPORT
             </div>
 
-            {/* 2-Column Split: Symptoms/Analysis vs Investigation/Countermeasure */}
-            <div className={styles.detailGrid}>
-              {/* LEFT COLUMN: Symptoms & Technical Analysis */}
-              <div className={styles.detailColLeft}>
-                <div>
+            {/* Detail Report Rendering with Dynamic Column Layout */}
+            {!hasDetailContent ? (
+              <div className={styles.emptyDetailNotice}>
+                <span>Format Detail Report belum diisi oleh PIC. Klik tombol Edit Laporan untuk mengisi analisis gejala, tabel pengukuran, dan countermeasure.</span>
+                {onEdit && (
+                  <button type="button" className={styles.editReportBtn} onClick={onEdit}>
+                    <Edit3 size={13} />
+                    <span>Lengkapi Detail Report Sekarang</span>
+                  </button>
+                )}
+              </div>
+            ) : symptomsAnalysis.trim() && conclusionCountermeasure.trim() ? (
+              /* Both columns filled: 2-column split side-by-side */
+              <div className={styles.detailGrid}>
+                {/* Column 1: Symptoms & Technical Analysis */}
+                <div className={styles.detailColLeft}>
                   <h4 className={styles.subSectionTitle}>Symptoms & Analysis</h4>
-                  <ul className={styles.bulletList}>
-                    <li className={styles.bulletItem}>
-                      <strong>LTE B1,B2) TX POWER</strong> was happen in line production process.
-                    </li>
-                    <li className={styles.bulletItem}>
-                      <strong>Actual Defect :</strong>
-                      <div style={{ paddingLeft: '8px', marginTop: '4px' }}>
-                        <div>Value : <strong>20.37</strong></div>
-                        <div>Spec : <strong>[LSL] 20.66 ~ [USL] 22.66</strong></div>
-                      </div>
+                  <RichNotesViewer content={symptomsAnalysis} />
+                </div>
 
-                      {/* Mini Log Snapshot */}
-                      <table className={styles.miniMatrixTable} style={{ width: '100%', marginTop: '6px' }}>
-                        <thead>
-                          <tr>
-                            <th>Test Item</th>
-                            <th>Mode</th>
-                            <th>Value</th>
-                            <th>LSL ~ USL</th>
-                            <th>Judg.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td>TX_PWR_B1</td>
-                            <td>MAX_PRX</td>
-                            <td style={{ color: '#dc2626', fontWeight: 700 }}>20.37</td>
-                            <td>20.66 ~ 22.66</td>
-                            <td className={styles.statusNg}>FAIL</td>
-                          </tr>
-                          <tr>
-                            <td>TX_PWR_B2</td>
-                            <td>MAX_PRX</td>
-                            <td style={{ color: '#dc2626', fontWeight: 700 }}>20.41</td>
-                            <td>20.66 ~ 22.66</td>
-                            <td className={styles.statusNg}>FAIL</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </li>
-
-                    <li className={styles.bulletItem}>
-                      <strong>Swap MEA Front & Assy Main PBA</strong>
-                      <div style={{ marginTop: '2px', color: '#1e3a8a', fontWeight: 600 }}>
-                        ➔ The problem came from Assy Main PBA
-                      </div>
-
-                      {/* Swap Matrix Verification Table */}
-                      <table className={styles.miniMatrixTable} style={{ width: '100%', marginTop: '4px' }}>
-                        <thead>
-                          <tr>
-                            <th style={{ width: '38%', background: '#e2e8f0' }}></th>
-                            <th style={{ width: '31%' }}>MEA Front OK</th>
-                            <th style={{ width: '31%' }}>MEA Front NG</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td style={{ fontWeight: 700, background: '#f8fafc' }}>Assy PBA OK</td>
-                            <td className={styles.statusOk}>OK</td>
-                            <td className={styles.statusOk}>OK</td>
-                          </tr>
-                          <tr>
-                            <td style={{ fontWeight: 700, background: '#f8fafc' }}>Assy PBA NG</td>
-                            <td className={styles.statusNg}>NG</td>
-                            <td className={styles.statusNg}>NG</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </li>
-
-                    <li className={styles.bulletItem}>
-                      <strong>Check Assy Main PBA condition :</strong>
-                      <div style={{ paddingLeft: '4px', marginTop: '3px' }}>
-                        <div>➔ Not found abnormalities (missing material, damage, etc)</div>
-                        <div style={{ color: '#16a34a', fontWeight: 700 }}>
-                          ➔ Swap Material PAM IC (PAM1002) ➔ OK (samples 3/3 OK)
-                        </div>
-                      </div>
-
-                      {/* Visual PBA & Schematic Block Mockup */}
-                      <div className={styles.visualPreviewBox}>
-                        <div className={styles.pbaVisual} title="Main PBA Component Placement">
-                          <div style={{ fontSize: '9px', marginBottom: '4px', opacity: 0.8 }}>MAIN PBA TOP</div>
-                          <div className={styles.pbaHighlightBox}>
-                            PAM1002 [IC]
-                          </div>
-                          <div style={{ fontSize: '8px', marginTop: '4px', opacity: 0.7 }}>Power Amp Module</div>
-                        </div>
-
-                        <div className={styles.schematicVisual} title="Circuit Schematic Excerpt">
-                          <div style={{ color: '#2563eb', fontWeight: 700, borderBottom: '1px solid #cbd5e1', paddingBottom: '2px' }}>
-                            PAM1002 PINOUT
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', marginTop: '4px' }}>
-                            <div>1: RFOUT_LB1</div>
-                            <div>8: VCC1</div>
-                            <div>2: RFOUT_LB2</div>
-                            <div>9: VBAT</div>
-                            <div>3: RFOUT_LB3</div>
-                            <div>10: SCLK</div>
-                            <div>4: RFOUT_LB4</div>
-                            <div>11: SDATA</div>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  </ul>
+                {/* Column 2: Conclusion & Action Countermeasures */}
+                <div className={styles.detailColRight}>
+                  <h4 className={styles.subSectionTitle}>Conclusion & Action Countermeasure</h4>
+                  <RichNotesViewer content={conclusionCountermeasure} />
                 </div>
               </div>
-
-              {/* RIGHT COLUMN: Micro Inspection, Conclusion & Countermeasures */}
-              <div className={styles.detailColRight}>
-                {/* 1. Micro-Inspection LOT IC */}
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '11.5px', marginBottom: '4px' }}>
-                    ▪ Same LOT IC occurred to this issue.
-                  </div>
-
-                  <div className={styles.chipsContainer}>
-                    <div className={styles.icChipBox}>
-                      <div className={styles.icChipDot} />
-                      <div className={styles.icChipLine1}>0663-11S</div>
-                      <div className={styles.icChipLine2}>H0GH2545</div>
-                      <div className={styles.icQrCode}>[#1]</div>
-                    </div>
-                    <div className={styles.icChipBox}>
-                      <div className={styles.icChipDot} />
-                      <div className={styles.icChipLine1}>0663-11S</div>
-                      <div className={styles.icChipLine2}>H0GH2545</div>
-                      <div className={styles.icQrCode}>[#2]</div>
-                    </div>
-                    <div className={styles.icChipBox}>
-                      <div className={styles.icChipDot} />
-                      <div className={styles.icChipLine1}>0663-11S</div>
-                      <div className={styles.icChipLine2}>H0GH2545</div>
-                      <div className={styles.icQrCode}>[#3]</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Conclusion */}
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '11.5px', marginBottom: '4px' }}>
-                    ▪ Conclusion
-                  </div>
-                  <div style={{ paddingLeft: '8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    <div style={{ color: '#0f172a', fontWeight: 600 }}>
-                      ➔ The problem occurs is came from Assy MPBA
-                    </div>
-                    <div style={{ color: '#1e3a8a', fontWeight: 700 }}>
-                      ➔ Based on analysis, it’s related the PAM IC (PAM1002) after the new one can fixed.
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Action & Countermeasure */}
-                <div>
-                  <h4 className={styles.subSectionTitle}>Action & Countermeasure</h4>
-                  <ul className={styles.bulletList} style={{ gap: '4px' }}>
-                    <li className={styles.bulletItem}>
-                      Keep monitoring same problem with same case
-                    </li>
-                    <li className={styles.bulletItem}>
-                      Share this issue to related dept.
-                    </li>
-                    <li className={styles.bulletItem}>
-                      Need screening & separate defective IC
-                    </li>
-                    <li className={styles.bulletItem}>
-                      <strong>Feedback the PAM IC to the maker for further analysis.</strong>
-                      <div className={styles.countermeasureMeta}>
-                        <div><strong>Part number:</strong> 1201-004509</div>
-                        <div><strong>Description:</strong> IC-POWER AMP</div>
-                        <div><strong>Maker:</strong> SMMIC</div>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
+            ) : symptomsAnalysis.trim() ? (
+              /* Only Column 1 filled: Full width */
+              <div className={styles.detailColSingle}>
+                <h4 className={styles.subSectionTitle}>Symptoms & Analysis</h4>
+                <RichNotesViewer content={symptomsAnalysis} />
               </div>
-            </div>
+            ) : (
+              /* Only Column 2 filled: Full width */
+              <div className={styles.detailColSingle}>
+                <h4 className={styles.subSectionTitle}>Conclusion & Action Countermeasure</h4>
+                <RichNotesViewer content={conclusionCountermeasure} />
+              </div>
+            )}
           </div>
         </div>
       )}

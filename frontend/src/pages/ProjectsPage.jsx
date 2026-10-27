@@ -10,6 +10,8 @@ import {
   List,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   User,
   Users,
   Mail,
@@ -171,6 +173,20 @@ export const ProjectsPage = () => {
   const [editAttachments, setEditAttachments] = useState([]);
   const [uploadingEditAttachment, setUploadingEditAttachment] = useState(false);
   const editFileInputRef = useRef(null);
+
+  // Technical Report State for Edit Modal
+  const [editTechReportDrafter, setEditTechReportDrafter] = useState('');
+  const [editTechReportPartLeader, setEditTechReportPartLeader] = useState('');
+  const [editTechReportGroupLeader, setEditTechReportGroupLeader] = useState('');
+  const [editTechReportModel, setEditTechReportModel] = useState('');
+  const [editTechReportDefectDate, setEditTechReportDefectDate] = useState('');
+  const [editTechReportProblem, setEditTechReportProblem] = useState('');
+  const [editTechReportDefectLocation, setEditTechReportDefectLocation] = useState('');
+  const [editTechReportCN, setEditTechReportCN] = useState('');
+  const [editTechReportDefectQty, setEditTechReportDefectQty] = useState('');
+  const [editTechReportSymptoms, setEditTechReportSymptoms] = useState('');
+  const [editTechReportCountermeasure, setEditTechReportCountermeasure] = useState('');
+  const [isTechReportExpanded, setIsTechReportExpanded] = useState(true);
 
   // Detail Modal Quick Attachment State
   const [uploadingDetailAttachment, setUploadingDetailAttachment] = useState(false);
@@ -532,6 +548,20 @@ export const ProjectsPage = () => {
     }
     setEditAttachments(initialAttachments);
 
+    const techReport = meta.technical_report || {};
+    setEditTechReportDrafter(techReport.drafter || p.owner_name || user?.full_name || '');
+    setEditTechReportPartLeader(techReport.part_leader || '');
+    setEditTechReportGroupLeader(techReport.group_leader || '');
+    setEditTechReportModel(techReport.model || p.model_id || '');
+    setEditTechReportDefectDate(techReport.defect_date || (p.start_date ? p.start_date.substring(0, 10) : ''));
+    setEditTechReportProblem(techReport.problem || p.title || '');
+    setEditTechReportDefectLocation(techReport.defect_location || '');
+    setEditTechReportCN(techReport.cn || '');
+    setEditTechReportDefectQty(techReport.defect_qty || '');
+    setEditTechReportSymptoms(techReport.symptoms_analysis || techReport.symptoms || '');
+    setEditTechReportCountermeasure(techReport.conclusion_countermeasure || techReport.countermeasure || '');
+    setIsTechReportExpanded(true);
+
     setIsEditModalOpen(true);
   };
 
@@ -557,6 +587,19 @@ export const ProjectsPage = () => {
           is_external: !!u.is_external || String(u.id).startsWith('ext_'),
         })),
         assigned_pic_ids: picList.filter((u) => !u.is_external && u.id && !String(u.id).startsWith('ext_')).map((u) => u.id),
+        technical_report: {
+          drafter: editTechReportDrafter || undefined,
+          part_leader: editTechReportPartLeader || undefined,
+          group_leader: editTechReportGroupLeader || undefined,
+          model: editTechReportModel || undefined,
+          defect_date: editTechReportDefectDate || undefined,
+          problem: editTechReportProblem || undefined,
+          defect_location: editTechReportDefectLocation || undefined,
+          cn: editTechReportCN || undefined,
+          defect_qty: editTechReportDefectQty || undefined,
+          symptoms_analysis: editTechReportSymptoms || undefined,
+          conclusion_countermeasure: editTechReportCountermeasure || undefined,
+        },
       };
 
       const derivedStatus =
@@ -2415,6 +2458,279 @@ export const ProjectsPage = () => {
               />
             </div>
 
+            {/* OQC Technical Report Format Section */}
+            <div style={{
+              marginTop: '4px',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm, 6px)',
+              background: 'var(--color-bg-secondary, rgba(0,0,0,0.02))',
+              overflow: 'hidden',
+            }}>
+              <div
+                onClick={() => setIsTechReportExpanded((prev) => !prev)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'var(--color-bg-surface, var(--color-bg-primary))',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  borderBottom: isTechReportExpanded ? '1px solid var(--color-border)' : 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={15} color="var(--color-accent)" />
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                    Format OQC Technical Report (SEIN MX Product Engineering)
+                  </span>
+                  <span style={{
+                    fontSize: '10.5px',
+                    fontWeight: 600,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'rgba(37, 99, 235, 0.1)',
+                    color: '#2563eb',
+                    border: '1px solid rgba(37, 99, 235, 0.25)',
+                  }}>
+                    Standard ISO/OQC
+                  </span>
+                </div>
+                <div style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
+                  {isTechReportExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
+              </div>
+
+              {isTechReportExpanded && (
+                <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Approval / Sign-Off Header */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+                      1. Approval &amp; Sign-Off Header
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Drafter</label>
+                        <input
+                          type="text"
+                          value={editTechReportDrafter}
+                          onChange={(e) => setEditTechReportDrafter(e.target.value)}
+                          placeholder="Nama Drafter (Engineer)"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Part Leader</label>
+                        <input
+                          type="text"
+                          value={editTechReportPartLeader}
+                          onChange={(e) => setEditTechReportPartLeader(e.target.value)}
+                          placeholder="Nama Part Leader"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Group Leader</label>
+                        <input
+                          type="text"
+                          value={editTechReportGroupLeader}
+                          onChange={(e) => setEditTechReportGroupLeader(e.target.value)}
+                          placeholder="Nama Group Leader"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Problem Information Grid */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+                      2. Problem Information
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Model</label>
+                        <input
+                          type="text"
+                          value={editTechReportModel}
+                          onChange={(e) => setEditTechReportModel(e.target.value)}
+                          placeholder="misal: SM-A276B"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Defect Date</label>
+                        <input
+                          type="date"
+                          value={editTechReportDefectDate}
+                          onChange={(e) => setEditTechReportDefectDate(e.target.value)}
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Defect Qty</label>
+                        <input
+                          type="text"
+                          value={editTechReportDefectQty}
+                          onChange={(e) => setEditTechReportDefectQty(e.target.value)}
+                          placeholder="misal: 14 ea"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Problem / Gejala Utama</label>
+                        <input
+                          type="text"
+                          value={editTechReportProblem}
+                          onChange={(e) => setEditTechReportProblem(e.target.value)}
+                          placeholder="misal: LTE B1,B2 TX POWER Fail"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Defect Location</label>
+                        <input
+                          type="text"
+                          value={editTechReportDefectLocation}
+                          onChange={(e) => setEditTechReportDefectLocation(e.target.value)}
+                          placeholder="misal: Main Line Block6-3"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>CN</label>
+                        <input
+                          type="text"
+                          value={editTechReportCN}
+                          onChange={(e) => setEditTechReportCN(e.target.value)}
+                          placeholder="misal: CN-2026-001"
+                          style={{
+                            height: '34px',
+                            padding: '0 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-primary)',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Detail Report (2 Kolom Textarea: Format Tabel & Gambar) */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+                      3. Detail Report (2 Kolom Textarea: Format Tabel &amp; Gambar)
+                    </label>
+
+                    {/* Textarea 1: Symptoms & Technical Analysis */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                          Kolom 1: Symptoms &amp; Analysis
+                        </label>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                          Gunakan toolbar untuk sisipkan Tabel &amp; Unggah Foto PBA
+                        </span>
+                      </div>
+                      <FormattingTextarea
+                        value={editTechReportSymptoms}
+                        onChange={(e) => setEditTechReportSymptoms(e.target.value)}
+                        placeholder="Tuliskan analisis gejala kegagalan, swap test, atau sisipkan tabel pengukuran dan unggah foto lampiran..."
+                        minHeight="140px"
+                      />
+                    </div>
+
+                    {/* Textarea 2: Conclusion & Action Countermeasures */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                          Kolom 2: Conclusion &amp; Action Countermeasure
+                        </label>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                          Gunakan toolbar untuk format poin, tabel PIC/Part number, dan bukti
+                        </span>
+                      </div>
+                      <FormattingTextarea
+                        value={editTechReportCountermeasure}
+                        onChange={(e) => setEditTechReportCountermeasure(e.target.value)}
+                        placeholder="Tuliskan kesimpulan investigasi, feedback ke maker/vendor, dan action plan pencegahan..."
+                        minHeight="140px"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Lampiran / Dokumen Investigasi */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2681,7 +2997,13 @@ export const ProjectsPage = () => {
             </div>
 
             {/* SEIN MX Technical Report Card (OQC Format) */}
-            <TaskAnalystTechnicalReportCard project={viewingProject} />
+            <TaskAnalystTechnicalReportCard
+              project={viewingProject}
+              onEdit={() => {
+                setIsViewModalOpen(false);
+                openEditModal(viewingProject);
+              }}
+            />
 
             {/* Catatan Analisis / Investigasi Card */}
             <div className={styles.viewNotesCard}>
