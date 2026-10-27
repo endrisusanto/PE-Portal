@@ -1305,7 +1305,7 @@
     "start_compress_all": "Start Compression ({{count}} Documents)",
     "pdf_compress_dropzone_title": "Drag & drop PDF documents here, or ",
     "click_to_select": "click to select",
-    "pdf_compress_dropzone_desc": "Processes PDF stream compression locally using Ghostscript engine.",
+    "pdf_compress_dropzone_desc": "Processes PDF stream compression locally using Python PDF engine.",
     "original_size": "Original Size",
     "saved_percent": "Saved {{percent}}%",
     "failed_process": "Processing failed",

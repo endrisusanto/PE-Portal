@@ -570,8 +570,8 @@ const DocumentCompressTab = () => {
         errorMessage: null,
       };
     } catch (err) {
-      console.warn('Backend ghostscript compression error:', err);
-      let errorMsg = 'Ghostscript gagal memproses file atau file terproteksi password.';
+      console.warn('Backend PDF compression error:', err);
+      let errorMsg = 'Gagal memproses kompresi PDF atau file terproteksi password.';
       if (err.response?.data) {
         if (err.response.data instanceof Blob) {
           try {
@@ -696,7 +696,7 @@ const DocumentCompressTab = () => {
             {t('tools.pdf_compress_dropzone_title', 'Tarik & Lepas dokumen PDF di sini, atau ')}<span style={{ color: 'var(--color-accent)' }}>{t('tools.click_to_select', 'klik untuk memilih')}</span>
           </p>
           <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
-            {t('tools.pdf_compress_dropzone_desc', 'Memproses kompresi stream dokumen PDF secara lokal menggunakan Ghostscript engine.')}
+            {t('tools.pdf_compress_dropzone_desc', 'Memproses kompresi stream dokumen PDF secara lokal menggunakan Python PDF engine.')}
           </p>
         </div>
         <input

@@ -1305,7 +1305,7 @@
     "start_compress_all": "압축 시작 ({{count}}개 문서)",
     "pdf_compress_dropzone_title": "여기로 PDF 문서를 드래그 앤 드롭하거나 ",
     "click_to_select": "클릭하여 선택하세요",
-    "pdf_compress_dropzone_desc": "Ghostscript 엔진을 사용하여 로컬에서 안전하게 PDF 스트림 압축을 처리합니다.",
+    "pdf_compress_dropzone_desc": "Python PDF 엔진을 사용하여 로컬에서 안전하게 PDF 스트림 압축을 처리합니다.",
     "original_size": "원본 크기",
     "saved_percent": "{{percent}}% 절감",
     "failed_process": "처리 실패",

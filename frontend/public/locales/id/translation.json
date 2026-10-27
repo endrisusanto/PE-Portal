@@ -1305,7 +1305,7 @@
     "start_compress_all": "Mulai Kompresi ({{count}} Dokumen)",
     "pdf_compress_dropzone_title": "Tarik & Lepas dokumen PDF di sini, atau ",
     "click_to_select": "klik untuk memilih",
-    "pdf_compress_dropzone_desc": "Memproses kompresi stream dokumen PDF secara lokal menggunakan Ghostscript engine.",
+    "pdf_compress_dropzone_desc": "Memproses kompresi stream dokumen PDF secara lokal menggunakan Python PDF engine.",
     "original_size": "Ukuran Asli",
     "saved_percent": "Hemat {{percent}}%",
     "failed_process": "Gagal memproses",
