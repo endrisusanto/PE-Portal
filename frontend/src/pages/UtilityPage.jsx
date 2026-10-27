@@ -36,6 +36,9 @@ import {
   Presentation,
   FileSpreadsheet,
   Search,
+  Bot,
+  Send,
+  MessageSquare,
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import api from '../api/client';
@@ -3254,6 +3257,7 @@ const VideoCompressTab = () => {
 // ponytail: Clean, lightweight, modular PPTX auto-summary with dual-engine parser
 const PPTXAutoSummaryTab = () => {
   const { t } = useTranslation();
+  const [subTab, setSubTab] = useState('table'); // 'table' | 'ai-chat'
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -3265,6 +3269,26 @@ const PPTXAutoSummaryTab = () => {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef(null);
+
+  // AI Chatbox states
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: 'Halo! Saya asisten AI teknis SEIN Production Engineering.\n\nUnggah berkas **.pptx** di tab **File & Tabel Rekap** untuk mengekstrak data laporan defect, lalu tanyakan analisis perbandingan model, kesimpulan (conclusion), maupun rekomendasi countermeasure di sini.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    },
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const chatMessagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (subTab === 'ai-chat') {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, subTab]);
 
   const formatFileSize = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -3358,6 +3382,17 @@ const PPTXAutoSummaryTab = () => {
         setDownloadUrl(data.download_url || '');
         setExcelFileName(data.excel_file || 'Summary_Report.xlsx');
         setFiles((prev) => prev.map((f) => ({ ...f, status: 'done' })));
+
+        // Update welcome message in AI chatbox with extracted context notification
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: Math.random().toString(36).substring(2, 9),
+            role: 'assistant',
+            content: `✅ **Ekstraksi Berhasil!** Sebanyak **${data.items.length} berkas PowerPoint** telah siap dianalisis.\n\nKlik saran prompt di bawah atau tanyakan apapun mengenai ringkasan problem, perbandingan defect, dan countermeasure-nya.`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
       } else {
         setErrorMsg(data.error || 'Gagal membaca format data hasil ekstraksi.');
         setFiles((prev) => prev.map((f) => ({ ...f, status: 'error' })));
@@ -3453,83 +3488,738 @@ const PPTXAutoSummaryTab = () => {
     return Array.from(s);
   }, [results]);
 
+  // AI Chat Handler
+  const handleSendChatMessage = async (textToSend) => {
+    const messageText = (textToSend || chatInput).trim();
+    if (!messageText || isAiThinking) return;
+
+    const userMessage = {
+      id: Math.random().toString(36).substring(2, 9),
+      role: 'user',
+      content: messageText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setChatMessages((prev) => [...prev, userMessage]);
+    setChatInput('');
+    setIsAiThinking(true);
+
+    try {
+      // Build context summary from extracted results if available
+      let systemPrompt = `Anda adalah asisten AI senior spesialis Production Engineering (PE) di PT Samsung Electronics Indonesia (SEIN). 
+Tugas Anda adalah menganalisis, merangkum, dan memberikan rekomendasi teknis berdasarkan data laporan PowerPoint yang diunggah.
+Jawab dengan format terstruktur, jelas, profesional, menggunakan istilah teknis manufaktur elektronik (Model, Problem, CN, Defect Date, Symptom/Analysis/Conclusion, Action & Countermeasure).`;
+
+      if (results.length > 0) {
+        const formattedContext = results
+          .map(
+            (r, i) =>
+              `[Laporan #${i + 1}]\n- File: ${r['File Name']}\n- Model: ${r['Model'] || '-'}\n- Problem: ${r['Problem'] || '-'}\n- CN: ${r['CN'] || '-'}\n- Defect Date: ${r['Defect Date'] || '-'}\n- Location: ${r['Defect Location'] || '-'}\n- Qty: ${r['Defect Qty'] || '-'}\n- Symptom/Analysis/Conclusion: ${r['Symptom/Analysis/Conclusion'] || '-'}\n- Action & Countermeasure: ${r['Action & Countermeasure'] || '-'}`
+          )
+          .join('\n\n---\n\n');
+
+        systemPrompt += `\n\nBERIKUT ADALAH DATA HASIL EKSTRAKSI DARI ${results.length} BERKAS POWERPOINT:\n${formattedContext}\n\nGunakan data di atas sebagai referensi utama dalam menjawab pertanyaan user.`;
+      }
+
+      // Prepare payload for backend /ai/chat
+      const historyPayload = [
+        { role: 'system', content: systemPrompt },
+        ...chatMessages
+          .filter((m) => m.id !== 'welcome')
+          .slice(-6)
+          .map((m) => ({ role: m.role, content: m.content })),
+        { role: 'user', content: messageText },
+      ];
+
+      const res = await api.post('/ai/chat', { messages: historyPayload });
+      const reply = res.data?.reply || 'Tidak ada balasan dari AI.';
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).substring(2, 9),
+          role: 'assistant',
+          content: reply,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch (err) {
+      console.warn('AI Chat Error:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Gagal memanggil endpoint AI.';
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).substring(2, 9),
+          role: 'assistant',
+          content: `⚠️ **Gagal memanggil AI:** ${errMsg}\n\nPastikan koneksi AI / LM Studio aktif di pengaturan server PE-Portal.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
+      setIsAiThinking(false);
+    }
+  };
+
+  const handleCopyMessage = (id, text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedMsgId(id);
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    });
+  };
+
+  const promptSuggestions = [
+    { label: '📊 Ringkasan Seluruh Defect', prompt: 'Buatkan ringkasan komprehensif mengenai seluruh defect dan problem yang ditemukan pada berkas PowerPoint yang diunggah.' },
+    { label: '🔍 Analisis Model & Frekuensi', prompt: 'Model mana saja yang mengalami defect? Analisis frekuensi kejadian dan tingkat keparahannya berdasarkan data laporan.' },
+    { label: '🛠️ Daftar Action & Countermeasure', prompt: 'Rangkum seluruh Action & Countermeasure yang telah direncanakan untuk masing-masing problem dalam bentuk daftar poin tindakan prioritas.' },
+    { label: '📋 Format Executive Summary', prompt: 'Buatkan draft Executive Summary 1 halaman formal untuk dilaporkan kepada manajemen/pimpinan mengenai status investigasi defect ini.' },
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Dropzone Area */}
-      <div
-        className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ''}`}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        style={{ cursor: 'pointer' }}
-      >
-        <Presentation size={48} className={styles.dropzoneIcon} />
-        <div>
-          <h3 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700 }}>
-            Tarik &amp; Lepaskan berkas PowerPoint (.pptx) ke sini
-          </h3>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            atau klik untuk memilih multiple berkas PowerPoint dari perangkat Anda
-          </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Sub-tab Switcher Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '10px',
+        borderBottom: '1px solid var(--color-border)',
+        paddingBottom: '12px',
+      }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setSubTab('table')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: subTab === 'table' ? '#1F4E78' : 'var(--color-bg-secondary)',
+              color: subTab === 'table' ? '#ffffff' : 'var(--color-text-secondary)',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <FileSpreadsheet size={16} />
+            <span>File &amp; Tabel Rekapitulasi</span>
+            {files.length > 0 && (
+              <span style={{
+                fontSize: '11px',
+                padding: '1px 6px',
+                borderRadius: '10px',
+                backgroundColor: subTab === 'table' ? 'rgba(255,255,255,0.25)' : 'var(--color-bg-primary)',
+                color: subTab === 'table' ? '#ffffff' : 'var(--color-text-primary)',
+              }}>
+                {results.length > 0 ? `${results.length} diekstrak` : `${files.length} siap`}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab('ai-chat')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: subTab === 'ai-chat' ? 'var(--color-accent)' : 'var(--color-bg-secondary)',
+              color: subTab === 'ai-chat' ? '#ffffff' : 'var(--color-text-secondary)',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Bot size={16} />
+            <span>AI Summary Chatbox Interaktif</span>
+            {results.length > 0 && (
+              <span style={{
+                fontSize: '10.5px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                backgroundColor: '#10b981',
+                color: '#ffffff',
+                fontWeight: 700,
+              }}>
+                Ready
+              </span>
+            )}
+          </button>
         </div>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', fontWeight: 600 }}>
-            PowerPoint (.pptx)
-          </span>
-          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', fontWeight: 600 }}>
-            Multi-file Batch
-          </span>
-          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', fontWeight: 600 }}>
-            Auto Extraction
-          </span>
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-          multiple
-          style={{ display: 'none' }}
-          onChange={handleFileInputChange}
-        />
+
+        {results.length > 0 && subTab === 'table' && (
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={Bot}
+            onClick={() => setSubTab('ai-chat')}
+            style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}
+          >
+            Tanya AI tentang data ini ➔
+          </Button>
+        )}
       </div>
 
-      {/* Error Alert */}
-      {errorMsg && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: '12px 16px',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid #ef4444',
-          borderRadius: '8px',
-          color: '#ef4444',
-          fontSize: '13px',
-        }}>
-          <AlertCircle size={18} style={{ flexShrink: 0 }} />
-          <span>{errorMsg}</span>
+      {/* ================================================================= */}
+      {/* TAB 1: FILE & TABEL REKAPITULASI                                  */}
+      {/* ================================================================= */}
+      {subTab === 'table' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Dropzone Area */}
+          <div
+            className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ''}`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            style={{ cursor: 'pointer' }}
+          >
+            <Presentation size={48} className={styles.dropzoneIcon} />
+            <div>
+              <h3 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700 }}>
+                Tarik &amp; Lepaskan berkas PowerPoint (.pptx) ke sini
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                atau klik untuk memilih multiple berkas PowerPoint dari perangkat Anda
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', fontWeight: 600 }}>
+                PowerPoint (.pptx)
+              </span>
+              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', fontWeight: 600 }}>
+                Multi-file Batch
+              </span>
+              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', fontWeight: 600 }}>
+                Auto Extraction
+              </span>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleFileInputChange}
+            />
+          </div>
+
+          {/* Error Alert */}
+          {errorMsg && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px 16px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid #ef4444',
+              borderRadius: '8px',
+              color: '#ef4444',
+              fontSize: '13px',
+            }}>
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Queued Files List */}
+          {files.length > 0 && (
+            <div style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <FileStack size={18} color="var(--color-accent)" />
+                  <strong style={{ fontSize: '14px' }}>
+                    Antrean Berkas ({files.length} file dipilih)
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={handleClearAll}
+                    disabled={isExecuting}
+                  >
+                    Kosongkan
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={isExecuting ? RefreshCw : Sparkles}
+                    onClick={handleExecuteSummary}
+                    disabled={isExecuting}
+                    style={{
+                      backgroundColor: '#1F4E78',
+                      borderColor: '#1F4E78',
+                      color: '#ffffff',
+                    }}
+                  >
+                    {isExecuting ? 'Mengekstrak via Python...' : '⚡ Eksekusi Auto Summary (Python)'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Files Chips / Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: '8px',
+                maxHeight: '190px',
+                overflowY: 'auto',
+                paddingRight: '4px',
+              }}>
+                {files.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      backgroundColor: 'var(--color-bg-primary)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                      <Presentation size={15} color="#e05780" style={{ flexShrink: 0 }} />
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={item.name}>
+                          {item.name}
+                        </div>
+                        <span style={{ fontSize: '10.5px', color: 'var(--color-text-secondary)' }}>
+                          {formatFileSize(item.size)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {item.status === 'processing' && (
+                        <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
+                      )}
+                      {item.status === 'done' && <CheckCircle2 size={14} color="#10b981" />}
+                      {item.status === 'error' && <AlertCircle size={14} color="#ef4444" />}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFile(item.id);
+                        }}
+                        disabled={isExecuting}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-text-muted)',
+                          cursor: 'pointer',
+                          padding: '2px',
+                        }}
+                        title="Hapus berkas ini"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Results Section */}
+          {results.length > 0 && (
+            <div style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '12px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}>
+              {/* KPI Summary Cards */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px',
+              }}>
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Total Berkas PPTX
+                  </span>
+                  <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: 'var(--color-text-primary)' }}>
+                    {results.length}
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Model Teridentifikasi
+                  </span>
+                  <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: '#38bdf8' }}>
+                    {uniqueModels.length > 0 ? uniqueModels.length : '-'}
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Status Pemrosesan
+                  </span>
+                  <div style={{ fontSize: '14px', fontWeight: 700, marginTop: '8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle2 size={16} /> 100% Selesai
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(31, 78, 120, 0.1)',
+                  border: '1px solid #1F4E78',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}>
+                  <span style={{ fontSize: '11px', color: '#1F4E78', fontWeight: 700 }}>
+                    Hasil Excel Terformat SEIN
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDownloadExcel}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      backgroundColor: '#1F4E78',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'opacity 0.2s',
+                    }}
+                  >
+                    <Download size={14} />
+                    <span>Unduh Excel (.xlsx)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Table Toolbar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                paddingTop: '6px',
+              }}>
+                {/* Search Input */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                  width: '100%',
+                  maxWidth: '320px',
+                }}>
+                  <Search size={15} color="var(--color-text-muted)" />
+                  <input
+                    type="text"
+                    placeholder="Cari Model, Problem, CN, Lokasi..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '12px',
+                      outline: 'none',
+                      width: '100%',
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Export & Copy Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={Bot}
+                    onClick={() => setSubTab('ai-chat')}
+                    style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}
+                  >
+                    Tanya AI
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={copied ? Check : Copy}
+                    onClick={handleCopyTable}
+                    title="Salin seluruh baris tabel ke clipboard"
+                  >
+                    {copied ? 'Tersalin!' : 'Copy Tabel'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={FileSpreadsheet}
+                    onClick={handleExportCSV}
+                    title="Download dalam format CSV"
+                  >
+                    Unduh CSV
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={Download}
+                    onClick={handleDownloadExcel}
+                    style={{
+                      backgroundColor: '#1F4E78',
+                      borderColor: '#1F4E78',
+                      color: '#ffffff',
+                    }}
+                    title="Download dalam format Excel (.xlsx)"
+                  >
+                    Download Excel (.xlsx)
+                  </Button>
+                </div>
+              </div>
+
+              {/* Data Table */}
+              <div style={{
+                overflowX: 'auto',
+                border: '1px solid var(--color-border)',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-bg-primary)',
+                maxHeight: '520px',
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{
+                      backgroundColor: '#1F4E78',
+                      color: '#ffffff',
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 2,
+                    }}>
+                      <th style={{ padding: '10px 12px', width: '38px', textAlign: 'center' }}>#</th>
+                      <th style={{ padding: '10px 12px', minWidth: '150px' }}>File Name</th>
+                      <th style={{ padding: '10px 12px', minWidth: '110px' }}>Model</th>
+                      <th style={{ padding: '10px 12px', minWidth: '140px' }}>Problem</th>
+                      <th style={{ padding: '10px 12px', minWidth: '110px' }}>CN</th>
+                      <th style={{ padding: '10px 12px', minWidth: '100px' }}>Defect Date</th>
+                      <th style={{ padding: '10px 12px', minWidth: '120px' }}>Location</th>
+                      <th style={{ padding: '10px 12px', minWidth: '80px', textAlign: 'center' }}>Qty</th>
+                      <th style={{ padding: '10px 12px', minWidth: '220px' }}>Symptom / Conclusion</th>
+                      <th style={{ padding: '10px 12px', minWidth: '220px' }}>Action &amp; Countermeasure</th>
+                      <th style={{ padding: '10px 12px', width: '50px', textAlign: 'center' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredResults.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                          Tidak ada data yang cocok dengan pencarian "{searchQuery}"
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredResults.map((row, idx) => (
+                        <tr
+                          key={idx}
+                          style={{
+                            borderBottom: '1px solid var(--color-border)',
+                            backgroundColor: idx % 2 === 0 ? 'var(--color-bg-primary)' : 'rgba(255, 255, 255, 0.02)',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.06)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'var(--color-bg-primary)' : 'rgba(255, 255, 255, 0.02)')}
+                        >
+                          <td style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                            {idx + 1}
+                          </td>
+                          <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Presentation size={13} color="#e05780" style={{ flexShrink: 0 }} />
+                              <span style={{ wordBreak: 'break-word' }}>{row['File Name']}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {row['Model'] ? (
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                                color: '#38bdf8',
+                                fontWeight: 700,
+                                fontSize: '11px',
+                              }}>
+                                {row['Model']}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', fontWeight: 500 }}>
+                            {row['Problem'] || <span style={{ color: 'var(--color-text-muted)' }}>-</span>}
+                          </td>
+                          <td style={{ padding: '10px 12px', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>
+                            {row['CN'] || '-'}
+                          </td>
+                          <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
+                            {row['Defect Date'] || '-'}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {row['Defect Location'] || <span style={{ color: 'var(--color-text-muted)' }}>-</span>}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600 }}>
+                            {row['Defect Qty'] || '-'}
+                          </td>
+                          <td style={{ padding: '10px 12px', maxWidth: '240px' }}>
+                            <div style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              lineHeight: 1.4,
+                              color: 'var(--color-text-secondary)',
+                              whiteSpace: 'pre-wrap',
+                            }}>
+                              {row['Symptom/Analysis/Conclusion'] || '-'}
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 12px', maxWidth: '240px' }}>
+                            <div style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              lineHeight: 1.4,
+                              color: 'var(--color-text-secondary)',
+                              whiteSpace: 'pre-wrap',
+                            }}>
+                              {row['Action & Countermeasure'] || '-'}
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDetail(row)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--color-accent)',
+                                cursor: 'pointer',
+                                padding: '4px',
+                              }}
+                              title="Lihat detail lengkap baris ini"
+                            >
+                              <Eye size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Queued Files List */}
-      {files.length > 0 && (
+      {/* ================================================================= */}
+      {/* TAB 2: AI SUMMARY CHATBOX INTERAKTIF                               */}
+      {/* ================================================================= */}
+      {subTab === 'ai-chat' && (
         <div style={{
+          display: 'flex',
+          flexDirection: 'column',
           backgroundColor: 'var(--color-bg-secondary)',
           border: '1px solid var(--color-border)',
           borderRadius: '12px',
-          padding: '16px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
+          overflow: 'hidden',
+          minHeight: '560px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          {/* Header Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            backgroundColor: 'var(--color-bg-primary)',
+            borderBottom: '1px solid var(--color-border)',
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <FileStack size={18} color="var(--color-accent)" />
-              <strong style={{ fontSize: '14px' }}>
-                Antrean Berkas ({files.length} file dipilih)
-              </strong>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#38bdf8',
+              }}>
+                <Bot size={18} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-text-primary)' }}>
+                  PE-Portal AI Assistant — Analisis Laporan PPTX
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                  {results.length > 0
+                    ? `Context Aktif: ${results.length} berkas PPTX (${uniqueModels.join(', ') || 'Model terdeteksi'})`
+                    : 'Belum ada data file yang diekstrak. Anda dapat bertanya umum atau unggah PPTX di tab sebelah.'}
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3537,411 +4227,211 @@ const PPTXAutoSummaryTab = () => {
                 variant="secondary"
                 size="sm"
                 icon={Trash2}
-                onClick={handleClearAll}
-                disabled={isExecuting}
+                onClick={() =>
+                  setChatMessages([
+                    {
+                      id: 'welcome',
+                      role: 'assistant',
+                      content: 'Riwayat obrolan telah dibersihkan. Silakan tanyakan hal baru seputar laporan PPTX.',
+                      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    },
+                  ])
+                }
               >
-                Kosongkan
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={isExecuting ? RefreshCw : Sparkles}
-                onClick={handleExecuteSummary}
-                disabled={isExecuting}
-                style={{
-                  backgroundColor: '#1F4E78',
-                  borderColor: '#1F4E78',
-                  color: '#ffffff',
-                }}
-              >
-                {isExecuting ? 'Mengekstrak via Python...' : '⚡ Eksekusi Auto Summary (Python)'}
+                Reset Chat
               </Button>
             </div>
           </div>
 
-          {/* Files Chips / Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-            gap: '8px',
-            maxHeight: '190px',
-            overflowY: 'auto',
-            paddingRight: '4px',
-          }}>
-            {files.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--color-bg-primary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                  <Presentation size={15} color="#e05780" style={{ flexShrink: 0 }} />
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={item.name}>
-                      {item.name}
-                    </div>
-                    <span style={{ fontSize: '10.5px', color: 'var(--color-text-secondary)' }}>
-                      {formatFileSize(item.size)}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {item.status === 'processing' && (
-                    <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
-                  )}
-                  {item.status === 'done' && <CheckCircle2 size={14} color="#10b981" />}
-                  {item.status === 'error' && <AlertCircle size={14} color="#ef4444" />}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveFile(item.id);
-                    }}
-                    disabled={isExecuting}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-text-muted)',
-                      cursor: 'pointer',
-                      padding: '2px',
-                    }}
-                    title="Hapus berkas ini"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Results Section */}
-      {results.length > 0 && (
-        <div style={{
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '12px',
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}>
-          {/* KPI Summary Cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '12px',
-          }}>
-            <div style={{
-              padding: '14px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--color-bg-primary)',
-              border: '1px solid var(--color-border)',
-            }}>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
-                Total Berkas PPTX
-              </span>
-              <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: 'var(--color-text-primary)' }}>
-                {results.length}
-              </div>
-            </div>
-
-            <div style={{
-              padding: '14px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--color-bg-primary)',
-              border: '1px solid var(--color-border)',
-            }}>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
-                Model Teridentifikasi
-              </span>
-              <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: '#38bdf8' }}>
-                {uniqueModels.length > 0 ? uniqueModels.length : '-'}
-              </div>
-            </div>
-
-            <div style={{
-              padding: '14px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--color-bg-primary)',
-              border: '1px solid var(--color-border)',
-            }}>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
-                Status Pemrosesan
-              </span>
-              <div style={{ fontSize: '14px', fontWeight: 700, marginTop: '8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle2 size={16} /> 100% Selesai
-              </div>
-            </div>
-
-            <div style={{
-              padding: '14px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(31, 78, 120, 0.1)',
-              border: '1px solid #1F4E78',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              gap: '6px',
-            }}>
-              <span style={{ fontSize: '11px', color: '#1F4E78', fontWeight: 700 }}>
-                Hasil Excel Terformat SEIN
-              </span>
-              <button
-                type="button"
-                onClick={handleDownloadExcel}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '7px 12px',
-                  borderRadius: '6px',
-                  backgroundColor: '#1F4E78',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'opacity 0.2s',
-                }}
-              >
-                <Download size={14} />
-                <span>Unduh Excel (.xlsx)</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Table Toolbar */}
+          {/* Quick Prompt Chips */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            paddingTop: '6px',
+            gap: '8px',
+            padding: '10px 18px',
+            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+            borderBottom: '1px solid var(--color-border)',
+            overflowX: 'auto',
           }}>
-            {/* Search Input */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--color-bg-primary)',
-              border: '1px solid var(--color-border)',
-              width: '100%',
-              maxWidth: '320px',
-            }}>
-              <Search size={15} color="var(--color-text-muted)" />
-              <input
-                type="text"
-                placeholder="Cari Model, Problem, CN, Lokasi..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+              Saran Cepat:
+            </span>
+            {promptSuggestions.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSendChatMessage(item.prompt)}
+                disabled={isAiThinking}
                 style={{
-                  border: 'none',
-                  background: 'transparent',
+                  padding: '5px 10px',
+                  borderRadius: '16px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
                   color: 'var(--color-text-primary)',
-                  fontSize: '12px',
-                  outline: 'none',
-                  width: '100%',
+                  fontSize: '11.5px',
+                  fontWeight: 500,
+                  cursor: isAiThinking ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
                 }}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Export & Copy Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={copied ? Check : Copy}
-                onClick={handleCopyTable}
-                title="Salin seluruh baris tabel ke clipboard (bisa langsung di-paste ke Excel / Teams)"
-              >
-                {copied ? 'Tersalin!' : 'Copy Tabel'}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={FileSpreadsheet}
-                onClick={handleExportCSV}
-                title="Download dalam format CSV"
-              >
-                Unduh CSV
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={Download}
-                onClick={handleDownloadExcel}
-                style={{
-                  backgroundColor: '#1F4E78',
-                  borderColor: '#1F4E78',
-                  color: '#ffffff',
+                onMouseEnter={(e) => {
+                  if (!isAiThinking) e.currentTarget.style.borderColor = 'var(--color-accent)';
                 }}
-                title="Download dalam format Excel (.xlsx) dengan styling warna header dan tabel"
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-border)';
+                }}
               >
-                Download Excel (.xlsx)
-              </Button>
-            </div>
+                {item.label}
+              </button>
+            ))}
           </div>
 
-          {/* Data Table */}
+          {/* Chat Messages Flow */}
           <div style={{
-            overflowX: 'auto',
-            border: '1px solid var(--color-border)',
-            borderRadius: '8px',
-            backgroundColor: 'var(--color-bg-primary)',
-            maxHeight: '520px',
+            flex: 1,
+            padding: '18px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            overflowY: 'auto',
+            maxHeight: '440px',
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{
-                  backgroundColor: '#1F4E78',
-                  color: '#ffffff',
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 2,
-                }}>
-                  <th style={{ padding: '10px 12px', width: '38px', textAlign: 'center' }}>#</th>
-                  <th style={{ padding: '10px 12px', minWidth: '150px' }}>File Name</th>
-                  <th style={{ padding: '10px 12px', minWidth: '110px' }}>Model</th>
-                  <th style={{ padding: '10px 12px', minWidth: '140px' }}>Problem</th>
-                  <th style={{ padding: '10px 12px', minWidth: '110px' }}>CN</th>
-                  <th style={{ padding: '10px 12px', minWidth: '100px' }}>Defect Date</th>
-                  <th style={{ padding: '10px 12px', minWidth: '120px' }}>Location</th>
-                  <th style={{ padding: '10px 12px', minWidth: '80px', textAlign: 'center' }}>Qty</th>
-                  <th style={{ padding: '10px 12px', minWidth: '220px' }}>Symptom / Conclusion</th>
-                  <th style={{ padding: '10px 12px', minWidth: '220px' }}>Action &amp; Countermeasure</th>
-                  <th style={{ padding: '10px 12px', width: '50px', textAlign: 'center' }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredResults.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                      Tidak ada data yang cocok dengan pencarian "{searchQuery}"
-                    </td>
-                  </tr>
-                ) : (
-                  filteredResults.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      style={{
-                        borderBottom: '1px solid var(--color-border)',
-                        backgroundColor: idx % 2 === 0 ? 'var(--color-bg-primary)' : 'rgba(255, 255, 255, 0.02)',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.06)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'var(--color-bg-primary)' : 'rgba(255, 255, 255, 0.02)')}
-                    >
-                      <td style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                        {idx + 1}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Presentation size={13} color="#e05780" style={{ flexShrink: 0 }} />
-                          <span style={{ wordBreak: 'break-word' }}>{row['File Name']}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        {row['Model'] ? (
-                          <span style={{
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                            color: '#38bdf8',
-                            fontWeight: 700,
-                            fontSize: '11px',
-                          }}>
-                            {row['Model']}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-text-muted)' }}>-</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontWeight: 500 }}>
-                        {row['Problem'] || <span style={{ color: 'var(--color-text-muted)' }}>-</span>}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>
-                        {row['CN'] || '-'}
-                      </td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
-                        {row['Defect Date'] || '-'}
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        {row['Defect Location'] || <span style={{ color: 'var(--color-text-muted)' }}>-</span>}
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600 }}>
-                        {row['Defect Qty'] || '-'}
-                      </td>
-                      <td style={{ padding: '10px 12px', maxWidth: '240px' }}>
-                        <div style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          lineHeight: 1.4,
-                          color: 'var(--color-text-secondary)',
-                          whiteSpace: 'pre-wrap',
-                        }}>
-                          {row['Symptom/Analysis/Conclusion'] || '-'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px 12px', maxWidth: '240px' }}>
-                        <div style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          lineHeight: 1.4,
-                          color: 'var(--color-text-secondary)',
-                          whiteSpace: 'pre-wrap',
-                        }}>
-                          {row['Action & Countermeasure'] || '-'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+            {chatMessages.map((msg) => {
+              const isAssistant = msg.role === 'assistant';
+              return (
+                <div
+                  key={msg.id}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: isAssistant ? 'flex-start' : 'flex-end',
+                    gap: '4px',
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '11px',
+                    color: 'var(--color-text-muted)',
+                    padding: '0 4px',
+                  }}>
+                    {isAssistant && <Bot size={12} color="#38bdf8" />}
+                    <span>{isAssistant ? 'PE AI Assistant' : 'Anda'}</span>
+                    <span>•</span>
+                    <span>{msg.timestamp}</span>
+                  </div>
+
+                  <div style={{
+                    maxWidth: '85%',
+                    padding: '12px 16px',
+                    borderRadius: isAssistant ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
+                    backgroundColor: isAssistant ? 'var(--color-bg-primary)' : 'var(--color-accent)',
+                    color: isAssistant ? 'var(--color-text-primary)' : '#ffffff',
+                    border: isAssistant ? '1px solid var(--color-border)' : 'none',
+                    fontSize: '13px',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    position: 'relative',
+                  }}>
+                    {msg.content}
+
+                    {isAssistant && (
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        marginTop: '8px',
+                        paddingTop: '6px',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                      }}>
                         <button
                           type="button"
-                          onClick={() => setSelectedDetail(row)}
+                          onClick={() => handleCopyMessage(msg.id, msg.content)}
                           style={{
                             background: 'none',
                             border: 'none',
-                            color: 'var(--color-accent)',
+                            color: copiedMsgId === msg.id ? '#10b981' : 'var(--color-text-muted)',
                             cursor: 'pointer',
-                            padding: '4px',
+                            fontSize: '11px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 4px',
                           }}
-                          title="Lihat detail lengkap baris ini"
+                          title="Salin pesan balasan ini"
                         >
-                          <Eye size={15} />
+                          {copiedMsgId === msg.id ? <Check size={12} /> : <Copy size={12} />}
+                          <span>{copiedMsgId === msg.id ? 'Tersalin' : 'Salin'}</span>
                         </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {isAiThinking && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', color: 'var(--color-text-secondary)', fontSize: '12.5px' }}>
+                <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
+                <span>AI sedang menganalisis data laporan PPTX...</span>
+              </div>
+            )}
+            <div ref={chatMessagesEndRef} />
+          </div>
+
+          {/* Input & Action Bar */}
+          <div style={{
+            padding: '14px 18px',
+            backgroundColor: 'var(--color-bg-primary)',
+            borderTop: '1px solid var(--color-border)',
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'flex-end',
+          }}>
+            <textarea
+              rows={2}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendChatMessage();
+                }
+              }}
+              placeholder={
+                results.length > 0
+                  ? 'Tanyakan apa saja mengenai laporan PowerPoint di atas (Tekan Enter untuk mengirim)...'
+                  : 'Ketik pertanyaan untuk AI (Tekan Enter untuk mengirim)...'
+              }
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                fontSize: '13px',
+                resize: 'none',
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            />
+
+            <Button
+              variant="primary"
+              icon={isAiThinking ? RefreshCw : Send}
+              onClick={() => handleSendChatMessage()}
+              disabled={!chatInput.trim() || isAiThinking}
+              style={{
+                height: '42px',
+                padding: '0 18px',
+                backgroundColor: 'var(--color-accent)',
+                borderColor: 'var(--color-accent)',
+              }}
+            >
+              {isAiThinking ? 'Proses...' : 'Kirim'}
+            </Button>
           </div>
         </div>
       )}
