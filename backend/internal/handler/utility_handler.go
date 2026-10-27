@@ -29,12 +29,17 @@ func (h *UtilityHandler) GetStatus(c echo.Context) error {
 	gsPath, errGs := exec.LookPath("gs")
 	ffmpegPath, errFfmpeg := exec.LookPath("ffmpeg")
 
-	// Check if Pillow is available in python
+	// Check if Pillow and pypdf are available in python
 	hasPillow := false
+	hasPyPDF := false
 	if errPy == nil || pythonBin != "" {
-		cmd := exec.Command(pythonBin, "-c", "import PIL; print('OK')")
-		if out, err := cmd.Output(); err == nil && len(out) >= 2 && string(out)[:2] == "OK" {
+		cmdPil := exec.Command(pythonBin, "-c", "import PIL; print('OK')")
+		if out, err := cmdPil.Output(); err == nil && len(out) >= 2 && string(out)[:2] == "OK" {
 			hasPillow = true
+		}
+		cmdPdf := exec.Command(pythonBin, "-c", "import pypdf; print('OK')")
+		if out, err := cmdPdf.Output(); err == nil && len(out) >= 2 && string(out)[:2] == "OK" {
+			hasPyPDF = true
 		}
 	}
 
@@ -47,12 +52,13 @@ func (h *UtilityHandler) GetStatus(c echo.Context) error {
 		"python_available":      errPy == nil,
 		"python_path":           pythonPath,
 		"pillow_available":      hasPillow,
+		"pypdf_available":       hasPyPDF,
 		"ghostscript_available": errGs == nil,
 		"ghostscript_path":      gsPath,
 		"ffmpeg_available":      errFfmpeg == nil,
 		"ffmpeg_path":           ffmpegPath,
 		"vaapi_available":       hasVaapi,
-		"local_engine":          "SEIN Local Offline Engine",
+		"local_engine":          "SEIN Local Offline Engine (Python & GS)",
 	})
 }
 
@@ -123,12 +129,38 @@ func (h *UtilityHandler) RemoveBackground(c echo.Context) error {
 	return c.Attachment(outPath, fmt.Sprintf("nobg_%s.png", file.Filename))
 }
 
-// ponytail: simplified clean error formatting without NASCA text
+// findPDFHandlerScript locates the pdf_handler.py script
+func findPDFHandlerScript() string {
+	candidates := []string{
+		filepath.Join("scripts", "pdf_handler.py"),
+		filepath.Join("backend", "scripts", "pdf_handler.py"),
+		"/app/scripts/pdf_handler.py",
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return "scripts/pdf_handler.py"
+}
+
+// formatPDFErrorMessage formats clean error message, parsing python json error if present
 func formatPDFErrorMessage(action string, output string, err error) string {
+	var errData map[string]interface{}
+	outStr := strings.TrimSpace(output)
+	sIdx := strings.Index(outStr, "{")
+	eIdx := strings.LastIndex(outStr, "}")
+	if sIdx >= 0 && eIdx > sIdx {
+		if jsonErr := json.Unmarshal([]byte(outStr[sIdx:eIdx+1]), &errData); jsonErr == nil {
+			if errMsg, ok := errData["error"].(string); ok && errMsg != "" {
+				return fmt.Sprintf("PDF %s gagal: %s", action, errMsg)
+			}
+		}
+	}
 	return fmt.Sprintf("PDF %s failed: %v", action, err)
 }
 
-// CompressPDF executes local Ghostscript compression
+// CompressPDF executes high-resilience Python PDF compression (DRM/NASCA resilient)
 func (h *UtilityHandler) CompressPDF(c echo.Context) error {
 	file, err := c.FormFile("document")
 	if err != nil {
@@ -163,40 +195,57 @@ func (h *UtilityHandler) CompressPDF(c echo.Context) error {
 	}
 	dst.Close()
 
-	// Run Ghostscript if available
+	pythonBin := findPythonExecutable()
+	scriptPath := findPDFHandlerScript()
+
+	// 1. Run Python PDF Engine (Lenient & DRM/NASCA resilient)
+	cmd := exec.Command(pythonBin, scriptPath, "compress",
+		"--input", inPath,
+		"--output", outPath,
+		"--quality", quality,
+	)
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8", "PYTHONUTF8=1")
+	output, err := cmd.CombinedOutput()
+
+	if err == nil {
+		if fiNew, statErr := os.Stat(outPath); statErr == nil && fiNew.Size() > 0 {
+			fiOrig, _ := os.Stat(inPath)
+			c.Response().Header().Set("X-Original-Size", strconv.FormatInt(fiOrig.Size(), 10))
+			c.Response().Header().Set("X-Compressed-Size", strconv.FormatInt(fiNew.Size(), 10))
+			return c.Attachment(outPath, fmt.Sprintf("compressed_%s", file.Filename))
+		}
+	}
+
+	// 2. Fallback to Ghostscript if available
 	setting := "/ebook"
 	switch quality {
 	case "screen":
-		setting = "/screen" // 72 dpi
+		setting = "/screen"
 	case "printer":
-		setting = "/printer" // 300 dpi
+		setting = "/printer"
 	case "prepress":
 		setting = "/prepress"
 	}
-
-	cmd := exec.Command("gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4",
+	cmdGs := exec.Command("gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4",
 		fmt.Sprintf("-dPDFSETTINGS=%s", setting),
 		"-dNOPAUSE", "-dQUIET", "-dBATCH",
 		fmt.Sprintf("-sOutputFile=%s", outPath), inPath)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": formatPDFErrorMessage("compression", string(output), err),
-			"details": string(output),
-		})
+	outGs, errGs := cmdGs.CombinedOutput()
+	if errGs == nil {
+		fiOrig, _ := os.Stat(inPath)
+		fiNew, _ := os.Stat(outPath)
+		c.Response().Header().Set("X-Original-Size", strconv.FormatInt(fiOrig.Size(), 10))
+		c.Response().Header().Set("X-Compressed-Size", strconv.FormatInt(fiNew.Size(), 10))
+		return c.Attachment(outPath, fmt.Sprintf("compressed_%s", file.Filename))
 	}
 
-	fiOrig, _ := os.Stat(inPath)
-	fiNew, _ := os.Stat(outPath)
-
-	c.Response().Header().Set("X-Original-Size", strconv.FormatInt(fiOrig.Size(), 10))
-	c.Response().Header().Set("X-Compressed-Size", strconv.FormatInt(fiNew.Size(), 10))
-
-	return c.Attachment(outPath, fmt.Sprintf("compressed_%s", file.Filename))
+	return c.JSON(http.StatusInternalServerError, map[string]string{
+		"message": formatPDFErrorMessage("compression", string(output), err),
+		"details": string(output) + "\n" + string(outGs),
+	})
 }
 
-// MergePDF merges multiple PDF files into one using Ghostscript
+// MergePDF merges multiple PDF files into one using resilient Python Engine
 func (h *UtilityHandler) MergePDF(c echo.Context) error {
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -237,22 +286,39 @@ func (h *UtilityHandler) MergePDF(c echo.Context) error {
 	outPath := filepath.Join(tempDir, fmt.Sprintf("merged_%d.pdf", now))
 	defer os.Remove(outPath)
 
-	args := []string{"-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4", "-dNOPAUSE", "-dQUIET", "-dBATCH", fmt.Sprintf("-sOutputFile=%s", outPath)}
-	args = append(args, inPaths...)
+	pythonBin := findPythonExecutable()
+	scriptPath := findPDFHandlerScript()
 
-	cmd := exec.Command("gs", args...)
+	// 1. Run Python PDF Engine
+	args := []string{scriptPath, "merge", "--inputs"}
+	args = append(args, inPaths...)
+	args = append(args, "--output", outPath)
+
+	cmd := exec.Command(pythonBin, args...)
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8", "PYTHONUTF8=1")
 	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": formatPDFErrorMessage("merge", string(output), err),
-			"details": string(output),
-		})
+	if err == nil {
+		if fiNew, statErr := os.Stat(outPath); statErr == nil && fiNew.Size() > 0 {
+			return c.Attachment(outPath, "merged_document.pdf")
+		}
 	}
 
-	return c.Attachment(outPath, "merged_document.pdf")
+	// 2. Fallback to Ghostscript
+	gsArgs := []string{"-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4", "-dNOPAUSE", "-dQUIET", "-dBATCH", fmt.Sprintf("-sOutputFile=%s", outPath)}
+	gsArgs = append(gsArgs, inPaths...)
+	cmdGs := exec.Command("gs", gsArgs...)
+	outGs, errGs := cmdGs.CombinedOutput()
+	if errGs == nil {
+		return c.Attachment(outPath, "merged_document.pdf")
+	}
+
+	return c.JSON(http.StatusInternalServerError, map[string]string{
+		"message": formatPDFErrorMessage("merge", string(output), err),
+		"details": string(output) + "\n" + string(outGs),
+	})
 }
 
-// SplitPDF extracts a page range from a PDF file using Ghostscript
+// SplitPDF extracts a page range from a PDF file using resilient Python Engine
 func (h *UtilityHandler) SplitPDF(c echo.Context) error {
 	file, err := c.FormFile("document")
 	if err != nil {
@@ -291,21 +357,39 @@ func (h *UtilityHandler) SplitPDF(c echo.Context) error {
 	}
 	dst.Close()
 
-	cmd := exec.Command("gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4",
+	pythonBin := findPythonExecutable()
+	scriptPath := findPDFHandlerScript()
+
+	// 1. Run Python PDF Engine
+	cmd := exec.Command(pythonBin, scriptPath, "split",
+		"--input", inPath,
+		"--output", outPath,
+		"--first-page", firstPage,
+		"--last-page", lastPage,
+	)
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8", "PYTHONUTF8=1")
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		if fiNew, statErr := os.Stat(outPath); statErr == nil && fiNew.Size() > 0 {
+			return c.Attachment(outPath, fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename))
+		}
+	}
+
+	// 2. Fallback to Ghostscript
+	cmdGs := exec.Command("gs", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4",
 		fmt.Sprintf("-dFirstPage=%s", firstPage),
 		fmt.Sprintf("-dLastPage=%s", lastPage),
 		"-dNOPAUSE", "-dQUIET", "-dBATCH",
 		fmt.Sprintf("-sOutputFile=%s", outPath), inPath)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": formatPDFErrorMessage("split", string(output), err),
-			"details": string(output),
-		})
+	outGs, errGs := cmdGs.CombinedOutput()
+	if errGs == nil {
+		return c.Attachment(outPath, fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename))
 	}
 
-	return c.Attachment(outPath, fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename))
+	return c.JSON(http.StatusInternalServerError, map[string]string{
+		"message": formatPDFErrorMessage("split", string(output), err),
+		"details": string(output) + "\n" + string(outGs),
+	})
 }
 
 // CompressVideo compresses uploaded video using h264_vaapi hardware acceleration or fast CPU fallback

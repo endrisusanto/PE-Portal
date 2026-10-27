@@ -173,32 +173,61 @@ type ProjectTask struct {
 // NewModel represents a product model under engineering development
 type NewModel struct {
 	ID             uuid.UUID       `json:"id"`
-	ModelName      string          `json:"model_name"` // e.g. "S26 Series"
-	Codename       *string         `json:"codename"`   // e.g. "Paradigm"
-	Stage          string          `json:"stage"`      // concept, design, prototype, evt, dvt, pvt, mp, released
+	ModelName      string          `json:"model_name"`     // e.g. "SM-S952BE"
+	MarketingName  *string         `json:"marketing_name"` // e.g. "ON1", "Galaxy A08 5G"
+	Codename       *string         `json:"codename"`       // e.g. "Paradigm"
+	BasicModels    json.RawMessage `json:"basic_models"`   // e.g. ["BSM-S952BE/2D1", "BSM-S952BE/5D1"]
+	Stage          string          `json:"stage"`          // concept, design, prototype, evt, dvt, pvt, mp, released
 	Description    *string         `json:"description"`
 	ProjectID      *uuid.UUID      `json:"project_id"`
 	OwnerID        *uuid.UUID      `json:"owner_id"`
 	OwnerName      *string         `json:"owner_name,omitempty"`
 	TargetRelease  *string         `json:"target_release"`
 	Specifications json.RawMessage `json:"specifications"`
+	IsActive       bool            `json:"is_active"`
+	SortOrder      int             `json:"sort_order"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 // NewModelStage records stage advancement history
 type NewModelStage struct {
-	ID           uuid.UUID  `json:"id"`
-	ModelID      uuid.UUID  `json:"model_id"`
-	Stage        string     `json:"stage"`
-	Status       string     `json:"status"` // pending, in_progress, completed, blocked
-	StartedAt    *time.Time `json:"started_at"`
-	CompletedAt  *time.Time `json:"completed_at"`
-	Notes        *string    `json:"notes"`
+	ID           uuid.UUID       `json:"id"`
+	ModelID      uuid.UUID       `json:"model_id"`
+	Stage        string          `json:"stage"`
+	Status       string          `json:"status"` // pending, in_progress, completed, blocked
+	StartedAt    *time.Time      `json:"started_at"`
+	CompletedAt  *time.Time      `json:"completed_at"`
+	Notes        *string         `json:"notes"`
 	ApprovedBy   *uuid.UUID      `json:"approved_by"`
 	ApproverName *string         `json:"approver_name,omitempty"`
 	Attachments  json.RawMessage `json:"attachments"`
 	CreatedAt    time.Time       `json:"created_at"`
+}
+
+// NewModelMilestone stores itemized milestone progress for manufacturing development
+type NewModelMilestone struct {
+	ID          uuid.UUID  `json:"id"`
+	ModelID     uuid.UUID  `json:"model_id"`
+	ModelName   *string    `json:"model_name,omitempty"`
+	Codename    *string    `json:"codename,omitempty"`
+	VariantCode string     `json:"variant_code"` // empty string for shared/model-level, or BSM code
+	Category    string     `json:"category"`     // header, gating, lqv, lqva_mp, bom, sample, eng_verify, jig, equipment, local_part, cert, special_process
+	SubCategory *string    `json:"sub_category"` // optional sub grouping
+	MilestoneKey string    `json:"milestone_key"`
+	Label       string     `json:"label"`
+	PlanValue   string     `json:"plan_value"`   // e.g. "23-Oct", "W49", "TBD", "N/A"
+	ActualValue string     `json:"actual_value"`
+	Status      string     `json:"status"`       // pending, in_progress, completed, not_applicable, delayed
+	SortOrder   int        `json:"sort_order"`
+	TargetDate  *string         `json:"target_date,omitempty"`
+	ActualDate  *string         `json:"actual_date,omitempty"`
+	Notes       *string         `json:"notes,omitempty"`
+	Attachments json.RawMessage `json:"attachments,omitempty"`
+	UpdatedBy   *uuid.UUID      `json:"updated_by,omitempty"`
+	UpdaterName *string         `json:"updater_name,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 // ImeiArticle represents engineering notes or articles grouped per model project

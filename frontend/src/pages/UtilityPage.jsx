@@ -133,12 +133,12 @@ export const UtilityPage = () => {
       icon: VideoIcon,
     },
     'pptx-summary': {
-      title: t('nav.tools_pptx_summary', 'PowerPoint Auto Summary'),
+      title: t('nav.tools_pptx_summary', 'Technical Report Auto Summary'),
       subtitle: t('tools.sub_pptx_summary', 'Rangkum multiple laporan PowerPoint (.pptx) secara otomatis menjadi tabel rekapitulasi data dan unduh ke format Excel terformat.'),
       icon: Presentation,
     },
     'powerpoint-summary': {
-      title: t('nav.tools_pptx_summary', 'PowerPoint Auto Summary'),
+      title: t('nav.tools_pptx_summary', 'Technical Report Auto Summary'),
       subtitle: t('tools.sub_pptx_summary', 'Rangkum multiple laporan PowerPoint (.pptx) secara otomatis menjadi tabel rekapitulasi data dan unduh ke format Excel terformat.'),
       icon: Presentation,
     },
@@ -1495,21 +1495,28 @@ const PdfMergeSplitTab = () => {
     setMergeSuccess(null);
     const loadedItems = [];
 
-    // ponytail: load valid PDFs without NASCA popup/alert dialog
+    // Load valid PDFs with DRM/NASCA tolerant handling
     for (const file of pdfFiles) {
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const header = new TextDecoder('ascii').decode(arrayBuffer.slice(0, 5));
-        if (header !== '%PDF-') continue;
+        let pageCount = null;
+        let isDRM = false;
 
-        const pdfDoc = await PDFDocument.load(arrayBuffer);
-        const pageCount = pdfDoc.getPageCount();
+        try {
+          const pdfDoc = await PDFDocument.load(arrayBuffer);
+          pageCount = pdfDoc.getPageCount();
+        } catch (pdfErr) {
+          // Document has DRM NASCA/Fasoo or corporate encryption
+          isDRM = true;
+        }
+
         loadedItems.push({
           id: Math.random().toString(36).substring(2, 9),
           file,
           name: file.name,
           size: file.size,
           pageCount,
+          isDRM,
           arrayBuffer,
         });
       } catch (err) {
@@ -1546,6 +1553,46 @@ const PdfMergeSplitTab = () => {
     setIsMerging(true);
     setMergeSuccess(null);
 
+    const filename = mergeOutputName.endsWith('.pdf') ? mergeOutputName : `${mergeOutputName}.pdf`;
+    const hasAnyDRM = mergeFiles.some((f) => f.isDRM);
+
+    // If files contain DRM NASCA, delegate directly to Backend Python Engine
+    if (hasAnyDRM) {
+      try {
+        const formData = new FormData();
+        mergeFiles.forEach((item) => formData.append('documents', item.file));
+
+        const res = await api.post('/utility/merge-pdf', formData, {
+          responseType: 'blob',
+        });
+        const blob = res.data;
+        safeDownloadBlob(blob, filename);
+
+        setMergeSuccess({
+          filename,
+          size: blob.size,
+          totalPages: mergeFiles.reduce((acc, cur) => acc + (cur.pageCount || 1), 0),
+          fileCount: mergeFiles.length,
+          blob,
+        });
+        setIsMerging(false);
+        return;
+      } catch (backendErr) {
+        console.warn('Backend Python merge error:', backendErr);
+        let msg = 'Gagal menggabungkan PDF via Python Engine.';
+        if (backendErr.response?.data instanceof Blob) {
+          try {
+            const txt = await backendErr.response.data.text();
+            const j = JSON.parse(txt);
+            if (j.message) msg = j.message;
+          } catch (_) {}
+        }
+        alert(msg);
+        setIsMerging(false);
+        return;
+      }
+    }
+
     try {
       const mergedPdf = await PDFDocument.create();
       let totalPagesCount = 0;
@@ -1559,7 +1606,6 @@ const PdfMergeSplitTab = () => {
 
       const mergedPdfBytes = await mergedPdf.save();
       const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-      const filename = mergeOutputName.endsWith('.pdf') ? mergeOutputName : `${mergeOutputName}.pdf`;
 
       // Safe download with guaranteed filename and extension
       safeDownloadBlob(blob, filename);
@@ -1572,8 +1618,36 @@ const PdfMergeSplitTab = () => {
         blob,
       });
     } catch (err) {
-      console.error('Merge PDF error:', err);
-      alert('Gagal menggabungkan PDF: ' + err.message);
+      console.warn('Client merge error, falling back to backend Python Engine:', err);
+      // Fallback to backend Python Engine
+      try {
+        const formData = new FormData();
+        mergeFiles.forEach((item) => formData.append('documents', item.file));
+
+        const res = await api.post('/utility/merge-pdf', formData, {
+          responseType: 'blob',
+        });
+        const blob = res.data;
+        safeDownloadBlob(blob, filename);
+
+        setMergeSuccess({
+          filename,
+          size: blob.size,
+          totalPages: mergeFiles.reduce((acc, cur) => acc + (cur.pageCount || 1), 0),
+          fileCount: mergeFiles.length,
+          blob,
+        });
+      } catch (backendErr) {
+        let msg = err.message;
+        if (backendErr.response?.data instanceof Blob) {
+          try {
+            const txt = await backendErr.response.data.text();
+            const j = JSON.parse(txt);
+            if (j.message) msg = j.message;
+          } catch (_) {}
+        }
+        alert('Gagal menggabungkan PDF: ' + msg);
+      }
     } finally {
       setIsMerging(false);
     }
@@ -1590,22 +1664,26 @@ const PdfMergeSplitTab = () => {
     setSplitSuccess(null);
     try {
       const arrayBuffer = await selectedFile.arrayBuffer();
-      const header = new TextDecoder('ascii').decode(arrayBuffer.slice(0, 5));
-      if (header !== '%PDF-') {
-        throw new Error('Dokumen bukan file PDF standar yang valid.');
-      }
+      let pageCount = null;
+      let isDRM = false;
 
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-      const pageCount = pdfDoc.getPageCount();
+      try {
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        pageCount = pdfDoc.getPageCount();
+      } catch (pdfErr) {
+        // Document has DRM NASCA/Fasoo or corporate encryption
+        isDRM = true;
+      }
 
       setSplitFile({
         file: selectedFile,
         name: selectedFile.name,
         size: selectedFile.size,
-        pageCount,
+        pageCount: pageCount || 10,
+        isDRM,
         arrayBuffer,
       });
-      setPageRange(`1-${Math.min(5, pageCount)}`);
+      setPageRange(`1-${pageCount ? Math.min(5, pageCount) : 1}`);
       setSplitOutputName(`split_${selectedFile.name}`);
     } catch (err) {
       console.error('Failed to load PDF for split:', err);
@@ -1617,6 +1695,51 @@ const PdfMergeSplitTab = () => {
     if (!splitFile) return;
     setIsSplitting(true);
     setSplitSuccess(null);
+
+    const filename = splitOutputName.endsWith('.pdf') ? splitOutputName : `${splitOutputName}.pdf`;
+
+    // If file has DRM, delegate directly to Backend Python Engine
+    if (splitFile.isDRM) {
+      try {
+        const pagesToExtract = parsePageRange(pageRange, splitFile.pageCount || 9999);
+        const firstP = pagesToExtract[0] || 1;
+        const lastP = pagesToExtract[pagesToExtract.length - 1] || firstP;
+
+        const formData = new FormData();
+        formData.append('document', splitFile.file);
+        formData.append('first_page', firstP);
+        formData.append('last_page', lastP);
+
+        const res = await api.post('/utility/split-pdf', formData, {
+          responseType: 'blob',
+        });
+        const blob = res.data;
+        safeDownloadBlob(blob, filename);
+
+        setSplitSuccess({
+          filename,
+          size: blob.size,
+          extractedPages: pagesToExtract.length,
+          pagesList: `${firstP} - ${lastP}`,
+          blob,
+        });
+        setIsSplitting(false);
+        return;
+      } catch (backendErr) {
+        console.warn('Backend Python split error:', backendErr);
+        let msg = 'Gagal memotong PDF via Python Engine.';
+        if (backendErr.response?.data instanceof Blob) {
+          try {
+            const txt = await backendErr.response.data.text();
+            const j = JSON.parse(txt);
+            if (j.message) msg = j.message;
+          } catch (_) {}
+        }
+        alert(msg);
+        setIsSplitting(false);
+        return;
+      }
+    }
 
     try {
       const srcPdf = await PDFDocument.load(splitFile.arrayBuffer);
@@ -1637,7 +1760,6 @@ const PdfMergeSplitTab = () => {
 
         const subPdfBytes = await subPdf.save();
         const blob = new Blob([subPdfBytes], { type: 'application/pdf' });
-        const filename = splitOutputName.endsWith('.pdf') ? splitOutputName : `${splitOutputName}.pdf`;
 
         // Safe download
         safeDownloadBlob(blob, filename);
@@ -1687,7 +1809,7 @@ const PdfMergeSplitTab = () => {
           isBatch: true,
         });
 
-        // Safe spaced sequential downloads so Chrome download manager gives each file proper filename
+        // Safe spaced sequential downloads
         for (let i = 0; i < generatedParts.length; i++) {
           safeDownloadBlob(generatedParts[i].blob, generatedParts[i].filename);
           if (i < generatedParts.length - 1) {
@@ -1696,14 +1818,47 @@ const PdfMergeSplitTab = () => {
         }
       }
     } catch (err) {
-      console.error('Split PDF error:', err);
-      alert('Gagal memisahkan PDF: ' + err.message);
+      console.warn('Client split error, falling back to backend Python Engine:', err);
+      try {
+        const pagesToExtract = parsePageRange(pageRange, splitFile.pageCount || 9999);
+        const firstP = pagesToExtract[0] || 1;
+        const lastP = pagesToExtract[pagesToExtract.length - 1] || firstP;
+
+        const formData = new FormData();
+        formData.append('document', splitFile.file);
+        formData.append('first_page', firstP);
+        formData.append('last_page', lastP);
+
+        const res = await api.post('/utility/split-pdf', formData, {
+          responseType: 'blob',
+        });
+        const blob = res.data;
+        safeDownloadBlob(blob, filename);
+
+        setSplitSuccess({
+          filename,
+          size: blob.size,
+          extractedPages: pagesToExtract.length,
+          pagesList: `${firstP} - ${lastP}`,
+          blob,
+        });
+      } catch (backendErr) {
+        let msg = err.message;
+        if (backendErr.response?.data instanceof Blob) {
+          try {
+            const txt = await backendErr.response.data.text();
+            const j = JSON.parse(txt);
+            if (j.message) msg = j.message;
+          } catch (_) {}
+        }
+        alert('Gagal memotong PDF: ' + msg);
+      }
     } finally {
       setIsSplitting(false);
     }
   };
 
-  const totalMergePages = mergeFiles.reduce((acc, curr) => acc + curr.pageCount, 0);
+  const totalMergePages = mergeFiles.reduce((acc, curr) => acc + (curr.pageCount || 1), 0);
   const totalMergeSize = mergeFiles.reduce((acc, curr) => acc + curr.size, 0);
 
   const selectedPagesList = splitFile ? parsePageRange(pageRange, splitFile.pageCount) : [];
@@ -3253,7 +3408,7 @@ const VideoCompressTab = () => {
 };
 
 // ============================================================================
-// 8. POWERPOINT AUTO SUMMARY TAB (Python Backend Bridge)
+// 8. TECHNICAL REPORT AUTO SUMMARY TAB (Python Backend Bridge)
 // ============================================================================
 // ponytail: Clean, lightweight, modular PPTX auto-summary with dual-engine parser
 const PPTXAutoSummaryTab = () => {
@@ -3634,7 +3789,7 @@ Instruksi Analisis:
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              PowerPoint Auto Summary &amp; AI Insight
+              Technical Report Auto Summary &amp; AI Insight
             </h2>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
               Ekstraksi batch berkas PPTX ke tabel terformat Excel (.xlsx), parsing Markdown lengkap, dan AI Insight Chatbox langsung di satu halaman.

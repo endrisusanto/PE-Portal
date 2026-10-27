@@ -21,6 +21,8 @@ import {
   PartyPopper,
   Save,
   CalendarPlus,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +30,11 @@ import { LoadingState } from '../components/common/LoadingState';
 import { Button } from '../components/common/Button';
 import { CustomHolidayModal } from '../components/common/CustomHolidayModal';
 import { getIndonesianHoliday, isWeekend, getHolidaysForMonth } from '../utils/indonesianHolidays';
+import {
+  parseDateRangeFromText,
+  getMilestoneDeadlineAlert,
+  formatTableCellValue,
+} from '../components/models/ModelMilestoneMatrix';
 import styles from './ProjectCalendarPage.module.css';
 
 // Safely parse JSON metadata
@@ -99,12 +106,14 @@ export const ProjectCalendarPage = () => {
 
   // Data states
   const [projects, setProjects] = useState([]);
+  const [modelMilestones, setModelMilestones] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filter & View states
   const [viewMode, setViewMode] = useState('month'); // 'week' | 'month' | 'year'
   const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'my_tasks'
+  const [sourceFilter, setSourceFilter] = useState('all'); // 'all' | 'tasks' | 'models'
   const [currentDate, setCurrentDate] = useState(new Date());
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -190,16 +199,18 @@ export const ProjectCalendarPage = () => {
     }
   };
 
-  // Fetch projects & users
+  // Fetch projects, new model schedule & users
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [projRes, userRes] = await Promise.all([
+        const [projRes, modelScheduleRes, userRes] = await Promise.all([
           api.get('/projects'),
+          api.get('/models/schedule').catch(() => ({ data: [] })),
           api.get('/users').catch(() => ({ data: [] })),
         ]);
         setProjects(projRes.data || []);
+        setModelMilestones(modelScheduleRes.data || []);
         setUsers(userRes.data || []);
       } catch (err) {
         console.error('Failed to fetch calendar projects:', err);
@@ -244,8 +255,69 @@ export const ProjectCalendarPage = () => {
     });
   }, [projects, user]);
 
-  // Compute Task Counts for Switch Badges
-  const { totalCount, myTasksCount } = useMemo(() => {
+  // ponytail: normalize New Model schedule into calendar event items
+  const normalizedModelTasks = useMemo(() => {
+    if (!Array.isArray(modelMilestones)) return [];
+    return modelMilestones.map((ms) => {
+      if (!ms) return null;
+      try {
+        const { startDate, endDate } = parseDateRangeFromText(ms.target_date, ms.plan_value);
+        if (!startDate) return null;
+
+        const alert = getMilestoneDeadlineAlert(ms.plan_value);
+        const isCompleted = ms.status === 'completed' || 
+          ['PASS', 'OK', 'DONE'].some((w) => (ms.plan_value || '').toUpperCase().includes(w));
+
+        const priority = alert?.level === 'critical' ? 'urgent' : alert?.level === 'warning' ? 'high' : 'medium';
+        const status = isCompleted ? 'completed' : ms.status || 'in_progress';
+        const progress = isCompleted ? 100 : 50;
+
+        const modelLabel = ms.codename || ms.model_name || 'New Model';
+        const cleanPlanVal = formatTableCellValue(ms.plan_value);
+
+        return {
+          id: `nm-${ms.id}`,
+          raw_id: ms.id,
+          is_model_milestone: true,
+          model_id: ms.model_id,
+          model_name: ms.model_name,
+          codename: ms.codename,
+          milestone_key: ms.milestone_key,
+          category: ms.category,
+          sub_category: ms.sub_category,
+          label: ms.label,
+          plan_value: ms.plan_value,
+          title: `[${modelLabel}] ${ms.label}${cleanPlanVal && cleanPlanVal !== '-' ? ` • ${cleanPlanVal}` : ''}`,
+          description: ms.notes || '',
+          start_date: startDate,
+          target_date: endDate || startDate,
+          priority,
+          status,
+          progress,
+          owner_name: ms.model_name || 'New Model Program',
+          project_type: 'new_model',
+          metadata: JSON.stringify({
+            is_new_model: true,
+            model_id: ms.model_id,
+            model_name: ms.model_name,
+            codename: ms.codename,
+            label: ms.label,
+            milestone_key: ms.milestone_key,
+            plan_value: ms.plan_value,
+            category: ms.category,
+            notes: ms.notes,
+            attachments: ms.attachments,
+          }),
+        };
+      } catch (err) {
+        console.warn('Error normalizing milestone item for calendar:', err);
+        return null;
+      }
+    }).filter(Boolean);
+  }, [modelMilestones]);
+
+  // Compute Task & Schedule Counts for Switch Badges
+  const { totalCount, totalAllCount, myTasksCount, totalTasksCount, totalModelsCount } = useMemo(() => {
     let myCount = 0;
     accessibleProjects.forEach((p) => {
       const meta = parseMetadata(p.metadata);
@@ -257,14 +329,29 @@ export const ProjectCalendarPage = () => {
       );
       if (isAssigned || isCreator) myCount++;
     });
-    return { totalCount: accessibleProjects.length, myTasksCount: myCount };
-  }, [accessibleProjects, user]);
+    const totalAll = accessibleProjects.length + normalizedModelTasks.length;
+    return {
+      totalCount: totalAll,
+      totalAllCount: totalAll,
+      myTasksCount: myCount,
+      totalTasksCount: accessibleProjects.length,
+      totalModelsCount: normalizedModelTasks.length,
+    };
+  }, [accessibleProjects, normalizedModelTasks, user]);
+
+  // Combined Tasks based on sourceFilter
+  const combinedTasks = useMemo(() => {
+    if (sourceFilter === 'tasks') return accessibleProjects;
+    if (sourceFilter === 'models') return normalizedModelTasks;
+    return [...accessibleProjects, ...normalizedModelTasks];
+  }, [accessibleProjects, normalizedModelTasks, sourceFilter]);
 
   // Filtered Task List
   const filteredTasks = useMemo(() => {
-    return accessibleProjects.filter((p) => {
+    return combinedTasks.filter((p) => {
       // 1. Scope filter: 'all' vs 'my_tasks'
       if (scopeFilter === 'my_tasks') {
+        if (p.is_model_milestone) return false;
         const meta = parseMetadata(p.metadata);
         const isCreator = Boolean(meta.created_by_id && user?.id && meta.created_by_id === user.id);
         const isAssigned = Boolean(
@@ -292,15 +379,19 @@ export const ProjectCalendarPage = () => {
         const mTitle = (p.title || '').toLowerCase().includes(q);
         const mDesc = (p.description || '').toLowerCase().includes(q);
         const mOwner = (p.owner_name || '').toLowerCase().includes(q);
+        const mModel = (p.model_name || '').toLowerCase().includes(q);
+        const mCode = (p.codename || '').toLowerCase().includes(q);
+        const mLabel = (p.label || '').toLowerCase().includes(q);
+        const mPlan = (p.plan_value || '').toLowerCase().includes(q);
         const mPics = (meta.assigned_pics || []).some((pic) =>
           (pic.name || pic.full_name || '').toLowerCase().includes(q)
         );
-        if (!mTitle && !mDesc && !mOwner && !mPics) return false;
+        if (!mTitle && !mDesc && !mOwner && !mModel && !mCode && !mLabel && !mPlan && !mPics) return false;
       }
 
       return true;
     });
-  }, [accessibleProjects, scopeFilter, priorityFilter, statusFilter, search, user]);
+  }, [combinedTasks, scopeFilter, priorityFilter, statusFilter, search, user]);
 
   // Map tasks to dates (keyed by 'YYYY-MM-DD')
   const tasksByDate = useMemo(() => {
@@ -389,6 +480,11 @@ export const ProjectCalendarPage = () => {
 
   // ponytail: color line range bar by milestone progress & actual status instead of static priority
   const getBarColorClass = (task) => {
+    if (task?.is_model_milestone) {
+      if (task?.status === 'completed' || task?.progress >= 100) return styles.barNewModelCompleted;
+      if (task?.priority?.toLowerCase() === 'urgent') return styles.barNewModelUrgent;
+      return styles.barNewModel;
+    }
     if (task?.priority?.toLowerCase() === 'urgent') return styles.barUrgent;
     const p = Number(task?.progress) || 0;
     if (task?.status === 'completed' || p >= 100) return styles.barCompleted;
@@ -587,16 +683,28 @@ export const ProjectCalendarPage = () => {
                       title={`${task.title} (${task.priority || 'medium'}) - ${task.start_date || task.target_date || ''} s/d ${task.target_date || ''} (${diffDays} ${t('project_calendar.duration_days', 'hari')})`}
                     >
                       {continuesPrior && <span className={styles.continuationArrow}>◀</span>}
-                      {primaryPic && (
-                        <span className={styles.barPicAvatar} title={primaryPic}>
-                          {avatarInitial}
+                      {task.is_model_milestone ? (
+                        <span className={styles.modelBadgeTag} title={task.model_name}>
+                          {task.codename || task.model_name || 'MODEL'}
                         </span>
+                      ) : (
+                        primaryPic && (
+                          <span className={styles.barPicAvatar} title={primaryPic}>
+                            {avatarInitial}
+                          </span>
+                        )
                       )}
                       <span className={styles.barTitle}>{task.title}</span>
-                      {task.progress !== undefined && (
+                      {task.is_model_milestone ? (
                         <span className={styles.barMilestoneBadge}>
-                          {task.progress}%
+                          {task.status === 'completed' ? '✓ OK' : task.plan_value || 'SCHEDULED'}
                         </span>
+                      ) : (
+                        task.progress !== undefined && (
+                          <span className={styles.barMilestoneBadge}>
+                            {task.progress}%
+                          </span>
+                        )
                       )}
                       {isMultiDay && colSpan >= 2 && (
                         <span style={{ fontSize: '10px', opacity: 0.9, flexShrink: 0, fontWeight: 700 }}>
@@ -701,12 +809,25 @@ export const ProjectCalendarPage = () => {
                         onClick={() => handleOpenTaskModal(tItem)}
                       >
                         <div className={styles.cardHeaderRow}>
-                          <span className={`${styles.taskPill} ${getPriorityClass(tItem.priority)}`} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
-                            {tItem.priority || 'medium'}
-                          </span>
-                          <span className={styles.taskTypeTag}>
-                            {tItem.project_type?.replace('_', ' ') || 'task'}
-                          </span>
+                          {tItem.is_model_milestone ? (
+                            <>
+                              <span className={styles.modelBadgeTag}>
+                                {tItem.codename || tItem.model_name || 'MODEL'}
+                              </span>
+                              <span className={styles.taskTypeTag} style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}>
+                                New Model
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className={`${styles.taskPill} ${getPriorityClass(tItem.priority)}`} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
+                                {tItem.priority || 'medium'}
+                              </span>
+                              <span className={styles.taskTypeTag}>
+                                {tItem.project_type?.replace('_', ' ') || 'task'}
+                              </span>
+                            </>
+                          )}
                         </div>
                         <h4 className={styles.taskCardTitle}>{tItem.title}</h4>
                         {isMultiDay && (
@@ -720,13 +841,19 @@ export const ProjectCalendarPage = () => {
                             className={styles.progressBarFill}
                             style={{
                               width: `${tItem.progress || 20}%`,
-                              background: tItem.progress >= 100 ? '#10b981' : tItem.progress >= 50 ? '#3b82f6' : '#f59e0b',
+                              background: tItem.status === 'completed' || tItem.progress >= 100
+                                ? '#10b981'
+                                : tItem.is_model_milestone
+                                ? '#0ea5e9'
+                                : tItem.progress >= 50
+                                ? '#3b82f6'
+                                : '#f59e0b',
                             }}
                           />
                         </div>
                         <div className={styles.cardFooterRow}>
-                          <span>PIC: {primaryPic}</span>
-                          <span>{tItem.progress || 0}%</span>
+                          <span>{tItem.is_model_milestone ? `Model: ${tItem.model_name}` : `PIC: ${primaryPic}`}</span>
+                          <span>{tItem.is_model_milestone ? (tItem.plan_value || `${tItem.progress || 0}%`) : `${tItem.progress || 0}%`}</span>
                         </div>
                       </div>
                     );
@@ -995,7 +1122,7 @@ export const ProjectCalendarPage = () => {
         </div>
 
         <div className={styles.actionsArea}>
-          {/* Emil Kowalski Segmented Switch: All Tasks vs My Tasks */}
+          {/* Emil Kowalski Segmented Switch: All vs My Tasks */}
           <div className={styles.segmentedSwitch}>
             <button
               type="button"
@@ -1003,7 +1130,7 @@ export const ProjectCalendarPage = () => {
               onClick={() => setScopeFilter('all')}
             >
               <Users size={14} />
-              <span>{t('project_calendar.all_tasks', 'Semua Task')}</span>
+              <span>{t('project_calendar.all_tasks', 'Semua Event')}</span>
               <span className={styles.countBadge}>{totalCount}</span>
             </button>
             <button
@@ -1068,6 +1195,16 @@ export const ProjectCalendarPage = () => {
           )}
 
           <Button
+            variant="secondary"
+            onClick={() => navigate('/models')}
+            style={{ fontSize: '12px', padding: '6px 12px' }}
+            title="Buka Milestone Matrix New Model Program"
+          >
+            <Layers size={14} style={{ color: 'var(--color-accent)' }} />
+            <span>New Models</span>
+          </Button>
+
+          <Button
             variant="primary"
             onClick={() => navigate('/projects')}
             style={{ fontSize: '12.5px', padding: '6px 14px' }}
@@ -1094,11 +1231,23 @@ export const ProjectCalendarPage = () => {
         </div>
 
         <div className={styles.filterBar}>
+          {/* Source Filter Switcher: Semua | Project Tasks | New Model */}
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className={styles.selectFilter}
+            style={{ fontWeight: 700 }}
+          >
+            <option value="all">Semua Tipe ({totalAllCount})</option>
+            <option value="tasks">Project Tasks ({totalTasksCount})</option>
+            <option value="models">New Model Schedule ({totalModelsCount})</option>
+          </select>
+
           <div className={styles.searchInputWrapper}>
             <Search size={14} className={styles.searchIcon} />
             <input
               type="text"
-              placeholder={t('project_calendar.search_placeholder', 'Cari task, PIC...')}
+              placeholder={t('project_calendar.search_placeholder', 'Cari task, model, milestone, PIC...')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={styles.searchInput}
@@ -1145,175 +1294,265 @@ export const ProjectCalendarPage = () => {
       )}
 
       {/* Task Quick-View & Edit Modal */}
+      {/* Task & Model Milestone Detail Modal */}
       {selectedTask && (
         <div className={styles.modalOverlay} onClick={() => setSelectedTask(null)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleArea} style={{ width: '100%' }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                  <span className={`${styles.taskPill} ${getPriorityClass(editPriority)}`}>
-                    {editPriority || 'medium'}
-                  </span>
-                  <span className={styles.taskTypeTag}>
-                    {selectedTask.project_type?.replace('_', ' ') || 'task'}
-                  </span>
+                  {selectedTask.is_model_milestone ? (
+                    <>
+                      <span className={styles.modelBadgeTag}>
+                        {selectedTask.codename || selectedTask.model_name || 'MODEL'}
+                      </span>
+                      <span className={styles.taskTypeTag} style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}>
+                        New Model Program
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`${styles.taskPill} ${getPriorityClass(editPriority)}`}>
+                        {editPriority || 'medium'}
+                      </span>
+                      <span className={styles.taskTypeTag}>
+                        {selectedTask.project_type?.replace('_', ' ') || 'task'}
+                      </span>
+                    </>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  className={styles.titleInputField}
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="Judul Task..."
-                />
+                {selectedTask.is_model_milestone ? (
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                    {selectedTask.title}
+                  </h3>
+                ) : (
+                  <input
+                    type="text"
+                    className={styles.titleInputField}
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Judul Task..."
+                  />
+                )}
               </div>
               <button className={styles.closeModalBtn} onClick={() => setSelectedTask(null)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div className={styles.modalBody}>
-              <div>
-                <label className={styles.metaLabel} style={{ display: 'block', marginBottom: '4px' }}>
-                  Catatan / Deskripsi Task
-                </label>
-                <textarea
-                  className={styles.descInputField}
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  rows={2}
-                  placeholder="Catatan analisis, investigasi, atau countermeasure..."
-                />
-              </div>
-
-              <div className={styles.metaGrid}>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>{t('project_calendar.start_date', 'Start Date')}</span>
-                  <input
-                    type="date"
-                    className={styles.dateInputField}
-                    value={editStartDate}
-                    onChange={(e) => setEditStartDate(e.target.value)}
-                  />
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>{t('project_calendar.due_date', 'Target Due Date')}</span>
-                  <input
-                    type="date"
-                    className={styles.dateInputField}
-                    value={editTargetDate}
-                    onChange={(e) => setEditTargetDate(e.target.value)}
-                  />
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>{t('project_calendar.milestone', 'Milestone')}</span>
-                  <select
-                    className={styles.statusSelectField}
-                    value={editProgress}
-                    onChange={(e) => {
-                      const newP = Number(e.target.value);
-                      setEditProgress(newP);
-                      if (newP >= 100) setEditStatus('completed');
-                      else if (newP >= 75) setEditStatus('review');
-                      else if (newP >= 25) setEditStatus('in_progress');
-                      else setEditStatus('planning');
-                    }}
-                  >
-                    <option value={20}>20% - Step 1: Initial Planning</option>
-                    <option value={40}>40% - Step 2: Root Cause Analysis</option>
-                    <option value={60}>60% - Step 3: Countermeasure & Dev</option>
-                    <option value={80}>80% - Step 4: Verification & Test</option>
-                    <option value={100}>100% - Step 5: Completed</option>
-                  </select>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Status</span>
-                  <select
-                    className={styles.statusSelectField}
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                  >
-                    <option value="planning">Planning</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="review">Review</option>
-                    <option value="completed">Completed</option>
-                    <option value="on_hold">On Hold</option>
-                  </select>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Prioritas</span>
-                  <select
-                    className={styles.statusSelectField}
-                    value={editPriority}
-                    onChange={(e) => setEditPriority(e.target.value)}
-                  >
-                    <option value="urgent">Urgent</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-                {editStartDate && editTargetDate && (
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>{t('project_calendar.duration', 'Durasi')}</span>
-                    <span className={styles.metaValue} style={{ color: 'var(--color-accent)', fontWeight: 700, lineHeight: '32px' }}>
-                      {Math.max(1, Math.round((new Date(editTargetDate + 'T00:00:00') - new Date(editStartDate + 'T00:00:00')) / (1000 * 60 * 60 * 24)) + 1)} hari
+            {selectedTask.is_model_milestone ? (
+              /* New Model Milestone Detail View */
+              <div className={styles.modalBody}>
+                <div className={styles.modelInfoBox}>
+                  <div className={styles.modelInfoTitle}>
+                    <Sparkles size={16} />
+                    <span>{selectedTask.model_name} {selectedTask.codename ? `(${selectedTask.codename})` : ''}</span>
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.2)', marginLeft: 'auto' }}>
+                      New Model Program
                     </span>
+                  </div>
+                  <div className={styles.modelInfoSub}>
+                    <strong>Checkpoint:</strong> {selectedTask.label} &bull; <strong>Plan Schedule:</strong> {selectedTask.plan_value || '-'}
+                  </div>
+                </div>
+
+                <div className={styles.metaGrid}>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Kategori / Gate</span>
+                    <span className={styles.metaValue} style={{ textTransform: 'capitalize' }}>
+                      {selectedTask.category || 'Milestone'}
+                    </span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Status Checkpoint</span>
+                    <span className={styles.metaValue} style={{ textTransform: 'capitalize', color: selectedTask.status === 'completed' ? '#10b981' : '#38bdf8', fontWeight: 700 }}>
+                      {selectedTask.status === 'completed' ? 'Completed (Selesai)' : selectedTask.status || 'Pending / Scheduled'}
+                    </span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Tanggal Mulai</span>
+                    <span className={styles.metaValue}>{selectedTask.start_date || '-'}</span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Target Deadline</span>
+                    <span className={styles.metaValue} style={{ fontWeight: 700, color: 'var(--color-accent)' }}>
+                      {selectedTask.target_date || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedTask.description && (
+                  <div>
+                    <label className={styles.metaLabel} style={{ display: 'block', marginBottom: '4px' }}>
+                      Catatan / Lampiran
+                    </label>
+                    <div style={{ padding: '10px 14px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '12.5px', color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap' }}>
+                      {selectedTask.description}
+                    </div>
                   </div>
                 )}
               </div>
+            ) : (
+              /* Regular Project Task Edit View */
+              <div className={styles.modalBody}>
+                <div>
+                  <label className={styles.metaLabel} style={{ display: 'block', marginBottom: '4px' }}>
+                    Catatan / Deskripsi Task
+                  </label>
+                  <textarea
+                    className={styles.descInputField}
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    rows={2}
+                    placeholder="Catatan analisis, investigasi, atau countermeasure..."
+                  />
+                </div>
 
-              {/* Assigned PICs */}
-              <div>
-                <span className={styles.metaLabel}>{t('project_calendar.assigned_pics', 'Assigned PICs')}</span>
-                <div className={styles.picBadgeList}>
-                  {(() => {
-                    const meta = parseMetadata(selectedTask.metadata);
-                    const pics = meta.assigned_pics && meta.assigned_pics.length > 0
-                      ? meta.assigned_pics
-                      : selectedTask.owner_name
-                      ? [{ name: selectedTask.owner_name }]
-                      : [];
-
-                    if (!pics.length) {
-                      return <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>-</span>;
-                    }
-
-                    return pics.map((pic, idx) => (
-                      <span key={idx} className={styles.picBadge}>
-                        <User size={12} style={{ color: 'var(--color-accent)' }} />
-                        {pic.name || pic.full_name}
+                <div className={styles.metaGrid}>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>{t('project_calendar.start_date', 'Start Date')}</span>
+                    <input
+                      type="date"
+                      className={styles.dateInputField}
+                      value={editStartDate}
+                      onChange={(e) => setEditStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>{t('project_calendar.due_date', 'Target Due Date')}</span>
+                    <input
+                      type="date"
+                      className={styles.dateInputField}
+                      value={editTargetDate}
+                      onChange={(e) => setEditTargetDate(e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>{t('project_calendar.milestone', 'Milestone')}</span>
+                    <select
+                      className={styles.statusSelectField}
+                      value={editProgress}
+                      onChange={(e) => {
+                        const newP = Number(e.target.value);
+                        setEditProgress(newP);
+                        if (newP >= 100) setEditStatus('completed');
+                        else if (newP >= 75) setEditStatus('review');
+                        else if (newP >= 25) setEditStatus('in_progress');
+                        else setEditStatus('planning');
+                      }}
+                    >
+                      <option value={20}>20% - Step 1: Initial Planning</option>
+                      <option value={40}>40% - Step 2: Root Cause Analysis</option>
+                      <option value={60}>60% - Step 3: Countermeasure & Dev</option>
+                      <option value={80}>80% - Step 4: Verification & Test</option>
+                      <option value={100}>100% - Step 5: Completed</option>
+                    </select>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Status</span>
+                    <select
+                      className={styles.statusSelectField}
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                    >
+                      <option value="planning">Planning</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="review">Review</option>
+                      <option value="completed">Completed</option>
+                      <option value="on_hold">On Hold</option>
+                    </select>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Prioritas</span>
+                    <select
+                      className={styles.statusSelectField}
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(e.target.value)}
+                    >
+                      <option value="urgent">Urgent</option>
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  {editStartDate && editTargetDate && (
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}>{t('project_calendar.duration', 'Durasi')}</span>
+                      <span className={styles.metaValue} style={{ color: 'var(--color-accent)', fontWeight: 700, lineHeight: '32px' }}>
+                        {Math.max(1, Math.round((new Date(editTargetDate + 'T00:00:00') - new Date(editStartDate + 'T00:00:00')) / (1000 * 60 * 60 * 24)) + 1)} hari
                       </span>
-                    ));
-                  })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Assigned PICs */}
+                <div>
+                  <span className={styles.metaLabel}>{t('project_calendar.assigned_pics', 'Assigned PICs')}</span>
+                  <div className={styles.picBadgeList}>
+                    {(() => {
+                      const meta = parseMetadata(selectedTask.metadata);
+                      const pics = meta.assigned_pics && meta.assigned_pics.length > 0
+                        ? meta.assigned_pics
+                        : selectedTask.owner_name
+                        ? [{ name: selectedTask.owner_name }]
+                        : [];
+
+                      if (!pics.length) {
+                        return <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>-</span>;
+                      }
+
+                      return pics.map((pic, idx) => (
+                        <span key={idx} className={styles.picBadge}>
+                          <User size={12} style={{ color: 'var(--color-accent)' }} />
+                          {pic.name || pic.full_name}
+                        </span>
+                      ));
+                    })()}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className={styles.modalActions}>
               <Button variant="secondary" onClick={() => setSelectedTask(null)}>
                 {t('common.close', 'Tutup')}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  const taskId = selectedTask.id;
-                  setSelectedTask(null);
-                  navigate('/projects', {
-                    state: { returnTo: '/project-calendar', editProjectId: taskId },
-                  });
-                }}
-              >
-                <ExternalLink size={14} />
-                {t('project_calendar.open_in_projects', 'Buka di ToDo List')}
-              </Button>
-              <Button
-                variant="primary"
-                disabled={isSavingTask || !editTitle.trim()}
-                onClick={handleSaveCalendarTask}
-              >
-                <Save size={14} />
-                {isSavingTask ? 'Menyimpan...' : 'Simpan Perubahan'}
-              </Button>
+              {selectedTask.is_model_milestone ? (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    setSelectedTask(null);
+                    navigate('/models');
+                  }}
+                >
+                  <Layers size={14} />
+                  Buka di New Model Matrix
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      const taskId = selectedTask.id;
+                      setSelectedTask(null);
+                      navigate('/projects', {
+                        state: { returnTo: '/project-calendar', editProjectId: taskId },
+                      });
+                    }}
+                  >
+                    <ExternalLink size={14} />
+                    {t('project_calendar.open_in_projects', 'Buka di ToDo List')}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    disabled={isSavingTask || !editTitle.trim()}
+                    onClick={handleSaveCalendarTask}
+                  >
+                    <Save size={14} />
+                    {isSavingTask ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

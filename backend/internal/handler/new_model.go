@@ -44,12 +44,16 @@ func (h *NewModelHandler) Get(c echo.Context) error {
 
 type CreateModelRequest struct {
 	ModelName      string          `json:"model_name"`
+	MarketingName  *string         `json:"marketing_name"`
 	Codename       *string         `json:"codename"`
+	BasicModels    json.RawMessage `json:"basic_models"`
 	Stage          string          `json:"stage"`
 	Description    *string         `json:"description"`
 	ProjectID      *uuid.UUID      `json:"project_id"`
 	TargetRelease  *string         `json:"target_release"`
 	Specifications json.RawMessage `json:"specifications"`
+	IsActive       *bool           `json:"is_active"`
+	SortOrder      *int            `json:"sort_order"`
 }
 
 func (h *NewModelHandler) Create(c echo.Context) error {
@@ -69,15 +73,28 @@ func (h *NewModelHandler) Create(c echo.Context) error {
 		}
 	}
 
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+	sortOrder := 0
+	if req.SortOrder != nil {
+		sortOrder = *req.SortOrder
+	}
+
 	m := model.NewModel{
 		ModelName:      req.ModelName,
+		MarketingName:  req.MarketingName,
 		Codename:       req.Codename,
+		BasicModels:    req.BasicModels,
 		Stage:          req.Stage,
 		Description:    req.Description,
 		ProjectID:      req.ProjectID,
 		OwnerID:        ownerID,
 		TargetRelease:  req.TargetRelease,
 		Specifications: req.Specifications,
+		IsActive:       isActive,
+		SortOrder:      sortOrder,
 	}
 
 	created, err := h.repo.Create(c.Request().Context(), &m)
@@ -99,14 +116,27 @@ func (h *NewModelHandler) Update(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
 	}
 
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+	sortOrder := 0
+	if req.SortOrder != nil {
+		sortOrder = *req.SortOrder
+	}
+
 	m := model.NewModel{
 		ID:             id,
 		ModelName:      req.ModelName,
+		MarketingName:  req.MarketingName,
 		Codename:       req.Codename,
+		BasicModels:    req.BasicModels,
 		Description:    req.Description,
 		ProjectID:      req.ProjectID,
 		TargetRelease:  req.TargetRelease,
 		Specifications: req.Specifications,
+		IsActive:       isActive,
+		SortOrder:      sortOrder,
 	}
 
 	updated, err := h.repo.Update(c.Request().Context(), &m)
@@ -252,4 +282,84 @@ func (h *NewModelHandler) Delete(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "deleted successfully"})
+}
+
+// ListSchedule returns all scheduled milestones across all new models for calendar view
+func (h *NewModelHandler) ListSchedule(c echo.Context) error {
+	milestones, err := h.repo.ListScheduledMilestones(c.Request().Context())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, milestones)
+}
+
+// ListMilestones returns all milestones for a model
+func (h *NewModelHandler) ListMilestones(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid model id")
+	}
+
+	milestones, err := h.repo.ListMilestones(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, milestones)
+}
+
+// UpsertMilestone updates or creates a single milestone entry
+func (h *NewModelHandler) UpsertMilestone(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid model id")
+	}
+
+	var req model.NewModelMilestone
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
+	}
+	req.ModelID = id
+
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			req.UpdatedBy = &uid
+		}
+	}
+
+	if err := h.repo.UpsertMilestone(c.Request().Context(), &req); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "milestone updated successfully"})
+}
+
+type BatchMilestonesRequest struct {
+	Milestones []model.NewModelMilestone `json:"milestones"`
+}
+
+// BatchUpsertMilestones updates multiple milestones for a model
+func (h *NewModelHandler) BatchUpsertMilestones(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid model id")
+	}
+
+	var req BatchMilestonesRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid input")
+	}
+
+	var currentUserID *uuid.UUID
+	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok {
+			currentUserID = &uid
+		}
+	}
+
+	if err := h.repo.BatchUpsertMilestones(c.Request().Context(), id, req.Milestones, currentUserID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	milestones, _ := h.repo.ListMilestones(c.Request().Context(), id)
+	return c.JSON(http.StatusOK, milestones)
 }

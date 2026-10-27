@@ -7,7 +7,7 @@ INSERT INTO menu_permissions (
 )
 VALUES (
     'tools-pptx-summary', 
-    'PowerPoint Auto Summary', 
+    'Technical Report Auto Summary', 
     '/tools/pptx-summary', 
     'Tools > Dokumen', 
     'tools', 

@@ -42,6 +42,7 @@ import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
 import { RichNotesViewer } from '../components/common/RichNotesViewer';
+import { ModelMilestoneMatrix } from '../components/models/ModelMilestoneMatrix';
 import i18n from '../utils/i18n';
 
 export const PIPELINE_STAGES = [
@@ -93,6 +94,7 @@ export const ModelsPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedStageFilter, setSelectedStageFilter] = useState('');
+  const [activeView, setActiveView] = useState('matrix'); // 'matrix' (Milestone Matrix Board) | 'cards' (Pipeline Cards)
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -109,7 +111,9 @@ export const ModelsPage = () => {
 
   // Add form
   const [modelName, setModelName] = useState('');
+  const [marketingName, setMarketingName] = useState('');
   const [codename, setCodename] = useState('');
+  const [basicModelsStr, setBasicModelsStr] = useState('');
   const [stage, setStage] = useState('concept');
   const [targetRelease, setTargetRelease] = useState('');
   const [description, setDescription] = useState('');
@@ -128,7 +132,9 @@ export const ModelsPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
   const [editModelName, setEditModelName] = useState('');
+  const [editMarketingName, setEditMarketingName] = useState('');
   const [editCodename, setEditCodename] = useState('');
+  const [editBasicModelsStr, setEditBasicModelsStr] = useState('');
   const [editTargetRelease, setEditTargetRelease] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
@@ -204,9 +210,15 @@ export const ModelsPage = () => {
   const handleCreateModel = async (e) => {
     e.preventDefault();
     try {
+      const bsmArray = basicModelsStr
+        ? basicModelsStr.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
       const res = await api.post('/models', {
         model_name: modelName,
+        marketing_name: marketingName || undefined,
         codename: codename || undefined,
+        basic_models: bsmArray,
         stage,
         target_release: targetRelease || undefined,
         description: description || undefined,
@@ -214,7 +226,9 @@ export const ModelsPage = () => {
       setModels((prev) => [res.data, ...prev]);
       setIsAddModalOpen(false);
       setModelName('');
+      setMarketingName('');
       setCodename('');
+      setBasicModelsStr('');
       setTargetRelease('');
       setDescription('');
 
@@ -372,7 +386,14 @@ export const ModelsPage = () => {
     if (e && e.stopPropagation) e.stopPropagation();
     setEditingModel(m);
     setEditModelName(m.model_name || '');
+    setEditMarketingName(m.marketing_name || '');
     setEditCodename(m.codename || '');
+    let bsmStr = '';
+    try {
+      const bsmArr = typeof m.basic_models === 'string' ? JSON.parse(m.basic_models) : m.basic_models;
+      if (Array.isArray(bsmArr)) bsmStr = bsmArr.join(', ');
+    } catch {}
+    setEditBasicModelsStr(bsmStr);
     setEditTargetRelease(m.target_release ? m.target_release.substring(0, 10) : '');
     setEditDescription(m.description || '');
     setIsEditModalOpen(true);
@@ -383,9 +404,15 @@ export const ModelsPage = () => {
     if (!editingModel) return;
 
     try {
+      const bsmArray = editBasicModelsStr
+        ? editBasicModelsStr.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
       const res = await api.put(`/models/${editingModel.id}`, {
         model_name: editModelName,
+        marketing_name: editMarketingName || undefined,
         codename: editCodename || undefined,
+        basic_models: bsmArray,
         target_release: editTargetRelease || undefined,
         description: editDescription || undefined,
       });
@@ -402,7 +429,7 @@ export const ModelsPage = () => {
       await logTimelineEvent(
         'model',
         editingModel.id,
-        `Informasi model diperbarui (Nama: ${editModelName}, Codename: ${editCodename || '-'})`
+        `Informasi model diperbarui (Nama: ${editModelName}, Marketing: ${editMarketingName || '-'}, Codename: ${editCodename || '-'})`
       );
 
       setIsEditModalOpen(false);
@@ -442,72 +469,140 @@ export const ModelsPage = () => {
         style={{ display: 'none' }}
       />
 
-      {/* Page Header */}
+      {/* Page Header with View Switcher */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>
             {t('models.title', 'New Model Development')}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-            {t('models.subtitle', 'Track product development stages: data validasi tabel, foto uji, lampiran dokumen per tahap & timeline')}
+            {t('models.subtitle', 'Matriks Milestone Persiapan Model Baru (PVR, PRA, SRA, LQV, JIG, Local Part) & Timeline Pipeline')}
           </p>
         </div>
-        <Button variant="primary" icon={Plus} onClick={() => setIsAddModalOpen(true)}>
-          {t('models.add_model', 'Daftarkan Model Baru')}
-        </Button>
-      </div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* Tab Switcher: Milestone Matrix vs Pipeline Cards */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '3px',
+              borderRadius: 'var(--radius-sm, 6px)',
+              backgroundColor: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              gap: '2px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveView('matrix')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 12px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                backgroundColor: activeView === 'matrix' ? 'var(--color-accent, #0d9488)' : 'transparent',
+                color: activeView === 'matrix' ? '#ffffff' : 'var(--color-text-secondary)',
+              }}
+            >
+              <TableIcon size={14} />
+              <span>Milestone Matrix</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('cards')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 12px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                backgroundColor: activeView === 'cards' ? 'var(--color-accent, #0d9488)' : 'transparent',
+                color: activeView === 'cards' ? '#ffffff' : 'var(--color-text-secondary)',
+              }}
+            >
+              <Layers size={14} />
+              <span>Pipeline Cards</span>
+            </button>
+          </div>
 
-      {/* Filter and Search Bar */}
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '240px', maxWidth: '380px' }}>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('models.search_placeholder', 'Cari model, codename (cth: Paradigm, S26)...')}
-            icon={Search}
-          />
+          <Button variant="primary" icon={Plus} onClick={() => setIsAddModalOpen(true)}>
+            {t('models.add_model', 'Daftarkan Model Baru')}
+          </Button>
         </div>
-
-        <select
-          value={selectedStageFilter}
-          onChange={(e) => setSelectedStageFilter(e.target.value)}
-          style={{
-            height: '36px',
-            padding: '0 12px',
-            backgroundColor: 'var(--color-bg-secondary)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--color-text-primary)',
-          }}
-        >
-          <option value="">{t('models.all_stages', 'Semua Tahap Development')}</option>
-          {PIPELINE_STAGES.map((s) => (
-            <option key={s.key} value={s.key}>
-              {s.label} ({t(`models.pipeline_${s.key}`, s.fullLabel)})
-            </option>
-          ))}
-        </select>
       </div>
 
       {loading ? (
-        <LoadingState message={t('models.loading', 'Memuat pipeline new model development...')} />
-      ) : filteredModels.length === 0 ? (
-        <EmptyState
-          icon={Cpu}
-          title={search ? t('models.not_found', 'Model tidak ditemukan') : t('models.empty_title', 'Belum ada model terdaftar')}
-          description={search ? t('models.not_found_desc', 'Coba ubah kata kunci pencarian atau filter tahap.') : t('models.empty_desc', 'Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development.')}
-          actionLabel={t('models.add_model', 'Daftarkan Model Baru')}
-          onAction={() => setIsAddModalOpen(true)}
+        <LoadingState message={t('models.loading', 'Memuat data milestone new model development...')} />
+      ) : activeView === 'matrix' ? (
+        /* MILESTONE MATRIX TABLE VIEW */
+        <ModelMilestoneMatrix
+          models={models}
+          onRefresh={fetchModels}
+          onEditModel={openEditModal}
         />
       ) : (
+        /* PIPELINE CARDS VIEW */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {filteredModels.map((m) => {
-            const currentStageIndex = PIPELINE_STAGES.findIndex((s) => s.key === m.stage);
+          {/* Filter and Search Bar for Cards */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '240px', maxWidth: '380px' }}>
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('models.search_placeholder', 'Cari model, codename (cth: Paradigm, S26)...')}
+                icon={Search}
+              />
+            </div>
 
-            return (
-              <div
-                key={m.id}
-                style={{
+            <select
+              value={selectedStageFilter}
+              onChange={(e) => setSelectedStageFilter(e.target.value)}
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              <option value="">{t('models.all_stages', 'Semua Tahap Development')}</option>
+              {PIPELINE_STAGES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label} ({t(`models.pipeline_${s.key}`, s.fullLabel)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {filteredModels.length === 0 ? (
+            <EmptyState
+              icon={Cpu}
+              title={search ? t('models.not_found', 'Model tidak ditemukan') : t('models.empty_title', 'Belum ada model terdaftar')}
+              description={search ? t('models.not_found_desc', 'Coba ubah kata kunci pencarian atau filter tahap.') : t('models.empty_desc', 'Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development.')}
+              actionLabel={t('models.add_model', 'Daftarkan Model Baru')}
+              onAction={() => setIsAddModalOpen(true)}
+            />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {filteredModels.map((m) => {
+                const currentStageIndex = PIPELINE_STAGES.findIndex((s) => s.key === m.stage);
+
+                return (
+                  <div
+                    key={m.id}
+                    style={{
                   backgroundColor: 'var(--color-bg-secondary)',
                   border: '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-md)',
@@ -698,6 +793,8 @@ export const ModelsPage = () => {
               </div>
             );
           })}
+        </div>
+      )}
         </div>
       )}
 
@@ -1479,14 +1576,28 @@ export const ModelsPage = () => {
             value={modelName}
             onChange={(e) => setModelName(e.target.value)}
             required
-            placeholder="e.g. S26 Series"
+            placeholder="e.g. SM-S952BE"
+          />
+
+          <Input
+            label="Marketing / Project Name"
+            value={marketingName}
+            onChange={(e) => setMarketingName(e.target.value)}
+            placeholder="e.g. ON1, Galaxy A08 5G"
           />
 
           <Input
             label={t('models.codename', 'Codename')}
             value={codename}
             onChange={(e) => setCodename(e.target.value)}
-            placeholder="e.g. Paradigm"
+            placeholder="e.g. Paradigm, Luxshare"
+          />
+
+          <Input
+            label="Basic Model Variants (Pisahkan koma)"
+            value={basicModelsStr}
+            onChange={(e) => setBasicModelsStr(e.target.value)}
+            placeholder="e.g. BSM-S952BE/2D1, BSM-S952BE/5D1"
           />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1576,14 +1687,28 @@ export const ModelsPage = () => {
             value={editModelName}
             onChange={(e) => setEditModelName(e.target.value)}
             required
-            placeholder="e.g. S26 Series"
+            placeholder="e.g. SM-S952BE"
+          />
+
+          <Input
+            label="Marketing / Project Name"
+            value={editMarketingName}
+            onChange={(e) => setEditMarketingName(e.target.value)}
+            placeholder="e.g. ON1, Galaxy A08 5G"
           />
 
           <Input
             label="Codename"
             value={editCodename}
             onChange={(e) => setEditCodename(e.target.value)}
-            placeholder="e.g. Paradigm"
+            placeholder="e.g. Paradigm, Luxshare"
+          />
+
+          <Input
+            label="Basic Model Variants (Pisahkan koma)"
+            value={editBasicModelsStr}
+            onChange={(e) => setEditBasicModelsStr(e.target.value)}
+            placeholder="e.g. BSM-S952BE/2D1, BSM-S952BE/5D1"
           />
 
           <Input

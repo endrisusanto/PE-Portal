@@ -264,7 +264,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
       children: [
         { key: 'tools-documents', to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
         { key: 'tools-pdf-merge-split', to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
-        { key: 'tools-pptx-summary', to: '/tools/pptx-summary', label: t('nav.tools_pptx_summary', 'PowerPoint Auto Summary'), icon: Presentation },
+        { key: 'tools-pptx-summary', to: '/tools/pptx-summary', label: t('nav.tools_pptx_summary', 'Technical Report Auto Summary'), icon: Presentation },
       ]
         .filter((sub) => isMenuAllowed(sub.key))
         .sort((a, b) => a.label.localeCompare(b.label)),

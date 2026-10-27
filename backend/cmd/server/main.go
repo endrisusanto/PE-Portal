@@ -226,6 +226,7 @@ func main() {
 
 	// New Model Development
 	api.GET("/models", modelHandler.List)
+	api.GET("/models/schedule", modelHandler.ListSchedule)
 	api.POST("/models", modelHandler.Create)
 	api.GET("/models/:id", modelHandler.Get)
 	api.PUT("/models/:id", modelHandler.Update)
@@ -233,6 +234,9 @@ func main() {
 	api.GET("/models/:id/stages", modelHandler.ListStages)
 	api.POST("/models/:id/stages", modelHandler.AdvanceStage)
 	api.PUT("/models/:id/stages/:stageId", modelHandler.UpdateStage)
+	api.GET("/models/:id/milestones", modelHandler.ListMilestones)
+	api.PUT("/models/:id/milestones", modelHandler.BatchUpsertMilestones)
+	api.PATCH("/models/:id/milestones", modelHandler.UpsertMilestone)
 
 	// Sample Management
 	api.GET("/samples", sampleHandler.List)
