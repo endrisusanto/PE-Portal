@@ -6,14 +6,8 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Enable pgvector extension for RAG search (graceful fallback if not installed)
-DO $$
-BEGIN
-    CREATE EXTENSION IF NOT EXISTS vector;
-EXCEPTION WHEN OTHERS THEN
-    NULL;
-END
-$$;
+-- Enable pgvector extension for RAG search
+CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 1. Auth providers configuration
 CREATE TABLE IF NOT EXISTS auth_config (
@@ -216,29 +210,14 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
 );
 
 -- 11. Document Embeddings (RAG)
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vector') THEN
-        EXECUTE 'CREATE TABLE IF NOT EXISTS document_embeddings (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
-            chunk_index INT NOT NULL,
-            chunk_text TEXT NOT NULL,
-            embedding vector(1536),
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        )';
-    ELSE
-        EXECUTE 'CREATE TABLE IF NOT EXISTS document_embeddings (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
-            chunk_index INT NOT NULL,
-            chunk_text TEXT NOT NULL,
-            embedding TEXT,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        )';
-    END IF;
-END
-$$;
+CREATE TABLE IF NOT EXISTS document_embeddings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    chunk_index INT NOT NULL,
+    chunk_text TEXT NOT NULL,
+    embedding vector(1536),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- 12. Chat Sessions & Messages
 CREATE TABLE IF NOT EXISTS chat_sessions (

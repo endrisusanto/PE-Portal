@@ -3,9 +3,12 @@ package database
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -55,28 +58,34 @@ func (p *PostgresPool) RunMigrations(migrationsDir string) error {
 		return fmt.Errorf("failed to create schema_migrations table: %w", err)
 	}
 
-	files := []string{
-		"001_init.sql",
-		"002_seed.sql",
-		"003_reports_smtp.sql",
-		"004_llm_config.sql",
-		"005_user_email_lists.sql",
-		"006_innovation_classes_and_targets.sql",
-		"007_sample_management.sql",
-		"008_software_mr.sql",
-		"009_dhl_tracker.sql",
-		"010_gmes_and_training.sql",
-		"011_menu_permissions.sql",
-		"012_menu_permissions_specific_users.sql",
-		"013_task_and_comment_attachments.sql",
-		"014_menu_permissions_blacklist_and_settings.sql",
-		"015_document_shares.sql",
-		"016_dhl_delivered_notification.sql",
-		"017_user_multiple_group_parts.sql",
-		"018_article_status.sql",
-		"019_new_model_stage_attachments.sql",
-		"020_multilevel_menu_permissions.sql",
+	// 1. Discover all migration files dynamically from embedded FS
+	var files []string
+	if entries, err := fs.ReadDir(migrations.FS, "."); err == nil && len(entries) > 0 {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
+				files = append(files, e.Name())
+			}
+		}
 	}
+
+	// 2. Fallback to filesystem lookup if embedded FS had no files
+	if len(files) == 0 {
+		for _, dir := range []string{migrationsDir, filepath.Join("..", migrationsDir), filepath.Join("backend", "migrations")} {
+			if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
+				for _, e := range entries {
+					if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
+						files = append(files, e.Name())
+					}
+				}
+				if len(files) > 0 {
+					migrationsDir = dir
+					break
+				}
+			}
+		}
+	}
+
+	sort.Strings(files)
 	for _, file := range files {
 		var alreadyApplied bool
 		if err := p.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)", file).Scan(&alreadyApplied); err == nil && alreadyApplied {
