@@ -143,15 +143,15 @@ def main():
                 retry_values["parsing_yn"] = "false"
                 retry_values.pop("pii_tag_enabled", None)
                 try:
-                    fobj.seek(0)
-                    retry_resp = requests.post(
-                        api_url,
-                        headers={"Authorization": f"Bearer {token}"},
-                        data=retry_values,
-                        files=[("files", (filename, fobj))],
-                        proxies={"http": None, "https": None},
-                        timeout=300,
-                    )
+                    with open(file_path, "rb") as retry_fobj:
+                        retry_resp = requests.post(
+                            api_url,
+                            headers={"Authorization": f"Bearer {token}"},
+                            data=retry_values,
+                            files=[("files", (filename, retry_fobj))],
+                            proxies={"http": None, "https": None},
+                            timeout=300,
+                        )
                     if retry_resp.status_code == 200:
                         retry_res = retry_resp.json()
                         retry_items = retry_res.get("items", []) if isinstance(retry_res, dict) else []
@@ -160,8 +160,8 @@ def main():
                             result = retry_res
                             items = retry_items
                             failed = []
-                except Exception:
-                    pass
+                except Exception as ex:
+                    sys.stderr.write(f"[ndh_uploader] Retry without parsing failed: {ex}\n")
 
         if failed:
             err_items = [f"{it.get('name')}: {it.get('error')}" for it in failed]

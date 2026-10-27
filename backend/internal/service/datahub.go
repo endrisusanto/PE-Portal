@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -121,18 +123,6 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 		return nil, fmt.Errorf("datahub integration is deactivated in portal settings")
 	}
 
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-
-	// 1. files * (multipart file)
-	part, err := writer.CreateFormFile("files", filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create multipart form file: %w", err)
-	}
-	if _, err := io.Copy(part, fileReader); err != nil {
-		return nil, fmt.Errorf("failed to copy file contents: %w", err)
-	}
-
 	// 2. folder_id or project_id (mutually exclusive, matching Python script)
 	folderID := strings.TrimSpace(params.FolderID)
 	if folderID == "" && defaultFolder != "" {
@@ -151,7 +141,8 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 
 	// ponytail: Check if python uploader is available for maximum compatibility with Samsung N-DH
 	scriptPath := findUploaderScript()
-	if scriptPath != "" {
+	pyCmd := findPythonCommand()
+	if scriptPath != "" && pyCmd != "" {
 		var localPath string
 		var cleanup func()
 		if f, ok := fileReader.(*os.File); ok && f.Name() != "" {
@@ -170,16 +161,36 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 			if cleanup != nil {
 				defer cleanup()
 			}
-			res, pyErr := s.IngestObjectWithPython(ctx, scriptPath, localPath, filename, authToken, baseURL, folderID, projectID, params)
+			log.Printf("[DataHub] Attempting upload via Python bridge: %s %s on %s", pyCmd, scriptPath, localPath)
+			res, pyErr := s.IngestObjectWithPython(ctx, pyCmd, scriptPath, localPath, filename, authToken, baseURL, folderID, projectID, params)
 			if pyErr == nil {
+				log.Printf("[DataHub] Python bridge upload succeeded: object_id=%s", res.ObjectID)
 				return res, nil
 			}
+			log.Printf("[DataHub] Python bridge returned error: %v", pyErr)
 			// If python returned an error from the API (like DRM_ENCRYPTED_FILE or bad token), return it directly
 			if strings.Contains(pyErr.Error(), "datahub item error") || strings.Contains(pyErr.Error(), "HTTP ") || strings.Contains(pyErr.Error(), "DRM_ENCRYPTED_FILE") {
 				return nil, pyErr
 			}
 			// If python failed due to missing binary, fall back to Go HTTP below
 		}
+	}
+
+	log.Printf("[DataHub] Falling back to native Go HTTP client upload for %s", filename)
+	if seeker, ok := fileReader.(io.Seeker); ok {
+		_, _ = seeker.Seek(0, io.SeekStart)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	// 1. files * (multipart file)
+	part, err := writer.CreateFormFile("files", filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create multipart form file: %w", err)
+	}
+	if _, err := io.Copy(part, fileReader); err != nil {
+		return nil, fmt.Errorf("failed to copy file contents: %w", err)
 	}
 
 	// Strictly send EITHER folder_id OR project_id
@@ -314,15 +325,67 @@ func (s *DataHubService) IngestObject(ctx context.Context, fileReader io.Reader,
 	return result, nil
 }
 
-// findUploaderScript locates ndh_uploader.py script
-func findUploaderScript() string {
-	candidates := []string{
-		filepath.Join("scripts", "ndh_uploader.py"),
-		filepath.Join("backend", "scripts", "ndh_uploader.py"),
-		"/app/scripts/ndh_uploader.py",
+// findPythonCommand detects the python executable on Windows or Linux
+func findPythonCommand() string {
+	for _, cmd := range []string{"python", "python3", "py"} {
+		if path, err := exec.LookPath(cmd); err == nil && path != "" {
+			return cmd
+		}
 	}
+	if runtime.GOOS == "windows" {
+		winCandidates := []string{
+			`C:\Python312\python.exe`,
+			`C:\Python311\python.exe`,
+			`C:\Python310\python.exe`,
+			`C:\Python39\python.exe`,
+		}
+		if userProfile := os.Getenv("USERPROFILE"); userProfile != "" {
+			winCandidates = append(winCandidates,
+				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python312\python.exe`),
+				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python311\python.exe`),
+				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python310\python.exe`),
+				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python39\python.exe`),
+			)
+		}
+		for _, p := range winCandidates {
+			if info, err := os.Stat(p); err == nil && !info.IsDir() {
+				return p
+			}
+		}
+		return "python"
+	}
+	return "python3"
+}
+
+// findUploaderScript locates ndh_uploader.py script across runtime and working directories
+func findUploaderScript() string {
+	var candidates []string
+
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		candidates = append(candidates,
+			filepath.Join(exeDir, "ndh_uploader.py"),
+			filepath.Join(exeDir, "scripts", "ndh_uploader.py"),
+			filepath.Join(exeDir, "..", "scripts", "ndh_uploader.py"),
+			filepath.Join(exeDir, "..", "backend", "scripts", "ndh_uploader.py"),
+		)
+	}
+
+	candidates = append(candidates,
+		filepath.Join("scripts", "ndh_uploader.py"),
+		filepath.Join("..", "scripts", "ndh_uploader.py"),
+		filepath.Join("backend", "scripts", "ndh_uploader.py"),
+		filepath.Join("..", "backend", "scripts", "ndh_uploader.py"),
+		filepath.Join("bin", "scripts", "ndh_uploader.py"),
+		filepath.Join("bin", "ndh_uploader.py"),
+		"/app/scripts/ndh_uploader.py",
+	)
+
 	for _, p := range candidates {
 		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			if abs, err := filepath.Abs(p); err == nil {
+				return abs
+			}
 			return p
 		}
 	}
@@ -330,7 +393,7 @@ func findUploaderScript() string {
 }
 
 // IngestObjectWithPython invokes the headless Python uploader script
-func (s *DataHubService) IngestObjectWithPython(ctx context.Context, scriptPath string, filePath string, filename string, token string, apiURL string, folderID string, projectID string, params DataHubIngestParams) (*DataHubIngestResult, error) {
+func (s *DataHubService) IngestObjectWithPython(ctx context.Context, pyCmd string, scriptPath string, filePath string, filename string, token string, apiURL string, folderID string, projectID string, params DataHubIngestParams) (*DataHubIngestResult, error) {
 	payload := map[string]interface{}{
 		"api_url":         apiURL,
 		"token":           token,
@@ -353,7 +416,7 @@ func (s *DataHubService) IngestObjectWithPython(ctx context.Context, scriptPath 
 		return nil, fmt.Errorf("failed to marshal python payload: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "python3", scriptPath)
+	cmd := exec.CommandContext(ctx, pyCmd, scriptPath)
 	cmd.Stdin = bytes.NewReader(payloadBytes)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -467,26 +530,8 @@ func (s *DataHubService) GetObjectDetails(ctx context.Context, objectID string, 
 	token = strings.TrimSpace(strings.TrimPrefix(token, "Bearer "))
 
 	// 1. Try Python Bridge first if available
-	pythonBin := "python3"
-	if _, err := exec.LookPath("python3"); err != nil {
-		if _, err := exec.LookPath("python"); err == nil {
-			pythonBin = "python"
-		}
-	}
-
-	scriptCandidates := []string{
-		"backend/scripts/ndh_uploader.py",
-		"scripts/ndh_uploader.py",
-		"/app/scripts/ndh_uploader.py",
-		"ndh_uploader.py",
-	}
-	var scriptPath string
-	for _, cand := range scriptCandidates {
-		if _, err := os.Stat(cand); err == nil {
-			scriptPath = cand
-			break
-		}
-	}
+	pythonBin := findPythonCommand()
+	scriptPath := findUploaderScript()
 
 	if scriptPath != "" {
 		pyPayload := map[string]interface{}{

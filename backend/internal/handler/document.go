@@ -215,7 +215,7 @@ func (h *DocumentHandler) Upload(c echo.Context) error {
 				log.Printf("[DataHub] Ingest rejected with DRM_ENCRYPTED_FILE. Retrying without parsing (raw storage)...")
 				params.ParsingYN = false
 				params.PIITagEnabled = nil
-				if retryFile, oErr := os.Open(created.FilePath); oErr == nil {
+				if retryFile, oErr := os.Open(dstPath); oErr == nil {
 					defer retryFile.Close()
 					res, dhErr = h.datahub.IngestObject(c.Request().Context(), retryFile, created.FileName, params, "")
 				}
