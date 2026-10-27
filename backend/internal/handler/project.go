@@ -653,69 +653,115 @@ func buildProjectDetailEmailHTML(p *model.Project, comments []model.Comment, sen
 		if symptoms == "" {
 			symptoms = tr.Symptoms
 		}
-		symptomsHTML := ""
-		if strings.TrimSpace(symptoms) != "" {
-			symptomsHTML = fmt.Sprintf(`
-				<div style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; background: #ffffff;">
-					<div style="font-size: 11px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; margin-bottom: 4px;">1. Symptoms &amp; Analysis</div>
-					<div style="font-size: 12px; color: #1e293b; line-height: 1.5; white-space: pre-wrap;">%s</div>
-				</div>`,
-				html.EscapeString(symptoms),
-			)
-		}
-
 		countermeasure := tr.ConclusionCountermeasure
 		if countermeasure == "" {
 			countermeasure = tr.Countermeasure
 		}
-		countermeasureHTML := ""
-		if strings.TrimSpace(countermeasure) != "" {
-			countermeasureHTML = fmt.Sprintf(`
-				<div style="padding: 10px 12px; background: #ffffff;">
-					<div style="font-size: 11px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; margin-bottom: 4px;">2. Conclusion &amp; Countermeasure</div>
-					<div style="font-size: 12px; color: #1e293b; line-height: 1.5; white-space: pre-wrap;">%s</div>
-				</div>`,
-				html.EscapeString(countermeasure),
+		// Detail Report 2-column layout matching TaskAnalystTechnicalReportCard
+		symptomsText := strings.TrimSpace(symptoms)
+		countermeasureText := strings.TrimSpace(countermeasure)
+		hasSymptoms := symptomsText != ""
+		hasCountermeasure := countermeasureText != ""
+
+		detailHTML := ""
+		if !hasSymptoms && !hasCountermeasure {
+			detailHTML = `<div style="padding: 14px; text-align: center; color: #64748b; font-size: 11.5px; border: 1px solid #94a3b8; border-top: none; background: #ffffff;">Format Detail Report belum diisi oleh PIC.</div>`
+		} else if hasSymptoms && hasCountermeasure {
+			detailHTML = fmt.Sprintf(`
+				<table style="width: 100%%; border-collapse: collapse; font-size: 12px; border: 1px solid #94a3b8; border-top: none;">
+					<tr>
+						<td style="width: 50%%; vertical-align: top; padding: 12px 14px; border-right: 1px solid #94a3b8; background: #ffffff;">
+							<div style="font-size: 13px; font-weight: 800; color: #1d4ed8; margin-bottom: 6px;">Symptoms &amp; Analysis</div>
+							<div style="font-size: 12px; color: #0f172a; line-height: 1.5; white-space: pre-wrap;">%s</div>
+						</td>
+						<td style="width: 50%%; vertical-align: top; padding: 12px 14px; background: #ffffff;">
+							<div style="font-size: 13px; font-weight: 800; color: #1d4ed8; margin-bottom: 6px;">Conclusion &amp; Action Countermeasure</div>
+							<div style="font-size: 12px; color: #0f172a; line-height: 1.5; white-space: pre-wrap;">%s</div>
+						</td>
+					</tr>
+				</table>`,
+				html.EscapeString(symptomsText),
+				html.EscapeString(countermeasureText),
+			)
+		} else if hasSymptoms {
+			detailHTML = fmt.Sprintf(`
+				<table style="width: 100%%; border-collapse: collapse; font-size: 12px; border: 1px solid #94a3b8; border-top: none;">
+					<tr>
+						<td style="width: 100%%; vertical-align: top; padding: 12px 14px; background: #ffffff;">
+							<div style="font-size: 13px; font-weight: 800; color: #1d4ed8; margin-bottom: 6px;">Symptoms &amp; Analysis</div>
+							<div style="font-size: 12px; color: #0f172a; line-height: 1.5; white-space: pre-wrap;">%s</div>
+						</td>
+					</tr>
+				</table>`,
+				html.EscapeString(symptomsText),
+			)
+		} else {
+			detailHTML = fmt.Sprintf(`
+				<table style="width: 100%%; border-collapse: collapse; font-size: 12px; border: 1px solid #94a3b8; border-top: none;">
+					<tr>
+						<td style="width: 100%%; vertical-align: top; padding: 12px 14px; background: #ffffff;">
+							<div style="font-size: 13px; font-weight: 800; color: #1d4ed8; margin-bottom: 6px;">Conclusion &amp; Action Countermeasure</div>
+							<div style="font-size: 12px; color: #0f172a; line-height: 1.5; white-space: pre-wrap;">%s</div>
+						</td>
+					</tr>
+				</table>`,
+				html.EscapeString(countermeasureText),
 			)
 		}
 
 		techReportHTML = fmt.Sprintf(`
-			<div style="border: 2px solid #1e3a8a; border-radius: 6px; overflow: hidden; margin-bottom: 18px; background: #ffffff;">
-				<div style="background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 800; text-align: center; padding: 6px 8px; letter-spacing: 0.06em; text-transform: uppercase;">
+			<div style="border: 2px solid #1e3a8a; border-radius: 4px; padding: 14px 16px 20px 16px; margin-bottom: 18px; background: #ffffff; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;">
+				<!-- Top Corporate Header -->
+				<div style="text-align: right; padding-bottom: 8px;">
+					<span style="font-size: 14px; font-weight: 800; color: #1d4ed8; letter-spacing: -0.01em; text-transform: uppercase;">
+						SEIN MX Product Engineering – TECHNICAL REPORT
+					</span>
+				</div>
+
+				<!-- Banner 1: OQC TECHNICAL REPORT -->
+				<div style="background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 800; text-align: center; padding: 5px 8px; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid #1d4ed8;">
 					OQC TECHNICAL REPORT
 				</div>
-				<table style="width: 100%%; border-collapse: collapse; font-size: 11.5px; border-bottom: 1px solid #cbd5e1;">
-					<tr style="background: #f8fafc;">
-						<td style="width: 12%%; padding: 6px 8px; font-weight: 700; color: #475569; border-right: 1px solid #e2e8f0;">Drafter</td>
-						<td style="width: 21%%; padding: 6px 8px; font-weight: 600; color: #0f172a; border-right: 1px solid #e2e8f0;">%s</td>
-						<td style="width: 14%%; padding: 6px 8px; font-weight: 700; color: #475569; border-right: 1px solid #e2e8f0;">Part Leader</td>
-						<td style="width: 20%%; padding: 6px 8px; font-weight: 600; color: #0f172a; border-right: 1px solid #e2e8f0;">%s</td>
-						<td style="width: 14%%; padding: 6px 8px; font-weight: 700; color: #475569; border-right: 1px solid #e2e8f0;">Group Leader</td>
-						<td style="width: 19%%; padding: 6px 8px; font-weight: 600; color: #0f172a;">%s</td>
+				<table style="width: 100%%; border-collapse: collapse; font-size: 11.5px; border: 1px solid #94a3b8; border-top: none;">
+					<tr>
+						<td style="width: 12%%; padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Drafter</td>
+						<td style="width: 22%%; padding: 5px 8px; font-weight: 600; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
+						<td style="width: 14%%; padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Part Leader</td>
+						<td style="width: 20%%; padding: 5px 8px; font-weight: 600; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
+						<td style="width: 14%%; padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Group Leader</td>
+						<td style="width: 18%%; padding: 5px 8px; font-weight: 600; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
 					</tr>
 				</table>
-				<div style="background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 800; text-align: center; padding: 5px 8px; letter-spacing: 0.06em; text-transform: uppercase;">
+
+				<!-- Banner 2: PROBLEM INFORMATION -->
+				<div style="background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 800; text-align: center; padding: 5px 8px; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid #1d4ed8; border-top: none;">
 					PROBLEM INFORMATION
 				</div>
-				<table style="width: 100%%; border-collapse: collapse; font-size: 11.5px;">
+				<table style="width: 100%%; border-collapse: collapse; font-size: 11.5px; border: 1px solid #94a3b8; border-top: none;">
 					<tr>
-						<td style="width: 15%%; padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Model</td>
-						<td style="width: 35%%; padding: 6px 8px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">%s</td>
-						<td style="width: 18%%; padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Defect Date</td>
-						<td style="width: 32%%; padding: 6px 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">%s</td>
+						<td style="width: 12%%; padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Model</td>
+						<td style="width: 38%%; padding: 5px 8px; font-weight: 700; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
+						<td style="width: 16%%; padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Defect date</td>
+						<td style="width: 34%%; padding: 5px 8px; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
 					</tr>
 					<tr>
-						<td style="padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Problem</td>
-						<td colspan="3" style="padding: 6px 8px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">%s</td>
+						<td style="padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Problem</td>
+						<td style="padding: 5px 8px; font-weight: 600; color: #dc2626; border: 1px solid #94a3b8;">%s</td>
+						<td style="padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Defect location</td>
+						<td style="padding: 5px 8px; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
 					</tr>
 					<tr>
-						<td style="padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Defect Location</td>
-						<td style="padding: 6px 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">%s</td>
-						<td style="padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">CN / Qty</td>
-						<td style="padding: 6px 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">%s (Qty: %s)</td>
+						<td style="padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">CN</td>
+						<td style="padding: 5px 8px; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
+						<td style="padding: 5px 8px; background: #f1f5f9; font-weight: 700; color: #1e293b; border: 1px solid #94a3b8;">Defect Qty</td>
+						<td style="padding: 5px 8px; font-weight: 700; color: #0f172a; border: 1px solid #94a3b8;">%s</td>
 					</tr>
 				</table>
-				%s
+
+				<!-- Banner 3: DETAIL REPORT -->
+				<div style="background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 800; text-align: center; padding: 5px 8px; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid #1d4ed8; border-top: none;">
+					DETAIL REPORT
+				</div>
 				%s
 			</div>`,
 			html.EscapeString(drafter),
@@ -727,8 +773,7 @@ func buildProjectDetailEmailHTML(p *model.Project, comments []model.Comment, sen
 			html.EscapeString(defectLoc),
 			html.EscapeString(cnVal),
 			html.EscapeString(qtyVal),
-			symptomsHTML,
-			countermeasureHTML,
+			detailHTML,
 		)
 	}
 

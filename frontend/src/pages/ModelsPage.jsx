@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Plus,
@@ -29,6 +29,7 @@ import {
   Loader2,
   Save,
   Check,
+  Zap,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -95,6 +96,7 @@ export const ModelsPage = () => {
   const [search, setSearch] = useState('');
   const [selectedStageFilter, setSelectedStageFilter] = useState('');
   const [activeView, setActiveView] = useState('matrix'); // 'matrix' (Milestone Matrix Board) | 'cards' (Pipeline Cards)
+  const [npiTabFilter, setNpiTabFilter] = useState('active'); // 'active' | 'released' | 'all'
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -439,17 +441,33 @@ export const ModelsPage = () => {
     }
   };
 
-  // Filtered models by search query
-  const filteredModels = models.filter((m) => {
-    if (!search) return true;
-    const query = search.toLowerCase();
-    return (
-      m.model_name?.toLowerCase().includes(query) ||
-      m.codename?.toLowerCase().includes(query) ||
-      m.description?.toLowerCase().includes(query) ||
-      m.stage?.toLowerCase().includes(query)
-    );
-  });
+  // Grouping models for NPI tabs
+  const activeNpiModels = useMemo(() => models.filter((m) => m.stage !== 'released'), [models]);
+  const releasedModels = useMemo(() => models.filter((m) => m.stage === 'released'), [models]);
+
+  const modelsByNpiTab = useMemo(() => {
+    if (npiTabFilter === 'released') return releasedModels;
+    if (npiTabFilter === 'active') return activeNpiModels;
+    return models;
+  }, [npiTabFilter, activeNpiModels, releasedModels, models]);
+
+  // Filtered models by search query and stage filter (for cards)
+  const filteredModels = useMemo(() => {
+    return modelsByNpiTab.filter((m) => {
+      if (selectedStageFilter && m.stage !== selectedStageFilter) {
+        return false;
+      }
+      if (!search) return true;
+      const query = search.toLowerCase();
+      return (
+        m.model_name?.toLowerCase().includes(query) ||
+        m.codename?.toLowerCase().includes(query) ||
+        m.marketing_name?.toLowerCase().includes(query) ||
+        m.description?.toLowerCase().includes(query) ||
+        m.stage?.toLowerCase().includes(query)
+      );
+    });
+  }, [modelsByNpiTab, selectedStageFilter, search]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -542,15 +560,160 @@ export const ModelsPage = () => {
         </div>
       </div>
 
+      {/* NPI Phase Segmented Tab Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          padding: '6px 8px',
+          backgroundColor: 'var(--color-bg-secondary)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md, 8px)',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setNpiTabFilter('active')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              backgroundColor: npiTabFilter === 'active' ? 'var(--color-accent, #0d9488)' : 'transparent',
+              color: npiTabFilter === 'active' ? '#ffffff' : 'var(--color-text-secondary)',
+              boxShadow: npiTabFilter === 'active' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            <Zap size={14} />
+            <span>{t('models.tab_active_npi', 'Active NPI')}</span>
+            <span
+              style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                fontSize: '11px',
+                borderRadius: '10px',
+                backgroundColor: npiTabFilter === 'active' ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-bg-tertiary, rgba(0, 0, 0, 0.05))',
+                color: npiTabFilter === 'active' ? '#ffffff' : 'var(--color-text-primary)',
+              }}
+            >
+              {activeNpiModels.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setNpiTabFilter('released')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              backgroundColor: npiTabFilter === 'released' ? 'var(--color-accent, #0d9488)' : 'transparent',
+              color: npiTabFilter === 'released' ? '#ffffff' : 'var(--color-text-secondary)',
+              boxShadow: npiTabFilter === 'released' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            <CheckCircle2 size={14} />
+            <span>{t('models.tab_released', 'Released & Mass Prod')}</span>
+            <span
+              style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                fontSize: '11px',
+                borderRadius: '10px',
+                backgroundColor: npiTabFilter === 'released' ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-bg-tertiary, rgba(0, 0, 0, 0.05))',
+                color: npiTabFilter === 'released' ? '#ffffff' : 'var(--color-text-primary)',
+              }}
+            >
+              {releasedModels.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setNpiTabFilter('all')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              backgroundColor: npiTabFilter === 'all' ? 'var(--color-accent, #0d9488)' : 'transparent',
+              color: npiTabFilter === 'all' ? '#ffffff' : 'var(--color-text-secondary)',
+              boxShadow: npiTabFilter === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            <Layers size={14} />
+            <span>{t('models.tab_all', 'Semua Model')}</span>
+            <span
+              style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                fontSize: '11px',
+                borderRadius: '10px',
+                backgroundColor: npiTabFilter === 'all' ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-bg-tertiary, rgba(0, 0, 0, 0.05))',
+                color: npiTabFilter === 'all' ? '#ffffff' : 'var(--color-text-primary)',
+              }}
+            >
+              {models.length}
+            </span>
+          </button>
+        </div>
+
+        {/* Informative subtitle hint */}
+        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {npiTabFilter === 'active' && (
+            <span>🚀 {t('models.active_filter_hint', 'Menampilkan project model baru dalam tahap Concept s/d Mass Production')}</span>
+          )}
+          {npiTabFilter === 'released' && (
+            <span>✅ {t('models.released_filter_hint', 'Menampilkan model yang telah selesai rilis komersial & verifikasi SOP')}</span>
+          )}
+          {npiTabFilter === 'all' && (
+            <span>📋 {t('models.all_filter_hint', 'Menampilkan seluruh database model SEIN PE')}</span>
+          )}
+        </div>
+      </div>
+
       {loading ? (
         <LoadingState message={t('models.loading', 'Memuat data milestone new model development...')} />
       ) : activeView === 'matrix' ? (
         /* MILESTONE MATRIX TABLE VIEW */
-        <ModelMilestoneMatrix
-          models={models}
-          onRefresh={fetchModels}
-          onEditModel={openEditModal}
-        />
+        modelsByNpiTab.length === 0 && npiTabFilter === 'released' ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title={t('models.released_empty_title', 'Belum Ada Model Berstatus Released')}
+            description={t('models.released_empty_desc', 'Ketika model NPI telah menyelesaikan verifikasi SOP dan dipindahkan ke tahap "Released", model akan tercatat di tab ini.')}
+            actionLabel={t('models.tab_active_npi', 'Lihat Active NPI')}
+            onAction={() => setNpiTabFilter('active')}
+          />
+        ) : (
+          <ModelMilestoneMatrix
+            models={modelsByNpiTab}
+            onRefresh={fetchModels}
+            onEditModel={openEditModal}
+          />
+        )
       ) : (
         /* PIPELINE CARDS VIEW */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -588,11 +751,31 @@ export const ModelsPage = () => {
 
           {filteredModels.length === 0 ? (
             <EmptyState
-              icon={Cpu}
-              title={search ? t('models.not_found', 'Model tidak ditemukan') : t('models.empty_title', 'Belum ada model terdaftar')}
-              description={search ? t('models.not_found_desc', 'Coba ubah kata kunci pencarian atau filter tahap.') : t('models.empty_desc', 'Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development.')}
-              actionLabel={t('models.add_model', 'Daftarkan Model Baru')}
-              onAction={() => setIsAddModalOpen(true)}
+              icon={npiTabFilter === 'released' ? CheckCircle2 : Cpu}
+              title={
+                search
+                  ? t('models.not_found', 'Model tidak ditemukan')
+                  : npiTabFilter === 'released'
+                  ? t('models.released_empty_title', 'Belum Ada Model Berstatus Released')
+                  : t('models.empty_title', 'Belum ada model terdaftar')
+              }
+              description={
+                search
+                  ? t('models.not_found_desc', 'Coba ubah kata kunci pencarian atau filter tahap.')
+                  : npiTabFilter === 'released'
+                  ? t('models.released_empty_desc', 'Ketika model NPI telah menyelesaikan verifikasi SOP dan dipindahkan ke tahap "Released", model akan tercatat di tab ini.')
+                  : t('models.empty_desc', 'Daftarkan model produk baru (cth: S26 Series codename Paradigm) untuk mulai melacak tahap development.')
+              }
+              actionLabel={
+                npiTabFilter === 'released' && !search
+                  ? t('models.tab_active_npi', 'Lihat Active NPI')
+                  : t('models.add_model', 'Daftarkan Model Baru')
+              }
+              onAction={
+                npiTabFilter === 'released' && !search
+                  ? () => setNpiTabFilter('active')
+                  : () => setIsAddModalOpen(true)
+              }
             />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

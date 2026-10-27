@@ -859,7 +859,12 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         </div>
 
         <div className={styles.modelCardsGrid}>
-          {filteredModels.map((m) => {
+          {filteredModels.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)', width: '100%', gridColumn: '1 / -1' }}>
+              <p style={{ margin: 0, fontSize: '13px' }}>{t('models.matrix_no_models', 'Tidak ada model yang sesuai dengan kriteria filter saat ini.')}</p>
+            </div>
+          ) : (
+            filteredModels.map((m) => {
             const stats = calculateModelStats(modelMilestones[m.id] || {});
             const variants = getModelVariants(m);
             return (
@@ -905,7 +910,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
 
@@ -966,7 +971,14 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
             </thead>
 
             <tbody>
-              {MODERN_CATEGORIES.map((cat) => {
+              {filteredModels.length === 0 ? (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '36px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                    {t('models.matrix_no_models', 'Tidak ada data model untuk ditampilkan.')}
+                  </td>
+                </tr>
+              ) : (
+                MODERN_CATEGORIES.map((cat) => {
                 const isExpanded = expandedCategories.includes(cat.id);
 
                 return (
@@ -1084,7 +1096,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                       })}
                   </React.Fragment>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>
