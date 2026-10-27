@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   FileText,
@@ -10,6 +10,7 @@ import {
   LayoutTemplate,
   History,
   Trash2,
+  Edit2,
   ExternalLink,
   CheckCircle2,
   AlertTriangle,
@@ -32,8 +33,9 @@ import styles from './ReportsPage.module.css';
 export const ReportsPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState('reports'); // reports, templates, schedules, logs
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'reports'); // reports, templates, schedules, logs
   const [reports, setReports] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [schedules, setSchedules] = useState([]);
@@ -466,9 +468,9 @@ export const ReportsPage = () => {
               variant="primary"
               size="sm"
               icon={Plus}
-              onClick={() => setIsTemplateModalOpen(true)}
+              onClick={() => navigate('/reports/new?mode=template')}
             >
-              {t('reports.new_template')}
+              {t('reports.new_template', 'Create Report Template')}
             </Button>
           </div>
 
@@ -497,6 +499,16 @@ export const ReportsPage = () => {
                     onClick={() => navigate(`/reports/new?templateId=${tmpl.id}`)}
                   >
                     {t('reports.use_template', 'Use This Template')}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={Edit2}
+                    onClick={() => navigate(`/reports/editor/${tmpl.id}?mode=template`)}
+                    title="Edit Template"
+                  >
+                    Edit
                   </Button>
 
                   <Button

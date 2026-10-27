@@ -39,6 +39,8 @@ import {
   Calendar,
   Table,
   Shield,
+  LayoutTemplate,
+  Copy,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -421,8 +423,23 @@ export const ReportEditorPage = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
 
+  const modeParam = searchParams.get('mode');
+  const isTemplateMode = modeParam === 'template';
   const templateIdParam = searchParams.get('templateId');
   const ragParam = searchParams.get('rag');
+
+  // Template-specific metadata
+  const [templateDesc, setTemplateDesc] = useState('');
+  const [templateCat, setTemplateCat] = useState('daily');
+  const [templateShared, setTemplateShared] = useState(true);
+
+  // "Create as Template" modal states (for regular report editor)
+  const [isCreateAsTemplateOpen, setIsCreateAsTemplateOpen] = useState(false);
+  const [createAsTmplTitle, setCreateAsTmplTitle] = useState('');
+  const [createAsTmplDesc, setCreateAsTmplDesc] = useState('');
+  const [createAsTmplCat, setCreateAsTmplCat] = useState('daily');
+  const [createAsTmplShared, setCreateAsTmplShared] = useState(true);
+  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -606,7 +623,33 @@ export const ReportEditorPage = () => {
     loadDbActivities();
     loadEmailLists();
 
-    if (id) {
+    if (isTemplateMode && id) {
+      setLoading(true);
+      api.get(`/reports/templates/${id}`)
+        .then((res) => {
+          const tmpl = res.data;
+          setTitle(tmpl.title || 'Report Template');
+          setTemplateDesc(tmpl.description || '');
+          setTemplateCat(tmpl.category || 'daily');
+          setTemplateShared(tmpl.is_shared ?? true);
+          if (tmpl.content) {
+            try {
+              const parsed = typeof tmpl.content === 'string' ? JSON.parse(tmpl.content) : tmpl.content;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setBlocks(parsed);
+              }
+            } catch (e) {
+              // keep default
+            }
+          }
+        })
+        .finally(() => setLoading(false));
+    } else if (isTemplateMode && !id) {
+      setTitle('Template Laporan Baru');
+      setTemplateDesc('');
+      setTemplateCat('daily');
+      setTemplateShared(true);
+    } else if (id) {
       setLoading(true);
 
       api.get(`/reports/${id}`)
@@ -658,7 +701,7 @@ export const ReportEditorPage = () => {
     } else if (ragParam) {
       handleSynthesizeFromDB();
     }
-  }, [id, templateIdParam]);
+  }, [id, templateIdParam, isTemplateMode]);
 
   // Synthesize via RAG from database activities with optional custom prompt
   const handleSynthesizeFromDB = async (promptOverride) => {
@@ -1306,6 +1349,72 @@ export const ReportEditorPage = () => {
     }
   };
 
+  // Save report template
+  const handleSaveTemplate = async () => {
+    if (!title.trim()) {
+      alert('Judul template wajib diisi');
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      title,
+      description: templateDesc || undefined,
+      category: templateCat,
+      content: blocks,
+      is_shared: templateShared,
+    };
+
+    try {
+      if (id) {
+        await api.put(`/reports/templates/${id}`, payload);
+      } else {
+        await api.post('/reports/templates', payload);
+      }
+      showNotification('success', 'Report Template saved successfully!');
+      setTimeout(() => navigate('/reports?tab=templates'), 1000);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Open "Create as Template" modal
+  const openCreateAsTemplateModal = () => {
+    setCreateAsTmplTitle(title ? `${title} (Template)` : 'New Report Template');
+    setCreateAsTmplDesc('');
+    setCreateAsTmplCat('daily');
+    setCreateAsTmplShared(true);
+    setIsCreateAsTemplateOpen(true);
+  };
+
+  // Save current report layout as a new template
+  const handleSaveAsTemplate = async (e) => {
+    if (e) e.preventDefault();
+    if (!createAsTmplTitle.trim()) {
+      alert('Judul template wajib diisi');
+      return;
+    }
+    setSavingAsTemplate(true);
+    const payload = {
+      title: createAsTmplTitle,
+      description: createAsTmplDesc || undefined,
+      category: createAsTmplCat,
+      content: blocks,
+      is_shared: createAsTmplShared,
+    };
+
+    try {
+      await api.post('/reports/templates', payload);
+      showNotification('success', `Template "${payload.title}" berhasil dibuat!`);
+      setIsCreateAsTemplateOpen(false);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setSavingAsTemplate(false);
+    }
+  };
+
   if (loading) return <LoadingState message="Loading report editor..." />;
 
   return (
@@ -1317,13 +1426,31 @@ export const ReportEditorPage = () => {
             variant="ghost"
             size="sm"
             icon={ArrowLeft}
-            onClick={() => navigate('/reports')}
+            onClick={() => navigate(isTemplateMode ? '/reports?tab=templates' : '/reports')}
           >
-            Back to Reports
+            {isTemplateMode ? 'Back to Templates' : 'Back to Reports'}
           </Button>
-          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-            Status: <strong style={{ textTransform: 'uppercase', color: status === 'sent' ? 'var(--color-success)' : 'var(--color-accent)' }}>{status}</strong>
-          </span>
+          {isTemplateMode ? (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              background: 'rgba(59, 130, 246, 0.12)',
+              color: 'var(--color-accent)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+            }}>
+              <LayoutTemplate size={13} />
+              TEMPLATE MODE (Shared Layout)
+            </span>
+          ) : (
+            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+              Status: <strong style={{ textTransform: 'uppercase', color: status === 'sent' ? 'var(--color-success)' : 'var(--color-accent)' }}>{status}</strong>
+            </span>
+          )}
         </div>
 
         <div className={styles.topBarRight}>
@@ -1347,25 +1474,50 @@ export const ReportEditorPage = () => {
             Preview Email
           </Button>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={Save}
-            loading={saving}
-            onClick={() => handleSave(status)}
-          >
-            Save Draft
-          </Button>
+          {isTemplateMode ? (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Save}
+              loading={saving}
+              onClick={handleSaveTemplate}
+            >
+              {id ? 'Update Template' : 'Save Template'}
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={LayoutTemplate}
+                onClick={openCreateAsTemplateModal}
+                title="Simpan susunan blok report ini sebagai template baru"
+                style={{ borderColor: 'rgba(59, 130, 246, 0.4)', color: 'var(--color-accent)' }}
+              >
+                Create as Template
+              </Button>
 
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Send}
-            loading={sending}
-            onClick={handleSendViaSMTP}
-          >
-            Send Email
-          </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Save}
+                loading={saving}
+                onClick={() => handleSave(status)}
+              >
+                Save Draft
+              </Button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Send}
+                loading={sending}
+                onClick={handleSendViaSMTP}
+              >
+                Send Email
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1405,67 +1557,127 @@ export const ReportEditorPage = () => {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Report Title..."
+          placeholder={isTemplateMode ? 'Template Title (e.g. Daily JIG & Production Report)...' : 'Report Title...'}
           className={styles.titleInput}
         />
 
-        <div className={styles.metaRow}>
-          <Input
-            label="Report Date"
-            type="date"
-            value={reportDate}
-            onChange={(e) => setReportDate(e.target.value)}
-            className={styles.metaField}
-          />
+        {isTemplateMode ? (
+          <div className={styles.metaRow} style={{ alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Category
+              </label>
+              <select
+                value={templateCat}
+                onChange={(e) => setTemplateCat(e.target.value)}
+                style={{
+                  height: '38px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '13px',
+                }}
+              >
+                <option value="daily">Daily Work Report</option>
+                <option value="weekly">Weekly Progress Report</option>
+                <option value="project">Project Milestone Report</option>
+                <option value="custom">Specialized / Custom Report</option>
+              </select>
+            </div>
 
-          <EmailChipInput
-            label="Recipients (To)"
-            value={toRecipients}
-            onChange={(val) => setToRecipients(val)}
-            placeholder="Type email & press Enter or comma..."
-            required
-            className={styles.metaField}
-          />
+            <div style={{ flex: 1 }}>
+              <Input
+                label="Template Description"
+                value={templateDesc}
+                onChange={(e) => setTemplateDesc(e.target.value)}
+                placeholder="Rekomendasi sasaran & penggunaan template..."
+              />
+            </div>
 
-          <EmailChipInput
-            label="Recipients (CC)"
-            value={ccRecipients}
-            onChange={(val) => setCcRecipients(val)}
-            placeholder="Optional CC recipients..."
-            className={styles.metaField}
-          />
-        </div>
-
-        {/* Quick Action: Insert from My Email Lists */}
-        {emailLists.length > 0 && (
-          <div className={styles.quickActionRow}>
-            <span className={styles.quickActionLabel}>
-              <Users size={13} />
-              Quick Recipient Groups:
-            </span>
-            {emailLists.map((list) => (
-              <div key={list.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                <button
-                  type="button"
-                  className={styles.quickActionChip}
-                  onClick={() => appendRecipients(list.emails, 'to')}
-                  title={`Click to add into TO: ${list.emails}`}
-                >
-                  <Mail size={11} />
-                  + To: {list.name}
-                </button>
-                <button
-                  type="button"
-                  className={styles.quickActionChip}
-                  onClick={() => appendRecipients(list.emails, 'cc')}
-                  style={{ opacity: 0.8 }}
-                  title={`Click to add into CC: ${list.emails}`}
-                >
-                  + CC
-                </button>
-              </div>
-            ))}
+            <label style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              fontSize: '12.5px',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              marginTop: '16px',
+              userSelect: 'none',
+            }}>
+              <input
+                type="checkbox"
+                checked={templateShared}
+                onChange={(e) => setTemplateShared(e.target.checked)}
+              />
+              <span>Share with SEIN PE Team</span>
+            </label>
           </div>
+        ) : (
+          <>
+            <div className={styles.metaRow}>
+              <Input
+                label="Report Date"
+                type="date"
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+                className={styles.metaField}
+              />
+
+              <EmailChipInput
+                label="Recipients (To)"
+                value={toRecipients}
+                onChange={(val) => setToRecipients(val)}
+                placeholder="Type email & press Enter or comma..."
+                required
+                className={styles.metaField}
+              />
+
+              <EmailChipInput
+                label="Recipients (CC)"
+                value={ccRecipients}
+                onChange={(val) => setCcRecipients(val)}
+                placeholder="Optional CC recipients..."
+                className={styles.metaField}
+              />
+            </div>
+
+            {/* Quick Action: Insert from My Email Lists */}
+            {emailLists.length > 0 && (
+              <div className={styles.quickActionRow}>
+                <span className={styles.quickActionLabel}>
+                  <Users size={13} />
+                  Quick Recipient Groups:
+                </span>
+                {emailLists.map((list) => (
+                  <div key={list.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <button
+                      type="button"
+                      className={styles.quickActionChip}
+                      onClick={() => appendRecipients(list.emails, 'to')}
+                      title={`Click to add into TO: ${list.emails}`}
+                    >
+                      <Mail size={11} />
+                      + To: {list.name}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.quickActionChip}
+                      onClick={() => appendRecipients(list.emails, 'cc')}
+                      style={{ opacity: 0.8 }}
+                      title={`Click to add into CC: ${list.emails}`}
+                    >
+                      + CC
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -3163,6 +3375,89 @@ export const ReportEditorPage = () => {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Create as Template Modal */}
+      <Modal
+        isOpen={isCreateAsTemplateOpen}
+        onClose={() => setIsCreateAsTemplateOpen(false)}
+        title="Create as Report Template"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsCreateAsTemplateOpen(false)}>
+              {t('common.cancel', 'Batal')}
+            </Button>
+            <Button
+              variant="primary"
+              icon={LayoutTemplate}
+              loading={savingAsTemplate}
+              onClick={handleSaveAsTemplate}
+            >
+              {t('reports.btn_save_template', 'Simpan sebagai Template')}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveAsTemplate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            label="Template Title"
+            value={createAsTmplTitle}
+            onChange={(e) => setCreateAsTmplTitle(e.target.value)}
+            required
+            placeholder="e.g. Daily JIG & Production Operations Template"
+          />
+
+          <Input
+            label="Description (Opsional)"
+            value={createAsTmplDesc}
+            onChange={(e) => setCreateAsTmplDesc(e.target.value)}
+            placeholder="Rekomendasi sasaran & penggunaan template"
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+              Category
+            </label>
+            <select
+              value={createAsTmplCat}
+              onChange={(e) => setCreateAsTmplCat(e.target.value)}
+              style={{
+                height: '38px',
+                padding: '0 12px',
+                backgroundColor: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-text-primary)',
+                fontSize: '13px',
+              }}
+            >
+              <option value="daily">Daily Work Report</option>
+              <option value="weekly">Weekly Progress Report</option>
+              <option value="project">Project Milestone Report</option>
+              <option value="custom">Specialized / Custom Report</option>
+            </select>
+          </div>
+
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            fontSize: 'var(--font-size-sm)',
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--color-bg-secondary)',
+            border: '1px solid var(--color-border)',
+            userSelect: 'none',
+          }}>
+            <input
+              type="checkbox"
+              checked={createAsTmplShared}
+              onChange={(e) => setCreateAsTmplShared(e.target.checked)}
+            />
+            <span>Bagikan template ini ke seluruh anggota SEIN PE Team (Shared)</span>
+          </label>
+        </form>
       </Modal>
     </div>
   );
