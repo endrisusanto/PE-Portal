@@ -217,6 +217,7 @@ func main() {
 	api.PUT("/projects/:id", projectHandler.Update)
 	api.DELETE("/projects/:id", projectHandler.Delete)
 	api.POST("/projects/:id/send-email", projectHandler.SendEmailNotification)
+	api.GET("/projects/:id/preview-email", projectHandler.PreviewEmail)
 
 	// Project Tasks
 	api.GET("/projects/:id/tasks", projectHandler.ListTasks)

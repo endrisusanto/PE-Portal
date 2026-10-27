@@ -39,6 +39,7 @@ import {
   UserCheck,
   X,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -788,8 +789,27 @@ export const ProjectsPage = () => {
     }
   };
 
-  // ponytail: handle instant email notification dispatch for milestone updates
+  // ponytail: handle instant email notification dispatch and preview for milestone updates
   const [sendingEmailId, setSendingEmailId] = useState(null);
+  const [previewEmail, setPreviewEmail] = useState(null); // { project, html, subject }
+  const [loadingPreviewId, setLoadingPreviewId] = useState(null);
+
+  const handlePreviewEmail = async (proj) => {
+    if (!proj) return;
+    setLoadingPreviewId(proj.id);
+    try {
+      const res = await api.get(`/projects/${proj.id}/preview-email?format=json`);
+      setPreviewEmail({
+        project: proj,
+        html: res.data.html,
+        subject: res.data.subject,
+      });
+    } catch (err) {
+      alert('Gagal memuat pratinjau email: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoadingPreviewId(null);
+    }
+  };
 
   const handleSendEmail = async (proj) => {
     if (!proj) return;
@@ -1043,6 +1063,16 @@ export const ProjectsPage = () => {
           </Button>
           <Button variant="outline" size="xs" icon={Edit2} onClick={() => openEditModal(row)}>
             {t('common.edit', 'Edit')}
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            icon={Eye}
+            loading={loadingPreviewId === row.id}
+            onClick={() => handlePreviewEmail(row)}
+            title="Preview Email Laporan"
+          >
+            Preview
           </Button>
           <Button
             variant="outline"
@@ -1459,6 +1489,19 @@ export const ProjectsPage = () => {
                       }}
                     >
                       Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      icon={Eye}
+                      loading={loadingPreviewId === p.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePreviewEmail(p);
+                      }}
+                      title="Preview Email Laporan"
+                    >
+                      Preview
                     </Button>
                     <Button
                       variant="outline"
@@ -2917,6 +2960,16 @@ export const ProjectsPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  icon={Eye}
+                  loading={loadingPreviewId === viewingProject.id}
+                  onClick={() => handlePreviewEmail(viewingProject)}
+                  title="Lihat Pratinjau Tampilan Email Laporan (HTML Preview)"
+                >
+                  Preview Email
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   icon={Mail}
                   loading={sendingEmailId === viewingProject.id}
                   onClick={() => handleSendEmail(viewingProject)}
@@ -3173,6 +3226,16 @@ export const ProjectsPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  icon={Eye}
+                  loading={loadingPreviewId === viewingProject.id}
+                  onClick={() => handlePreviewEmail(viewingProject)}
+                  title="Lihat Pratinjau Tampilan Email Laporan"
+                >
+                  Preview Email
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   icon={Edit2}
                   onClick={() => {
                     const p = viewingProject;
@@ -3205,6 +3268,71 @@ export const ProjectsPage = () => {
               >
                 Tutup
               </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ponytail: PREVIEW EMAIL MODAL */}
+      {previewEmail && (
+        <Modal
+          isOpen={Boolean(previewEmail)}
+          onClose={() => setPreviewEmail(null)}
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <Eye size={17} color="var(--color-accent)" />
+                <span style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Preview Email: {previewEmail.project?.title}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginRight: '8px' }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={ExternalLink}
+                  onClick={() => {
+                    const w = window.open('', '_blank');
+                    if (w) {
+                      w.document.write(previewEmail.html);
+                      w.document.close();
+                    }
+                  }}
+                  title="Buka di Tab Baru"
+                >
+                  Tab Baru
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={Mail}
+                  loading={sendingEmailId === previewEmail?.project?.id}
+                  onClick={async () => {
+                    const target = previewEmail.project;
+                    setPreviewEmail(null);
+                    await handleSendEmail(target);
+                  }}
+                  title="Kirim Email Sekarang"
+                >
+                  Kirim Sekarang
+                </Button>
+              </div>
+            </div>
+          }
+          maxWidth="760px"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: '6px', fontSize: '12px', border: '1px solid var(--color-border)' }}>
+              <strong style={{ color: 'var(--color-text-secondary)' }}>Subject:</strong>{' '}
+              <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{previewEmail.subject}</span>
+            </div>
+            <div style={{ border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden', background: '#f1f5f9' }}>
+              <iframe
+                srcDoc={previewEmail.html}
+                title="Preview Email Body"
+                style={{ width: '100%', height: '560px', border: 'none', display: 'block', backgroundColor: '#f1f5f9' }}
+                sandbox="allow-same-origin"
+              />
             </div>
           </div>
         </Modal>

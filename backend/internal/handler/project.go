@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -203,7 +202,7 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 		}
 
 		if len(toEmails) > 0 {
-			go func(recipients []string, projectTitle string, pType string, priority string, progress int, targetDateStr string, desc string) {
+			go func(recipients []string, proj *model.Project) {
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 
@@ -212,81 +211,10 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 					return
 				}
 
-				subject := fmt.Sprintf("[PE ToDo List] Penugasan Baru: %s", projectTitle)
-				priorityColor := "#3b82f6"
-				if priority == "urgent" || priority == "high" {
-					priorityColor = "#ef4444"
-				}
-
-				descHTML := ""
-				if desc != "" {
-					descHTML = fmt.Sprintf(`<div style="margin: 16px 0; padding: 12px 14px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;"><strong>Catatan Investigasi / Detail:</strong><br/><span style="white-space: pre-wrap;">%s</span></div>`, desc)
-				}
-
-				htmlBody := fmt.Sprintf(`
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-  <div style="background: #1e293b; padding: 20px 24px; border-bottom: 3px solid #3b82f6;">
-    <h2 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 700;">SEIN Production Engineer Portal</h2>
-    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Notifikasi Penugasan ToDo List / Milestone Task</p>
-  </div>
-  <div style="padding: 24px;">
-    <p style="font-size: 14px; color: #1e293b; margin-top: 0;">Halo Rekan Engineer,</p>
-    <p style="font-size: 14px; color: #475569; line-height: 1.5;">Anda telah ditugaskan sebagai PIC untuk menganalisa, memproses, dan memantau progress task berikut:</p>
-    
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 18px 0;">
-      <table style="width: 100%%; border-collapse: collapse; font-size: 13.5px;">
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; width: 140px; font-weight: 600;">Judul Task:</td>
-          <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">%s</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Kategori / Tipe:</td>
-          <td style="padding: 6px 0; color: #0f172a; text-transform: capitalize;">%s</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Prioritas:</td>
-          <td style="padding: 6px 0;"><span style="color: %s; font-weight: 700; text-transform: uppercase;">%s</span></td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Milestone Awal:</td>
-          <td style="padding: 6px 0; color: #0f172a;">Progress: %d%%</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Target Selesai:</td>
-          <td style="padding: 6px 0; color: #0f172a;">%s</td>
-        </tr>
-      </table>
-    </div>
-
-    %s
-
-    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.4;">
-      <p style="margin: 0;">Silakan akses <strong>PE-Portal &gt; ToDo List</strong> untuk memperbarui progress, timeline diskusi, dan uji coba.</p>
-      <p style="margin: 4px 0 0; color: #94a3b8;">Email ini dikirim otomatis oleh SEIN PE Portal Mail Gateway.</p>
-    </div>
-  </div>
-</div>`,
-					projectTitle,
-					pType,
-					priorityColor,
-					priority,
-					progress,
-					targetDateStr,
-					descHTML,
-				)
-
+				subject := fmt.Sprintf("[PE ToDo List] Penugasan Baru: %s", proj.Title)
+				htmlBody := buildProjectDetailEmailHTML(proj, nil, "Penugasan baru milestone task analyst.")
 				_ = h.smtpSvc.SendEmail(smtpCfg, recipients, nil, subject, htmlBody)
-			}(toEmails, p.Title, p.ProjectType, p.Priority, p.Progress, func() string {
-				if p.TargetDate != nil {
-					return *p.TargetDate
-				}
-				return "-"
-			}(), func() string {
-				if p.Description != nil {
-					return *p.Description
-				}
-				return ""
-			}())
+			}(toEmails, created)
 		}
 	}
 
@@ -554,6 +482,472 @@ func (h *ProjectHandler) GetGbaTasks(c echo.Context) error {
 	return echo.NewHTTPError(http.StatusBadGateway, "Failed to connect to GBA Task Manager: "+lastErr.Error())
 }
 
+// ponytail: buildProjectDetailEmailHTML constructs a rich HTML email formatted exactly like the Detail ToDo / Task Analyst modal view, including full comments
+func buildProjectDetailEmailHTML(p *model.Project, comments []model.Comment, senderNote string) string {
+	// Parse metadata
+	var metaHelper projectMetadataHelper
+	if len(p.Metadata) > 0 {
+		_ = json.Unmarshal(p.Metadata, &metaHelper)
+	}
+
+	// Determine milestone step & label
+	step := 1
+	stepLabel := "1. Issue Identified"
+	if p.Progress >= 100 {
+		step = 5
+		stepLabel = "5. Closed & Standardized"
+	} else if p.Progress >= 80 {
+		step = 4
+		stepLabel = "4. Verification & Yield"
+	} else if p.Progress >= 60 {
+		step = 3
+		stepLabel = "3. Trial Countermeasure"
+	} else if p.Progress >= 40 {
+		step = 2
+		stepLabel = "2. Root Cause Analysis"
+	}
+
+	// Priority badge styling
+	priorityBg := "#eff6ff"
+	priorityColor := "#2563eb"
+	if p.Priority == "urgent" || p.Priority == "high" {
+		priorityBg = "#fef2f2"
+		priorityColor = "#dc2626"
+	} else if p.Priority == "medium" {
+		priorityBg = "#fffbeb"
+		priorityColor = "#d97706"
+	}
+
+	// Status badge
+	statusLabel := strings.ToUpper(p.Status)
+	if statusLabel == "" {
+		statusLabel = "PLANNING"
+	}
+
+	// Visibility badge
+	visLabel := "Publik"
+	visBg := "#f0fdf4"
+	visColor := "#16a34a"
+	if metaHelper.Visibility == "private_pic" {
+		visLabel = "Privat PIC"
+		visBg = "#fef2f2"
+		visColor = "#dc2626"
+	} else if metaHelper.Visibility == "manager" {
+		visLabel = "Manager & PIC"
+		visBg = "#fffbeb"
+		visColor = "#d97706"
+	}
+
+	// Assigned PICs string
+	var assignedNames []string
+	for _, pic := range metaHelper.AssignedPics {
+		name := strings.TrimSpace(pic.FullName)
+		if name == "" {
+			name = strings.TrimSpace(pic.Name)
+		}
+		if name == "" {
+			name = strings.TrimSpace(pic.Email)
+		}
+		if name != "" {
+			assignedNames = append(assignedNames, name)
+		}
+	}
+	assignedStr := "Unassigned"
+	if len(assignedNames) > 0 {
+		assignedStr = strings.Join(assignedNames, ", ")
+	} else if p.OwnerName != nil && *p.OwnerName != "" {
+		assignedStr = *p.OwnerName
+	}
+
+	// Created by
+	createdByStr := "Team Member"
+	if metaHelper.CreatedByName != "" {
+		createdByStr = metaHelper.CreatedByName
+	}
+
+	// Target date & Created date
+	targetDateStr := "Tidak ada target"
+	if p.TargetDate != nil && *p.TargetDate != "" {
+		targetDateStr = *p.TargetDate
+	}
+	createdAtStr := p.CreatedAt.Format("02 Jan 2006, 15:04 WIB")
+
+	// 5-Stage Stepper HTML
+	stages := []struct {
+		num   int
+		label string
+	}{
+		{1, "1. Issue Identified"},
+		{2, "2. Root Cause"},
+		{3, "3. Trial Action"},
+		{4, "4. Verification"},
+		{5, "5. Standardized"},
+	}
+	var stepperCols strings.Builder
+	for _, s := range stages {
+		colStyle := "background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0;"
+		numPrefix := fmt.Sprintf("%d", s.num)
+		if s.num == step {
+			colStyle = "background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-weight: 700;"
+		} else if s.num < step {
+			colStyle = "background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-weight: 600;"
+			numPrefix = "✓"
+		}
+		stepperCols.WriteString(fmt.Sprintf(
+			`<td style="padding: 7px 4px; border-radius: 6px; text-align: center; %s">
+				<span style="font-size: 10px; display: block; opacity: 0.85;">%s</span>
+				<span style="font-size: 11px;">%s</span>
+			</td>`,
+			colStyle, numPrefix, s.label,
+		))
+	}
+
+	// Technical report section (OQC)
+	techReportHTML := ""
+	if tr := metaHelper.TechnicalReport; tr != nil {
+		drafter := tr.Drafter
+		if drafter == "" && p.OwnerName != nil {
+			drafter = *p.OwnerName
+		}
+		if drafter == "" {
+			drafter = "—"
+		}
+		partLeader := tr.PartLeader
+		if partLeader == "" {
+			partLeader = "—"
+		}
+		groupLeader := tr.GroupLeader
+		if groupLeader == "" {
+			groupLeader = "hendra.n@samsung.com"
+		}
+
+		modelVal := tr.Model
+		if modelVal == "" {
+			modelVal = "—"
+		}
+		defectDate := tr.DefectDate
+		if defectDate == "" && p.StartDate != nil {
+			defectDate = *p.StartDate
+		}
+		if defectDate == "" {
+			defectDate = "—"
+		}
+		defectLoc := tr.DefectLocation
+		if defectLoc == "" {
+			defectLoc = "—"
+		}
+		problemTitle := tr.Problem
+		if problemTitle == "" {
+			problemTitle = p.Title
+		}
+		cnVal := tr.CN
+		if cnVal == "" {
+			cnVal = "—"
+		}
+		qtyVal := tr.DefectQty
+		if qtyVal == "" {
+			qtyVal = "—"
+		}
+
+		symptoms := tr.SymptomsAnalysis
+		if symptoms == "" {
+			symptoms = tr.Symptoms
+		}
+		symptomsHTML := ""
+		if strings.TrimSpace(symptoms) != "" {
+			symptomsHTML = fmt.Sprintf(`
+				<div style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+					<div style="font-size: 11px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; margin-bottom: 4px;">1. Symptoms &amp; Analysis</div>
+					<div style="font-size: 12px; color: #1e293b; line-height: 1.5; white-space: pre-wrap;">%s</div>
+				</div>`,
+				html.EscapeString(symptoms),
+			)
+		}
+
+		countermeasure := tr.ConclusionCountermeasure
+		if countermeasure == "" {
+			countermeasure = tr.Countermeasure
+		}
+		countermeasureHTML := ""
+		if strings.TrimSpace(countermeasure) != "" {
+			countermeasureHTML = fmt.Sprintf(`
+				<div style="padding: 10px 12px; background: #ffffff;">
+					<div style="font-size: 11px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; margin-bottom: 4px;">2. Conclusion &amp; Countermeasure</div>
+					<div style="font-size: 12px; color: #1e293b; line-height: 1.5; white-space: pre-wrap;">%s</div>
+				</div>`,
+				html.EscapeString(countermeasure),
+			)
+		}
+
+		techReportHTML = fmt.Sprintf(`
+			<div style="border: 2px solid #1e3a8a; border-radius: 6px; overflow: hidden; margin-bottom: 18px; background: #ffffff;">
+				<div style="background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 800; text-align: center; padding: 6px 8px; letter-spacing: 0.06em; text-transform: uppercase;">
+					OQC TECHNICAL REPORT
+				</div>
+				<table style="width: 100%%; border-collapse: collapse; font-size: 11.5px; border-bottom: 1px solid #cbd5e1;">
+					<tr style="background: #f8fafc;">
+						<td style="width: 12%%; padding: 6px 8px; font-weight: 700; color: #475569; border-right: 1px solid #e2e8f0;">Drafter</td>
+						<td style="width: 21%%; padding: 6px 8px; font-weight: 600; color: #0f172a; border-right: 1px solid #e2e8f0;">%s</td>
+						<td style="width: 14%%; padding: 6px 8px; font-weight: 700; color: #475569; border-right: 1px solid #e2e8f0;">Part Leader</td>
+						<td style="width: 20%%; padding: 6px 8px; font-weight: 600; color: #0f172a; border-right: 1px solid #e2e8f0;">%s</td>
+						<td style="width: 14%%; padding: 6px 8px; font-weight: 700; color: #475569; border-right: 1px solid #e2e8f0;">Group Leader</td>
+						<td style="width: 19%%; padding: 6px 8px; font-weight: 600; color: #0f172a;">%s</td>
+					</tr>
+				</table>
+				<div style="background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 800; text-align: center; padding: 5px 8px; letter-spacing: 0.06em; text-transform: uppercase;">
+					PROBLEM INFORMATION
+				</div>
+				<table style="width: 100%%; border-collapse: collapse; font-size: 11.5px;">
+					<tr>
+						<td style="width: 15%%; padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Model</td>
+						<td style="width: 35%%; padding: 6px 8px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">%s</td>
+						<td style="width: 18%%; padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Defect Date</td>
+						<td style="width: 32%%; padding: 6px 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">%s</td>
+					</tr>
+					<tr>
+						<td style="padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Problem</td>
+						<td colspan="3" style="padding: 6px 8px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0;">%s</td>
+					</tr>
+					<tr>
+						<td style="padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">Defect Location</td>
+						<td style="padding: 6px 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">%s</td>
+						<td style="padding: 6px 8px; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;">CN / Qty</td>
+						<td style="padding: 6px 8px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">%s (Qty: %s)</td>
+					</tr>
+				</table>
+				%s
+				%s
+			</div>`,
+			html.EscapeString(drafter),
+			html.EscapeString(partLeader),
+			html.EscapeString(groupLeader),
+			html.EscapeString(modelVal),
+			html.EscapeString(defectDate),
+			html.EscapeString(problemTitle),
+			html.EscapeString(defectLoc),
+			html.EscapeString(cnVal),
+			html.EscapeString(qtyVal),
+			symptomsHTML,
+			countermeasureHTML,
+		)
+	}
+
+	// Task description & attachments
+	descVal := "Belum ada catatan investigasi atau countermeasure yang dicatat untuk task ini."
+	if p.Description != nil && strings.TrimSpace(*p.Description) != "" {
+		descVal = *p.Description
+	}
+
+	attachmentsHTML := ""
+	var taskAttachments []taskAttachmentHelper
+	if len(p.Attachments) > 0 {
+		_ = json.Unmarshal(p.Attachments, &taskAttachments)
+	}
+	if len(taskAttachments) > 0 {
+		var attItems strings.Builder
+		for _, a := range taskAttachments {
+			sizeKB := a.Size / 1024
+			attItems.WriteString(fmt.Sprintf(`<li style="margin-bottom: 2px;">📎 %s (%d KB)</li>`, html.EscapeString(a.Name), sizeKB))
+		}
+		attachmentsHTML = fmt.Sprintf(`
+			<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #475569;">
+				<strong>Lampiran Bukti &amp; Dokumen (%d):</strong>
+				<ul style="margin: 4px 0 0; padding-left: 18px;">
+					%s
+				</ul>
+			</div>`,
+			len(taskAttachments),
+			attItems.String(),
+		)
+	}
+
+	// Sender note if present
+	senderNoteHTML := ""
+	if strings.TrimSpace(senderNote) != "" {
+		senderNoteHTML = fmt.Sprintf(`
+			<div style="margin-bottom: 18px; padding: 12px 14px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px; font-size: 13px; color: #92400e;">
+				<strong>Catatan Tambahan Pengirim:</strong><br/>
+				<span style="white-space: pre-wrap;">%s</span>
+			</div>`,
+			html.EscapeString(senderNote),
+		)
+	}
+
+	// Full Comments & Timeline Section
+	commentsHTML := ""
+	if len(comments) == 0 {
+		commentsHTML = `<div style="font-size: 12px; color: #94a3b8; font-style: italic; padding: 8px 0;">Belum ada komentar diskusi pada task ini.</div>`
+	} else {
+		var commBuilder strings.Builder
+		for _, c := range comments {
+			authorName := "Team Member"
+			if c.AuthorName != nil && *c.AuthorName != "" {
+				authorName = *c.AuthorName
+			}
+			timeStr := c.CreatedAt.Format("02 Jan 2006, 15:04 WIB")
+			contentHTML := strings.ReplaceAll(html.EscapeString(c.Content), "\n", "<br/>")
+
+			// Check comment attachments
+			var cAtts []taskAttachmentHelper
+			if len(c.Attachments) > 0 {
+				_ = json.Unmarshal(c.Attachments, &cAtts)
+			}
+			attStr := ""
+			if len(cAtts) > 0 {
+				var aNames []string
+				for _, ca := range cAtts {
+					aNames = append(aNames, html.EscapeString(ca.Name))
+				}
+				attStr = fmt.Sprintf(`<div style="margin-top: 5px; font-size: 11px; color: #64748b;">📎 %s</div>`, strings.Join(aNames, ", "))
+			}
+
+			commBuilder.WriteString(fmt.Sprintf(`
+				<div style="margin-bottom: 10px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 12px;">
+						<strong style="color: #0f172a;">%s</strong>
+						<span style="color: #64748b; font-size: 11px;">%s</span>
+					</div>
+					<div style="font-size: 12.5px; color: #334155; line-height: 1.45;">%s</div>
+					%s
+				</div>`,
+				html.EscapeString(authorName),
+				timeStr,
+				contentHTML,
+				attStr,
+			))
+		}
+		commentsHTML = commBuilder.String()
+	}
+
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body style="margin: 0; padding: 20px 10px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <div style="max-width: 680px; margin: 0 auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+    
+    <!-- Top Branding Header -->
+    <div style="background: #1e293b; padding: 18px 22px; border-bottom: 3px solid #2563eb;">
+      <table style="width: 100%%; border-collapse: collapse;">
+        <tr>
+          <td>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #60a5fa; font-weight: 700;">SEIN Production Engineer Portal</div>
+            <div style="font-size: 17px; font-weight: 800; color: #ffffff; margin-top: 2px;">Detail ToDo / Task Analyst Report</div>
+          </td>
+          <td style="text-align: right; vertical-align: middle;">
+            <span style="display: inline-block; padding: 4px 12px; background: rgba(37, 99, 235, 0.25); border: 1px solid #3b82f6; border-radius: 20px; font-size: 12px; font-weight: 700; color: #93c5fd;">
+              Tahap %d (%d%%%%)
+            </span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="padding: 20px 22px;">
+
+      <!-- Hero Card with Badges & Metadata -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;">
+        <div style="margin-bottom: 10px;">
+          <span style="display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: #e0f2fe; color: #0369a1; margin-right: 6px;">%s</span>
+          <span style="display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: %s; color: %s; margin-right: 6px;">%s</span>
+          <span style="display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: #f1f5f9; color: #475569; margin-right: 6px;">%s</span>
+          <span style="display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; background: %s; color: %s;">%s</span>
+        </div>
+
+        <h2 style="margin: 0 0 12px 0; font-size: 17px; font-weight: 800; color: #0f172a; line-height: 1.35;">%s</h2>
+
+        <table style="width: 100%%; border-collapse: collapse; font-size: 12.5px; border-top: 1px solid #e2e8f0;">
+          <tr>
+            <td style="padding: 5px 0; color: #64748b; width: 130px; font-weight: 600;">Assigned PIC:</td>
+            <td style="padding: 5px 0; color: #0f172a; font-weight: 700;">%s</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; color: #64748b; font-weight: 600;">Pembuat Task:</td>
+            <td style="padding: 5px 0; color: #0f172a;">%s</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; color: #64748b; font-weight: 600;">Target Selesai:</td>
+            <td style="padding: 5px 0; color: #0f172a;">%s</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; color: #64748b; font-weight: 600;">Tanggal Dibuat:</td>
+            <td style="padding: 5px 0; color: #0f172a;">%s</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Milestone 5-Tahap Stepper -->
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 18px;">
+        <div style="font-size: 11.5px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em;">
+          Milestone Breadcrumb Trail (5-Tahap) — <span style="color: #2563eb;">%s</span>
+        </div>
+        <table style="width: 100%%; border-collapse: separate; border-spacing: 4px; font-size: 11px;">
+          <tr>
+            %s
+          </tr>
+        </table>
+      </div>
+
+      <!-- Technical Report Section (OQC Format) if present -->
+      %s
+
+      <!-- Catatan Analisis / Investigasi Teknis -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;">
+        <div style="font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">
+          Catatan Analisis / Investigasi Teknis
+        </div>
+        <div style="font-size: 12.5px; color: #334155; line-height: 1.5; white-space: pre-wrap; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">%s</div>
+        %s
+      </div>
+
+      <!-- Sender Note if provided -->
+      %s
+
+      <!-- FULL COMMENTS & DISCUSSION SECTION -->
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;">
+        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 12px;">
+          Histori Diskusi &amp; Komentar Tim (%d)
+        </div>
+        %s
+      </div>
+
+      <!-- Footer Note -->
+      <div style="padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #64748b; line-height: 1.5;">
+        <p style="margin: 0;">Silakan akses <strong>SEIN PE-Portal &gt; ToDo List</strong> untuk memperbarui progress atau menanggapi diskusi.</p>
+        <p style="margin: 4px 0 0; color: #94a3b8;">Email ini dikirim otomatis melalui SEIN PE Portal Mail Gateway.</p>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>`,
+		step,
+		p.Progress,
+		html.EscapeString(p.ProjectType),
+		priorityBg,
+		priorityColor,
+		html.EscapeString(p.Priority),
+		html.EscapeString(statusLabel),
+		visBg,
+		visColor,
+		html.EscapeString(visLabel),
+		html.EscapeString(p.Title),
+		html.EscapeString(assignedStr),
+		html.EscapeString(createdByStr),
+		html.EscapeString(targetDateStr),
+		createdAtStr,
+		html.EscapeString(stepLabel),
+		stepperCols.String(),
+		techReportHTML,
+		html.EscapeString(descVal),
+		attachmentsHTML,
+		senderNoteHTML,
+		len(comments),
+		commentsHTML,
+	)
+}
+
 // SendEmailNotification sends an on-demand milestone progress email to the assignee or specified recipients
 func (h *ProjectHandler) SendEmailNotification(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
@@ -583,6 +977,26 @@ func (h *ProjectHandler) SendEmailNotification(c echo.Context) error {
 				toEmails = append(toEmails, assignee.Email)
 			}
 		}
+
+		// Also check if technical report specifies a valid group leader / part leader email
+		var metaHelper projectMetadataHelper
+		if len(p.Metadata) > 0 {
+			if err := json.Unmarshal(p.Metadata, &metaHelper); err == nil && metaHelper.TechnicalReport != nil {
+				gl := strings.TrimSpace(metaHelper.TechnicalReport.GroupLeader)
+				if strings.Contains(gl, "@") {
+					exists := false
+					for _, em := range toEmails {
+						if strings.EqualFold(em, gl) {
+							exists = true
+							break
+						}
+					}
+					if !exists {
+						toEmails = append(toEmails, gl)
+					}
+				}
+			}
+		}
 	}
 
 	// Fallback to all active admin or registered users if no direct PIC email
@@ -606,7 +1020,7 @@ func (h *ProjectHandler) SendEmailNotification(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "SMTP server belum dikonfigurasi di Settings / Reports.")
 	}
 
-	// Prepare milestone label
+	// Prepare milestone label for subject
 	stageLabel := "1. Issue Identified"
 	if p.Progress >= 100 {
 		stageLabel = "5. Closed & Standardized"
@@ -620,88 +1034,15 @@ func (h *ProjectHandler) SendEmailNotification(c echo.Context) error {
 
 	subject := fmt.Sprintf("[Milestone Task Update] %s (Progress: %d%% - %s)", p.Title, p.Progress, stageLabel)
 
-	priorityColor := "#3b82f6"
-	if p.Priority == "urgent" || p.Priority == "high" {
-		priorityColor = "#ef4444"
+	// ponytail: Fetch comments and timeline for complete email body
+	var comments []model.Comment
+	if h.commentRepo != nil {
+		if cList, err := h.commentRepo.ListByEntity(c.Request().Context(), "project", p.ID); err == nil {
+			comments = cList
+		}
 	}
 
-	descText := "-"
-	if p.Description != nil && *p.Description != "" {
-		descText = *p.Description
-	}
-
-	targetDateText := "-"
-	if p.TargetDate != nil && *p.TargetDate != "" {
-		targetDateText = *p.TargetDate
-	}
-
-	noteHTML := ""
-	if req.Note != "" {
-		noteHTML = fmt.Sprintf(`<div style="margin: 16px 0; padding: 12px 14px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px; color: #92400e;"><strong>Catatan Tambahan Pengirim:</strong><br/><span style="white-space: pre-wrap;">%s</span></div>`, req.Note)
-	}
-
-	htmlBody := fmt.Sprintf(`
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-  <div style="background: #1e293b; padding: 20px 24px; border-bottom: 3px solid #3b82f6;">
-    <h2 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 700;">SEIN Production Engineer Portal</h2>
-    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Laporan Milestone & Status Problem Solving Task Analyst</p>
-  </div>
-  <div style="padding: 24px;">
-    <p style="font-size: 14px; color: #1e293b; margin-top: 0;">Berikut adalah pembaruan status dan milestone untuk issue produksi:</p>
-    
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 18px 0;">
-      <table style="width: 100%%; border-collapse: collapse; font-size: 13.5px;">
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; width: 140px; font-weight: 600;">Judul Issue:</td>
-          <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">%s</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Kategori:</td>
-          <td style="padding: 6px 0; color: #0f172a; text-transform: capitalize;">%s</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Prioritas:</td>
-          <td style="padding: 6px 0;"><span style="color: %s; font-weight: 700; text-transform: uppercase;">%s</span></td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Milestone Tahap:</td>
-          <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">%s (%d%%)</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Status:</td>
-          <td style="padding: 6px 0; color: #0f172a; text-transform: uppercase; font-weight: 600;">%s</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Target Selesai:</td>
-          <td style="padding: 6px 0; color: #0f172a;">%s</td>
-        </tr>
-      </table>
-    </div>
-
-    <div style="margin: 16px 0; padding: 12px 14px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;">
-      <strong>Catatan Investigasi & Tindakan:</strong><br/>
-      <span style="white-space: pre-wrap;">%s</span>
-    </div>
-
-    %s
-
-    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; line-height: 1.4;">
-      <p style="margin: 0;">Silakan akses <strong>PE-Portal</strong> untuk melihat histori komentar dan pembaruan log milestone.</p>
-      <p style="margin: 4px 0 0; color: #94a3b8;">Email ini dikirim melalui SEIN PE Portal Mail Gateway.</p>
-    </div>
-  </div>
-</div>`,
-		p.Title,
-		p.ProjectType,
-		priorityColor,
-		p.Priority,
-		stageLabel,
-		p.Progress,
-		p.Status,
-		targetDateText,
-		descText,
-		noteHTML,
-	)
+	htmlBody := buildProjectDetailEmailHTML(p, comments, req.Note)
 
 	if err := h.smtpSvc.SendEmail(smtpCfg, toEmails, nil, subject, htmlBody); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Gagal mengirim email: "+err.Error())
@@ -711,4 +1052,48 @@ func (h *ProjectHandler) SendEmailNotification(c echo.Context) error {
 		"message":    fmt.Sprintf("Email berhasil dikirim ke %d penerima (%s)", len(toEmails), toEmails[0]),
 		"recipients": toEmails,
 	})
+}
+
+// ponytail: PreviewEmail returns the rendered HTML email or JSON for preview
+func (h *ProjectHandler) PreviewEmail(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid project id")
+	}
+
+	p, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil || p == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "task not found")
+	}
+
+	var comments []model.Comment
+	if h.commentRepo != nil {
+		if cList, err := h.commentRepo.ListByEntity(c.Request().Context(), "project", p.ID); err == nil {
+			comments = cList
+		}
+	}
+
+	senderNote := c.QueryParam("note")
+	htmlBody := buildProjectDetailEmailHTML(p, comments, senderNote)
+
+	stageLabel := "1. Issue Identified"
+	if p.Progress >= 100 {
+		stageLabel = "5. Closed & Standardized"
+	} else if p.Progress >= 80 {
+		stageLabel = "4. Verification & Yield"
+	} else if p.Progress >= 60 {
+		stageLabel = "3. Trial Countermeasure"
+	} else if p.Progress >= 40 {
+		stageLabel = "2. Root Cause Analysis"
+	}
+	subject := fmt.Sprintf("[Milestone Task Update] %s (Progress: %d%% - %s)", p.Title, p.Progress, stageLabel)
+
+	if c.QueryParam("format") == "json" {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"subject": subject,
+			"html":    htmlBody,
+		})
+	}
+
+	return c.HTML(http.StatusOK, htmlBody)
 }

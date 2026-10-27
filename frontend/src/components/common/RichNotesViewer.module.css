@@ -89,84 +89,318 @@
   background-color: var(--color-bg-secondary);
 }
 
-/* Photo / Image Embed */
+/* Photo / Image Embed & Resizable Dimension Controls */
+.imageCardWrapper {
+  margin: 10px 0;
+  max-width: 100%;
+  transition: width 0.25s cubic-bezier(0.2, 0, 0, 1);
+  display: block;
+}
+
 .imageCard {
-  margin: 8px 0;
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
+  width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background-color: var(--color-bg-primary);
   overflow: hidden;
-  max-width: 100%;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .imageCard:hover {
-  transform: translateY(-2px);
   border-color: var(--color-accent);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
-.imageThumb {
-  max-height: 240px;
-  max-width: 100%;
-  object-fit: contain;
-  background-color: #0b0f19;
-  display: block;
-}
-
-.imageCaption {
+.imageHeaderBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
   padding: 6px 10px;
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-subtle);
+  user-select: none;
+}
+
+.imageTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
+  font-weight: 600;
   color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.imageControls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.dimBadge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: rgba(37, 99, 235, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 2px;
+  font-family: monospace;
+}
+
+.dimBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dimBtn:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+}
+
+.dimBtn:active {
+  transform: scale(0.92);
+}
+
+.dimPresetBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  height: 22px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dimPresetBtn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.dimPresetActive {
+  background-color: var(--color-accent) !important;
+  color: #ffffff !important;
+  border-color: var(--color-accent) !important;
+}
+
+.imageThumbContainer {
+  width: 100%;
+  background-color: #0b0f19;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.imageThumb {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.imageThumbContainer:hover .imageThumb {
+  transform: scale(1.01);
+}
+
+.imageFooterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
   background-color: var(--color-bg-secondary);
   border-top: 1px solid var(--color-border-subtle);
+  font-size: 10.5px;
+  color: var(--color-text-muted);
 }
 
 /* Lightbox Modal */
 .lightboxOverlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.85);
+  background-color: rgba(0, 0, 0, 0.88);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   z-index: 9999;
-  padding: 20px;
-  backdrop-filter: blur(4px);
+  padding: 16px;
+  backdrop-filter: blur(6px);
+  user-select: none;
 }
 
-.lightboxImage {
-  max-width: 90vw;
-  max-height: 85vh;
-  object-fit: contain;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+.lightboxTopBar {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  color: #f8fafc;
+  z-index: 10000;
+}
+
+.lightboxTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lightboxControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lightboxBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: var(--radius-xs);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lightboxBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+.lightboxZoomBadge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #93c5fd;
+  min-width: 42px;
+  text-align: center;
+  font-family: monospace;
 }
 
 .lightboxCloseBtn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: #fff;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  border-radius: var(--radius-xs);
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background 0.15s ease;
+  margin-left: 6px;
 }
 
 .lightboxCloseBtn:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(239, 68, 68, 0.5);
+  color: #fff;
+}
+
+.lightboxStage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: auto;
+  padding: 12px;
+}
+
+.lightboxImage {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+  transform-origin: center center;
+}
+
+.lightboxBottomBar {
+  color: #94a3b8;
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+}
+
+/* Status badge pills inside markdown table */
+.statusBadgePass {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 4px;
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  text-align: center;
+}
+
+.statusBadgeFail {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 800;
+  border-radius: 4px;
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  text-align: center;
+}
+
+.statusBadgeHold {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 4px;
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  text-align: center;
 }

@@ -14,8 +14,12 @@ import {
   Minus,
   Image as ImageIcon,
   Loader2,
+  Eye,
+  PenTool,
+  Columns,
 } from 'lucide-react';
 import api from '../../api/client';
+import { RichNotesViewer } from './RichNotesViewer';
 import styles from './FormattingTextarea.module.css';
 
 /**
@@ -89,7 +93,7 @@ export const applyFormat = (textarea, formatType) => {
       cursorOffset = replacement.length - 1;
       break;
     case 'image':
-      replacement = `\n![${selected || 'Keterangan Gambar'}](https://)\n`;
+      replacement = `\n![${selected || 'Keterangan Gambar'}|75%](https://)\n`;
       cursorOffset = replacement.length - 2;
       break;
     case 'hr':
@@ -127,7 +131,12 @@ export const applyFormat = (textarea, formatType) => {
 /**
  * Reusable Formatting Toolbar Component
  */
-export const FormattingToolbar = ({ textareaRef, onFormat }) => {
+export const FormattingToolbar = ({
+  textareaRef,
+  onFormat,
+  activeTab = 'write',
+  onTabChange = null,
+}) => {
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -151,7 +160,8 @@ export const FormattingToolbar = ({ textareaRef, onFormat }) => {
       });
       const fileUrl = res.data.url;
       const fileName = res.data.name || file.name || 'Foto Lampiran';
-      const imgMarkdown = `\n![${fileName}](${fileUrl})\n`;
+      // ponytail: default to 75% width dimension preset for balanced layout
+      const imgMarkdown = `\n![${fileName}|75%](${fileUrl})\n`;
 
       if (textareaRef?.current) {
         const textarea = textareaRef.current;
@@ -183,7 +193,7 @@ export const FormattingToolbar = ({ textareaRef, onFormat }) => {
     } catch (err) {
       const altUrl = prompt('Gagal mengunggah gambar otomatis. Masukkan URL Gambar langsung:', 'https://');
       if (altUrl && textareaRef?.current) {
-        const fallbackMarkdown = `\n![Foto Lampiran](${altUrl})\n`;
+        const fallbackMarkdown = `\n![Foto Lampiran|75%](${altUrl})\n`;
         const textarea = textareaRef.current;
         textarea.focus();
         document.execCommand('insertText', false, fallbackMarkdown);
@@ -327,12 +337,45 @@ export const FormattingToolbar = ({ textareaRef, onFormat }) => {
       >
         <Minus size={13} />
       </button>
+
+      {/* View Mode Toggle: Tulis / Pratinjau / Split */}
+      {onTabChange && (
+        <div className={styles.viewModeGroup}>
+          <button
+            type="button"
+            className={`${styles.modeBtn} ${activeTab === 'write' ? styles.modeBtnActive : ''}`}
+            onClick={() => onTabChange('write')}
+            title="Mode Tulis / Edit Markdown"
+          >
+            <PenTool size={11} />
+            <span>Tulis</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.modeBtn} ${activeTab === 'preview' ? styles.modeBtnActive : ''}`}
+            onClick={() => onTabChange('preview')}
+            title="Pratinjau Hasil Render (Tabel & Gambar Resizable)"
+          >
+            <Eye size={11} />
+            <span>Pratinjau</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.modeBtn} ${activeTab === 'split' ? styles.modeBtnActive : ''}`}
+            onClick={() => onTabChange('split')}
+            title="Tampilan Berdampingan (Editor & Pratinjau)"
+          >
+            <Columns size={11} />
+            <span>Split</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
 /**
- * Textarea wrapped with FormattingToolbar
+ * Textarea wrapped with FormattingToolbar & Live Render Preview
  */
 export const FormattingTextarea = ({
   label,
@@ -343,9 +386,11 @@ export const FormattingTextarea = ({
   required = false,
   name,
   style,
-  minHeight = '100px'
+  minHeight = '120px',
+  defaultTab = 'write',
 }) => {
   const textareaRef = useRef(null);
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   const handleKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
@@ -361,23 +406,92 @@ export const FormattingTextarea = ({
     ? value
     : (value != null && typeof value !== 'object' ? String(value) : '');
 
+  // ponytail: handle image resize or text changes from preview tab
+  const handleUpdateContent = (newContent) => {
+    if (onChange) {
+      onChange({ target: { name, value: newContent } });
+    }
+  };
+
   return (
     <div className={styles.container} style={style}>
       {label && <label className={styles.label}>{label}</label>}
       <div className={styles.toolbarWrapper}>
-        <FormattingToolbar textareaRef={textareaRef} />
-        <textarea
-          ref={textareaRef}
-          name={name}
-          rows={rows}
-          required={required}
-          value={safeValue}
-          onChange={onChange}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className={styles.textarea}
-          style={{ minHeight }}
+        <FormattingToolbar
+          textareaRef={textareaRef}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
         />
+
+        {/* Mode: Tulis (Editor Only) */}
+        {activeTab === 'write' && (
+          <textarea
+            ref={textareaRef}
+            name={name}
+            rows={rows}
+            required={required}
+            value={safeValue}
+            onChange={onChange}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className={styles.textarea}
+            style={{ minHeight }}
+          />
+        )}
+
+        {/* Mode: Pratinjau (Rendered Table & Resizable Images) */}
+        {activeTab === 'preview' && (
+          <div className={styles.previewContainer} style={{ minHeight }}>
+            {safeValue.trim() ? (
+              <RichNotesViewer
+                content={safeValue}
+                onUpdateContent={handleUpdateContent}
+              />
+            ) : (
+              <div className={styles.emptyPreview}>
+                <span style={{ fontWeight: 600 }}>Belum ada konten untuk dipratinjau.</span>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                  Gunakan tombol pada toolbar di atas untuk menyisipkan Tabel atau mengunggah Foto PBA pada tab Tulis.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Mode: Split (Side-by-Side Editor & Preview) */}
+        {activeTab === 'split' && (
+          <div className={styles.splitContainer}>
+            <div className={styles.splitEditor}>
+              <textarea
+                ref={textareaRef}
+                name={name}
+                rows={rows}
+                required={required}
+                value={safeValue}
+                onChange={onChange}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                className={styles.textarea}
+                style={{ minHeight }}
+              />
+            </div>
+            <div className={styles.splitPreview} style={{ minHeight }}>
+              {safeValue.trim() ? (
+                <RichNotesViewer
+                  content={safeValue}
+                  onUpdateContent={handleUpdateContent}
+                />
+              ) : (
+                <div className={styles.emptyPreview}>
+                  <span style={{ fontWeight: 600 }}>Pratinjau Langsung</span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    Ketik teks atau sisipkan tabel di kiri untuk melihat hasil di sini.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
