@@ -21,7 +21,6 @@ import {
   Database,
   CloudUpload,
   RefreshCw,
-  Info,
   Edit2,
   Archive,
   CheckSquare,
@@ -957,28 +956,6 @@ export const DocumentsPage = () => {
                     />
                     <span>Overwrite jika ada</span>
                   </label>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: 'var(--color-text-secondary)',
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '8px',
-                    lineHeight: '1.4',
-                  }}
-                >
-                  <Info size={14} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--color-accent)' }} />
-                  <div>
-                    <div>Endpoint DataHub berada di intranet Samsung.</div>
-                    <div style={{ marginTop: '2px', color: '#f59e0b', fontWeight: 500 }}>
-                      * Catatan DRM: Berkas tidak boleh terenkripsi DRM korporat (Fasoo DRM). Jika berkas diproteksi DRM, silakan Decrypt terlebih dahulu sebelum diunggah.
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
