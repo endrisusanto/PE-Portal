@@ -50,6 +50,7 @@ import { Table } from '../components/common/Table';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
+import { TaskAnalystTechnicalReportCard } from '../components/common/TaskAnalystTechnicalReportCard';
 import i18n from '../utils/i18n';
 import styles from './ProjectsPage.module.css';
 
@@ -2678,6 +2679,9 @@ export const ProjectsPage = () => {
                 })}
               </nav>
             </div>
+
+            {/* SEIN MX Technical Report Card (OQC Format) */}
+            <TaskAnalystTechnicalReportCard project={viewingProject} />
 
             {/* Catatan Analisis / Investigasi Card */}
             <div className={styles.viewNotesCard}>

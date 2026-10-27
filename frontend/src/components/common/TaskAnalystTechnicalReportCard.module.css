@@ -1,0 +1,387 @@
+/* TaskAnalystTechnicalReportCard.module.css */
+/* Replicates SEIN MX Product Engineering Technical Report layout */
+
+.reportCardWrapper {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 10px);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.reportCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-bg-secondary, rgba(0, 0, 0, 0.02));
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  user-select: none;
+}
+
+.reportCardHeader:hover {
+  background: var(--color-bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.headerTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerIcon {
+  color: var(--color-accent);
+}
+
+.headerTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.headerBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionBtn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.reportContentBody {
+  padding: 16px;
+  background: var(--color-bg-primary);
+}
+
+/* Printable / Realistic Paper Container */
+.reportSheet {
+  background: #ffffff;
+  color: #0f172a;
+  border: 2px solid #1e3a8a;
+  border-radius: 4px;
+  padding: 14px 16px 20px 16px;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark mode adjustment for report sheet so text stays perfectly readable */
+[data-theme='dark'] .reportSheet {
+  background: #111827;
+  color: #f1f5f9;
+  border-color: #3b82f6;
+}
+
+.sheetTopHeader {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 8px;
+}
+
+.docMainTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: #1d4ed8;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+[data-theme='dark'] .docMainTitle {
+  color: #60a5fa;
+}
+
+/* Blue Ribbon Banners */
+.sectionBanner {
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  padding: 5px 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid #1d4ed8;
+}
+
+[data-theme='dark'] .sectionBanner {
+  background: #1e40af;
+  border-color: #3b82f6;
+}
+
+/* Engineering Table Grid */
+.engTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  margin-bottom: 0;
+}
+
+.engTable th,
+.engTable td {
+  border: 1px solid #94a3b8;
+  padding: 5px 8px;
+}
+
+[data-theme='dark'] .engTable th,
+[data-theme='dark'] .engTable td {
+  border-color: #475569;
+}
+
+.engTable th,
+.headerCell {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #1e293b;
+  width: 120px;
+}
+
+[data-theme='dark'] .headerCell {
+  background: #1f2937;
+  color: #e2e8f0;
+}
+
+.valueCell {
+  color: #0f172a;
+}
+
+[data-theme='dark'] .valueCell {
+  color: #f8fafc;
+}
+
+/* 2-Column Detail Report Layout */
+.detailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-left: 1px solid #94a3b8;
+  border-right: 1px solid #94a3b8;
+  border-bottom: 1px solid #94a3b8;
+}
+
+[data-theme='dark'] .detailGrid {
+  border-color: #475569;
+}
+
+.detailColLeft {
+  padding: 12px;
+  border-right: 1px solid #94a3b8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+[data-theme='dark'] .detailColLeft {
+  border-color: #475569;
+}
+
+.detailColRight {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.subSectionTitle {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1d4ed8;
+  margin: 0 0 6px 0;
+}
+
+[data-theme='dark'] .subSectionTitle {
+  color: #60a5fa;
+}
+
+.bulletList {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bulletItem {
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* Mini Measurement / Cross-Check Table */
+.miniMatrixTable {
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.miniMatrixTable th,
+.miniMatrixTable td {
+  border: 1px solid #94a3b8;
+  padding: 4px 8px;
+  text-align: center;
+}
+
+[data-theme='dark'] .miniMatrixTable th,
+[data-theme='dark'] .miniMatrixTable td {
+  border-color: #475569;
+}
+
+.miniMatrixTable th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+[data-theme='dark'] .miniMatrixTable th {
+  background: #1f2937;
+}
+
+.statusOk {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.statusNg {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+/* IC Laser Marking Chips */
+.chipsContainer {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.icChipBox {
+  flex: 1;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 8px 6px;
+  text-align: center;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 10px;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.icChipDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #64748b;
+  margin-bottom: 4px;
+}
+
+.icChipLine1 {
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.05em;
+}
+
+.icChipLine2 {
+  font-size: 9px;
+  color: #38bdf8;
+  margin-top: 2px;
+}
+
+.icQrCode {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px;
+  background: #334155;
+  border-radius: 2px;
+  color: #94a3b8;
+}
+
+/* Schematic & PBA Visual Previews */
+.visualPreviewBox {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pbaVisual {
+  flex: 1;
+  background: #064e3b;
+  border: 1px solid #047857;
+  border-radius: 4px;
+  padding: 10px;
+  position: relative;
+  min-height: 85px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #a7f3d0;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.pbaHighlightBox {
+  border: 2px solid #ef4444;
+  background: rgba(239, 68, 68, 0.2);
+  padding: 4px 6px;
+  border-radius: 2px;
+  color: #fee2e2;
+  font-weight: 700;
+  font-size: 9px;
+}
+
+.schematicVisual {
+  flex: 1;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 9.5px;
+  color: #334155;
+}
+
+[data-theme='dark'] .schematicVisual {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+.countermeasureMeta {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+[data-theme='dark'] .countermeasureMeta {
+  background: #1e293b;
+  border-color: #334155;
+}
