@@ -39,6 +39,7 @@ import {
   Bot,
   Send,
   MessageSquare,
+  Clock,
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import api from '../api/client';
@@ -3284,7 +3285,22 @@ const PPTXAutoSummaryTab = () => {
   const [chatInput, setChatInput] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const [executingElapsed, setExecutingElapsed] = useState(0);
   const chatMessagesEndRef = useRef(null);
+
+  // Live timer for executing fallback
+  useEffect(() => {
+    let timer;
+    if (isExecuting) {
+      setExecutingElapsed(0);
+      timer = setInterval(() => {
+        setExecutingElapsed((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setExecutingElapsed(0);
+    }
+    return () => clearInterval(timer);
+  }, [isExecuting]);
 
   useEffect(() => {
     chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -3523,31 +3539,32 @@ const PPTXAutoSummaryTab = () => {
 
     try {
       let systemPrompt = `Anda adalah asisten AI senior spesialis Production Engineering (PE) di PT Samsung Electronics Indonesia (SEIN). 
-Tugas Anda adalah menganalisis, merangkum, dan memberikan rekomendasi teknis mendalam berdasarkan hasil parsing markdown dari berkas PowerPoint laporan defect/troubleshoot.
-Jawab dengan format terstruktur, jelas, to-the-point, dan profesional menggunakan terminologi manufaktur elektronik (Model, Problem, CN, Defect Date, Symptom/Analysis/Conclusion, Action & Countermeasure).`;
+Tugas utama Anda adalah menganalisis, merangkum, dan memberikan rekomendasi teknis mendalam berdasarkan hasil ekstraksi dan parsing markdown dari berkas PowerPoint laporan defect/troubleshoot PE berikut.
+Jawab dengan format terstruktur, jelas, to-the-point, dan profesional menggunakan terminologi manufaktur elektronik (Model, Problem, CN, Defect Date, Symptom/Analysis/Conclusion, Action & Countermeasure).
 
-      if (markdownSummary) {
-        systemPrompt += `\n\nBERIKUT HASIL PARSING LENGKAP DALAM FORMAT MARKDOWN DARI ${results.length} BERKAS POWERPOINT:\n\n${markdownSummary}\n\nGunakan data markdown di atas sebagai referensi utama dalam menganalisis pertanyaan user.`;
-      } else if (results.length > 0) {
-        const formattedContext = results
-          .map(
-            (r, i) =>
-              `[Laporan #${i + 1}]\n- File: ${r['File Name']}\n- Model: ${r['Model'] || '-'}\n- Problem: ${r['Problem'] || '-'}\n- CN: ${r['CN'] || '-'}\n- Defect Date: ${r['Defect Date'] || '-'}\n- Location: ${r['Defect Location'] || '-'}\n- Qty: ${r['Defect Qty'] || '-'}\n- Symptom/Analysis/Conclusion: ${r['Symptom/Analysis/Conclusion'] || '-'}\n- Action & Countermeasure: ${r['Action & Countermeasure'] || '-'}`
-          )
-          .join('\n\n---\n\n');
-        systemPrompt += `\n\nBERIKUT DATA EKSTRAKSI DARI ${results.length} BERKAS POWERPOINT:\n${formattedContext}`;
-      }
+=== DATA LAPORAN DEFECT PPTX HASIL PARSING MARKDOWN ===
+${markdownSummary || (results.length > 0 ? JSON.stringify(results, null, 2) : 'Belum ada data berkas PPTX yang diekstrak. Minta user mengunggah berkas PPTX di atas terlebih dahulu.')}
+======================================================
+
+Instruksi Analisis:
+1. Gunakan data laporan defect PPTX di atas sebagai referensi utama Anda.
+2. Jika user menanyakan ringkasan defect, jelaskan problem utama, model yang terdampak, dan tren defect.
+3. Jika user menanyakan analisis model, sebutkan model apa saja yang ada di laporan defect beserta problem spesifiknya.
+4. Jika user menanyakan kesimpulan, rangkum Symptom/Analysis/Conclusion dari data di atas.
+5. Jika user meminta tindakan/countermeasure, rangkum Action & Countermeasure dengan PIC dan prioritas.`;
 
       const historyPayload = [
-        { role: 'system', content: systemPrompt },
         ...chatMessages
-          .filter((m) => m.id !== 'welcome')
+          .filter((m) => m.id !== 'welcome' && m.role !== 'system')
           .slice(-6)
           .map((m) => ({ role: m.role, content: m.content })),
         { role: 'user', content: messageText },
       ];
 
-      const res = await api.post('/ai/chat', { messages: historyPayload });
+      const res = await api.post('/ai/chat', {
+        messages: historyPayload,
+        system_prompt: systemPrompt,
+      });
       const reply = res.data?.reply || 'Tidak ada balasan dari AI.';
 
       setChatMessages((prev) => [
@@ -3696,6 +3713,88 @@ Jawab dengan format terstruktur, jelas, to-the-point, dan profesional menggunaka
         }}>
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
           <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Fallback Sedang Diproses (Processing Progress Card with Elapsed Timer & Step Stages) */}
+      {isExecuting && (
+        <div style={{
+          backgroundColor: 'rgba(31, 78, 120, 0.12)',
+          border: '1.5px solid #1F4E78',
+          borderRadius: '12px',
+          padding: '18px 22px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          boxShadow: '0 4px 18px rgba(31, 78, 120, 0.18)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                backgroundColor: '#1F4E78',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: '0 0 12px rgba(31, 78, 120, 0.4)',
+                flexShrink: 0,
+              }}>
+                <RefreshCw size={20} style={{ animation: 'spin 1.2s linear infinite' }} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  Sedang Memproses &amp; Mengekstrak {files.length} Berkas PowerPoint...
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
+                  {executingElapsed < 3
+                    ? 'Tahap 1/3: Mengunggah berkas batch ke Python Engine...'
+                    : executingElapsed < 8
+                    ? 'Tahap 2/3: Mengekstrak teks slide, tabel metadata, kesimpulan & countermeasure...'
+                    : 'Tahap 3/3: Mengkompilasi tabel terformat Excel (.xlsx) & Markdown report...'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              backgroundColor: 'var(--color-bg-primary)',
+              border: '1px solid var(--color-border)',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: 'var(--color-accent)',
+            }}>
+              <Clock size={14} />
+              <span>Waktu Berjalan: {Math.floor(executingElapsed / 60).toString().padStart(2, '0')}:{(executingElapsed % 60).toString().padStart(2, '0')}</span>
+            </div>
+          </div>
+
+          {/* Progress Shimmer Bar */}
+          <div style={{
+            width: '100%',
+            height: '6px',
+            borderRadius: '3px',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(90deg, #1F4E78 0%, #38bdf8 50%, #1F4E78 100%)',
+              backgroundSize: '200% 100%',
+              animation: 'spin 2s linear infinite',
+            }} />
+          </div>
+
+          <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>💡 <em>Catatan: Berkas presentasi dengan foto mikroskopis resolusi tinggi membutuhkan beberapa saat untuk diekstrak. Proses tetap berjalan aman.</em></span>
+          </div>
         </div>
       )}
 
@@ -4241,10 +4340,31 @@ Jawab dengan format terstruktur, jelas, to-the-point, dan profesional menggunaka
               <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-text-primary)' }}>
                 🤖 AI Insight Chatbox — Analisis Laporan PPTX (Markdown Context)
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                {results.length > 0
-                  ? `Context Aktif: ${results.length} berkas PPTX (${uniqueModels.join(', ') || 'Model terdeteksi'}) siap dianalisis`
-                  : 'Belum ada berkas PPTX yang diekstrak. Unggah file di atas untuk mengisi konteks Markdown secara otomatis.'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px', flexWrap: 'wrap' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '11px',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  backgroundColor: markdownSummary ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                  color: markdownSummary ? '#10b981' : 'var(--color-text-muted)',
+                  fontWeight: 600,
+                }}>
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: markdownSummary ? '#10b981' : '#64748b',
+                  }} />
+                  {markdownSummary ? `Konteks Markdown Aktif (${results.length} Berkas • ${markdownSummary.length} Karakter)` : 'Konteks Belum Dimuat'}
+                </span>
+                {uniqueModels.length > 0 && (
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                    Model: {uniqueModels.join(', ')}
+                  </span>
+                )}
               </div>
             </div>
           </div>

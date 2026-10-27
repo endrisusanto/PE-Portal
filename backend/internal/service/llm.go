@@ -70,13 +70,17 @@ func (s *LLMService) ChatCompletion(ctx context.Context, cfg *model.LLMConfig, r
 	// Prepare messages with SEIN PE system prompt
 	systemPrompt := "You are the SEIN PE Engineering AI Assistant, designed for the Samsung Electronics Indonesia Production Engineering Group. Assist engineers concisely and accurately with JIG development, BOM checks, IMEI tracking, GBA approvals, MRO, and new model developments (such as S26 Series). When analyzing attached photos, PCB layouts, components, or defect images, inspect them carefully and provide detailed technical observations. When presenting structured data or comparisons, format them as clean Markdown tables. When asked for diagrams, flowcharts, architectures, or circuit layouts, generate valid, self-contained SVG graphics enclosed in ```svg ... ``` codeblocks with explicit viewBox and xmlns. When reviewing attached documents, reports, or logs, provide concise diagnosis and actionable recommendations."
 	if req.SystemPrompt != "" {
-		systemPrompt += "\n\n" + req.SystemPrompt
+		systemPrompt = req.SystemPrompt
 	}
 
 	messages := []model.ChatMessage{
 		{Role: "system", Content: systemPrompt},
 	}
-	messages = append(messages, req.Messages...)
+	for _, m := range req.Messages {
+		if m.Role != "system" {
+			messages = append(messages, m)
+		}
+	}
 
 	payload := openAIChatReq{
 		Model:       modelToUse,

@@ -222,23 +222,32 @@ def parse_with_xml_fallback(file_path):
 
 
 def parse_pptx_report(file_path):
-    """Mengekstrak informasi dari satu berkas PowerPoint (.pptx)."""
+    """
+    Mengekstrak informasi dari satu berkas PowerPoint (.pptx).
+    // ponytail: Fast XML-first parser strategy:
+    Direct XML extraction is 10-20x faster because PE presentations frequently contain
+    large high-res microscope/defect photos that make python-pptx very slow to parse in memory.
+    """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    # Coba gunakan python-pptx jika tersedia
+    # 1. Fast path: Direct XML parsing (reads only text slides, skips heavy embedded media)
+    try:
+        xml_result = parse_with_xml_fallback(file_path)
+        if xml_result and (xml_result["Model"] or xml_result["Problem"] or xml_result["Symptom/Analysis/Conclusion"] or xml_result["Action & Countermeasure"]):
+            return xml_result
+    except Exception:
+        pass
+
+    # 2. Fallback: python-pptx if available
     if HAS_PPTX:
         try:
             return parse_with_python_pptx(file_path)
-        except Exception as e:
-            # Fallback ke pure XML jika python-pptx gagal
-            try:
-                return parse_with_xml_fallback(file_path)
-            except Exception:
-                raise e
-    else:
-        # Gunakan pure XML parser
-        return parse_with_xml_fallback(file_path)
+        except Exception:
+            pass
+
+    # 3. Final fallback: retry pure XML parser
+    return parse_with_xml_fallback(file_path)
 
 
 def save_to_formatted_excel(results, output_path):

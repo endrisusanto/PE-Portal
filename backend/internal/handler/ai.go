@@ -321,19 +321,33 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		}
 	}
 
-	// ponytail: If active MCP server is connected (like project-manager-mcp), try forwarding GBA/task/report queries to MCP chat
+	// Check if this request comes with specialized context (e.g., PPTX summary, Document Analysis)
+	hasSpecializedContext := strings.TrimSpace(req.SystemPrompt) != ""
+	if !hasSpecializedContext {
+		for _, m := range req.Messages {
+			if m.Role == "system" && m.Content != nil && strings.TrimSpace(fmt.Sprint(m.Content)) != "" {
+				hasSpecializedContext = true
+				break
+			}
+		}
+	}
+
+	// ponytail: If active MCP server is connected (like project-manager-mcp), only forward queries that specifically target GBA / project manager tasks
+	// DO NOT hijack queries when caller provided specialized context (such as PPTX defect reports)
 	isMcpQuery := false
-	lowerMsg := strings.ToLower(lastUserMsg)
-	mcpKeywords := []string{"task", "tugas", "gba", "model", "deadline", "kinerja", "laporan", "report", "approval", "mcp", "proyek", "project", "ontime", "late", "status", "build", "ap", "cp", "csc", "pic"}
-	for _, kw := range mcpKeywords {
-		if strings.Contains(lowerMsg, kw) {
-			isMcpQuery = true
-			break
+	if !hasSpecializedContext {
+		lowerMsg := strings.ToLower(lastUserMsg)
+		mcpKeywords := []string{"gba", "task gba", "tugas gba", "kanban gba", "project manager", "companion release"}
+		for _, kw := range mcpKeywords {
+			if strings.Contains(lowerMsg, kw) {
+				isMcpQuery = true
+				break
+			}
 		}
 	}
 
 	if isMcpQuery && primaryMCPServer != nil && h.mcpSvc != nil {
-		mcpReply, err := h.mcpSvc.CallMCPChat(c.Request().Context(), primaryMCPServer, lastUserMsg, req.Messages, userName, userRole)
+		mcpReply, err := h.mcpSvc.CallMCPChat(c.Request().Context(), primaryMCPServer, lastUserMsg, req.Messages, userName, userRole, cfg)
 		if err == nil && strings.TrimSpace(mcpReply) != "" {
 			return c.JSON(http.StatusOK, map[string]interface{}{
 				"reply":       mcpReply,
@@ -345,8 +359,8 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		}
 	}
 
-	// Fallback to configured LLM with full MCP context injected
-	if mcpContextBuilder.Len() > 0 {
+	// For general engineering queries without custom prompt, inject active MCP servers info
+	if !hasSpecializedContext && mcpContextBuilder.Len() > 0 {
 		mcpNote := "You are directly connected to the following active MCP (Model Context Protocol) connectors registered in portal Settings:" +
 			mcpContextBuilder.String() +
 			"\nYou can reference these MCP connectors, their tools, and data capabilities when assisting engineers. If an engineer asks about GBA approvals, build verification, or tools from these connectors, provide accurate technical details based on these MCP connectors."

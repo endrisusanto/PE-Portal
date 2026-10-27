@@ -284,7 +284,7 @@ func (s *MCPClientService) CallTool(ctx context.Context, server *model.MCPServer
 }
 
 // CallMCPChat forwards the chat request to the MCP server's /api/mcp/chat endpoint (like project_manager)
-func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPServer, prompt string, messages []model.ChatMessage, userName, userRole string) (string, error) {
+func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPServer, prompt string, messages []model.ChatMessage, userName, userRole string, llmCfg *model.LLMConfig) (string, error) {
 	if server == nil || !server.IsActive || server.URL == "" {
 		return "", fmt.Errorf("server inactive")
 	}
@@ -313,15 +313,27 @@ func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPSer
 		"user":      userName,
 		"role":      userRole,
 	}
+	if llmCfg != nil {
+		if llmCfg.BaseURL != "" {
+			payload["baseUrl"] = llmCfg.BaseURL
+			payload["endpoint"] = llmCfg.BaseURL
+		}
+		if llmCfg.APIKey != "" {
+			payload["apiKey"] = llmCfg.APIKey
+		}
+		if llmCfg.ModelName != "" && llmCfg.ModelName != "auto" {
+			payload["model"] = llmCfg.ModelName
+		}
+	}
 
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
 
-	// AI inference & database reasoning client with fast connection failure detection
+	// 120-second timeout for full LLM inference, table calculation, and database reasoning
 	chatClient := &http.Client{
-		Timeout: 45 * time.Second,
+		Timeout: 120 * time.Second,
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
 				Timeout: 3 * time.Second, // Fail fast if endpoint host is unreachable
