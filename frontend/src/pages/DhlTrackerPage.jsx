@@ -535,6 +535,20 @@ export const DhlTrackerPage = () => {
                       : t('dhl.api_status_invalid', 'DHL API Offline')}
                   </span>
                 </div>
+                {apiStatus?.worker?.active && (
+                  <div
+                    className={styles.apiStatusBadge}
+                    style={{ background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)', color: '#059669', gap: 4 }}
+                    title={
+                      apiStatus.worker.last_run_at
+                        ? `Auto-update aktif setiap ${apiStatus.worker.interval_minutes}m (Cek terakhir: ${new Date(apiStatus.worker.last_run_at).toLocaleTimeString()})`
+                        : `Auto-update aktif setiap ${apiStatus.worker.interval_minutes} menit`
+                    }
+                  >
+                    <Clock size={11} />
+                    <span className={styles.apiStatusText}>Auto {apiStatus.worker.interval_minutes}m</span>
+                  </div>
+                )}
               </div>
               <p className={styles.pageSubtitle}>
                 {t('dhl.subtitle', 'Pelacakan Real-time Pengiriman Sample Engineering, Part Trial & Komponen via DHL API')}

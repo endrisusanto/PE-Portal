@@ -104,6 +104,43 @@ func (r *DHLRepository) List(ctx context.Context, search string, statusCode stri
 	return results, nil
 }
 
+// GetActiveShipments returns all shipments that are not yet delivered
+func (r *DHLRepository) GetActiveShipments(ctx context.Context) ([]DHLShipmentRecord, error) {
+	query := `
+		SELECT id, service_name, origin_country, origin_city, dest_country, dest_city,
+		       status_code, status_label, status_description, last_event_time, last_location,
+		       pic, is_collected, collected_at, notes, shipment_data, delivered_notified_at, created_at, updated_at
+		FROM dhl_shipments
+		WHERE LOWER(COALESCE(status_code, '')) NOT IN ('delivered', 'complete')
+		ORDER BY updated_at ASC
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query active dhl shipments: %w", err)
+	}
+	defer rows.Close()
+
+	var results []DHLShipmentRecord
+	for rows.Next() {
+		var s DHLShipmentRecord
+		var rawData []byte
+		err := rows.Scan(
+			&s.ID, &s.ServiceName, &s.OriginCountry, &s.OriginCity, &s.DestCountry, &s.DestCity,
+			&s.StatusCode, &s.StatusLabel, &s.StatusDescription, &s.LastEventTime, &s.LastLocation,
+			&s.PIC, &s.IsCollected, &s.CollectedAt, &s.Notes, &rawData, &s.DeliveredNotifiedAt, &s.CreatedAt, &s.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan active dhl shipment row: %w", err)
+		}
+		if len(rawData) > 0 {
+			s.ShipmentData = json.RawMessage(rawData)
+		}
+		results = append(results, s)
+	}
+
+	return results, nil
+}
+
 // GetByID finds a shipment by tracking number
 func (r *DHLRepository) GetByID(ctx context.Context, id string) (*DHLShipmentRecord, error) {
 	query := `

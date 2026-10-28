@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -21,10 +22,16 @@ const (
 )
 
 type DHLHandler struct {
-	repo       *repository.DHLRepository
-	userRepo   *repository.UserRepository
-	reportRepo *repository.ReportRepository
-	smtpSvc    *service.SMTPService
+	repo           *repository.DHLRepository
+	userRepo       *repository.UserRepository
+	reportRepo     *repository.ReportRepository
+	smtpSvc        *service.SMTPService
+	mu             sync.Mutex
+	stopCh         chan struct{}
+	workerActive   bool
+	workerInterval time.Duration
+	lastRunAt      *time.Time
+	lastRunCount   int
 }
 
 func NewDHLHandler(
@@ -38,6 +45,7 @@ func NewDHLHandler(
 		userRepo:   userRepo,
 		reportRepo: reportRepo,
 		smtpSvc:    smtpSvc,
+		stopCh:     make(chan struct{}),
 	}
 }
 
@@ -126,11 +134,25 @@ func (h *DHLHandler) CheckAPIStatus(c echo.Context) error {
 		})
 	}
 
+	h.mu.Lock()
+	var lastRunStr string
+	if h.lastRunAt != nil {
+		lastRunStr = h.lastRunAt.Format(time.RFC3339)
+	}
+	workerInfo := map[string]interface{}{
+		"active":           h.workerActive,
+		"interval_minutes": int(h.workerInterval.Minutes()),
+		"last_run_at":      lastRunStr,
+		"last_run_count":   h.lastRunCount,
+	}
+	h.mu.Unlock()
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"valid":   true,
 		"status":  "active",
 		"code":    resp.StatusCode,
 		"message": "DHL API Connected",
+		"worker":  workerInfo,
 	})
 }
 
@@ -452,6 +474,35 @@ func (h *DHLHandler) CreateShipment(c echo.Context) error {
 	})
 }
 
+// refreshShipmentCore fetches fresh status for a shipment, updates DB, and triggers email if delivered
+func (h *DHLHandler) refreshShipmentCore(ctx context.Context, id string, pic string, notes string, deliveredNotifiedAt *time.Time) (*repository.DHLShipmentRecord, error) {
+	dhlData, err := fetchDHLTracking(id)
+	if err != nil {
+		return nil, err
+	}
+
+	record, err := extractShipmentRecord(id, pic, notes, dhlData)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := h.repo.Upsert(ctx, record); err != nil {
+		return nil, err
+	}
+
+	// Trigger email automatically if state transitioned to delivered and not yet notified
+	if strings.EqualFold(record.StatusCode, "delivered") && deliveredNotifiedAt == nil {
+		go func(rec *repository.DHLShipmentRecord) {
+			_, err := h.sendDeliveredEmailNotification(context.Background(), rec)
+			if err != nil {
+				log.Printf("[DHL Auto-Email] Failed to send delivered email for %s: %v", rec.ID, err)
+			}
+		}(record)
+	}
+
+	return record, nil
+}
+
 // RefreshShipment fetches live status for a saved shipment and updates database
 func (h *DHLHandler) RefreshShipment(c echo.Context) error {
 	id := c.Param("id")
@@ -461,34 +512,17 @@ func (h *DHLHandler) RefreshShipment(c echo.Context) error {
 
 	existing, _ := h.repo.GetByID(c.Request().Context(), id)
 
-	dhlData, err := fetchDHLTracking(id)
-	if err != nil {
-		return c.JSON(http.StatusBadGateway, map[string]string{"message": err.Error()})
-	}
-
 	var pic, notes string
+	var notifiedAt *time.Time
 	if existing != nil {
 		pic = existing.PIC
 		notes = existing.Notes
+		notifiedAt = existing.DeliveredNotifiedAt
 	}
 
-	record, err := extractShipmentRecord(id, pic, notes, dhlData)
+	record, err := h.refreshShipmentCore(c.Request().Context(), id, pic, notes, notifiedAt)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"message": err.Error()})
-	}
-
-	if err := h.repo.Upsert(c.Request().Context(), record); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
-	}
-
-	// Trigger email automatically if state transitioned to delivered and not yet notified
-	if strings.EqualFold(record.StatusCode, "delivered") && (existing == nil || existing.DeliveredNotifiedAt == nil) {
-		go func(rec *repository.DHLShipmentRecord) {
-			_, err := h.sendDeliveredEmailNotification(context.Background(), rec)
-			if err != nil {
-				log.Printf("[DHL Auto-Email] Failed to send delivered email for %s: %v", rec.ID, err)
-			}
-		}(record)
+		return c.JSON(http.StatusBadGateway, map[string]string{"message": err.Error()})
 	}
 
 	return c.JSON(http.StatusOK, record)
@@ -545,5 +579,104 @@ func (h *DHLHandler) DeleteShipment(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"status": "deleted"})
+}
+
+// StartAutoUpdateWorker starts the background tracking worker for active shipments
+func (h *DHLHandler) StartAutoUpdateWorker(ctx context.Context, interval time.Duration) {
+	h.mu.Lock()
+	if interval <= 0 {
+		interval = 30 * time.Minute
+	}
+	h.workerInterval = interval
+	h.workerActive = true
+	h.stopCh = make(chan struct{})
+	h.mu.Unlock()
+
+	log.Printf("[DHL Worker] Starting automated DHL tracking background worker (interval: %v)...", interval)
+	ticker := time.NewTicker(interval)
+
+	go func() {
+		// Run initial check after 15 seconds on startup
+		select {
+		case <-time.After(15 * time.Second):
+			h.runAutoUpdateBatch(ctx)
+		case <-h.stopCh:
+			ticker.Stop()
+			return
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		}
+
+		for {
+			select {
+			case <-ticker.C:
+				h.runAutoUpdateBatch(ctx)
+			case <-h.stopCh:
+				ticker.Stop()
+				log.Println("[DHL Worker] Stopped automated DHL tracking worker.")
+				return
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+// StopAutoUpdateWorker gracefully stops the worker
+func (h *DHLHandler) StopAutoUpdateWorker() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.workerActive = false
+	if h.stopCh != nil {
+		select {
+		case <-h.stopCh:
+		default:
+			close(h.stopCh)
+		}
+	}
+}
+
+// runAutoUpdateBatch queries all active (in-transit/undelivered) shipments and updates them
+func (h *DHLHandler) runAutoUpdateBatch(ctx context.Context) {
+	activeShipments, err := h.repo.GetActiveShipments(ctx)
+	if err != nil {
+		log.Printf("[DHL Worker] Error fetching active shipments: %v", err)
+		return
+	}
+
+	now := time.Now()
+	h.mu.Lock()
+	h.lastRunAt = &now
+	h.lastRunCount = len(activeShipments)
+	h.mu.Unlock()
+
+	if len(activeShipments) == 0 {
+		log.Println("[DHL Worker] No active shipments to update.")
+		return
+	}
+
+	log.Printf("[DHL Worker] Auto-updating %d active shipment(s)...", len(activeShipments))
+
+	for _, item := range activeShipments {
+		select {
+		case <-ctx.Done():
+			return
+		case <-h.stopCh:
+			return
+		default:
+		}
+
+		updated, err := h.refreshShipmentCore(ctx, item.ID, item.PIC, item.Notes, item.DeliveredNotifiedAt)
+		if err != nil {
+			log.Printf("[DHL Worker] Failed to update AWB %s: %v", item.ID, err)
+		} else {
+			log.Printf("[DHL Worker] Successfully updated AWB %s -> Status: %s (%s)", updated.ID, updated.StatusCode, updated.StatusLabel)
+		}
+
+		// Small delay (500ms) between API requests to avoid DHL rate limits
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 

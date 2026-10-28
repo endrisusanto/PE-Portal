@@ -107,6 +107,7 @@ func main() {
 	utilityHandler := handler.NewUtilityHandler()
 	dhlRepo := repository.NewDHLRepository(pgPool.Pool)
 	dhlHandler := handler.NewDHLHandler(dhlRepo, userRepo, reportRepo, smtpService)
+	dhlHandler.StartAutoUpdateWorker(context.Background(), 30*time.Minute)
 	gmesRepo := repository.NewGmesRepository(pgPool.Pool)
 	gmesHandler := handler.NewGmesHandler(gmesRepo)
 	navRepo := repository.NewNavigationRepository(pgPool.Pool)
@@ -453,6 +454,7 @@ func main() {
 
 	log.Println("[Server] Gracefully shutting down...")
 	reportScheduler.Stop()
+	dhlHandler.StopAutoUpdateWorker()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
