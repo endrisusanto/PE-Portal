@@ -409,40 +409,58 @@ export const EcnMonitoringPage = () => {
 
   const totalColSpan = (isAdmin ? 1 : 0) + 1 + 13 + 1;
 
-  // Helper to parse TSV clipboard copied from Excel, handling multiline quoted cells and escaped quotes
+  // Helper to parse TSV clipboard copied from Excel, handling multiline quoted cells, quotes in text, and escaped quotes
   const parseExcelClipboard = (rawText) => {
     if (!rawText) return [];
     const rows = [];
     let currentRow = [];
     let currentCell = '';
-    let insideQuote = false;
+    let inQuotedCell = false;
 
     for (let i = 0; i < rawText.length; i++) {
       const char = rawText[i];
       const nextChar = rawText[i + 1];
 
-      if (char === '"') {
-        if (insideQuote && nextChar === '"') {
-          currentCell += '"';
-          i++; // skip escaped double quote
+      if (!inQuotedCell) {
+        // If quote is the first character in the cell, it starts a quoted cell
+        if (char === '"' && currentCell.length === 0) {
+          inQuotedCell = true;
+          continue;
+        }
+
+        if (char === '\t') {
+          currentRow.push(currentCell.trim());
+          currentCell = '';
+        } else if (char === '\r' || char === '\n') {
+          if (char === '\r' && nextChar === '\n') {
+            i++; // skip LF
+          }
+          currentRow.push(currentCell.trim());
+          currentCell = '';
+          if (currentRow.some((c) => c !== '')) {
+            rows.push(currentRow);
+          }
+          currentRow = [];
         } else {
-          insideQuote = !insideQuote;
+          currentCell += char;
         }
-      } else if (char === '\t' && !insideQuote) {
-        currentRow.push(currentCell.trim());
-        currentCell = '';
-      } else if ((char === '\r' || char === '\n') && !insideQuote) {
-        if (char === '\r' && nextChar === '\n') {
-          i++; // handle CRLF
-        }
-        currentRow.push(currentCell.trim());
-        currentCell = '';
-        if (currentRow.some((c) => c !== '')) {
-          rows.push(currentRow);
-        }
-        currentRow = [];
       } else {
-        currentCell += char;
+        // Inside a quoted cell
+        if (char === '"') {
+          if (nextChar === '"') {
+            // Escaped quote: "" -> "
+            currentCell += '"';
+            i++;
+          } else if (nextChar === '\t' || nextChar === '\r' || nextChar === '\n' || i === rawText.length - 1) {
+            // Valid closing quote followed by delimiter or newline or EOF
+            inQuotedCell = false;
+          } else {
+            // Unescaped quote inside cell content (e.g. 2.5" screen), keep as character
+            currentCell += '"';
+          }
+        } else {
+          currentCell += char;
+        }
       }
     }
 
@@ -470,14 +488,26 @@ export const EcnMonitoringPage = () => {
       return;
     }
 
+    // Header detection: only skip row 0 if it is genuinely a column header label,
+    // NOT a data row that happens to contain 'ECN' or 'MODEL' in the remark/title
     let startIdx = 0;
-    const firstRowStr = rows[0].join(' ').toLowerCase();
-    if (
-      firstRowStr.includes('ecn') ||
-      firstRowStr.includes('model') ||
-      firstRowStr.includes('function')
-    ) {
-      startIdx = 1;
+    if (rows.length > 0) {
+      const col0 = (rows[0][0] || '').trim().toLowerCase();
+      const col1 = (rows[0][1] || '').trim().toLowerCase();
+      const isCol0Header =
+        col0 === 'ecn no' ||
+        col0 === 'ecn' ||
+        col0 === 'ecn_no' ||
+        col0 === 'ecn number' ||
+        col0 === 'no ecn';
+      const isCol1Header =
+        col1 === 'model' &&
+        !col0.toUpperCase().startsWith('GHW') &&
+        !col0.toUpperCase().startsWith('ECO');
+
+      if (isCol0Header || isCol1Header) {
+        startIdx = 1;
+      }
     }
 
     const parsed = [];
@@ -827,7 +857,7 @@ export const EcnMonitoringPage = () => {
         part_name: r.child_name,
         spec: r.specification,
         bom_date: r.running_date_bom,
-        remark: r.remark,
+        remark: r.remark ? (r.remark.length > 250 ? r.remark.substring(0, 250) + '...' : r.remark) : '',
       }));
 
       const systemPrompt = `Anda adalah asisten AI Production Engineering (PE) spesialis ECN Monitoring di PT Samsung Electronics Indonesia (SEIN).
@@ -1722,11 +1752,27 @@ Panduan Format Respons:
                               </div>
 
                               <div className={styles.remarkBox}>
-                                <span className={styles.detailLabel} style={{ display: 'block', marginBottom: '4px' }}>
-                                  Remark / Catatan Teknis:
-                                </span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                  <span className={styles.detailLabel}>Remark / Catatan Teknis:</span>
+                                  {item.remark && item.remark.length > 200 && (
+                                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                                      {item.remark.length.toLocaleString('id-ID')} karakter
+                                    </span>
+                                  )}
+                                </div>
                                 {item.remark ? (
-                                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{item.remark}</div>
+                                  <div
+                                    style={{
+                                      whiteSpace: 'pre-wrap',
+                                      lineHeight: 1.55,
+                                      maxHeight: '280px',
+                                      overflowY: 'auto',
+                                      paddingRight: '6px',
+                                      wordBreak: 'break-word',
+                                    }}
+                                  >
+                                    {item.remark}
+                                  </div>
                                 ) : (
                                   <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
                                     Tidak ada catatan remark untuk record ini.
