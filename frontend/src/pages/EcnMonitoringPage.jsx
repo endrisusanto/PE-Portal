@@ -1699,9 +1699,50 @@ Panduan Format Respons:
 
         {/* Table Pagination Footer */}
         <div className={styles.pagination}>
-          <div>
+          <div className={styles.paginationInfo}>
             Menampilkan <strong>{displayedRecords.length}</strong> dari <strong>{totalRecords}</strong> data ECN (Halaman{' '}
             <strong>{page}</strong> dari <strong>{totalPages}</strong>)
+          </div>
+
+          {/* ponytail: Sort By controls in table footer pagination */}
+          <div className={styles.paginationSort}>
+            <span className={styles.paginationSortLabel}>
+              <ArrowUpDown size={12} />
+              <span>Urutkan:</span>
+            </span>
+            <select
+              className={styles.paginationSortSelect}
+              value={sortKey}
+              onChange={(e) => {
+                setSortKey(e.target.value);
+                setPage(1);
+              }}
+              title="Urutkan berdasarkan kolom"
+            >
+              <option value="created_at">Waktu Dibuat (Terbaru)</option>
+              <option value="ecn_no">ECN NO</option>
+              <option value="model">Model</option>
+              <option value="function_type">Function</option>
+              <option value="process">Process</option>
+              <option value="ec_title">EC Title</option>
+              <option value="child_code">Item Code</option>
+              <option value="child_name">Part Description</option>
+              <option value="specification">Specification</option>
+              <option value="quantity">Qty</option>
+              <option value="running_date_bom">Running BOM</option>
+              <option value="distribution_date">Dist Date</option>
+              <option value="status">Status</option>
+              <option value="author_name">Uploader</option>
+            </select>
+            <button
+              type="button"
+              className={styles.paginationSortDirBtn}
+              onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              title={sortDirection === 'asc' ? 'Urutan Naik (A-Z / Lama ke Baru)' : 'Urutan Turun (Z-A / Baru ke Lama)'}
+            >
+              {sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+              <span>{sortDirection === 'asc' ? 'ASC' : 'DESC'}</span>
+            </button>
           </div>
 
           <div className={styles.pageControls}>
