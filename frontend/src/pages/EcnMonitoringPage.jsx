@@ -35,6 +35,7 @@ import {
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
+import { RichMessageContent } from '../components/chat/AiChatWindow';
 import styles from './EcnMonitoringPage.module.css';
 
 // ponytail: normalizes heterogeneous dates (1/15/2026, 2026-01-15, 2026.01.15) to YYYY-MM-DD for fast matching
