@@ -10,6 +10,8 @@ export const Modal = ({
   footer,
   maxWidth = 'min(1080px, 94vw)', // ponytail: generous full-width modal for comfortable input & navigation
   zIndex = 1000,
+  closeOnOverlayClick = true,
+  closeOnEsc = true,
 }) => {
   const onCloseRef = useRef(onClose);
 
@@ -25,7 +27,7 @@ export const Modal = ({
     }
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
+      if (closeOnEsc && e.key === 'Escape') {
         onCloseRef.current?.();
       }
     };
@@ -37,7 +39,7 @@ export const Modal = ({
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, closeOnEsc]);
 
   if (!isOpen) return null;
 
@@ -45,7 +47,7 @@ export const Modal = ({
     <div
       className={styles.overlay}
       style={{ zIndex }}
-      onClick={onClose}
+      onClick={closeOnOverlayClick ? onClose : undefined}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"

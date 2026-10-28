@@ -890,18 +890,58 @@
 /* Modals Content Styling */
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-3, 12px);
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3, 12px) var(--space-4, 16px);
 }
 
-.formGroup {
+@media (max-width: 1024px) {
+  .formGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formSectionHeader {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-accent);
+}
+
+.colSpan1 {
+  grid-column: span 1;
+}
+
+.colSpan2 {
+  grid-column: span 2;
+}
+
+.colSpan3 {
+  grid-column: span 3;
+}
+
+.colSpan4,
+.formGroupFull {
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.formGroupFull {
-  grid-column: 1 / -1;
+.formGroup {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -947,3 +987,24 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-sm, 13px);
 }
+
+.btnDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 600;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--color-error, #c5221f);
+  background: var(--color-error, #c5221f);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color var(--transition-fast, 120ms ease);
+}
+
+.btnDanger:hover {
+  background: #a51816;
+  border-color: #a51816;
+}
+

@@ -105,6 +105,7 @@ export const EcnMonitoringPage = () => {
   const [uploadDrmNotice, setUploadDrmNotice] = useState(null);
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({
     ecn_no: '',
@@ -128,6 +129,26 @@ export const EcnMonitoringPage = () => {
     status: 'Pending',
     remark: '',
   });
+
+  // Guard closing manual entry form to prevent accidental loss of data
+  const handleRequestCloseForm = () => {
+    const isFormDirty = Boolean(
+      formData.ecn_no.trim() ||
+      formData.model.trim() ||
+      formData.ec_title.trim() ||
+      formData.child_code.trim() ||
+      formData.child_name.trim() ||
+      formData.specification.trim() ||
+      formData.remark.trim()
+    );
+
+    if (isFormDirty) {
+      setIsCloseConfirmOpen(true);
+    } else {
+      setIsFormModalOpen(false);
+      setEditingItem(null);
+    }
+  };
 
   // --- AI Chatbot Accordion State ---
   const [isAiAccordionOpen, setIsAiAccordionOpen] = useState(true);
@@ -1635,21 +1656,26 @@ Panduan Format Respons:
       )}
 
       {/* ========================================================================
-          MODAL 3: MANUAL ENTRY / EDIT SINGLE RECORD
+          MODAL 3: MANUAL ENTRY / EDIT SINGLE RECORD (Wide Horizontal Layout)
           ======================================================================== */}
       {isFormModalOpen && (
         <Modal
           isOpen={isFormModalOpen}
-          onClose={() => {
-            setIsFormModalOpen(false);
-            setEditingItem(null);
-          }}
+          onClose={handleRequestCloseForm}
           title={editingItem ? `Edit ECN Record (${editingItem.ecn_no})` : 'Manual Entry ECN Record'}
-          maxWidth="850px"
+          maxWidth="min(1240px, 96vw)"
+          closeOnOverlayClick={false}
+          closeOnEsc={false}
         >
-          <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
+              {/* Section 1: Identifikasi ECN & Model */}
+              <div className={styles.formSectionHeader}>
+                <Layers size={13} />
+                <span>1. Identifikasi ECN & Model</span>
+              </div>
+
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>ECN NO *</label>
                 <input
                   type="text"
@@ -1661,7 +1687,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Model *</label>
                 <input
                   type="text"
@@ -1673,7 +1699,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Function Type</label>
                 <select
                   className={styles.formSelect}
@@ -1687,7 +1713,7 @@ Panduan Format Respons:
                 </select>
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Proses</label>
                 <select
                   className={styles.formSelect}
@@ -1701,8 +1727,14 @@ Panduan Format Respons:
                 </select>
               </div>
 
-              <div className={styles.formGroupFull}>
-                <label className={styles.formLabel}>EC Title (Deskripsi Perubahan)</label>
+              {/* Section 2: Deskripsi & Parent Assembly */}
+              <div className={styles.formSectionHeader}>
+                <Boxes size={13} />
+                <span>2. Deskripsi Perubahan & Parent Assembly</span>
+              </div>
+
+              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                <label className={styles.formLabel}>EC Title (Deskripsi Singkat Perubahan)</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -1712,29 +1744,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Purpose</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: Quality Improvement"
-                  value={formData.purpose}
-                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Inventory Management</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: Use up old stock"
-                  value={formData.inventory_mgmt}
-                  onChange={(e) => setFormData({ ...formData, inventory_mgmt: e.target.value })}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Parent Code</label>
                 <input
                   type="text"
@@ -1745,7 +1755,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Parent Name</label>
                 <input
                   type="text"
@@ -1756,7 +1766,35 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                <label className={styles.formLabel}>Purpose</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: Quality Improvement"
+                  value={formData.purpose}
+                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                />
+              </div>
+
+              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                <label className={styles.formLabel}>Inventory Management</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: Use up old stock"
+                  value={formData.inventory_mgmt}
+                  onChange={(e) => setFormData({ ...formData, inventory_mgmt: e.target.value })}
+                />
+              </div>
+
+              {/* Section 3: Detail Komponen & Spesifikasi */}
+              <div className={styles.formSectionHeader}>
+                <Cpu size={13} />
+                <span>3. Detail Komponen & Spesifikasi</span>
+              </div>
+
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Child Code (Part Code)</label>
                 <input
                   type="text"
@@ -1767,7 +1805,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
                 <label className={styles.formLabel}>Child Name (Part Description)</label>
                 <input
                   type="text"
@@ -1778,7 +1816,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Specification</label>
                 <input
                   type="text"
@@ -1789,7 +1827,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Quantity</label>
                 <input
                   type="text"
@@ -1800,7 +1838,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Before / After</label>
                 <input
                   type="text"
@@ -1811,7 +1849,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>D/L (Distribution Level)</label>
                 <input
                   type="text"
@@ -1822,7 +1860,24 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                <label className={styles.formLabel}>Marking Point</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: D201"
+                  value={formData.marking_point}
+                  onChange={(e) => setFormData({ ...formData, marking_point: e.target.value })}
+                />
+              </div>
+
+              {/* Section 4: Jadwal & Status Implementasi */}
+              <div className={styles.formSectionHeader}>
+                <Clock size={13} />
+                <span>4. Jadwal & Status Implementasi</span>
+              </div>
+
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Running Date BOM</label>
                 <input
                   type="date"
@@ -1832,7 +1887,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
                 <label className={styles.formLabel}>Distribution Date</label>
                 <input
                   type="date"
@@ -1842,7 +1897,7 @@ Panduan Format Respons:
                 />
               </div>
 
-              <div className={styles.formGroup}>
+              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
                 <label className={styles.formLabel}>Status</label>
                 <select
                   className={styles.formSelect}
@@ -1856,26 +1911,93 @@ Panduan Format Respons:
                 </select>
               </div>
 
-              <div className={styles.formGroupFull}>
-                <label className={styles.formLabel}>Remark (Catatan Detail Teknis)</label>
+              {/* Section 5: Remark Detail */}
+              <div className={`${styles.formGroup} ${styles.colSpan4}`}>
+                <label className={styles.formLabel}>Remark (Catatan Detail Teknis & Instruksi Khusus)</label>
                 <textarea
                   className={styles.formTextarea}
-                  placeholder="Tuliskan catatan teknis, nomor dokumen pendukung, nama engineer PIC, dll..."
+                  placeholder="Tuliskan catatan teknis, nomor dokumen pendukung, nama engineer PIC, instruksi verifikasi line..."
                   value={formData.remark}
                   onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
                 />
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <button type="button" className={styles.btnSecondary} onClick={() => setIsFormModalOpen(false)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border-subtle)' }}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={handleRequestCloseForm}
+              >
                 Batal
               </button>
               <button type="submit" className={styles.btnPrimary}>
-                Simpan Record
+                Simpan Record ECN
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* ========================================================================
+          MODAL 4: KONFIRMASI PERINGATAN TUTUP FORM (UNSAVED CHANGES GUARD)
+          ======================================================================== */}
+      {isCloseConfirmOpen && (
+        <Modal
+          isOpen={isCloseConfirmOpen}
+          onClose={() => setIsCloseConfirmOpen(false)}
+          title="Konfirmasi Tutup Form ECN"
+          maxWidth="460px"
+          zIndex={1100}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.25rem 0' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '8px',
+                  background: 'var(--color-warning-subtle)',
+                  color: 'var(--color-warning)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <AlertCircle size={22} />
+              </div>
+              <div>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '14.5px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  Batalkan pengisian form ECN?
+                </h4>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
+                  Data yang telah Anda isi atau ubah pada form ini belum disimpan. Jika form ditutup sekarang, seluruh data yang diinput akan hilang.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => setIsCloseConfirmOpen(false)}
+              >
+                Lanjutkan Mengisi
+              </button>
+              <button
+                type="button"
+                className={styles.btnDanger}
+                onClick={() => {
+                  setIsCloseConfirmOpen(false);
+                  setIsFormModalOpen(false);
+                  setEditingItem(null);
+                }}
+              >
+                Ya, Tutup Form
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
