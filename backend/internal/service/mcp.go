@@ -32,54 +32,107 @@ func IsRunningInDocker() bool {
 	return false
 }
 
-// NormalizeMCPURL adjusts hostnames for Docker container vs baremetal environments (ponytail: robust networking)
-func NormalizeMCPURL(rawURL string) string {
+// GetCandidateURLs generates prioritized reachable URLs for both Docker & Baremetal (Windows/Linux)
+func GetCandidateURLs(rawURL string) []string {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
-		return ""
+		return nil
 	}
 
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return rawURL
+		return []string{rawURL}
 	}
 
 	host := u.Hostname()
 	port := u.Port()
+	path := u.Path
 
-	// If running on Baremetal (Windows / Linux host without Docker container):
-	if !IsRunningInDocker() {
-		// If DB has docker bridge IP 172.17.0.1 from Docker testing, map back to 127.0.0.1
-		if host == "172.17.0.1" {
-			targetHost := "127.0.0.1"
-			if port != "" {
-				u.Host = net.JoinHostPort(targetHost, port)
+	var candidates []string
+
+	// Check if this targets PE Portal's own backend container (port 8080 or path /api/v1/mcp)
+	isInternalPEMCP := port == "8080" || strings.HasPrefix(path, "/api/v1/mcp")
+
+	if IsRunningInDocker() {
+		if isInternalPEMCP {
+			// Inside container: PE Portal backend is localhost:8080
+			uInternal := *u
+			uInternal.Host = "127.0.0.1:8080"
+			return []string{uInternal.String()}
+		}
+
+		// External MCP servers (e.g. GBA on port 3800) running on host or baremetal:
+		if host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0" {
+			// 1. host.docker.internal (extra_hosts in docker-compose)
+			u1 := *u
+			u1.Host = net.JoinHostPort("host.docker.internal", port)
+			candidates = append(candidates, u1.String())
+
+			// 2. Docker default bridge gateway (172.17.0.1)
+			gw := "172.17.0.1"
+			if envGw := os.Getenv("DOCKER_HOST_GATEWAY"); envGw != "" {
+				gw = envGw
+			}
+			u2 := *u
+			u2.Host = net.JoinHostPort(gw, port)
+			candidates = append(candidates, u2.String())
+
+			// 3. Fallback to Windows host LAN IP
+			u3 := *u
+			u3.Host = net.JoinHostPort("107.102.39.55", port)
+			candidates = append(candidates, u3.String())
+		} else if host == "172.17.0.1" || host == "host.docker.internal" {
+			candidates = append(candidates, rawURL)
+			uAlt := *u
+			if host == "172.17.0.1" {
+				uAlt.Host = net.JoinHostPort("host.docker.internal", port)
 			} else {
-				u.Host = targetHost
+				uAlt.Host = net.JoinHostPort("172.17.0.1", port)
+			}
+			candidates = append(candidates, uAlt.String())
+		} else {
+			candidates = append(candidates, rawURL)
+			if port == "3800" {
+				uHost := *u
+				uHost.Host = net.JoinHostPort("host.docker.internal", port)
+				candidates = append(candidates, uHost.String())
 			}
 		}
-		// On baremetal, keep localhost, 127.0.0.1, and LAN IPs (e.g. 107.102.39.55, 192.168.x.x) AS-IS!
-		return u.String()
-	}
-
-	// Inside Docker container: localhost / 127.0.0.1 routes to host machine gateway,
-	// EXCEPT if targeting PE Portal's own backend container (port 8080 or path /api/v1/mcp)
-	if host == "localhost" || host == "127.0.0.1" {
-		if port == "8080" || strings.Contains(u.Path, "/api/v1/mcp") || strings.Contains(u.Path, "/mcp") {
-			return u.String()
-		}
-		targetHost := "172.17.0.1" // Default Docker bridge gateway to host machine
-		if envHost := os.Getenv("DOCKER_HOST_GATEWAY"); envHost != "" {
-			targetHost = envHost
-		}
-		if port != "" {
-			u.Host = net.JoinHostPort(targetHost, port)
+	} else {
+		// Baremetal (Windows / Linux host without container):
+		// If DB has container-specific hostnames (172.17.0.1 or host.docker.internal), map to 127.0.0.1
+		if host == "172.17.0.1" || host == "host.docker.internal" {
+			uLocal := *u
+			uLocal.Host = net.JoinHostPort("127.0.0.1", port)
+			candidates = append(candidates, uLocal.String())
 		} else {
-			u.Host = targetHost
+			candidates = append(candidates, rawURL)
+		}
+
+		// Also provide 127.0.0.1 fallback if given LAN IP or vice versa
+		if port == "3800" {
+			if host != "127.0.0.1" && host != "localhost" {
+				uLocal := *u
+				uLocal.Host = net.JoinHostPort("127.0.0.1", port)
+				candidates = append(candidates, uLocal.String())
+			} else {
+				uWin := *u
+				uWin.Host = net.JoinHostPort("107.102.39.55", port)
+				candidates = append(candidates, uWin.String())
+			}
 		}
 	}
 
-	return u.String()
+	return candidates
+}
+
+// NormalizeMCPURL adjusts hostnames for Docker container vs baremetal environments (ponytail: robust networking)
+func NormalizeMCPURL(rawURL string) string {
+	candidates := GetCandidateURLs(rawURL)
+	if len(candidates) > 0 {
+		return candidates[0]
+	}
+	return rawURL
 }
 
 // GetBaseURL extracts the protocol and host from a target endpoint
@@ -144,83 +197,95 @@ func (s *MCPClientService) FetchTools(ctx context.Context, server *model.MCPServ
 		return s.peMCPSvc.GetTools(), nil
 	}
 
-	normalizedURL := NormalizeMCPURL(server.URL)
-	baseURL := GetBaseURL(normalizedURL)
-
-	// Endpoints to check (supports project-manager-mcp, standard MCP SSE, and JSON-RPC)
-	endpoints := []struct {
-		method string
-		url    string
-		isRPC  bool
-	}{
-		{method: http.MethodGet, url: baseURL + "/api/mcp/tools", isRPC: false},
-		{method: http.MethodGet, url: baseURL + "/mcp/tools", isRPC: false},
-		{method: http.MethodGet, url: normalizedURL + "/tools", isRPC: false},
-		{method: http.MethodPost, url: normalizedURL, isRPC: true},
+	candidates := GetCandidateURLs(server.URL)
+	if len(candidates) == 0 {
+		candidates = []string{server.URL}
 	}
 
-	for _, ep := range endpoints {
-		var req *http.Request
-		var err error
+	var lastErr error
+	for _, cand := range candidates {
+		baseURL := GetBaseURL(cand)
 
-		if ep.isRPC {
-			payload := mcpJSONRPCReq{
-				JSONRPC: "2.0",
-				ID:      1,
-				Method:  "tools/list",
-				Params:  map[string]interface{}{},
+		// Endpoints to check (supports project-manager-mcp, standard MCP SSE, and JSON-RPC)
+		endpoints := []struct {
+			method string
+			url    string
+			isRPC  bool
+		}{
+			{method: http.MethodGet, url: baseURL + "/api/mcp/tools", isRPC: false},
+			{method: http.MethodGet, url: baseURL + "/mcp/tools", isRPC: false},
+			{method: http.MethodGet, url: cand + "/tools", isRPC: false},
+			{method: http.MethodPost, url: cand, isRPC: true},
+		}
+
+		for _, ep := range endpoints {
+			var req *http.Request
+			var err error
+
+			if ep.isRPC {
+				payload := mcpJSONRPCReq{
+					JSONRPC: "2.0",
+					ID:      1,
+					Method:  "tools/list",
+					Params:  map[string]interface{}{},
+				}
+				reqBytes, _ := json.Marshal(payload)
+				req, err = http.NewRequestWithContext(ctx, ep.method, ep.url, bytes.NewReader(reqBytes))
+			} else {
+				req, err = http.NewRequestWithContext(ctx, ep.method, ep.url, nil)
 			}
-			reqBytes, _ := json.Marshal(payload)
-			req, err = http.NewRequestWithContext(ctx, ep.method, ep.url, bytes.NewReader(reqBytes))
-		} else {
-			req, err = http.NewRequestWithContext(ctx, ep.method, ep.url, nil)
-		}
 
-		if err != nil {
-			continue
-		}
+			if err != nil {
+				lastErr = err
+				continue
+			}
 
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Accept", "application/json")
-		if server.AuthType == "bearer" && server.AuthToken != nil {
-			req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
-		} else if server.AuthType == "api_key" && server.AuthToken != nil {
-			req.Header.Set("X-API-Key", *server.AuthToken)
-		}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Accept", "application/json")
+			if server.AuthType == "bearer" && server.AuthToken != nil {
+				req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
+			} else if server.AuthType == "api_key" && server.AuthToken != nil {
+				req.Header.Set("X-API-Key", *server.AuthToken)
+			}
 
-		resp, err := s.httpClient.Do(req)
-		if err != nil {
-			continue
-		}
+			resp, err := s.httpClient.Do(req)
+			if err != nil {
+				lastErr = err
+				continue
+			}
 
-		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 400 {
-			continue
-		}
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 400 {
+				continue
+			}
 
-		// 1. Direct REST format: {"success": true, "tools": [...]} or {"tools": [...]}
-		var directResp struct {
-			Success bool         `json:"success"`
-			Tools   []MCPToolDef `json:"tools"`
-		}
-		if err := json.Unmarshal(body, &directResp); err == nil && len(directResp.Tools) > 0 {
-			return directResp.Tools, nil
-		}
+			// 1. Direct REST format: {"success": true, "tools": [...]} or {"tools": [...]}
+			var directResp struct {
+				Success bool         `json:"success"`
+				Tools   []MCPToolDef `json:"tools"`
+			}
+			if err := json.Unmarshal(body, &directResp); err == nil && len(directResp.Tools) > 0 {
+				return directResp.Tools, nil
+			}
 
-		// 2. Direct array: [{ "name": "...", "description": "..." }]
-		var arrayResp []MCPToolDef
-		if err := json.Unmarshal(body, &arrayResp); err == nil && len(arrayResp) > 0 {
-			return arrayResp, nil
-		}
+			// 2. Direct array: [{ "name": "...", "description": "..." }]
+			var arrayResp []MCPToolDef
+			if err := json.Unmarshal(body, &arrayResp); err == nil && len(arrayResp) > 0 {
+				return arrayResp, nil
+			}
 
-		// 3. JSON-RPC format: {"result": {"tools": [...]}}
-		var rpcResp mcpToolsListResp
-		if err := json.Unmarshal(body, &rpcResp); err == nil && len(rpcResp.Result.Tools) > 0 {
-			return rpcResp.Result.Tools, nil
+			// 3. JSON-RPC format: {"result": {"tools": [...]}}
+			var rpcResp mcpToolsListResp
+			if err := json.Unmarshal(body, &rpcResp); err == nil && len(rpcResp.Result.Tools) > 0 {
+				return rpcResp.Result.Tools, nil
+			}
 		}
 	}
 
+	if lastErr != nil {
+		return nil, fmt.Errorf("no tools discovered from MCP server %s: %v", server.Name, lastErr)
+	}
 	return nil, fmt.Errorf("no tools discovered from MCP server %s", server.Name)
 }
 
@@ -240,68 +305,85 @@ func (s *MCPClientService) CallTool(ctx context.Context, server *model.MCPServer
 		return string(resBytes), nil
 	}
 
-	normalizedURL := NormalizeMCPURL(server.URL)
-	baseURL := GetBaseURL(normalizedURL)
-
-	// Mode 1: HTTP Call Endpoint (project_manager HTTP bridge)
-	callPayload := map[string]interface{}{
-		"name":      toolName,
-		"arguments": args,
-	}
-	reqBytes, _ := json.Marshal(callPayload)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/mcp/call", bytes.NewReader(reqBytes))
-	if err == nil {
-		req.Header.Set("Content-Type", "application/json")
-		if server.AuthType == "bearer" && server.AuthToken != nil {
-			req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
-		} else if server.AuthType == "api_key" && server.AuthToken != nil {
-			req.Header.Set("X-API-Key", *server.AuthToken)
-		}
-
-		resp, err := s.httpClient.Do(req)
-		if err == nil {
-			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return string(body), nil
-			}
-		}
+	candidates := GetCandidateURLs(server.URL)
+	if len(candidates) == 0 {
+		candidates = []string{server.URL}
 	}
 
-	// Mode 2: Standard JSON-RPC tools/call
-	rpcPayload := mcpJSONRPCReq{
-		JSONRPC: "2.0",
-		ID:      2,
-		Method:  "tools/call",
-		Params: map[string]interface{}{
+	var lastErr error
+	for _, cand := range candidates {
+		baseURL := GetBaseURL(cand)
+
+		// Mode 1: HTTP Call Endpoint (project_manager HTTP bridge)
+		callPayload := map[string]interface{}{
 			"name":      toolName,
 			"arguments": args,
-		},
-	}
-	rpcBytes, _ := json.Marshal(rpcPayload)
-	reqRPC, err := http.NewRequestWithContext(ctx, http.MethodPost, normalizedURL, bytes.NewReader(rpcBytes))
-	if err != nil {
-		return "", err
-	}
-	reqRPC.Header.Set("Content-Type", "application/json")
-	if server.AuthType == "bearer" && server.AuthToken != nil {
-		reqRPC.Header.Set("Authorization", "Bearer "+*server.AuthToken)
-	} else if server.AuthType == "api_key" && server.AuthToken != nil {
-		reqRPC.Header.Set("X-API-Key", *server.AuthToken)
+		}
+		reqBytes, _ := json.Marshal(callPayload)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/mcp/call", bytes.NewReader(reqBytes))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			if server.AuthType == "bearer" && server.AuthToken != nil {
+				req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
+			} else if server.AuthType == "api_key" && server.AuthToken != nil {
+				req.Header.Set("X-API-Key", *server.AuthToken)
+			}
+
+			resp, err := s.httpClient.Do(req)
+			if err == nil {
+				body, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					return string(body), nil
+				}
+			}
+		}
+
+		// Mode 2: Standard JSON-RPC tools/call
+		rpcPayload := mcpJSONRPCReq{
+			JSONRPC: "2.0",
+			ID:      2,
+			Method:  "tools/call",
+			Params: map[string]interface{}{
+				"name":      toolName,
+				"arguments": args,
+			},
+		}
+		rpcBytes, _ := json.Marshal(rpcPayload)
+		reqRPC, err := http.NewRequestWithContext(ctx, http.MethodPost, cand, bytes.NewReader(rpcBytes))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		reqRPC.Header.Set("Content-Type", "application/json")
+		if server.AuthType == "bearer" && server.AuthToken != nil {
+			reqRPC.Header.Set("Authorization", "Bearer "+*server.AuthToken)
+		} else if server.AuthType == "api_key" && server.AuthToken != nil {
+			reqRPC.Header.Set("X-API-Key", *server.AuthToken)
+		}
+
+		respRPC, err := s.httpClient.Do(reqRPC)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		body, err := io.ReadAll(respRPC.Body)
+		respRPC.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if respRPC.StatusCode == http.StatusOK {
+			return string(body), nil
+		}
 	}
 
-	respRPC, err := s.httpClient.Do(reqRPC)
-	if err != nil {
-		return "", err
+	if lastErr != nil {
+		return "", lastErr
 	}
-	defer respRPC.Body.Close()
-
-	body, err := io.ReadAll(respRPC.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(body), nil
+	return "", fmt.Errorf("failed to call tool %s on %s", toolName, server.Name)
 }
 
 // CallMCPChat forwards the chat request to the MCP server's /api/mcp/chat endpoint (like project_manager)
@@ -310,9 +392,10 @@ func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPSer
 		return "", fmt.Errorf("server inactive")
 	}
 
-	normalizedURL := NormalizeMCPURL(server.URL)
-	baseURL := GetBaseURL(normalizedURL)
-	chatEndpoint := baseURL + "/api/mcp/chat"
+	candidates := GetCandidateURLs(server.URL)
+	if len(candidates) == 0 {
+		candidates = []string{server.URL}
+	}
 
 	type msgItem struct {
 		Role    string `json:"role"`
@@ -361,45 +444,62 @@ func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPSer
 			}).DialContext,
 		},
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, chatEndpoint, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return "", err
-	}
 
-	req.Header.Set("Content-Type", "application/json")
-	if server.AuthType == "bearer" && server.AuthToken != nil {
-		req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
-	} else if server.AuthType == "api_key" && server.AuthToken != nil {
-		req.Header.Set("X-API-Key", *server.AuthToken)
-	}
+	var lastErr error
+	for _, cand := range candidates {
+		baseURL := GetBaseURL(cand)
+		chatEndpoint := baseURL + "/api/mcp/chat"
 
-	resp, err := chatClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("mcp chat returned status %d", resp.StatusCode)
-	}
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var chatResp struct {
-		Output string `json:"output"`
-		Reply  string `json:"reply"`
-	}
-	if err := json.Unmarshal(respBody, &chatResp); err == nil {
-		if chatResp.Output != "" {
-			return chatResp.Output, nil
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, chatEndpoint, bytes.NewReader(bodyBytes))
+		if err != nil {
+			lastErr = err
+			continue
 		}
-		if chatResp.Reply != "" {
-			return chatResp.Reply, nil
+
+		req.Header.Set("Content-Type", "application/json")
+		if server.AuthType == "bearer" && server.AuthToken != nil {
+			req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
+		} else if server.AuthType == "api_key" && server.AuthToken != nil {
+			req.Header.Set("X-API-Key", *server.AuthToken)
 		}
+
+		resp, err := chatClient.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("mcp chat returned status %d from %s", resp.StatusCode, chatEndpoint)
+			continue
+		}
+
+		respBody, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		var chatResp struct {
+			Output string `json:"output"`
+			Reply  string `json:"reply"`
+		}
+		if err := json.Unmarshal(respBody, &chatResp); err == nil {
+			if chatResp.Output != "" {
+				return chatResp.Output, nil
+			}
+			if chatResp.Reply != "" {
+				return chatResp.Reply, nil
+			}
+		}
+
+		return string(respBody), nil
 	}
 
-	return string(respBody), nil
+	if lastErr != nil {
+		return "", lastErr
+	}
+	return "", fmt.Errorf("failed to reach mcp chat across candidates for %s", server.Name)
 }

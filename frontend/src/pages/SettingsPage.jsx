@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Activity, Trash2, Server, ShieldCheck, CheckCircle2, AlertTriangle, Mail, Send, Bot, Sparkles, RefreshCw, Database, FolderSync, FolderCheck, FolderOpen, Folder, FolderPlus, CornerLeftUp } from 'lucide-react';
+import { Plus, Activity, Trash2, Server, ShieldCheck, CheckCircle2, AlertTriangle, Mail, Send, Bot, Sparkles, RefreshCw, Database, FolderSync, FolderCheck, FolderOpen, Folder, FolderPlus, CornerLeftUp, Edit2, Power } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -72,13 +72,16 @@ export const SettingsPage = () => {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingServer, setEditingServer] = useState(null);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [authType, setAuthType] = useState('none');
   const [authToken, setAuthToken] = useState('');
   const [description, setDescription] = useState('');
   const [testingHealth, setTestingHealth] = useState(null);
+  const [togglingServer, setTogglingServer] = useState(null);
   const [healthResults, setHealthResults] = useState({});
+  const [mcpLogs, setMcpLogs] = useState({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -113,19 +116,52 @@ export const SettingsPage = () => {
     fetchData();
   }, []);
 
-  const handleCreateServer = async (e) => {
+  const handleOpenCreateModal = () => {
+    setEditingServer(null);
+    setName('');
+    setUrl('');
+    setAuthType('none');
+    setAuthToken('');
+    setDescription('');
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (srv) => {
+    setEditingServer(srv);
+    setName(srv.name || '');
+    setUrl(srv.url || '');
+    setAuthType(srv.auth_type || 'none');
+    setAuthToken(srv.auth_token || '');
+    setDescription(srv.description || '');
+    setIsModalOpen(true);
+  };
+
+  const handleSaveServer = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post('/mcp/servers', {
-        name,
-        url,
-        auth_type: authType,
-        auth_token: authToken || undefined,
-        description: description || undefined,
-        is_active: true,
-      });
-      setServers((prev) => [...prev, res.data]);
+      if (editingServer) {
+        const res = await api.put(`/mcp/servers/${editingServer.id}`, {
+          name,
+          url,
+          auth_type: authType,
+          auth_token: authToken || undefined,
+          description: description || undefined,
+          is_active: editingServer.is_active,
+        });
+        setServers((prev) => prev.map((s) => (s.id === editingServer.id ? res.data : s)));
+      } else {
+        const res = await api.post('/mcp/servers', {
+          name,
+          url,
+          auth_type: authType,
+          auth_token: authToken || undefined,
+          description: description || undefined,
+          is_active: true,
+        });
+        setServers((prev) => [...prev, res.data]);
+      }
       setIsModalOpen(false);
+      setEditingServer(null);
       setName('');
       setUrl('');
       setAuthType('none');
@@ -133,6 +169,30 @@ export const SettingsPage = () => {
       setDescription('');
     } catch (err) {
       alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleToggleServerActive = async (srv) => {
+    setTogglingServer(srv.id);
+    const nextActive = !srv.is_active;
+    // Optimistic UI update
+    setServers((prev) => prev.map((s) => (s.id === srv.id ? { ...s, is_active: nextActive } : s)));
+    try {
+      const res = await api.put(`/mcp/servers/${srv.id}`, {
+        name: srv.name,
+        url: srv.url,
+        auth_type: srv.auth_type,
+        auth_token: srv.auth_token,
+        description: srv.description,
+        is_active: nextActive,
+      });
+      setServers((prev) => prev.map((s) => (s.id === srv.id ? res.data : s)));
+    } catch (err) {
+      // Revert if error
+      setServers((prev) => prev.map((s) => (s.id === srv.id ? { ...s, is_active: srv.is_active } : s)));
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setTogglingServer(null);
     }
   };
 
@@ -150,17 +210,29 @@ export const SettingsPage = () => {
     setTestingHealth(id);
     try {
       const res = await api.post(`/mcp/servers/${id}/health`);
+      const status = res.data.status;
       setHealthResults((prev) => ({
         ...prev,
-        [id]: res.data.status,
+        [id]: status,
+      }));
+      setMcpLogs((prev) => ({
+        ...prev,
+        [id]: res.data,
       }));
       setServers((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, health_status: res.data.status } : s))
+        prev.map((s) => (s.id === id ? { ...s, health_status: status } : s))
       );
     } catch (err) {
       setHealthResults((prev) => ({
         ...prev,
         [id]: 'unhealthy',
+      }));
+      setMcpLogs((prev) => ({
+        ...prev,
+        [id]: {
+          status: 'unhealthy',
+          log: err.response?.data?.message || err.message || 'Koneksi gagal: Server MCP tidak merespons.',
+        },
       }));
     } finally {
       setTestingHealth(null);
@@ -361,7 +433,7 @@ export const SettingsPage = () => {
               {t('settings.mcp_desc')}
             </p>
           </div>
-          <Button variant="primary" size="sm" icon={Plus} onClick={() => setIsModalOpen(true)}>
+          <Button variant="primary" size="sm" icon={Plus} onClick={handleOpenCreateModal}>
             {t('settings.add_server')}
           </Button>
         </div>
@@ -370,57 +442,168 @@ export const SettingsPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {servers.map((srv) => {
             const health = healthResults[srv.id] || srv.health_status;
+            const logData = mcpLogs[srv.id];
             return (
               <div
                 key={srv.id}
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+                  flexDirection: 'column',
+                  gap: '12px',
                   padding: '16px',
                   backgroundColor: 'var(--color-bg-primary)',
-                  border: '1px solid var(--color-border)',
+                  border: `1px solid ${srv.is_active ? 'var(--color-border)' : 'rgba(239, 68, 68, 0.25)'}`,
                   borderRadius: 'var(--radius-sm)',
+                  opacity: srv.is_active ? 1 : 0.8,
+                  transition: 'all 0.2s ease',
                 }}
               >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{srv.name}</span>
-                    <StatusBadge status={health} />
-                  </div>
-                  <div style={{
-                    fontSize: 'var(--font-size-xs)',
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--color-text-secondary)',
-                    marginTop: '4px',
-                  }}>
-                    {srv.url}
-                  </div>
-                  {srv.description && (
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                      {srv.description}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{srv.name}</span>
+                      <StatusBadge status={srv.is_active ? health : 'inactive'} />
+                      <span style={{
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontWeight: 600,
+                        backgroundColor: srv.is_active ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.12)',
+                        color: srv.is_active ? 'var(--color-success)' : 'var(--color-text-muted)',
+                      }}>
+                        {srv.is_active ? 'Active' : 'Disabled'}
+                      </span>
                     </div>
-                  )}
+                    <div style={{
+                      fontSize: 'var(--font-size-xs)',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--color-text-secondary)',
+                      marginTop: '4px',
+                    }}>
+                      {srv.url}
+                    </div>
+                    {srv.description && (
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                        {srv.description}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Toggle Enable / Disable */}
+                    <Button
+                      variant={srv.is_active ? 'secondary' : 'primary'}
+                      size="sm"
+                      loading={togglingServer === srv.id}
+                      icon={Power}
+                      onClick={() => handleToggleServerActive(srv)}
+                      title={srv.is_active ? 'Nonaktifkan Server MCP ini' : 'Aktifkan Server MCP ini'}
+                    >
+                      {srv.is_active ? 'Disable' : 'Enable'}
+                    </Button>
+
+                    {/* Edit MCP Server */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={Edit2}
+                      onClick={() => handleOpenEditModal(srv)}
+                      title="Edit konfigurasi Server MCP"
+                    >
+                      {t('common.edit', 'Edit')}
+                    </Button>
+
+                    {/* Test Connection */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      loading={testingHealth === srv.id}
+                      onClick={() => handleTestHealth(srv.id)}
+                    >
+                      {t('settings.test_connection')}
+                    </Button>
+
+                    {/* Delete */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteServer(srv.id)}
+                      aria-label={t('settings.delete_server', 'Delete MCP Server')}
+                    >
+                      <Trash2 size={16} color="var(--color-error)" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    loading={testingHealth === srv.id}
-                    onClick={() => handleTestHealth(srv.id)}
-                  >
-                    {t('settings.test_connection')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteServer(srv.id)}
-                    aria-label={t('settings.delete_server', 'Delete MCP Server')}
-                  >
-                    <Trash2 size={16} color="var(--color-error)" />
-                  </Button>
-                </div>
+                {/* Log Bukti Berhasil / Gagal Section */}
+                {logData && (
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: logData.status === 'healthy' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                    border: `1px solid ${logData.status === 'healthy' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {logData.status === 'healthy' ? (
+                        <CheckCircle2 size={15} color="var(--color-success)" />
+                      ) : (
+                        <AlertTriangle size={15} color="var(--color-error)" />
+                      )}
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        color: logData.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)',
+                      }}>
+                        {logData.status === 'healthy' ? t('settings.verification_log', 'Log Bukti Verifikasi Berhasil') : 'Log Bukti Verifikasi Gagal'}
+                      </span>
+                      {logData.response_time_ms !== undefined && (
+                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                          Latency: {logData.response_time_ms}ms
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      fontSize: 'var(--font-size-xs)',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--color-text-primary)',
+                      wordBreak: 'break-all',
+                      lineHeight: 1.4,
+                      marginTop: '2px',
+                    }}>
+                      {logData.log}
+                    </div>
+                    {logData.tools_sample && logData.tools_sample.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                        {logData.tools_sample.map((tName) => (
+                          <span
+                            key={tName}
+                            style={{
+                              fontSize: '10px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                              border: '1px solid rgba(56, 189, 248, 0.25)',
+                              color: '#38bdf8',
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            {tName}
+                          </span>
+                        ))}
+                        {logData.tools_count > logData.tools_sample.length && (
+                          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', alignSelf: 'center' }}>
+                            +{logData.tools_count - logData.tools_sample.length} lainnya
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -966,23 +1149,29 @@ export const SettingsPage = () => {
         </form>
       </section>
 
-      {/* Add MCP Server Modal */}
+      {/* Add / Edit MCP Server Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={t('settings.add_server')}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingServer(null);
+        }}
+        title={editingServer ? t('settings.edit_server', 'Edit MCP Server') : t('settings.add_server')}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+            <Button variant="secondary" onClick={() => {
+              setIsModalOpen(false);
+              setEditingServer(null);
+            }}>
               {t('common.cancel')}
             </Button>
-            <Button variant="primary" onClick={handleCreateServer}>
+            <Button variant="primary" onClick={handleSaveServer}>
               {t('common.save')}
             </Button>
           </>
         }
       >
-        <form onSubmit={handleCreateServer} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSaveServer} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Input
             label={t('settings.server_name')}
             value={name}

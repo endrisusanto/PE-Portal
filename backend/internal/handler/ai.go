@@ -288,10 +288,11 @@ func (h *AIHandler) Chat(c echo.Context) error {
 	}
 
 	// ponytail: Inject registered active MCP servers from Settings into LLM context
-	var mcpContextBuilder strings.Builder
 	var activeMCPNames []string
+	var mcpContextBuilder strings.Builder
+	totalToolsCount := 0
 	var primaryMCPServer *model.MCPServer
-	var totalToolsCount int
+	var gbaMCPServer *model.MCPServer
 
 	if h.mcpRepo != nil {
 		servers, err := h.mcpRepo.List(c.Request().Context())
@@ -304,6 +305,10 @@ func (h *AIHandler) Chat(c echo.Context) error {
 				if primaryMCPServer == nil {
 					sCopy := s
 					primaryMCPServer = &sCopy
+				}
+				if gbaMCPServer == nil && (strings.Contains(strings.ToLower(s.Name), "google") || strings.Contains(strings.ToLower(s.Name), "gba") || strings.Contains(s.URL, "3800")) {
+					sCopy := s
+					gbaMCPServer = &sCopy
 				}
 				desc := ""
 				if s.Description != nil {
@@ -350,12 +355,17 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		}
 	}
 
-	if isMcpQuery && primaryMCPServer != nil && h.mcpSvc != nil {
-		mcpReply, err := h.mcpSvc.CallMCPChat(c.Request().Context(), primaryMCPServer, lastUserMsg, req.Messages, userName, userRole, cfg)
+	targetMcpServer := gbaMCPServer
+	if targetMcpServer == nil {
+		targetMcpServer = primaryMCPServer
+	}
+
+	if isMcpQuery && targetMcpServer != nil && h.mcpSvc != nil {
+		mcpReply, err := h.mcpSvc.CallMCPChat(c.Request().Context(), targetMcpServer, lastUserMsg, req.Messages, userName, userRole, cfg)
 		if err == nil && strings.TrimSpace(mcpReply) != "" {
 			return c.JSON(http.StatusOK, map[string]interface{}{
 				"reply":       mcpReply,
-				"model":       "MCP: " + primaryMCPServer.Name,
+				"model":       "MCP: " + targetMcpServer.Name,
 				"provider":    "MCP Connector",
 				"is_custom":   true,
 				"mcp_servers": activeMCPNames,
@@ -402,15 +412,37 @@ func (h *AIHandler) Chat(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadGateway, fmt.Sprintf("AI inference failed: %v", err))
 	}
 
-	// Tool-calling loop: If LLM emits a tool call, execute it via PEMCP and feed back to get final answer
-	if toolName, toolArgs, ok := parseToolCall(reply); ok && h.peMCP != nil {
-		res, err := h.peMCP.CallTool(c.Request().Context(), toolName, toolArgs)
-		if err == nil {
-			resBytes, _ := json.Marshal(res)
+	// Tool-calling loop: If LLM emits a tool call, execute it via PEMCP or external MCP servers and feed back to get final answer
+	if toolName, toolArgs, ok := parseToolCall(reply); ok {
+		var toolOutput string
+
+		// 1. In-memory PE Portal MCP tools
+		if h.peMCP != nil {
+			if res, err := h.peMCP.CallTool(c.Request().Context(), toolName, toolArgs); err == nil {
+				resBytes, _ := json.Marshal(res)
+				toolOutput = string(resBytes)
+			}
+		}
+
+		// 2. Remote MCP servers (e.g. GBA tools like db_list_tasks, db_create_task, etc.)
+		if toolOutput == "" && h.mcpSvc != nil && h.mcpRepo != nil {
+			servers, _ := h.mcpRepo.List(c.Request().Context())
+			for _, s := range servers {
+				if !s.IsActive {
+					continue
+				}
+				if res, err := h.mcpSvc.CallTool(c.Request().Context(), &s, toolName, toolArgs); err == nil && strings.TrimSpace(res) != "" {
+					toolOutput = res
+					break
+				}
+			}
+		}
+
+		if toolOutput != "" {
 			followUpReq := req
 			followUpReq.Messages = append(followUpReq.Messages,
 				model.ChatMessage{Role: "assistant", Content: reply},
-				model.ChatMessage{Role: "user", Content: fmt.Sprintf("[TOOL RESULT FROM %s]:\n%s\n\nJawab pertanyaan engineer secara komprehensif, terstruktur, dan gunakan Markdown tables berdasarkan data tool di atas.", toolName, string(resBytes))},
+				model.ChatMessage{Role: "user", Content: fmt.Sprintf("[TOOL RESULT FROM %s]:\n%s\n\nJawab pertanyaan engineer secara komprehensif, terstruktur, dan gunakan Markdown tables berdasarkan data tool di atas.", toolName, toolOutput)},
 			)
 			secondReply, err2 := h.llmSvc.ChatCompletion(c.Request().Context(), cfg, &followUpReq)
 			if err2 == nil && strings.TrimSpace(secondReply) != "" {

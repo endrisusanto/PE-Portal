@@ -927,13 +927,13 @@ Panduan Format Respons:
       <div className={styles.header}>
         <div className={styles.titleArea}>
           <div className={styles.breadcrumbs}>
-            <span>Operations</span>
+            <span>{t('sidebar.section_operations', 'Operations')}</span>
             <span>/</span>
-            <span>Engineering Changes</span>
+            <span>{t('ecn.title', 'ECN Monitoring')}</span>
           </div>
           <h1 className={styles.pageTitle}>
             <FileSpreadsheet className="w-6 h-6 text-teal-600" />
-            ECN Monitoring
+            {t('ecn.title', 'ECN Monitoring')}
             <span className={styles.titleBadge}>SEIN Production Engineering</span>
           </h1>
         </div>
@@ -943,28 +943,28 @@ Panduan Format Respons:
             type="button"
             className={styles.btnSecondary}
             onClick={() => setIsPasteModalOpen(true)}
-            title="Paste tabel langsung dari Excel clipboard (Bypass DRM NASCA)"
+            title={t('ecn.paste_excel', 'Paste Tabel Excel')}
           >
             <ClipboardPaste size={15} />
-            Paste Table
+            {t('ecn.paste_excel', 'Paste Table')}
           </button>
           <button
             type="button"
             className={styles.btnSecondary}
             onClick={() => setIsUploadModalOpen(true)}
-            title="Upload file dokumen Excel (.xlsx)"
+            title={t('ecn.upload_excel', 'Upload Excel')}
           >
             <Upload size={15} />
-            Upload Excel
+            {t('ecn.upload_excel', 'Upload Excel')}
           </button>
           <button
             type="button"
             className={styles.btnSecondary}
             onClick={handleExportCSV}
-            title="Ekspor data aktif ke CSV"
+            title={t('ecn.export_csv', 'Export CSV')}
           >
             <Download size={15} />
-            Export CSV
+            {t('ecn.export_csv', 'Export CSV')}
           </button>
           <button
             type="button"
@@ -997,7 +997,7 @@ Panduan Format Respons:
             }}
           >
             <Plus size={15} />
-            Manual Entry
+            {t('ecn.add_ecn', 'Manual Entry')}
           </button>
         </div>
       </div>
@@ -1009,7 +1009,7 @@ Panduan Format Respons:
             <Layers size={20} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Total ECN Records</span>
+            <span className={styles.statLabel}>{t('ecn.stats.total', 'Total ECN Records')}</span>
             <span className={styles.statValue}>{stats.total.toLocaleString()}</span>
           </div>
         </div>
@@ -1019,7 +1019,7 @@ Panduan Format Respons:
             <CheckCircle2 size={20} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>ECN Completed</span>
+            <span className={styles.statLabel}>{t('ecn.stats.completed', 'ECN Completed')}</span>
             <span className={styles.statValue}>{stats.completed.toLocaleString()}</span>
           </div>
         </div>
@@ -1039,7 +1039,7 @@ Panduan Format Respons:
             <Boxes size={20} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Active Models</span>
+            <span className={styles.statLabel}>{t('ecn.stats.active_bom', 'Active Models')}</span>
             <span className={styles.statValue}>{stats.unique_models.toLocaleString()}</span>
           </div>
         </div>
@@ -1187,7 +1187,7 @@ Panduan Format Respons:
               <input
                 type="text"
                 className={styles.searchInput}
-                placeholder="Pencarian cepat (ECN, Model, Title, Part)..."
+                placeholder={t('ecn.filter.search_placeholder', 'Pencarian cepat (ECN, Model, Title, Part)...')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -1201,7 +1201,7 @@ Panduan Format Respons:
                 setPage(1);
               }}
             >
-              <option value="">Semua Model</option>
+              <option value="">{t('ecn.filter.all_model', 'Semua Model')}</option>
               {Object.keys(stats.model_counts || {}).map((m) => (
                 <option key={m} value={m}>
                   {m} ({stats.model_counts[m]})
@@ -1217,7 +1217,7 @@ Panduan Format Respons:
                 setPage(1);
               }}
             >
-              <option value="">Semua Status</option>
+              <option value="">{t('ecn.filter.all_status', 'Semua Status')}</option>
               <option value="Completed">Completed</option>
               <option value="In Progress">In Progress</option>
               <option value="Pending">Pending</option>
@@ -1232,7 +1232,7 @@ Panduan Format Respons:
                 setPage(1);
               }}
             >
-              <option value="">Semua Proses</option>
+              <option value="">{t('ecn.filter.all_process', 'Semua Proses')}</option>
               <option value="SMD">SMD</option>
               <option value="Mainline">Mainline</option>
               <option value="Vendor">Vendor</option>
@@ -1247,7 +1247,7 @@ Panduan Format Respons:
                 setPage(1);
               }}
             >
-              <option value="">Semua Fungsi</option>
+              <option value="">{t('ecn.filter.all_function', 'Semua Fungsi')}</option>
               <option value="Circuit">Circuit</option>
               <option value="Mechanism">Mechanism</option>
               <option value="Software">Software</option>
@@ -1277,10 +1277,10 @@ Panduan Format Respons:
                   opacity: isBulkDeleting ? 0.7 : 1,
                   boxShadow: '0 1px 3px rgba(220, 38, 38, 0.3)',
                 }}
-                title="Hapus data ECN terpilih"
+                title={t('ecn.filter.bulk_delete', 'Hapus data ECN terpilih')}
               >
                 {isBulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                <span>Hapus Terpilih ({selectedIds.size})</span>
+                <span>{t('ecn.filter.bulk_delete', 'Hapus Terpilih')} ({selectedIds.size})</span>
               </button>
             )}
 
@@ -1291,10 +1291,10 @@ Panduan Format Respons:
                 fetchRecords();
                 fetchStats();
               }}
-              title="Muat ulang data"
+              title="Refresh"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              Refresh
+              {t('common.refresh', 'Refresh')}
             </button>
           </div>
         </div>
@@ -1314,33 +1314,33 @@ Panduan Format Respons:
                         if (el) el.indeterminate = isSomeSelected;
                       }}
                       onChange={handleToggleSelectAll}
-                      title="Pilih semua baris di halaman ini"
+                      title={t('ecn.filter.select_all', 'Pilih semua baris di halaman ini')}
                       style={{ cursor: 'pointer', transform: 'scale(1.1)' }}
                     />
                   </th>
                 )}
                 <th style={{ width: '40px', textAlign: 'center' }}>#</th>
                 {[
-                  { key: 'ecn_no', label: 'ECN NO', width: '135px' },
-                  { key: 'model', label: 'Model', width: '115px' },
-                  { key: 'function_type', label: 'Function', width: '95px' },
-                  { key: 'process', label: 'Process', width: '90px' },
-                  { key: 'ec_title', label: 'EC Title', minWidth: '180px' },
-                  { key: 'child_code', label: 'Item Code', width: '125px' },
-                  { key: 'child_name', label: 'Part Description', minWidth: '160px' },
-                  { key: 'specification', label: 'Specification', minWidth: '160px' },
-                  { key: 'quantity', label: 'Qty', width: '70px' },
-                  { key: 'running_date_bom', label: 'Running BOM', width: '125px', minWidth: '120px' },
-                  { key: 'distribution_date', label: 'Dist Date', width: '125px', minWidth: '120px' },
-                  { key: 'status', label: 'Status', width: '115px' },
-                  { key: 'author_name', label: 'Uploader & Waktu', width: '150px', minWidth: '140px' },
+                  { key: 'ecn_no', label: t('ecn.table.ecn_no', 'ECN NO'), width: '135px' },
+                  { key: 'model', label: t('ecn.table.model', 'Model'), width: '115px' },
+                  { key: 'function_type', label: t('ecn.table.function', 'Function'), width: '95px' },
+                  { key: 'process', label: t('ecn.table.process', 'Process'), width: '90px' },
+                  { key: 'ec_title', label: t('ecn.table.ec_title', 'EC Title'), minWidth: '180px' },
+                  { key: 'child_code', label: t('ecn.table.child_code', 'Item Code'), width: '125px' },
+                  { key: 'child_name', label: t('ecn.table.child_name', 'Part Description'), minWidth: '160px' },
+                  { key: 'specification', label: t('ecn.table.specification', 'Specification'), minWidth: '160px' },
+                  { key: 'quantity', label: t('ecn.table.quantity', 'Qty'), width: '70px' },
+                  { key: 'running_date_bom', label: t('ecn.table.running_bom', 'Running BOM'), width: '125px', minWidth: '120px' },
+                  { key: 'distribution_date', label: t('ecn.table.dist_date', 'Dist Date'), width: '125px', minWidth: '120px' },
+                  { key: 'status', label: t('ecn.table.status', 'Status'), width: '115px' },
+                  { key: 'author_name', label: t('ecn.table.author', 'Uploader & Waktu'), width: '150px', minWidth: '140px' },
                 ].map((col) => (
                   <th
                     key={col.key}
                     className={styles.thSortable}
                     onClick={() => handleSort(col.key)}
                     style={{ width: col.width, minWidth: col.minWidth }}
-                    title={`Klik untuk mengurutkan berdasarkan ${col.label}`}
+                    title={`Sort: ${col.label}`}
                   >
                     <div className={styles.thSortContent}>
                       <span>{col.label}</span>
@@ -1356,7 +1356,7 @@ Panduan Format Respons:
                     </div>
                   </th>
                 ))}
-                <th style={{ width: '85px', textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: '85px', textAlign: 'center' }}>{t('ecn.table.actions', 'Aksi')}</th>
               </tr>
 
               {/* Row 2: Individual Column Filter Inputs */}
@@ -1377,7 +1377,7 @@ Panduan Format Respons:
                   <input
                     type="text"
                     className={styles.colFilterInput}
-                    placeholder="Filter ECN..."
+                    placeholder={t('ecn.filter.filter_parent', 'Filter ECN...')}
                     value={colFilters.ecn_no}
                     onChange={(e) => setColFilters({ ...colFilters, ecn_no: e.target.value })}
                   />
@@ -1386,7 +1386,7 @@ Panduan Format Respons:
                   <input
                     type="text"
                     className={styles.colFilterInput}
-                    placeholder="Filter model..."
+                    placeholder={t('ecn.filter.model_placeholder', 'Filter model...')}
                     value={colFilters.model}
                     onChange={(e) => setColFilters({ ...colFilters, model: e.target.value })}
                   />
@@ -1397,7 +1397,7 @@ Panduan Format Respons:
                     value={colFilters.function_type}
                     onChange={(e) => setColFilters({ ...colFilters, function_type: e.target.value })}
                   >
-                    <option value="">Semua</option>
+                    <option value="">{t('common.all', 'Semua')}</option>
                     <option value="Circuit">Circuit</option>
                     <option value="Mechanism">Mechanism</option>
                     <option value="Software">Software</option>
@@ -1410,7 +1410,7 @@ Panduan Format Respons:
                     value={colFilters.process}
                     onChange={(e) => setColFilters({ ...colFilters, process: e.target.value })}
                   >
-                    <option value="">Semua</option>
+                    <option value="">{t('common.all', 'Semua')}</option>
                     <option value="SMD">SMD</option>
                     <option value="Mainline">Mainline</option>
                     <option value="Vendor">Vendor</option>
@@ -1421,7 +1421,7 @@ Panduan Format Respons:
                   <input
                     type="text"
                     className={styles.colFilterInput}
-                    placeholder="Cari title..."
+                    placeholder={t('ecn.filter.search_placeholder', 'Cari title...')}
                     value={colFilters.ec_title}
                     onChange={(e) => setColFilters({ ...colFilters, ec_title: e.target.value })}
                   />
@@ -1466,7 +1466,7 @@ Panduan Format Respons:
                   <input
                     type="date"
                     className={styles.colFilterDate}
-                    title="Pilih tanggal Running BOM"
+                    title={t('ecn.table.running_bom', 'Pilih tanggal Running BOM')}
                     value={colFilters.running_date_bom}
                     onChange={(e) => setColFilters({ ...colFilters, running_date_bom: e.target.value })}
                     onClick={(e) => {
@@ -1480,7 +1480,7 @@ Panduan Format Respons:
                   <input
                     type="date"
                     className={styles.colFilterDate}
-                    title="Pilih tanggal Distribution Date"
+                    title={t('ecn.table.dist_date', 'Pilih tanggal Distribution Date')}
                     value={colFilters.distribution_date}
                     onChange={(e) => setColFilters({ ...colFilters, distribution_date: e.target.value })}
                     onClick={(e) => {
@@ -1496,7 +1496,7 @@ Panduan Format Respons:
                     value={colFilters.status}
                     onChange={(e) => setColFilters({ ...colFilters, status: e.target.value })}
                   >
-                    <option value="">Semua</option>
+                    <option value="">{t('common.all', 'Semua')}</option>
                     <option value="Completed">Completed</option>
                     <option value="In Progress">In Progress</option>
                     <option value="Pending">Pending</option>
@@ -1507,7 +1507,7 @@ Panduan Format Respons:
                   <input
                     type="text"
                     className={styles.colFilterInput}
-                    placeholder="Filter uploader..."
+                    placeholder={t('ecn.filter.filter_uploader', 'Filter uploader...')}
                     value={colFilters.author_name}
                     onChange={(e) => setColFilters({ ...colFilters, author_name: e.target.value })}
                   />
@@ -1517,11 +1517,11 @@ Panduan Format Respons:
                     <button
                       type="button"
                       className={styles.colFilterResetBtn}
-                      title="Reset semua filter kolom"
+                      title="Reset"
                       onClick={handleResetColFilters}
                     >
                       <RotateCcw size={10} />
-                      Reset
+                      {t('ecn.filter.reset', 'Reset')}
                     </button>
                   )}
                 </th>
@@ -1534,7 +1534,7 @@ Panduan Format Respons:
                   <td colSpan={totalColSpan} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
                       <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
-                      <span>Memuat data ECN Monitoring...</span>
+                      <span>{t('ecn.table.loading', 'Memuat data ECN Monitoring...')}</span>
                     </div>
                   </td>
                 </tr>
@@ -1544,10 +1544,7 @@ Panduan Format Respons:
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                       <FileSpreadsheet size={32} style={{ opacity: 0.3 }} />
                       <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                        Tidak ada record ECN yang cocok
-                      </span>
-                      <span style={{ fontSize: '12px' }}>
-                        Coba sesuaikan kata kunci pencarian, filter kolom di header, atau lakukan import baru.
+                        {t('ecn.table.no_data', 'Tidak ada record ECN yang cocok')}
                       </span>
                       {hasActiveColFilters && (
                         <button
@@ -1557,7 +1554,7 @@ Panduan Format Respons:
                           onClick={handleResetColFilters}
                         >
                           <RotateCcw size={13} />
-                          Bersihkan Filter Kolom
+                          {t('ecn.filter.reset', 'Bersihkan Filter Kolom')}
                         </button>
                       )}
                     </div>
@@ -1709,37 +1706,37 @@ Panduan Format Respons:
                           <td colSpan={totalColSpan} style={{ padding: 0 }}>
                             <div className={styles.detailGrid}>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Parent Code</span>
+                                <span className={styles.detailLabel}>{t('ecn.detail.parent_code', 'Parent Code')}</span>
                                 <span className={styles.detailValue} style={{ fontFamily: 'var(--font-mono, monospace)' }}>
                                   {item.parent_code || '-'}
                                 </span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Parent Name</span>
+                                <span className={styles.detailLabel}>{t('ecn.detail.parent_name', 'Parent Name')}</span>
                                 <span className={styles.detailValue}>{item.parent_name || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Purpose</span>
+                                <span className={styles.detailLabel}>{t('ecn.table.purpose', 'Purpose')}</span>
                                 <span className={styles.detailValue}>{item.purpose || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Inventory Mgmt</span>
+                                <span className={styles.detailLabel}>{t('ecn.table.inventory_mgmt', 'Inventory Mgmt')}</span>
                                 <span className={styles.detailValue}>{item.inventory_mgmt || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Before / After</span>
+                                <span className={styles.detailLabel}>{t('ecn.detail.before_after', 'Before / After')}</span>
                                 <span className={styles.detailValue}>{item.before_after || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>D/L (Distribution Level)</span>
+                                <span className={styles.detailLabel}>{t('ecn.detail.dl', 'D/L (Distribution Level)')}</span>
                                 <span className={styles.detailValue}>{item.dl || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Marking Point</span>
+                                <span className={styles.detailLabel}>{t('ecn.detail.marking_point', 'Marking Point')}</span>
                                 <span className={styles.detailValue}>{item.marking_point || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Author / Uploader</span>
+                                <span className={styles.detailLabel}>{t('ecn.detail.uploader_data', 'Author / Uploader')}</span>
                                 <span className={styles.detailValue} style={{ fontWeight: 600 }}>
                                   {item.author_name || 'System'}
                                 </span>
@@ -1747,16 +1744,16 @@ Panduan Format Respons:
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>Record ID & Timestamp</span>
                                 <span className={styles.detailValue} style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                                  {item.id} (Dibuat: {item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-'})
+                                  {item.id} ({item.created_at ? new Date(item.created_at).toLocaleString() : '-'})
                                 </span>
                               </div>
 
                               <div className={styles.remarkBox}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                  <span className={styles.detailLabel}>Remark / Catatan Teknis:</span>
+                                  <span className={styles.detailLabel}>{t('ecn.detail.remark_title', 'Remark / Catatan Teknis:')}</span>
                                   {item.remark && item.remark.length > 200 && (
                                     <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                                      {item.remark.length.toLocaleString('id-ID')} karakter
+                                      {item.remark.length.toLocaleString()} {t('ecn.detail.characters', 'karakter')}
                                     </span>
                                   )}
                                 </div>
@@ -1775,7 +1772,7 @@ Panduan Format Respons:
                                   </div>
                                 ) : (
                                   <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-                                    Tidak ada catatan remark untuk record ini.
+                                    {t('ecn.detail.no_remark', 'Tidak ada catatan remark untuk record ini.')}
                                   </span>
                                 )}
                               </div>
@@ -1794,14 +1791,15 @@ Panduan Format Respons:
         {/* Table Pagination Footer */}
         <div className={styles.pagination}>
           <div className={styles.paginationInfo}>
-            Menampilkan <strong>{displayedRecords.length}</strong> dari <strong>{totalRecords}</strong> data ECN (Halaman{' '}
-            <strong>{page}</strong> dari <strong>{totalPages}</strong>)
+            {t('ecn.pagination.showing', 'Menampilkan')} <strong>{displayedRecords.length}</strong> {t('ecn.pagination.of', 'dari')}{' '}
+            <strong>{totalRecords}</strong> {t('ecn.pagination.data', 'data ECN')} ({t('ecn.pagination.page', 'Halaman')}{' '}
+            <strong>{page}</strong> {t('ecn.pagination.of', 'dari')} <strong>{totalPages}</strong>)
           </div>
 
           <div className={styles.paginationControlsWrapper}>
-            {/* ponytail: Limit selector (10, 50, 100, All) */}
+            {/* Limit selector */}
             <div className={styles.paginationLimit}>
-              <span className={styles.paginationSortLabel}>Tampilkan:</span>
+              <span className={styles.paginationSortLabel}>{t('ecn.pagination.display', 'Tampilkan:')}</span>
               <select
                 className={styles.paginationSortSelect}
                 value={limit >= 10000 ? 'all' : limit}
@@ -1810,20 +1808,20 @@ Panduan Format Respons:
                   setLimit(val);
                   setPage(1);
                 }}
-                title="Jumlah baris data per halaman"
+                title="Limit per page"
               >
-                <option value="10">10 / hal</option>
-                <option value="50">50 / hal</option>
-                <option value="100">100 / hal</option>
-                <option value="all">Semua (All)</option>
+                <option value="10">10 {t('ecn.pagination.per_page', '/ hal')}</option>
+                <option value="50">50 {t('ecn.pagination.per_page', '/ hal')}</option>
+                <option value="100">100 {t('ecn.pagination.per_page', '/ hal')}</option>
+                <option value="all">{t('ecn.pagination.all', 'Semua (All)')}</option>
               </select>
             </div>
 
-            {/* ponytail: Sort By controls in table footer pagination */}
+            {/* Sort By controls */}
             <div className={styles.paginationSort}>
               <span className={styles.paginationSortLabel}>
                 <ArrowUpDown size={12} />
-                <span>Urutkan:</span>
+                <span>{t('ecn.pagination.sort_by', 'Urutkan:')}</span>
               </span>
               <select
                 className={styles.paginationSortSelect}
@@ -1832,28 +1830,28 @@ Panduan Format Respons:
                   setSortKey(e.target.value);
                   setPage(1);
                 }}
-                title="Urutkan berdasarkan kolom"
+                title="Sort column"
               >
-                <option value="created_at">Waktu Dibuat (Terbaru)</option>
-                <option value="ecn_no">ECN NO</option>
-                <option value="model">Model</option>
-                <option value="function_type">Function</option>
-                <option value="process">Process</option>
-                <option value="ec_title">EC Title</option>
-                <option value="child_code">Item Code</option>
-                <option value="child_name">Part Description</option>
-                <option value="specification">Specification</option>
-                <option value="quantity">Qty</option>
-                <option value="running_date_bom">Running BOM</option>
-                <option value="distribution_date">Dist Date</option>
-                <option value="status">Status</option>
-                <option value="author_name">Uploader</option>
+                <option value="created_at">{t('ecn.table.author', 'Waktu Dibuat')}</option>
+                <option value="ecn_no">{t('ecn.table.ecn_no', 'ECN NO')}</option>
+                <option value="model">{t('ecn.table.model', 'Model')}</option>
+                <option value="function_type">{t('ecn.table.function', 'Function')}</option>
+                <option value="process">{t('ecn.table.process', 'Process')}</option>
+                <option value="ec_title">{t('ecn.table.ec_title', 'EC Title')}</option>
+                <option value="child_code">{t('ecn.table.child_code', 'Item Code')}</option>
+                <option value="child_name">{t('ecn.table.child_name', 'Part Description')}</option>
+                <option value="specification">{t('ecn.table.specification', 'Specification')}</option>
+                <option value="quantity">{t('ecn.table.quantity', 'Qty')}</option>
+                <option value="running_date_bom">{t('ecn.table.running_bom', 'Running BOM')}</option>
+                <option value="distribution_date">{t('ecn.table.dist_date', 'Dist Date')}</option>
+                <option value="status">{t('ecn.table.status', 'Status')}</option>
+                <option value="author_name">{t('ecn.filter.filter_uploader', 'Uploader')}</option>
               </select>
               <button
                 type="button"
                 className={styles.paginationSortDirBtn}
                 onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                title={sortDirection === 'asc' ? 'Urutan Naik (A-Z / Lama ke Baru)' : 'Urutan Turun (Z-A / Baru ke Lama)'}
+                title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
               >
                 {sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
                 <span>{sortDirection === 'asc' ? 'ASC' : 'DESC'}</span>
@@ -1867,7 +1865,7 @@ Panduan Format Respons:
                 disabled={page <= 1 || loading}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Sebelumnya
+                {t('ecn.pagination.prev', 'Sebelumnya')}
               </button>
               <span style={{ fontWeight: 600 }}>{page}</span>
               <button
@@ -1876,7 +1874,7 @@ Panduan Format Respons:
                 disabled={page >= totalPages || loading}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
-                Selanjutnya
+                {t('ecn.pagination.next', 'Selanjutnya')}
               </button>
             </div>
           </div>
@@ -1894,18 +1892,16 @@ Panduan Format Respons:
             setPasteRawText('');
             setParsedPasteRows([]);
           }}
-          title="Bulk Import via Paste Table (Bypass DRM NASCA)"
+          title={t('ecn.paste_modal.title', 'Bulk Import via Paste Table (Bypass DRM NASCA)')}
           maxWidth="900px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className={styles.drmAlertBox}>
               <Sparkles size={18} style={{ color: 'var(--color-warning)', flexShrink: 0 }} />
               <div>
-                <strong>Metode Bypass Samsung NASCA DRM:</strong>
+                <strong>{t('ecn.paste_modal.drm_notice_title', 'Metode Bypass Samsung NASCA DRM:')}</strong>
                 <p style={{ margin: '4px 0 0 0', lineHeight: 1.4 }}>
-                  Buka dokumen Excel Anda di PC (aplikasi Microsoft Excel membuka data terdekripsi secara otomatis). Tekan{' '}
-                  <kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 4px', borderRadius: '3px', border: '1px solid var(--color-border)' }}>Ctrl+A</kbd> lalu{' '}
-                  <kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 4px', borderRadius: '3px', border: '1px solid var(--color-border)' }}>Ctrl+C</kbd>, kemudian paste di bawah.
+                  {t('ecn.paste_modal.drm_notice_desc', 'Buka dokumen Excel Anda di PC (aplikasi Microsoft Excel membuka data terdekripsi secara otomatis). Tekan Ctrl+A lalu Ctrl+C, kemudian paste di bawah.')}
                 </p>
               </div>
             </div>
@@ -1913,7 +1909,7 @@ Panduan Format Respons:
             <textarea
               className={styles.formTextarea}
               style={{ minHeight: '140px', fontFamily: 'var(--font-mono, monospace)', fontSize: '11.5px' }}
-              placeholder="Paste data sel dari Excel di sini (Ctrl+V)... Kolom: ECN NO, MODEL, Function Type, Purpose, Inventory, Process, EC Title, dll."
+              placeholder={t('ecn.paste_modal.placeholder', 'Paste data sel dari Excel di sini (Ctrl+V)... Kolom: ECN NO, MODEL, Function Type, Purpose, Inventory, Process, EC Title, dll.')}
               value={pasteRawText}
               onChange={(e) => handleParsePasteText(e.target.value)}
             />
@@ -1922,21 +1918,21 @@ Panduan Format Respons:
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 600, fontSize: '13px' }}>
-                    Preview Data Siap Impor ({parsedPasteRows.length} baris):
+                    {t('ecn.paste_modal.preview_title', 'Preview Data Siap Impor')} ({parsedPasteRows.length} {t('ecn.paste_modal.rows', 'baris')}):
                   </span>
-                  <span style={{ fontSize: '11px', color: 'var(--color-success)' }}>✓ Format Kolom Valid</span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-success)' }}>{t('ecn.paste_modal.valid_format', '✓ Format Kolom Valid')}</span>
                 </div>
 
                 <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
                   <table className={styles.table} style={{ fontSize: '11px' }}>
                     <thead>
                       <tr>
-                        <th>ECN NO</th>
-                        <th>Model</th>
-                        <th>Process</th>
-                        <th>EC Title</th>
-                        <th>Child Code</th>
-                        <th>Status</th>
+                        <th>{t('ecn.table.ecn_no', 'ECN NO')}</th>
+                        <th>{t('ecn.table.model', 'Model')}</th>
+                        <th>{t('ecn.table.process', 'Process')}</th>
+                        <th>{t('ecn.table.ec_title', 'EC Title')}</th>
+                        <th>{t('ecn.table.child_code', 'Child Code')}</th>
+                        <th>{t('ecn.table.status', 'Status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1955,7 +1951,7 @@ Panduan Format Respons:
                 </div>
                 {parsedPasteRows.length > 10 && (
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', textAlign: 'right' }}>
-                    Menampilkan 10 baris pertama dari total {parsedPasteRows.length} baris.
+                    {t('ecn.pagination.showing', 'Menampilkan')} 10 {t('ecn.paste_modal.rows', 'baris')} {t('ecn.pagination.of', 'dari')} {parsedPasteRows.length} {t('ecn.paste_modal.rows', 'baris')}.
                   </span>
                 )}
               </div>
@@ -1971,7 +1967,7 @@ Panduan Format Respons:
                   setParsedPasteRows([]);
                 }}
               >
-                Batal
+                {t('ecn.paste_modal.cancel', 'Batal')}
               </button>
               <button
                 type="button"
@@ -1982,12 +1978,12 @@ Panduan Format Respons:
                 {isImportingPaste ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    Mengimpor...
+                    {t('ecn.paste_modal.importing', 'Mengimpor...')}
                   </>
                 ) : (
                   <>
                     <Check size={14} />
-                    Impor {parsedPasteRows.length} Baris ECN
+                    {t('ecn.paste_modal.import_btn', { count: parsedPasteRows.length, defaultValue: `Impor ${parsedPasteRows.length} Baris ECN` })}
                   </>
                 )}
               </button>
@@ -2007,12 +2003,12 @@ Panduan Format Respons:
             setUploadFile(null);
             setUploadDrmNotice(null);
           }}
-          title="Upload Dokumen Excel (.xlsx)"
+          title={t('ecn.upload_modal.title', 'Upload Dokumen Excel (.xlsx)')}
           maxWidth="600px"
         >
           <form onSubmit={handleUploadExcelSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-              Pilih file format <code>.xlsx</code> yang berisi daftar ECN. Sistem akan membaca baris tabel secara otomatis melalui script parsing Python.
+              {t('ecn.upload_modal.supported_format', 'Format Didukung: .xlsx (BOM / PLM Export SEIN)')}
             </p>
 
             {uploadDrmNotice && (
@@ -2032,14 +2028,14 @@ Panduan Format Respons:
                       setIsPasteModalOpen(true);
                     }}
                   >
-                    Buka Paste Table Sekarang
+                    {t('ecn.paste_excel', 'Buka Paste Table Sekarang')}
                   </button>
                 </div>
               </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label className={styles.formLabel}>Pilih File Excel:</label>
+              <label className={styles.formLabel}>{t('ecn.upload_modal.click_or_drag', 'Pilih File Excel:')}</label>
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -2049,7 +2045,7 @@ Panduan Format Respons:
               />
             </div>
 
-            {/* Fallback Progress Container for Large Excel Uploads (Ponytail) */}
+            {/* Fallback Progress Container for Large Excel Uploads */}
             {isUploading && (
               <div className={styles.uploadProgressBox}>
                 <div className={styles.progressHeader}>
@@ -2057,11 +2053,11 @@ Panduan Format Respons:
                     <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
                     <span>
                       {uploadStage === 'uploading'
-                        ? `Tahap 1/2: Mengunggah berkas (${uploadProgress}%)`
+                        ? `${t('ecn.paste_modal.importing', 'Mengunggah')} (${uploadProgress}%)`
                         : uploadStage === 'parsing'
-                        ? 'Tahap 2/2: Membaca & Memproses Excel'
+                        ? 'Membaca & Memproses Excel...'
                         : uploadStage === 'importing'
-                        ? 'Menyimpan Data ke Database'
+                        ? 'Menyimpan Data ke Database...'
                         : 'Memproses data...'}
                     </span>
                   </div>
@@ -2082,7 +2078,7 @@ Panduan Format Respons:
                 </div>
 
                 <p className={styles.progressDetailText}>
-                  {uploadStatusText || 'Sedang memproses... File Excel berukuran besar memerlukan beberapa detik untuk diekstrak. Browser tidak freeze/hang.'}
+                  {uploadStatusText || t('ecn.upload_modal.drm_notice', 'Sedang memproses file...')}
                 </p>
               </div>
             )}
@@ -2099,24 +2095,20 @@ Panduan Format Respons:
                   setUploadDrmNotice(null);
                 }}
               >
-                Batal
+                {t('ecn.upload_modal.cancel', 'Batal')}
               </button>
               <button type="submit" className={styles.btnPrimary} disabled={!uploadFile || isUploading}>
                 {isUploading ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
                     {uploadStage === 'uploading'
-                      ? `Mengunggah (${uploadProgress}%)...`
-                      : uploadStage === 'parsing'
-                      ? 'Mengekstrak Excel...'
-                      : uploadStage === 'importing'
-                      ? 'Menyimpan ke DB...'
+                      ? `${t('ecn.paste_modal.importing', 'Mengunggah')} (${uploadProgress}%)...`
                       : 'Memproses File...'}
                   </>
                 ) : (
                   <>
                     <Upload size={14} />
-                    Mulai Parsing & Simpan
+                    {t('ecn.upload_modal.upload_parse', 'Unggah & Parse')}
                   </>
                 )}
               </button>
@@ -2132,7 +2124,7 @@ Panduan Format Respons:
         <Modal
           isOpen={isFormModalOpen}
           onClose={handleRequestCloseForm}
-          title={editingItem ? `Edit ECN Record (${editingItem.ecn_no})` : 'Manual Entry ECN Record'}
+          title={editingItem ? `${t('ecn.form_modal.edit_title', 'Edit Data ECN')} (${editingItem.ecn_no})` : t('ecn.form_modal.add_title', 'Tambah Data ECN Baru')}
           maxWidth="min(1240px, 96vw)"
           closeOnOverlayClick={false}
           closeOnEsc={false}
@@ -2142,11 +2134,11 @@ Panduan Format Respons:
               {/* Section 1: Identifikasi ECN & Model */}
               <div className={styles.formSectionHeader}>
                 <Layers size={13} />
-                <span>1. Identifikasi ECN & Model</span>
+                <span>1. {t('ecn.form_modal.sec_general', 'Informasi Umum ECN')}</span>
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>ECN NO *</label>
+                <label className={styles.formLabel}>{t('ecn.table.ecn_no', 'ECN NO')} *</label>
                 <input
                   type="text"
                   required
@@ -2158,7 +2150,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Model *</label>
+                <label className={styles.formLabel}>{t('ecn.table.model', 'Model')} *</label>
                 <input
                   type="text"
                   required
@@ -2170,7 +2162,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Function Type</label>
+                <label className={styles.formLabel}>{t('ecn.table.function', 'Function Type')}</label>
                 <select
                   className={styles.formSelect}
                   value={formData.function_type}
@@ -2184,7 +2176,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Proses</label>
+                <label className={styles.formLabel}>{t('ecn.table.process', 'Proses')}</label>
                 <select
                   className={styles.formSelect}
                   value={formData.process}
@@ -2200,11 +2192,11 @@ Panduan Format Respons:
               {/* Section 2: Deskripsi & Parent Assembly */}
               <div className={styles.formSectionHeader}>
                 <Boxes size={13} />
-                <span>2. Deskripsi Perubahan & Parent Assembly</span>
+                <span>2. {t('ecn.form_modal.sec_parent', 'Komponen Parent (Induk)')}</span>
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>EC Title (Deskripsi Singkat Perubahan)</label>
+                <label className={styles.formLabel}>{t('ecn.table.ec_title', 'EC Title')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2215,7 +2207,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Parent Code</label>
+                <label className={styles.formLabel}>{t('ecn.detail.parent_code', 'Parent Code')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2226,7 +2218,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Parent Name</label>
+                <label className={styles.formLabel}>{t('ecn.detail.parent_name', 'Parent Name')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2237,7 +2229,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>Purpose</label>
+                <label className={styles.formLabel}>{t('ecn.table.purpose', 'Purpose')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2248,7 +2240,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>Inventory Management</label>
+                <label className={styles.formLabel}>{t('ecn.table.inventory_mgmt', 'Inventory Management')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2261,11 +2253,11 @@ Panduan Format Respons:
               {/* Section 3: Detail Komponen & Spesifikasi */}
               <div className={styles.formSectionHeader}>
                 <Cpu size={13} />
-                <span>3. Detail Komponen & Spesifikasi</span>
+                <span>3. {t('ecn.form_modal.sec_child', 'Komponen Child (Anak / Komponen Baru)')}</span>
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Child Code (Part Code)</label>
+                <label className={styles.formLabel}>{t('ecn.table.child_code', 'Child Code (Part Code)')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2276,7 +2268,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>Child Name (Part Description)</label>
+                <label className={styles.formLabel}>{t('ecn.table.child_name', 'Child Name (Part Description)')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2287,7 +2279,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Specification</label>
+                <label className={styles.formLabel}>{t('ecn.table.specification', 'Specification')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2298,7 +2290,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Quantity</label>
+                <label className={styles.formLabel}>{t('ecn.table.quantity', 'Quantity')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2309,7 +2301,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Before / After</label>
+                <label className={styles.formLabel}>{t('ecn.detail.before_after', 'Before / After')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2320,7 +2312,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>D/L (Distribution Level)</label>
+                <label className={styles.formLabel}>{t('ecn.detail.dl', 'D/L (Distribution Level)')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2331,7 +2323,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Marking Point</label>
+                <label className={styles.formLabel}>{t('ecn.detail.marking_point', 'Marking Point')}</label>
                 <input
                   type="text"
                   className={styles.formInput}
@@ -2344,11 +2336,11 @@ Panduan Format Respons:
               {/* Section 4: Jadwal & Status Implementasi */}
               <div className={styles.formSectionHeader}>
                 <Clock size={13} />
-                <span>4. Jadwal & Status Implementasi</span>
+                <span>4. {t('ecn.form_modal.sec_classification', 'Jadwal & Status Implementasi')}</span>
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Running Date BOM</label>
+                <label className={styles.formLabel}>{t('ecn.table.running_bom', 'Running Date BOM')}</label>
                 <input
                   type="date"
                   className={styles.formInput}
@@ -2363,7 +2355,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>Distribution Date</label>
+                <label className={styles.formLabel}>{t('ecn.table.dist_date', 'Distribution Date')}</label>
                 <input
                   type="date"
                   className={styles.formInput}
@@ -2378,7 +2370,7 @@ Panduan Format Respons:
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>Status</label>
+                <label className={styles.formLabel}>{t('ecn.table.status', 'Status')}</label>
                 <select
                   className={styles.formSelect}
                   value={formData.status}
@@ -2393,7 +2385,7 @@ Panduan Format Respons:
 
               {/* Section 5: Remark Detail */}
               <div className={`${styles.formGroup} ${styles.colSpan4}`}>
-                <label className={styles.formLabel}>Remark (Catatan Detail Teknis & Instruksi Khusus)</label>
+                <label className={styles.formLabel}>{t('ecn.form_modal.sec_remark', 'Remark (Catatan Detail Teknis & Instruksi Khusus)')}</label>
                 <textarea
                   className={styles.formTextarea}
                   placeholder="Tuliskan catatan teknis, nomor dokumen pendukung, nama engineer PIC, instruksi verifikasi line..."
@@ -2409,10 +2401,10 @@ Panduan Format Respons:
                 className={styles.btnSecondary}
                 onClick={handleRequestCloseForm}
               >
-                Batal
+                {t('ecn.form_modal.cancel', 'Batal')}
               </button>
               <button type="submit" className={styles.btnPrimary}>
-                Simpan Record ECN
+                {editingItem ? t('ecn.form_modal.save_changes', 'Simpan Perubahan') : t('ecn.form_modal.save_new', 'Simpan Record ECN')}
               </button>
             </div>
           </form>
