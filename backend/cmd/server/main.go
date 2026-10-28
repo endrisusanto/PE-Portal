@@ -297,6 +297,7 @@ func main() {
 	api.PUT("/documents/:id", docHandler.UpdateCategory)
 	api.GET("/documents/:id/download", docHandler.Download)
 	api.GET("/documents/:id/preview", docHandler.Preview)
+	api.GET("/documents/:id/markdown", docHandler.GetMarkdown)
 	api.POST("/documents/download-zip", docHandler.DownloadZip)
 	api.GET("/documents/download-zip", docHandler.DownloadZip)
 	api.DELETE("/documents/:id", docHandler.Delete)

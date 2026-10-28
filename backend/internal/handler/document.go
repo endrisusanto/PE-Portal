@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
 	"pe-portal/internal/service"
+	"pe-portal/internal/util"
 )
 
 type DocumentHandler struct {
@@ -354,6 +356,99 @@ func (h *DocumentHandler) Preview(c echo.Context) error {
 	}
 
 	return c.File(doc.FilePath)
+}
+
+// GetMarkdown extracts or retrieves cached Markdown representation of a document
+func (h *DocumentHandler) GetMarkdown(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid document id")
+	}
+
+	doc, err := h.repo.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "document not found")
+	}
+
+	forceRefresh := c.QueryParam("refresh") == "true"
+
+	// Cache directory for extracted markdown
+	cacheDir := filepath.Join(h.storagePath, "markdown_cache")
+	_ = os.MkdirAll(cacheDir, 0755)
+	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("%s.json", id.String()))
+
+	if !forceRefresh {
+		if data, err := os.ReadFile(cacheFile); err == nil {
+			var cachedRes map[string]interface{}
+			if err := json.Unmarshal(data, &cachedRes); err == nil {
+				cachedRes["cached"] = true
+				return c.JSON(http.StatusOK, cachedRes)
+			}
+		}
+	}
+
+	// Locate doc_to_markdown.py
+	scriptPath := filepath.Join("scripts", "doc_to_markdown.py")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		scriptPath = filepath.Join("backend", "scripts", "doc_to_markdown.py")
+		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+			scriptPath = "/app/scripts/doc_to_markdown.py"
+		}
+	}
+
+	pythonBin := util.FindPythonExecutable()
+
+	ext := filepath.Ext(doc.FileName)
+	if ext == "" {
+		ext = filepath.Ext(doc.FilePath)
+	}
+
+	cmdArgs := []string{
+		scriptPath,
+		"--input", doc.FilePath,
+		"--title", doc.Title,
+		"--type", ext,
+	}
+
+	cmd := exec.Command(pythonBin, cmdArgs...)
+	cmd.Env = append(os.Environ(),
+		"PYTHONIOENCODING=utf-8",
+		"PYTHONUTF8=1",
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Gagal mengekstrak markdown: %v", err),
+			"details": string(output),
+		})
+	}
+
+	outStr := strings.TrimSpace(string(output))
+	startIdx := strings.Index(outStr, "{")
+	endIdx := strings.LastIndex(outStr, "}")
+	if startIdx >= 0 && endIdx > startIdx {
+		jsonStr := outStr[startIdx : endIdx+1]
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(jsonStr), &result); err == nil {
+			result["cached"] = false
+			result["doc_id"] = id.String()
+			_ = os.WriteFile(cacheFile, []byte(jsonStr), 0644)
+			return c.JSON(http.StatusOK, result)
+		}
+	}
+
+	fallbackRes := map[string]interface{}{
+		"success":    true,
+		"doc_id":     id.String(),
+		"title":      doc.Title,
+		"pages":      1,
+		"word_count": len(strings.Fields(outStr)),
+		"markdown":   fmt.Sprintf("# %s\n\n%s", doc.Title, outStr),
+		"cached":     false,
+	}
+	return c.JSON(http.StatusOK, fallbackRes)
 }
 
 // GetDataHubView fetches metadata, status, and extracted content from Samsung DataHub for viewing DRM/NASCA-encrypted documents

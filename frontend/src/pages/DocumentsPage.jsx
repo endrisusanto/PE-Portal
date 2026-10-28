@@ -25,9 +25,11 @@ import {
   Archive,
   CheckSquare,
   Loader2,
+  FileCode,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
+import { RichMessageContent } from '../components/chat/AiChatWindow';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -75,10 +77,17 @@ export const DocumentsPage = () => {
 
   // Preview modal
   const [previewDoc, setPreviewDoc] = useState(null);
-  const [previewMode, setPreviewMode] = useState('local'); // 'local' | 'datahub'
+  const [previewMode, setPreviewMode] = useState('local'); // 'local' | 'markdown' | 'datahub'
   const [datahubViewLoading, setDatahubViewLoading] = useState(false);
   const [datahubViewData, setDatahubViewData] = useState(null);
   const [datahubViewError, setDatahubViewError] = useState(null);
+
+  // Markdown preview state
+  const [markdownLoading, setMarkdownLoading] = useState(false);
+  const [markdownData, setMarkdownData] = useState(null);
+  const [markdownError, setMarkdownError] = useState(null);
+  const [markdownViewType, setMarkdownViewType] = useState('rendered'); // 'rendered' | 'raw'
+  const [copiedMd, setCopiedMd] = useState(false);
 
   const fetchDataHubView = async (docId) => {
     setDatahubViewLoading(true);
@@ -93,10 +102,28 @@ export const DocumentsPage = () => {
     }
   };
 
+  const fetchMarkdownView = async (docId, forceRefresh = false) => {
+    setMarkdownLoading(true);
+    setMarkdownError(null);
+    try {
+      const url = forceRefresh ? `/documents/${docId}/markdown?refresh=true` : `/documents/${docId}/markdown`;
+      const res = await api.get(url);
+      setMarkdownData(res.data);
+    } catch (err) {
+      setMarkdownError(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Gagal mengekstrak Markdown dari dokumen');
+    } finally {
+      setMarkdownLoading(false);
+    }
+  };
+
   const handleOpenPreview = (doc) => {
     setPreviewDoc(doc);
     setDatahubViewData(null);
     setDatahubViewError(null);
+    setMarkdownData(null);
+    setMarkdownError(null);
+    setCopiedMd(false);
+    setMarkdownViewType('rendered');
     if (doc?.datahub_error?.includes('DRM_ENCRYPTED_FILE') && doc?.datahub_object_id) {
       setPreviewMode('datahub');
       fetchDataHubView(doc.id);
@@ -1087,26 +1114,66 @@ export const DocumentsPage = () => {
       >
         {previewDoc && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* Header Tab Switcher (Local Viewer vs DataHub Reader) */}
-            {previewDoc.datahub_object_id && (
-              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setPreviewMode('local')}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '12px',
-                    borderRadius: 'var(--radius-sm)',
-                    fontWeight: 600,
-                    backgroundColor: previewMode === 'local' ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
-                    color: previewMode === 'local' ? '#ffffff' : 'var(--color-text-primary)',
-                    border: '1px solid var(--color-border)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {t('documents.tab_local_file', '📄 File Lokal / PDF Standar')}
-                </button>
+            {/* Header Tab Switcher (Dokumen Asli vs Preview as Markdown vs DataHub Reader) */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setPreviewMode('local')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 600,
+                  backgroundColor: previewMode === 'local' ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                  color: previewMode === 'local' ? '#ffffff' : 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <FileText size={14} />
+                {t('documents.tab_local_file', 'Dokumen Asli')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewMode('markdown');
+                  if (!markdownData) fetchMarkdownView(previewDoc.id);
+                }}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 600,
+                  backgroundColor: previewMode === 'markdown' ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                  color: previewMode === 'markdown' ? '#ffffff' : 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <FileCode size={14} />
+                {t('documents.tab_markdown', 'Preview as Markdown')}
+                <span style={{
+                  fontSize: '10px',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: previewMode === 'markdown' ? 'rgba(255,255,255,0.25)' : 'rgba(236, 72, 153, 0.15)',
+                  color: previewMode === 'markdown' ? '#ffffff' : 'var(--color-accent)',
+                  fontWeight: 700,
+                }}>
+                  Markdown
+                </span>
+              </button>
+
+              {previewDoc.datahub_object_id && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1134,8 +1201,8 @@ export const DocumentsPage = () => {
                     Synced
                   </span>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* DRM Encrypted Notice if in local mode */}
             {previewMode === 'local' && previewDoc.datahub_error && previewDoc.datahub_error.includes('DRM_ENCRYPTED_FILE') && (
@@ -1316,6 +1383,175 @@ export const DocumentsPage = () => {
                     </Button>
                   </div>
                 )}
+              </div>
+            ) : previewMode === 'markdown' ? (
+              /* ========================================================================= */
+              /* MARKDOWN PREVIEW TAB                                                      */
+              /* ========================================================================= */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Markdown Toolbar */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                    {markdownLoading ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <Loader2 size={13} className={styles.spin} />
+                        {t('documents.extracting_md', 'Mengekstrak konten dokumen ke Markdown...')}
+                      </span>
+                    ) : markdownData ? (
+                      <>
+                        <span><strong>{markdownData.pages || 1}</strong> {t('documents.md_pages', 'Halaman')}</span>
+                        <span>•</span>
+                        <span><strong>{markdownData.word_count || 0}</strong> {t('documents.md_words', 'Kata')}</span>
+                        {markdownData.cached && (
+                          <span style={{ fontSize: '10.5px', color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                            Cached
+                          </span>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* View Mode Toggle: Rendered vs Raw */}
+                    <div style={{ display: 'inline-flex', backgroundColor: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-xs)', padding: '2px', border: '1px solid var(--color-border)' }}>
+                      <button
+                        type="button"
+                        onClick={() => setMarkdownViewType('rendered')}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          borderRadius: '4px',
+                          backgroundColor: markdownViewType === 'rendered' ? 'var(--color-accent)' : 'transparent',
+                          color: markdownViewType === 'rendered' ? '#ffffff' : 'var(--color-text-secondary)',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('documents.md_rendered', 'Tampilan Terformat')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMarkdownViewType('raw')}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          borderRadius: '4px',
+                          backgroundColor: markdownViewType === 'raw' ? 'var(--color-accent)' : 'transparent',
+                          color: markdownViewType === 'raw' ? '#ffffff' : 'var(--color-text-secondary)',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('documents.md_raw', 'Teks Mentah (.md)')}
+                      </button>
+                    </div>
+
+                    {/* Copy Markdown */}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={copiedMd ? Check : Copy}
+                      disabled={markdownLoading || !markdownData?.markdown}
+                      onClick={() => {
+                        if (markdownData?.markdown) {
+                          navigator.clipboard.writeText(markdownData.markdown);
+                          setCopiedMd(true);
+                          setTimeout(() => setCopiedMd(false), 2000);
+                        }
+                      }}
+                    >
+                      {copiedMd ? t('common.copied', 'Tersalin!') : t('documents.copy_markdown', 'Salin Markdown')}
+                    </Button>
+
+                    {/* Download .md */}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={Download}
+                      disabled={markdownLoading || !markdownData?.markdown}
+                      onClick={() => {
+                        if (markdownData?.markdown) {
+                          const blob = new Blob([markdownData.markdown], { type: 'text/markdown;charset=utf-8' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${previewDoc.title || 'document'}.md`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }
+                      }}
+                    >
+                      {t('documents.download_md', 'Unduh .md')}
+                    </Button>
+
+                    {/* Re-extract / Refresh */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={RefreshCw}
+                      title={t('documents.re_extract', 'Segarkan Ekstraksi')}
+                      disabled={markdownLoading}
+                      onClick={() => fetchMarkdownView(previewDoc.id, true)}
+                    />
+                  </div>
+                </div>
+
+                {/* Markdown Content Area */}
+                <div style={{
+                  minHeight: '360px',
+                  maxHeight: '600px',
+                  overflowY: 'auto',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '20px',
+                }}>
+                  {markdownLoading ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '320px', gap: '12px' }}>
+                      <Loader2 size={32} className={styles.spin} color="var(--color-accent)" />
+                      <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                        {t('documents.extracting_md', 'Mengekstrak konten dokumen ke Markdown...')}
+                      </span>
+                    </div>
+                  ) : markdownError ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#ef4444' }}>
+                      <AlertCircle size={36} style={{ margin: '0 auto 10px' }} />
+                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Gagal Mengekstrak Markdown</div>
+                      <div style={{ fontSize: '12.5px', color: 'var(--color-text-secondary)', marginBottom: '14px' }}>{markdownError}</div>
+                      <Button variant="secondary" size="sm" onClick={() => fetchMarkdownView(previewDoc.id, true)}>
+                        Coba Lagi
+                      </Button>
+                    </div>
+                  ) : markdownViewType === 'raw' ? (
+                    <pre style={{
+                      margin: 0,
+                      fontFamily: 'monospace',
+                      fontSize: '12px',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      lineHeight: 1.6,
+                      color: 'var(--color-text-primary)',
+                    }}>
+                      {markdownData?.markdown || '(Tidak ada konten teks)'}
+                    </pre>
+                  ) : (
+                    <div style={{ lineHeight: 1.6 }}>
+                      <RichMessageContent content={markdownData?.markdown || ''} />
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               /* ========================================================================= */
