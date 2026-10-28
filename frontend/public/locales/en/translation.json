@@ -51,7 +51,8 @@
     "pin_menu": "Pin to favorites (max 3)",
     "unpin_menu": "Unpin menu",
     "pin_limit_reached": "Maximum of 3 pinned favorite menus reached. Please unpin an existing menu first.",
-    "virtual_office": "Virtual Office PE"
+    "virtual_office": "Virtual Office PE",
+    "ecn_monitoring": "ECN Monitoring"
   },
   "project_calendar": {
     "title": "Project Calendar",

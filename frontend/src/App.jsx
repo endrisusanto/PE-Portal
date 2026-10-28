@@ -32,6 +32,7 @@ import { TrainingPage } from './pages/TrainingPage';
 import { SharedDocumentPage } from './pages/SharedDocumentPage';
 import { AiChatPage } from './pages/AiChatPage';
 import { VirtualOfficePage } from './pages/VirtualOfficePage';
+import { EcnMonitoringPage } from './pages/EcnMonitoringPage';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -98,6 +99,7 @@ export function App() {
                 <Route path="training" element={<TrainingPage />} />
                 <Route path="models" element={<ModelsPage />} />
                 <Route path="articles" element={<ArticlesPage />} />
+                <Route path="ecn-monitoring" element={<EcnMonitoringPage />} />
                 <Route path="imei" element={<Navigate to="/articles" replace />} />
                 <Route path="documents" element={<DocumentsPage />} />
                 <Route path="tools" element={<UtilityPage />} />

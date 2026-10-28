@@ -51,7 +51,8 @@
     "pin_menu": "Pin ke favorit (maks 3)",
     "unpin_menu": "Lepas pin menu",
     "pin_limit_reached": "Maksimal 3 menu favorit yang dapat di-pin. Lepas pin menu lain terlebih dahulu.",
-    "virtual_office": "Virtual Office PE"
+    "virtual_office": "Virtual Office PE",
+    "ecn_monitoring": "ECN Monitoring"
   },
   "project_calendar": {
     "title": "Project Calendar",

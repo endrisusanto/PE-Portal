@@ -34,6 +34,7 @@ import {
   Building2,
   Pin,
   Presentation,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/client';
@@ -314,6 +315,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
   const operationItems = [
     { key: 'articles', to: '/articles', label: t('nav.articles', t('nav.imei', 'Articles')), icon: Newspaper },
     { key: 'documents', to: '/documents', label: t('nav.documents'), icon: FolderArchive },
+    { key: 'ecn-monitoring', to: '/ecn-monitoring', label: t('nav.ecn_monitoring', 'ECN Monitoring'), icon: FileSpreadsheet },
     { key: 'innovations', to: '/innovations', label: t('nav.innovations', 'Innovation'), icon: Lightbulb },
     { key: 'models', to: '/models', label: t('nav.models'), icon: Cpu },
     { key: 'gmes', to: '/gmes', label: t('nav.gmes', 'GMES Monitor'), icon: Activity },

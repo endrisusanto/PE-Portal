@@ -113,6 +113,8 @@ func main() {
 	navHandler := handler.NewNavigationHandler(navRepo)
 	trainingRepo := repository.NewTrainingRepository(pgPool.Pool)
 	trainingHandler := handler.NewTrainingHandler(trainingRepo, navRepo, cfg.FileStoragePath)
+	ecnRepo := repository.NewECNRepository(pgPool.Pool)
+	ecnHandler := handler.NewECNHandler(ecnRepo)
 
 	// Echo App
 	e := echo.New()
@@ -378,6 +380,15 @@ func main() {
 	api.POST("/utility/compress-video", utilityHandler.CompressVideo)
 	api.POST("/utility/pptx-summary", utilityHandler.SummarizePPTX)
 	api.GET("/utility/pptx-summary/download/:filename", utilityHandler.DownloadPPTXSummary)
+
+	// ECN Monitoring Routes
+	api.GET("/ecn", ecnHandler.List)
+	api.GET("/ecn/stats", ecnHandler.GetStats)
+	api.POST("/ecn", ecnHandler.Create)
+	api.PUT("/ecn/:id", ecnHandler.Update)
+	api.DELETE("/ecn/:id", ecnHandler.Delete)
+	api.POST("/ecn/bulk", ecnHandler.BulkImport)
+	api.POST("/ecn/parse-excel", ecnHandler.ParseExcel)
 
 	// DHL Express Tracking Routes
 	api.GET("/dhl/status", dhlHandler.CheckAPIStatus)

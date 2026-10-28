@@ -51,7 +51,8 @@
     "pin_menu": "즐겨찾기 고정 (최대 3개)",
     "unpin_menu": "고정 해제",
     "pin_limit_reached": "즐겨찾기는 최대 3개까지 고정할 수 있습니다. 기존 고정을 먼저 해제해주세요.",
-    "virtual_office": "버추얼 오피스 PE"
+    "virtual_office": "버추얼 오피스 PE",
+    "ecn_monitoring": "ECN 모니터링"
   },
   "project_calendar": {
     "title": "프로젝트 캘린더",

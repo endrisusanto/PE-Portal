@@ -8,12 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"pe-portal/internal/util"
 )
 
 type UtilityHandler struct{}
@@ -706,40 +706,7 @@ func (h *UtilityHandler) DownloadPPTXSummary(c echo.Context) error {
 
 // findPythonExecutable detects the python binary, prioritizing "python" on Windows
 func findPythonExecutable() string {
-	if runtime.GOOS == "windows" {
-		for _, cmd := range []string{"python", "py", "python3"} {
-			if path, err := exec.LookPath(cmd); err == nil && path != "" {
-				return cmd
-			}
-		}
-		winCandidates := []string{
-			`C:\Python312\python.exe`,
-			`C:\Python311\python.exe`,
-			`C:\Python310\python.exe`,
-			`C:\Python39\python.exe`,
-		}
-		if userProfile := os.Getenv("USERPROFILE"); userProfile != "" {
-			winCandidates = append(winCandidates,
-				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python312\python.exe`),
-				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python311\python.exe`),
-				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python310\python.exe`),
-				filepath.Join(userProfile, `AppData\Local\Programs\Python\Python39\python.exe`),
-			)
-		}
-		for _, p := range winCandidates {
-			if info, err := os.Stat(p); err == nil && !info.IsDir() {
-				return p
-			}
-		}
-		return "python"
-	}
-
-	for _, cmd := range []string{"python3", "python", "py"} {
-		if path, err := exec.LookPath(cmd); err == nil && path != "" {
-			return cmd
-		}
-	}
-	return "python"
+	return util.FindPythonExecutable()
 }
 
 
