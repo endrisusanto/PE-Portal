@@ -35,8 +35,18 @@ import {
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
-import { RichMessageContent } from '../components/chat/AiChatWindow';
 import styles from './EcnMonitoringPage.module.css';
+
+// ponytail: normalizes heterogeneous dates (1/15/2026, 2026-01-15, 2026.01.15) to YYYY-MM-DD for fast matching
+const normalizeDateStr = (str) => {
+  if (!str) return '';
+  const s = String(str).trim();
+  const mIso = s.match(/^(\d{4})[-\.\/](\d{1,2})[-\.\/](\d{1,2})/);
+  if (mIso) return `${mIso[1]}-${String(mIso[2]).padStart(2, '0')}-${String(mIso[3]).padStart(2, '0')}`;
+  const mSlash = s.match(/^(\d{1,2})[-\.\/](\d{1,2})[-\.\/](\d{4})/);
+  if (mSlash) return `${mSlash[3]}-${String(mSlash[1]).padStart(2, '0')}-${String(mSlash[2]).padStart(2, '0')}`;
+  return s.replace(/[\.\/]/g, '-').toLowerCase();
+};
 
 export const EcnMonitoringPage = () => {
   const { t } = useTranslation();
@@ -313,17 +323,19 @@ export const EcnMonitoringPage = () => {
       result = result.filter((r) => String(r.quantity || '').toLowerCase().includes(q));
     }
     if (colFilters.running_date_bom) {
-      const q = colFilters.running_date_bom.replace(/[\.\/]/g, '-').toLowerCase();
+      const qNorm = normalizeDateStr(colFilters.running_date_bom);
       result = result.filter((r) => {
-        const val = String(r.running_date_bom || '').replace(/[\.\/]/g, '-').toLowerCase();
-        return val.includes(q);
+        const raw = String(r.running_date_bom || '');
+        if (!raw) return false;
+        return normalizeDateStr(raw).includes(qNorm) || raw.includes(colFilters.running_date_bom);
       });
     }
     if (colFilters.distribution_date) {
-      const q = colFilters.distribution_date.replace(/[\.\/]/g, '-').toLowerCase();
+      const qNorm = normalizeDateStr(colFilters.distribution_date);
       result = result.filter((r) => {
-        const val = String(r.distribution_date || '').replace(/[\.\/]/g, '-').toLowerCase();
-        return val.includes(q);
+        const raw = String(r.distribution_date || '');
+        if (!raw) return false;
+        return normalizeDateStr(raw).includes(qNorm) || raw.includes(colFilters.distribution_date);
       });
     }
     if (colFilters.status) {
@@ -1378,6 +1390,11 @@ Panduan Format Respons:
                     title="Pilih tanggal Running BOM"
                     value={colFilters.running_date_bom}
                     onChange={(e) => setColFilters({ ...colFilters, running_date_bom: e.target.value })}
+                    onClick={(e) => {
+                      try {
+                        e.target.showPicker?.();
+                      } catch (_) {}
+                    }}
                   />
                 </th>
                 <th>
@@ -1387,6 +1404,11 @@ Panduan Format Respons:
                     title="Pilih tanggal Distribution Date"
                     value={colFilters.distribution_date}
                     onChange={(e) => setColFilters({ ...colFilters, distribution_date: e.target.value })}
+                    onClick={(e) => {
+                      try {
+                        e.target.showPicker?.();
+                      } catch (_) {}
+                    }}
                   />
                 </th>
                 <th>
@@ -2174,6 +2196,11 @@ Panduan Format Respons:
                   className={styles.formInput}
                   value={formData.running_date_bom}
                   onChange={(e) => setFormData({ ...formData, running_date_bom: e.target.value })}
+                  onClick={(e) => {
+                    try {
+                      e.target.showPicker?.();
+                    } catch (_) {}
+                  }}
                 />
               </div>
 
@@ -2184,6 +2211,11 @@ Panduan Format Respons:
                   className={styles.formInput}
                   value={formData.distribution_date}
                   onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
+                  onClick={(e) => {
+                    try {
+                      e.target.showPicker?.();
+                    } catch (_) {}
+                  }}
                 />
               </div>
 
