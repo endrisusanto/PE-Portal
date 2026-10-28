@@ -1150,8 +1150,10 @@ Panduan Format Respons:
 
               {/* Row 2: Individual Column Filter Inputs */}
               <tr className={styles.columnFilterRow}>
-                <th style={{ textAlign: 'center' }}>
-                  <Filter size={11} style={{ opacity: 0.5 }} />
+                <th style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '28px' }}>
+                    <Filter size={12} style={{ opacity: 0.5 }} />
+                  </div>
                 </th>
                 <th>
                   <input
