@@ -37,37 +37,38 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	if q.Search != "" {
 		s := "%" + strings.ToLower(q.Search) + "%"
 		where = append(where, fmt.Sprintf(`(
-			LOWER(ecn_no) LIKE $%d OR 
-			LOWER(model) LIKE $%d OR 
-			LOWER(ec_title) LIKE $%d OR 
-			LOWER(remark) LIKE $%d OR 
-			LOWER(parent_code) LIKE $%d OR 
-			LOWER(child_code) LIKE $%d
-		)`, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx))
+			LOWER(e.ecn_no) LIKE $%d OR 
+			LOWER(e.model) LIKE $%d OR 
+			LOWER(e.ec_title) LIKE $%d OR 
+			LOWER(e.remark) LIKE $%d OR 
+			LOWER(e.parent_code) LIKE $%d OR 
+			LOWER(e.child_code) LIKE $%d OR
+			LOWER(COALESCE(u.full_name, u.username, '')) LIKE $%d
+		)`, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx))
 		args = append(args, s)
 		argIdx++
 	}
 
 	if q.Model != "" {
-		where = append(where, fmt.Sprintf("LOWER(model) LIKE $%d", argIdx))
+		where = append(where, fmt.Sprintf("LOWER(e.model) LIKE $%d", argIdx))
 		args = append(args, "%"+strings.ToLower(q.Model)+"%")
 		argIdx++
 	}
 
 	if q.Status != "" {
-		where = append(where, fmt.Sprintf("status = $%d", argIdx))
+		where = append(where, fmt.Sprintf("e.status = $%d", argIdx))
 		args = append(args, q.Status)
 		argIdx++
 	}
 
 	if q.Process != "" {
-		where = append(where, fmt.Sprintf("process = $%d", argIdx))
+		where = append(where, fmt.Sprintf("e.process = $%d", argIdx))
 		args = append(args, q.Process)
 		argIdx++
 	}
 
 	if q.FunctionType != "" {
-		where = append(where, fmt.Sprintf("function_type = $%d", argIdx))
+		where = append(where, fmt.Sprintf("e.function_type = $%d", argIdx))
 		args = append(args, q.FunctionType)
 		argIdx++
 	}
@@ -76,44 +77,46 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 
 	// Count total
 	var total int
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM ecn_records WHERE %s", whereClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM ecn_records e LEFT JOIN users u ON e.created_by = u.id WHERE %s", whereClause)
 	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to count ecn records: %w", err)
 	}
 
 	// Order by
-	sortCol := "created_at"
+	sortCol := "e.created_at"
 	switch q.SortBy {
 	case "ecn_no":
-		sortCol = "ecn_no"
+		sortCol = "e.ecn_no"
 	case "model":
-		sortCol = "model"
+		sortCol = "e.model"
 	case "function_type":
-		sortCol = "function_type"
+		sortCol = "e.function_type"
 	case "purpose":
-		sortCol = "purpose"
+		sortCol = "e.purpose"
 	case "status":
-		sortCol = "status"
+		sortCol = "e.status"
 	case "process":
-		sortCol = "process"
+		sortCol = "e.process"
 	case "ec_title":
-		sortCol = "ec_title"
+		sortCol = "e.ec_title"
 	case "child_code":
-		sortCol = "child_code"
+		sortCol = "e.child_code"
 	case "child_name":
-		sortCol = "child_name"
+		sortCol = "e.child_name"
 	case "specification":
-		sortCol = "specification"
+		sortCol = "e.specification"
 	case "quantity":
-		sortCol = "quantity"
+		sortCol = "e.quantity"
 	case "running_date_bom":
-		sortCol = "running_date_bom"
+		sortCol = "e.running_date_bom"
 	case "distribution_date":
-		sortCol = "distribution_date"
+		sortCol = "e.distribution_date"
 	case "created_at":
-		sortCol = "created_at"
+		sortCol = "e.created_at"
 	case "updated_at":
-		sortCol = "updated_at"
+		sortCol = "e.updated_at"
+	case "author_name":
+		sortCol = "COALESCE(u.full_name, u.username, 'System')"
 	}
 
 	sortDir := "DESC"
@@ -122,11 +125,13 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, ecn_no, model, function_type, purpose, inventory_mgmt, process,
-		       ec_title, parent_code, parent_name, before_after, dl, child_code,
-		       child_name, specification, quantity, marking_point, running_date_bom,
-		       distribution_date, status, remark, created_by, created_at, updated_at
-		FROM ecn_records
+		SELECT e.id, e.ecn_no, e.model, e.function_type, e.purpose, e.inventory_mgmt, e.process,
+		       e.ec_title, e.parent_code, e.parent_name, e.before_after, e.dl, e.child_code,
+		       e.child_name, e.specification, e.quantity, e.marking_point, e.running_date_bom,
+		       e.distribution_date, e.status, e.remark, e.created_by, e.created_at, e.updated_at,
+		       COALESCE(u.full_name, u.username, 'System') AS author_name
+		FROM ecn_records e
+		LEFT JOIN users u ON e.created_by = u.id
 		WHERE %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d
@@ -148,6 +153,7 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 			&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
 			&rec.ChildName, &rec.Specification, &rec.Quantity, &rec.MarkingPoint, &rec.RunningDateBOM,
 			&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.CreatedAt, &rec.UpdatedAt,
+			&rec.AuthorName,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan ecn record: %w", err)
 		}
@@ -292,6 +298,18 @@ func (r *ECNRepository) Update(ctx context.Context, id uuid.UUID, item *model.EC
 func (r *ECNRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.pool.Exec(ctx, "DELETE FROM ecn_records WHERE id = $1", id)
 	return err
+}
+
+// BulkDelete removes multiple ECN records by their IDs (ponytail)
+func (r *ECNRepository) BulkDelete(ctx context.Context, ids []uuid.UUID) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	tag, err := r.pool.Exec(ctx, "DELETE FROM ecn_records WHERE id = ANY($1)", ids)
+	if err != nil {
+		return 0, fmt.Errorf("failed to bulk delete ecn records: %w", err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 // BulkInsert inserts a list of ECN records in batches using high-performance pgx Batch

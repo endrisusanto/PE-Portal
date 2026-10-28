@@ -126,6 +126,29 @@ func (h *ECNHandler) Delete(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "ECN record deleted successfully"})
 }
 
+// BulkDelete removes multiple ECN records by their IDs (ponytail)
+func (h *ECNHandler) BulkDelete(c echo.Context) error {
+	var req model.ECNBulkDeleteRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	if len(req.IDs) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "No IDs provided for bulk delete")
+	}
+
+	count, err := h.repo.BulkDelete(c.Request().Context(), req.IDs)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Bulk delete failed: %v", err))
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"deleted": count,
+		"message": fmt.Sprintf("Berhasil menghapus %d data ECN.", count),
+	})
+}
+
 // BulkImport accepts an array of ECN records (from Paste Table or parsed Excel)
 func (h *ECNHandler) BulkImport(c echo.Context) error {
 	var req model.ECNBulkImportRequest

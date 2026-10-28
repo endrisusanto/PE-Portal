@@ -30,6 +30,7 @@ type ECNRecord struct {
 	Status           string     `json:"status"`
 	Remark           string     `json:"remark"`
 	CreatedBy        *uuid.UUID `json:"created_by,omitempty"`
+	AuthorName       string     `json:"author_name,omitempty"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -59,6 +60,11 @@ type ECNListResponse struct {
 // ECNBulkImportRequest for importing batch records from Paste Table or Excel.
 type ECNBulkImportRequest struct {
 	Records []ECNRecord `json:"records"`
+}
+
+// ECNBulkDeleteRequest for deleting batch records by IDs.
+type ECNBulkDeleteRequest struct {
+	IDs []uuid.UUID `json:"ids"`
 }
 
 // ECNStatsSummary for top dashboard metrics.

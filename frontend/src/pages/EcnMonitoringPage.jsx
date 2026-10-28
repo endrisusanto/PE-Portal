@@ -84,6 +84,7 @@ export const EcnMonitoringPage = () => {
     running_date_bom: '',
     distribution_date: '',
     status: '',
+    author_name: '',
   });
 
   // --- Table Header Sorting ---
@@ -92,6 +93,10 @@ export const EcnMonitoringPage = () => {
 
   // --- Expanded Rows State ---
   const [expandedRowIds, setExpandedRowIds] = useState(new Set());
+
+  // --- Bulk Selection & Delete State (ponytail) ---
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // --- Modals State ---
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
@@ -263,6 +268,7 @@ export const EcnMonitoringPage = () => {
       running_date_bom: '',
       distribution_date: '',
       status: '',
+      author_name: '',
     });
   };
 
@@ -324,6 +330,10 @@ export const EcnMonitoringPage = () => {
       const q = colFilters.status.toLowerCase();
       result = result.filter((r) => (r.status || '').toLowerCase() === q);
     }
+    if (colFilters.author_name) {
+      const q = colFilters.author_name.toLowerCase();
+      result = result.filter((r) => (r.author_name || 'system').toLowerCase().includes(q));
+    }
 
     // In-memory sort fallback
     if (sortKey && sortDirection) {
@@ -354,6 +364,37 @@ export const EcnMonitoringPage = () => {
       return next;
     });
   };
+
+  // --- Bulk Selection & Delete Helpers (ponytail) ---
+  const isAllSelected = useMemo(() => {
+    return displayedRecords.length > 0 && displayedRecords.every((r) => selectedIds.has(r.id));
+  }, [displayedRecords, selectedIds]);
+
+  const isSomeSelected = useMemo(() => {
+    return displayedRecords.some((r) => selectedIds.has(r.id)) && !isAllSelected;
+  }, [displayedRecords, selectedIds, isAllSelected]);
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      const next = new Set(selectedIds);
+      displayedRecords.forEach((r) => next.add(r.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const handleToggleSelectRow = (id) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const totalColSpan = (isAdmin ? 1 : 0) + 1 + 13 + 1;
 
   // --- Parse Clipboard TSV (Paste Table) ---
   const handleParsePasteText = (text) => {
@@ -594,10 +635,36 @@ export const EcnMonitoringPage = () => {
     if (!window.confirm(`Yakin ingin menghapus ECN ${ecnNo}?`)) return;
     try {
       await api.delete(`/ecn/${id}`);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       fetchRecords();
       fetchStats();
     } catch (err) {
       alert(`Gagal menghapus ECN: ${err.message}`);
+    }
+  };
+
+  // ponytail: Bulk delete handler for admin
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    if (!window.confirm(`Yakin ingin menghapus ${count} data ECN yang dipilih? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    setIsBulkDeleting(true);
+    try {
+      const res = await api.post('/ecn/bulk-delete', { ids: Array.from(selectedIds) });
+      alert(res.data?.message || `Berhasil menghapus ${count} data ECN.`);
+      setSelectedIds(new Set());
+      fetchRecords();
+      fetchStats();
+    } catch (err) {
+      alert(`Gagal menghapus data ECN: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -628,6 +695,8 @@ export const EcnMonitoringPage = () => {
       'Running Date BOM',
       'Distribution Date',
       'Status',
+      'Author / Uploader',
+      'Upload Timestamp',
       'Remark',
     ];
 
@@ -653,6 +722,8 @@ export const EcnMonitoringPage = () => {
         r.running_date_bom,
         r.distribution_date,
         r.status,
+        r.author_name || 'System',
+        r.created_at || '',
         r.remark,
       ].map((v) => `"${(v || '').replace(/"/g, '""')}"`);
       csvRows.push(vals.join(','));
@@ -1094,6 +1165,34 @@ Panduan Format Respons:
           </div>
 
           <div className={styles.toolbarActions}>
+            {isAdmin && selectedIds.size > 0 && (
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  height: '32px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+                  opacity: isBulkDeleting ? 0.7 : 1,
+                  boxShadow: '0 1px 3px rgba(220, 38, 38, 0.3)',
+                }}
+                title="Hapus data ECN terpilih"
+              >
+                {isBulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                <span>Hapus Terpilih ({selectedIds.size})</span>
+              </button>
+            )}
+
             <button
               type="button"
               className={styles.btnSecondary}
@@ -1115,6 +1214,20 @@ Panduan Format Respons:
             <thead>
               {/* Row 1: Sortable Column Headers */}
               <tr>
+                {isAdmin && (
+                  <th style={{ width: '38px', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeSelected;
+                      }}
+                      onChange={handleToggleSelectAll}
+                      title="Pilih semua baris di halaman ini"
+                      style={{ cursor: 'pointer', transform: 'scale(1.1)' }}
+                    />
+                  </th>
+                )}
                 <th style={{ width: '40px', textAlign: 'center' }}>#</th>
                 {[
                   { key: 'ecn_no', label: 'ECN NO', width: '135px' },
@@ -1129,6 +1242,7 @@ Panduan Format Respons:
                   { key: 'running_date_bom', label: 'Running BOM', width: '125px', minWidth: '120px' },
                   { key: 'distribution_date', label: 'Dist Date', width: '125px', minWidth: '120px' },
                   { key: 'status', label: 'Status', width: '115px' },
+                  { key: 'author_name', label: 'Uploader & Waktu', width: '150px', minWidth: '140px' },
                 ].map((col) => (
                   <th
                     key={col.key}
@@ -1156,6 +1270,13 @@ Panduan Format Respons:
 
               {/* Row 2: Individual Column Filter Inputs */}
               <tr className={styles.columnFilterRow}>
+                {isAdmin && (
+                  <th style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '28px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>-</span>
+                    </div>
+                  </th>
+                )}
                 <th style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '28px' }}>
                     <Filter size={12} style={{ opacity: 0.5 }} />
@@ -1281,6 +1402,15 @@ Panduan Format Respons:
                     <option value="ECO Cancel">ECO Cancel</option>
                   </select>
                 </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Filter uploader..."
+                    value={colFilters.author_name}
+                    onChange={(e) => setColFilters({ ...colFilters, author_name: e.target.value })}
+                  />
+                </th>
                 <th style={{ textAlign: 'center' }}>
                   {hasActiveColFilters && (
                     <button
@@ -1300,7 +1430,7 @@ Panduan Format Respons:
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={14} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+                  <td colSpan={totalColSpan} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
                       <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
                       <span>Memuat data ECN Monitoring...</span>
@@ -1309,7 +1439,7 @@ Panduan Format Respons:
                 </tr>
               ) : displayedRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={14} style={{ textAlign: 'center', padding: '3.5rem', color: 'var(--color-text-muted)' }}>
+                  <td colSpan={totalColSpan} style={{ textAlign: 'center', padding: '3.5rem', color: 'var(--color-text-muted)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                       <FileSpreadsheet size={32} style={{ opacity: 0.3 }} />
                       <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
@@ -1338,6 +1468,19 @@ Panduan Format Respons:
                   return (
                     <React.Fragment key={item.id}>
                       <tr className={isExpanded ? styles.rowExpanded : ''}>
+                        {/* Checkbox for Admin */}
+                        {isAdmin && (
+                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(item.id)}
+                              onChange={() => handleToggleSelectRow(item.id)}
+                              title={`Pilih ${item.ecn_no}`}
+                              style={{ cursor: 'pointer', transform: 'scale(1.1)' }}
+                            />
+                          </td>
+                        )}
+
                         {/* Expand Trigger */}
                         <td style={{ textAlign: 'center' }}>
                           <button
@@ -1414,6 +1557,26 @@ Panduan Format Respons:
                           <span className={getStatusBadgeClass(item.status)}>{item.status || 'Pending'}</span>
                         </td>
 
+                        {/* Author & Timestamp */}
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', fontSize: '11.5px' }}>
+                              {item.author_name || 'System'}
+                            </span>
+                            <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+                              {item.created_at
+                                ? new Date(item.created_at).toLocaleString('id-ID', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : '-'}
+                            </span>
+                          </div>
+                        </td>
+
                         {/* Actions */}
                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -1442,7 +1605,7 @@ Panduan Format Respons:
                       {/* Expandable Full Detail */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={14} style={{ padding: 0 }}>
+                          <td colSpan={totalColSpan} style={{ padding: 0 }}>
                             <div className={styles.detailGrid}>
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>Parent Code</span>
@@ -1475,9 +1638,15 @@ Panduan Format Respons:
                                 <span className={styles.detailValue}>{item.marking_point || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Record ID & Created</span>
+                                <span className={styles.detailLabel}>Author / Uploader</span>
+                                <span className={styles.detailValue} style={{ fontWeight: 600 }}>
+                                  {item.author_name || 'System'}
+                                </span>
+                              </div>
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>Record ID & Timestamp</span>
                                 <span className={styles.detailValue} style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                                  {item.id} (Dibuat: {new Date(item.created_at).toLocaleDateString()})
+                                  {item.id} (Dibuat: {item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-'})
                                 </span>
                               </div>
 
