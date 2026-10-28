@@ -888,6 +888,19 @@
   color: var(--color-text-secondary);
 }
 
+.paginationControlsWrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.paginationLimit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .paginationSort {
   display: flex;
   align-items: center;

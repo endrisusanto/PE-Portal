@@ -1704,65 +1704,87 @@ Panduan Format Respons:
             <strong>{page}</strong> dari <strong>{totalPages}</strong>)
           </div>
 
-          {/* ponytail: Sort By controls in table footer pagination */}
-          <div className={styles.paginationSort}>
-            <span className={styles.paginationSortLabel}>
-              <ArrowUpDown size={12} />
-              <span>Urutkan:</span>
-            </span>
-            <select
-              className={styles.paginationSortSelect}
-              value={sortKey}
-              onChange={(e) => {
-                setSortKey(e.target.value);
-                setPage(1);
-              }}
-              title="Urutkan berdasarkan kolom"
-            >
-              <option value="created_at">Waktu Dibuat (Terbaru)</option>
-              <option value="ecn_no">ECN NO</option>
-              <option value="model">Model</option>
-              <option value="function_type">Function</option>
-              <option value="process">Process</option>
-              <option value="ec_title">EC Title</option>
-              <option value="child_code">Item Code</option>
-              <option value="child_name">Part Description</option>
-              <option value="specification">Specification</option>
-              <option value="quantity">Qty</option>
-              <option value="running_date_bom">Running BOM</option>
-              <option value="distribution_date">Dist Date</option>
-              <option value="status">Status</option>
-              <option value="author_name">Uploader</option>
-            </select>
-            <button
-              type="button"
-              className={styles.paginationSortDirBtn}
-              onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-              title={sortDirection === 'asc' ? 'Urutan Naik (A-Z / Lama ke Baru)' : 'Urutan Turun (Z-A / Baru ke Lama)'}
-            >
-              {sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
-              <span>{sortDirection === 'asc' ? 'ASC' : 'DESC'}</span>
-            </button>
-          </div>
+          <div className={styles.paginationControlsWrapper}>
+            {/* ponytail: Limit selector (10, 50, 100, All) */}
+            <div className={styles.paginationLimit}>
+              <span className={styles.paginationSortLabel}>Tampilkan:</span>
+              <select
+                className={styles.paginationSortSelect}
+                value={limit >= 10000 ? 'all' : limit}
+                onChange={(e) => {
+                  const val = e.target.value === 'all' ? 10000 : parseInt(e.target.value, 10);
+                  setLimit(val);
+                  setPage(1);
+                }}
+                title="Jumlah baris data per halaman"
+              >
+                <option value="10">10 / hal</option>
+                <option value="50">50 / hal</option>
+                <option value="100">100 / hal</option>
+                <option value="all">Semua (All)</option>
+              </select>
+            </div>
 
-          <div className={styles.pageControls}>
-            <button
-              type="button"
-              className={styles.pageBtn}
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Sebelumnya
-            </button>
-            <span style={{ fontWeight: 600 }}>{page}</span>
-            <button
-              type="button"
-              className={styles.pageBtn}
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Selanjutnya
-            </button>
+            {/* ponytail: Sort By controls in table footer pagination */}
+            <div className={styles.paginationSort}>
+              <span className={styles.paginationSortLabel}>
+                <ArrowUpDown size={12} />
+                <span>Urutkan:</span>
+              </span>
+              <select
+                className={styles.paginationSortSelect}
+                value={sortKey}
+                onChange={(e) => {
+                  setSortKey(e.target.value);
+                  setPage(1);
+                }}
+                title="Urutkan berdasarkan kolom"
+              >
+                <option value="created_at">Waktu Dibuat (Terbaru)</option>
+                <option value="ecn_no">ECN NO</option>
+                <option value="model">Model</option>
+                <option value="function_type">Function</option>
+                <option value="process">Process</option>
+                <option value="ec_title">EC Title</option>
+                <option value="child_code">Item Code</option>
+                <option value="child_name">Part Description</option>
+                <option value="specification">Specification</option>
+                <option value="quantity">Qty</option>
+                <option value="running_date_bom">Running BOM</option>
+                <option value="distribution_date">Dist Date</option>
+                <option value="status">Status</option>
+                <option value="author_name">Uploader</option>
+              </select>
+              <button
+                type="button"
+                className={styles.paginationSortDirBtn}
+                onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                title={sortDirection === 'asc' ? 'Urutan Naik (A-Z / Lama ke Baru)' : 'Urutan Turun (Z-A / Baru ke Lama)'}
+              >
+                {sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                <span>{sortDirection === 'asc' ? 'ASC' : 'DESC'}</span>
+              </button>
+            </div>
+
+            <div className={styles.pageControls}>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Sebelumnya
+              </button>
+              <span style={{ fontWeight: 600 }}>{page}</span>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Selanjutnya
+              </button>
+            </div>
           </div>
         </div>
       </div>

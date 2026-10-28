@@ -22,8 +22,10 @@ func NewECNRepository(pool *pgxpool.Pool) *ECNRepository {
 
 // List returns filtered and paginated ECN records
 func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.ECNListResponse, error) {
-	if q.Limit <= 0 || q.Limit > 500 {
+	if q.Limit <= 0 {
 		q.Limit = 50
+	} else if q.Limit > 100000 {
+		q.Limit = 100000
 	}
 	if q.Page <= 0 {
 		q.Page = 1
