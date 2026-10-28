@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/client';
+import { portalAlert } from '../../contexts/ConfirmContext';
 import styles from './Sidebar.module.css';
 
 export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
@@ -115,7 +116,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
         next = prev.filter((k) => k !== itemKey);
       } else {
         if (prev.length >= 3) {
-          alert(t('nav.pin_limit_reached', 'Maksimal 3 menu favorit yang dapat di-pin. Lepas pin salah satu menu terlebih dahulu.'));
+          portalAlert(t('nav.pin_limit_reached', 'Maksimal 3 menu favorit yang dapat di-pin. Lepas pin salah satu menu terlebih dahulu.'));
           return prev;
         }
         next = [...prev, itemKey];

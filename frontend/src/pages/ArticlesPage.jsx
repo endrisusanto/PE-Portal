@@ -25,6 +25,7 @@ import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 
 export const ArticlesPage = () => {
   const { t } = useTranslation();
@@ -97,9 +98,13 @@ export const ArticlesPage = () => {
   const handleDeleteArticle = async (art, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!art || !art.id) return;
-    if (!window.confirm(t('articles.confirm_delete', { title: art.title, defaultValue: `Hapus artikel "${art.title}"? Tindakan ini tidak dapat dibatalkan.` }))) {
-      return;
-    }
+    const ok = await portalConfirm({
+      title: t('articles.confirm_delete_title', 'Hapus Artikel'),
+      message: t('articles.confirm_delete', { title: art.title, defaultValue: `Hapus artikel "${art.title}"? Tindakan ini tidak dapat dibatalkan.` }),
+      confirmText: t('common.delete', 'Hapus'),
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/articles/${art.id}`);
       setArticles((prev) => prev.filter((a) => a.id !== art.id));
@@ -112,7 +117,7 @@ export const ArticlesPage = () => {
         setEditingArticle(null);
       }
     } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Gagal menghapus artikel');
+      portalAlert(err.response?.data?.message || err.message || 'Gagal menghapus artikel');
     }
   };
 

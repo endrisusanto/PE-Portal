@@ -46,6 +46,7 @@ import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Avatar } from '../components/common/Avatar';
+import { portalConfirm } from '../contexts/ConfirmContext';
 import styles from './ProfilePage.module.css';
 
 const renderThemeIcon = (iconKey, size = 16) => {
@@ -300,7 +301,13 @@ export const ProfilePage = () => {
   };
 
   const handleDeleteEmailList = async (id, name) => {
-    if (!window.confirm(`Delete recipient group "${name}"?`)) return;
+    const ok = await portalConfirm({
+      title: 'Hapus Grup Email',
+      message: `Hapus grup penerima email "${name}"? Grup ini tidak akan dapat digunakan lagi untuk laporan.`,
+      confirmText: 'Hapus Grup',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/users/me/email-lists/${id}`);
       setEmailLists(emailLists.filter((l) => l.id !== id));
@@ -399,7 +406,13 @@ export const ProfilePage = () => {
   };
 
   const handleResetPersonalLlm = async () => {
-    if (!window.confirm('Revert to the shared portal default LLM (LM Studio)?')) return;
+    const ok = await portalConfirm({
+      title: 'Reset Konfigurasi AI',
+      message: 'Kembalikan setelan AI ke shared portal default (LM Studio)? Kunci API kustom pribadi Anda akan dihapus.',
+      confirmText: 'Kembalikan ke Default',
+      variant: 'warning',
+    });
+    if (!ok) return;
     try {
       await api.delete('/ai/config/user');
       setHasCustomKey(false);

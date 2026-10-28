@@ -53,6 +53,7 @@ import { Table } from '../components/common/Table';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import { TaskAnalystTechnicalReportCard } from '../components/common/TaskAnalystTechnicalReportCard';
 import i18n from '../utils/i18n';
 import styles from './ProjectsPage.module.css';
@@ -535,9 +536,13 @@ export const ProjectsPage = () => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!requireAuth('Hapus Task')) return;
     if (!p || !p.id) return;
-    if (!window.confirm(`Hapus project / task "${p.title}"? Tindakan ini tidak dapat dibatalkan.`)) {
-      return;
-    }
+    const ok = await portalConfirm({
+      title: 'Hapus Project / Task',
+      message: `Hapus project / task "${p.title}"? Tindakan ini tidak dapat dibatalkan dan seluruh riwayat task akan dihapus.`,
+      confirmText: 'Hapus Task',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/projects/${p.id}`);
       setProjects((prev) => prev.filter((item) => item.id !== p.id));
@@ -550,7 +555,7 @@ export const ProjectsPage = () => {
         setViewingProject(null);
       }
     } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Gagal menghapus project');
+      portalAlert(err.response?.data?.message || err.message || 'Gagal menghapus project');
     }
   };
 
@@ -813,7 +818,12 @@ export const ProjectsPage = () => {
 
   const handleSendEmail = async (proj) => {
     if (!proj) return;
-    const confirmSend = window.confirm(`Kirim notifikasi email ringkasan milestone untuk task "${proj.title}"?`);
+    const confirmSend = await portalConfirm({
+      title: 'Kirim Email Notifikasi Milestone',
+      message: `Kirim notifikasi email ringkasan milestone untuk task "${proj.title}" ke seluruh PIC dan tim terkait?`,
+      confirmText: 'Kirim Email',
+      variant: 'info',
+    });
     if (!confirmSend) return;
 
     setSendingEmailId(proj.id);
@@ -825,7 +835,7 @@ export const ProjectsPage = () => {
         setTimelineRefreshKey((k) => k + 1);
       }
     } catch (err) {
-      alert('Gagal mengirim email: ' + (err.response?.data?.message || err.message));
+      portalAlert('Gagal mengirim email: ' + (err.response?.data?.message || err.message));
     } finally {
       setSendingEmailId(null);
     }

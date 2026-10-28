@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
 import api from '../api/client';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import styles from './TrainingPage.module.css';
 
 const CATEGORIES = [
@@ -407,15 +408,19 @@ export const TrainingPage = () => {
 
   // Delete Training
   const handleDeleteTraining = async (tItem) => {
-    if (!window.confirm(`Hapus modul training "${tItem.title}"? Tindakan ini tidak dapat dibatalkan.`)) {
-      return;
-    }
+    const ok = await portalConfirm({
+      title: 'Hapus Modul Training',
+      message: `Hapus modul training "${tItem.title}"? Seluruh data materi dan status terkait akan dihapus secara permanen.`,
+      confirmText: 'Hapus Modul',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
     try {
       await api.delete(`/trainings/${tItem.id}`);
       fetchTrainings();
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menghapus modul training.');
+      portalAlert(err.response?.data?.message || 'Gagal menghapus modul training.');
     }
   };
 

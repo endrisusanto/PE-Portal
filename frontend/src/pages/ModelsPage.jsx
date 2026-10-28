@@ -43,6 +43,7 @@ import { FormattingTextarea } from '../components/common/FormattingTextarea';
 import { CommentTimelineSection, logTimelineEvent } from '../components/common/CommentTimelineSection';
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
 import { RichNotesViewer } from '../components/common/RichNotesViewer';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import {
   ModelMilestoneMatrix,
   MODEL_CATEGORY_CONFIG,
@@ -197,9 +198,13 @@ export const ModelsPage = () => {
   const handleDeleteModel = async (m, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!m || !m.id) return;
-    if (!window.confirm(`Hapus data model development "${m.model_name}"? Semua data riwayat tahap akan dihapus.`)) {
-      return;
-    }
+    const ok = await portalConfirm({
+      title: 'Hapus Model Development',
+      message: `Hapus data model development "${m.model_name}"? Semua data riwayat tahap akan dihapus dan tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Hapus Model',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/models/${m.id}`);
       setModels((prev) => prev.filter((item) => item.id !== m.id));
@@ -212,7 +217,7 @@ export const ModelsPage = () => {
         setEditingModel(null);
       }
     } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Gagal menghapus model');
+      portalAlert(err.response?.data?.message || err.message || 'Gagal menghapus model');
     }
   };
 

@@ -35,6 +35,7 @@ import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { Table } from '../components/common/Table';
 import { useAuth } from '../contexts/AuthContext';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import styles from './DocumentsPage.module.css';
 
 const CATEGORY_MAP = {
@@ -289,12 +290,18 @@ export const DocumentsPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this archived document?')) return;
+    const ok = await portalConfirm({
+      title: 'Hapus Dokumen Arsip',
+      message: 'Apakah Anda yakin ingin menghapus dokumen ini dari arsip? File fisik juga akan dihapus.',
+      confirmText: 'Hapus Dokumen',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/documents/${id}`);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     }
   };
 
@@ -357,7 +364,14 @@ export const DocumentsPage = () => {
   };
 
   const handleRevokeShare = async () => {
-    if (!shareDoc || !window.confirm('Nonaktifkan tautan sharing untuk dokumen ini? Link tidak akan bisa diakses lagi.')) return;
+    if (!shareDoc) return;
+    const ok = await portalConfirm({
+      title: 'Cabut Akses Sharing',
+      message: 'Nonaktifkan tautan sharing untuk dokumen ini? Link tidak akan bisa diakses lagi oleh siapa pun.',
+      confirmText: 'Cabut Link',
+      variant: 'warning',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/documents/${shareDoc.id}/share`);
       setExistingShare(null);
@@ -368,7 +382,7 @@ export const DocumentsPage = () => {
         expires_in_days: 0,
       });
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menonaktifkan sharing.');
+      portalAlert(err.response?.data?.message || 'Gagal menonaktifkan sharing.');
     }
   };
 

@@ -29,6 +29,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
 import { Button } from '../components/common/Button';
 import { FormattingTextarea } from '../components/common/FormattingTextarea';
+import { portalConfirm } from '../contexts/ConfirmContext';
 import styles from './SampleManagementPage.module.css';
 
 export const SampleManagementPage = () => {
@@ -365,7 +366,12 @@ export const SampleManagementPage = () => {
 
   // Delete Sample
   const handleDeleteSample = async (id) => {
-    if (!window.confirm('Yakin ingin menghapus sample ini?')) return;
+    if (!await portalConfirm({
+      title: 'Hapus Data Sample',
+      message: 'Yakin ingin menghapus sample ini? Data sample yang dihapus tidak dapat dikembalikan.',
+      confirmText: 'Hapus',
+      variant: 'danger',
+    })) return;
     try {
       await api.delete(`/samples/${id}`);
       fetchStats();

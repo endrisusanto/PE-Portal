@@ -36,6 +36,7 @@ import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
 import { RichMessageContent } from '../components/chat/AiChatWindow';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import styles from './EcnMonitoringPage.module.css';
 
 // ponytail: normalizes heterogeneous dates (1/15/2026, 2026-01-15, 2026.01.15) to YYYY-MM-DD for fast matching
@@ -723,7 +724,13 @@ export const EcnMonitoringPage = () => {
   };
 
   const handleDeleteClick = async (id, ecnNo) => {
-    if (!window.confirm(`Yakin ingin menghapus ECN ${ecnNo}?`)) return;
+    const ok = await portalConfirm({
+      title: 'Hapus Data ECN',
+      message: `Yakin ingin menghapus ECN ${ecnNo}? Data riwayat ECN ini akan dihapus dari sistem.`,
+      confirmText: 'Hapus ECN',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/ecn/${id}`);
       setSelectedIds((prev) => {
@@ -734,7 +741,7 @@ export const EcnMonitoringPage = () => {
       fetchRecords();
       fetchStats();
     } catch (err) {
-      alert(`Gagal menghapus ECN: ${err.message}`);
+      portalAlert(`Gagal menghapus ECN: ${err.message}`);
     }
   };
 
@@ -742,18 +749,22 @@ export const EcnMonitoringPage = () => {
   const handleBulkDelete = async () => {
     const count = selectedIds.size;
     if (count === 0) return;
-    if (!window.confirm(`Yakin ingin menghapus ${count} data ECN yang dipilih? Tindakan ini tidak dapat dibatalkan.`)) {
-      return;
-    }
+    const ok = await portalConfirm({
+      title: 'Hapus Massal ECN',
+      message: `Yakin ingin menghapus ${count} data ECN yang dipilih? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: `Hapus ${count} ECN`,
+      variant: 'danger',
+    });
+    if (!ok) return;
     setIsBulkDeleting(true);
     try {
       const res = await api.post('/ecn/bulk-delete', { ids: Array.from(selectedIds) });
-      alert(res.data?.message || `Berhasil menghapus ${count} data ECN.`);
+      portalAlert(res.data?.message || `Berhasil menghapus ${count} data ECN.`);
       setSelectedIds(new Set());
       fetchRecords();
       fetchStats();
     } catch (err) {
-      alert(`Gagal menghapus data ECN: ${err.response?.data?.message || err.message}`);
+      portalAlert(`Gagal menghapus data ECN: ${err.response?.data?.message || err.message}`);
     } finally {
       setIsBulkDeleting(false);
     }

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoadingState } from './components/common/LoadingState';
 import { ThemeAnimatedBackground } from './components/common/ThemeAnimatedBackground';
@@ -62,8 +63,9 @@ export function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <BrowserRouter>
-          <AuthProvider>
+        <ConfirmProvider>
+          <BrowserRouter>
+            <AuthProvider>
             <ThemeAnimatedBackground />
             <Routes>
               {/* Public Login Route */}
@@ -128,6 +130,7 @@ export function App() {
             </Routes>
           </AuthProvider>
         </BrowserRouter>
+        </ConfirmProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

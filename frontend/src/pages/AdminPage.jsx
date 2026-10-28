@@ -28,6 +28,7 @@ import { Modal } from '../components/common/Modal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Table } from '../components/common/Table';
 import { LoadingState } from '../components/common/LoadingState';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 
 // ponytail: parent group display labels and grouping helper
 const PARENT_GROUP_LABELS = {
@@ -219,8 +220,14 @@ export const AdminPage = () => {
     }
   };
 
-  const handleResetPermissions = () => {
-    if (!window.confirm('Reset semua menu ke visibilitas penuh (semua role, part & user)?')) return;
+  const handleResetPermissions = async () => {
+    const ok = await portalConfirm({
+      title: 'Reset Hak Akses Menu',
+      message: 'Reset semua menu ke visibilitas penuh (semua role, part & user)? Seluruh konfigurasi kustom akan dikembalikan ke default.',
+      confirmText: 'Ya, Reset Semua',
+      variant: 'warning',
+    });
+    if (!ok) return;
     setMenuPermissions((prev) =>
       prev.map((item) => ({
         ...item,
@@ -349,17 +356,23 @@ export const AdminPage = () => {
 
   const handleDeleteUser = async (u) => {
     if (u.username === 'admin') {
-      alert('Akun primary administrator tidak dapat dihapus.');
+      portalAlert('Akun primary administrator tidak dapat dihapus.');
       return;
     }
-    if (!window.confirm(`Hapus user '${u.full_name || u.username}' (@${u.username})? User akan dinonaktifkan.`)) return;
+    const ok = await portalConfirm({
+      title: 'Nonaktifkan / Hapus Pengguna',
+      message: `Hapus user '${u.full_name || u.username}' (@${u.username})? User akan dinonaktifkan dari sistem.`,
+      confirmText: 'Hapus Pengguna',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/users/${u.id}`);
       setUsers((prev) => prev.filter((item) => item.id !== u.id));
       setPermissionSuccess(`User '${u.username}' berhasil dihapus.`);
       setTimeout(() => setPermissionSuccess(''), 4000);
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     }
   };
 

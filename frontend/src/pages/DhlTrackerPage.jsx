@@ -36,6 +36,7 @@ import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
+import { portalConfirm } from '../contexts/ConfirmContext';
 import styles from './DhlTrackerPage.module.css';
 
 export const DhlTrackerPage = () => {
@@ -354,7 +355,12 @@ export const DhlTrackerPage = () => {
   // Delete Shipment
   const handleDelete = async (id) => {
     const confirmText = t('dhl.delete_confirm', { id, defaultValue: `Hapus AWB #${id} dari database pelacakan portal?` });
-    if (!window.confirm(confirmText)) return;
+    if (!await portalConfirm({
+      title: t('dhl.confirm_delete_title', 'Hapus Pelacakan AWB'),
+      message: confirmText,
+      confirmText: t('common.delete', 'Hapus'),
+      variant: 'danger',
+    })) return;
     try {
       setActionLoadingId(id);
       await api.delete(`/dhl/shipments/${id}`);

@@ -19,6 +19,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { AttachmentViewer } from './AttachmentViewer';
+import { portalConfirm, portalAlert } from '../../contexts/ConfirmContext';
 import styles from './CommentTimelineSection.module.css';
 
 const EMOJI_LIST = [
@@ -162,12 +163,18 @@ export const CommentTimelineSection = ({
   };
 
   const handleDeleteItem = async (id) => {
-    if (!window.confirm('Hapus komentar ini?')) return;
+    const ok = await portalConfirm({
+      title: 'Hapus Komentar',
+      message: 'Apakah Anda yakin ingin menghapus komentar ini?',
+      confirmText: 'Hapus Komentar',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/comments/${id}`);
       setItems((prev) => prev.filter((it) => it.id !== id));
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menghapus komentar');
+      portalAlert(err.response?.data?.message || 'Gagal menghapus komentar');
     }
   };
 

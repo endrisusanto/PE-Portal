@@ -8,6 +8,7 @@ import { Modal } from '../components/common/Modal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 
 export const SettingsPage = () => {
   const { t } = useTranslation();
@@ -197,12 +198,18 @@ export const SettingsPage = () => {
   };
 
   const handleDeleteServer = async (id) => {
-    if (!window.confirm(t('settings.confirm_delete_server', 'Remove this MCP server configuration?'))) return;
+    const ok = await portalConfirm({
+      title: t('settings.confirm_delete_server_title', 'Hapus Konfigurasi MCP'),
+      message: t('settings.confirm_delete_server', 'Remove this MCP server configuration?'),
+      confirmText: t('common.delete', 'Hapus'),
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/mcp/servers/${id}`);
       setServers((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     }
   };
 

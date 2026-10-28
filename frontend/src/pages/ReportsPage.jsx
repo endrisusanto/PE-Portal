@@ -28,6 +28,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
 import { Table } from '../components/common/Table';
+import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import styles from './ReportsPage.module.css';
 
 export const ReportsPage = () => {
@@ -175,13 +176,19 @@ export const ReportsPage = () => {
 
   // Delete Template
   const handleDeleteTemplate = async (id) => {
-    if (!window.confirm('Delete this report template?')) return;
+    const ok = await portalConfirm({
+      title: 'Hapus Template Laporan',
+      message: 'Hapus template laporan ini? Jadwal yang menggunakan template ini mungkin terpengaruh.',
+      confirmText: 'Hapus Template',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/reports/templates/${id}`);
       setTemplates(templates.filter((t) => t.id !== id));
       showNotification('success', 'Template deleted');
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     }
   };
 
@@ -207,19 +214,25 @@ export const ReportsPage = () => {
       setScheduleCc('');
       showNotification('success', 'Automated schedule registered');
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     }
   };
 
   // Delete Schedule
   const handleDeleteSchedule = async (id) => {
-    if (!window.confirm('Remove this automated schedule?')) return;
+    const ok = await portalConfirm({
+      title: 'Hapus Jadwal Otomatis',
+      message: 'Hapus jadwal pengiriman otomatis laporan ini? Pengiriman rutin ke penerima akan dihentikan.',
+      confirmText: 'Hapus Jadwal',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/reports/schedules/${id}`);
       setSchedules(schedules.filter((s) => s.id !== id));
       showNotification('success', 'Schedule removed');
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     }
   };
 
@@ -232,7 +245,7 @@ export const ReportsPage = () => {
       // Refresh logs after 2s
       setTimeout(fetchData, 2000);
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     } finally {
       setTriggeringScheduleId(null);
     }
@@ -250,7 +263,7 @@ export const ReportsPage = () => {
       // Refresh logs after 2s
       setTimeout(fetchData, 2000);
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     } finally {
       setSendingReportId(null);
     }
@@ -258,13 +271,19 @@ export const ReportsPage = () => {
 
   // Delete Report
   const handleDeleteReport = async (id) => {
-    if (!window.confirm('Delete this report?')) return;
+    const ok = await portalConfirm({
+      title: 'Hapus Laporan',
+      message: 'Hapus dokumen laporan ini? Tindakan ini tidak dapat dibatalkan.',
+      confirmText: 'Hapus Laporan',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.delete(`/reports/${id}`);
       setReports(reports.filter((r) => r.id !== id));
       showNotification('success', 'Report deleted');
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      portalAlert(err.response?.data?.message || err.message);
     }
   };
 

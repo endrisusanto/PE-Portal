@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import api from '../../api/client';
+import { portalConfirm } from '../../contexts/ConfirmContext';
 import styles from './AiChatWindow.module.css';
 
 // Universal download blob helper
@@ -666,8 +667,14 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
   };
 
   // Clear Chat History
-  const handleClearHistory = () => {
-    if (window.confirm(t('ai_chat.confirm_clear', 'Kosongkan riwayat percakapan AI Assistant?'))) {
+  const handleClearHistory = async () => {
+    const ok = await portalConfirm({
+      title: t('ai_chat.confirm_clear_title', 'Kosongkan Chat'),
+      message: t('ai_chat.confirm_clear', 'Kosongkan riwayat percakapan AI Assistant? Sesi obrolan saat ini akan di-reset.'),
+      confirmText: t('ai_chat.clear_btn', 'Kosongkan Riwayat'),
+      variant: 'warning',
+    });
+    if (ok) {
       setMessages([
         {
           role: 'assistant',
