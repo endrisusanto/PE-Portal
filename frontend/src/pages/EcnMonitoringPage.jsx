@@ -409,6 +409,53 @@ export const EcnMonitoringPage = () => {
 
   const totalColSpan = (isAdmin ? 1 : 0) + 1 + 13 + 1;
 
+  // Helper to parse TSV clipboard copied from Excel, handling multiline quoted cells and escaped quotes
+  const parseExcelClipboard = (rawText) => {
+    if (!rawText) return [];
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let insideQuote = false;
+
+    for (let i = 0; i < rawText.length; i++) {
+      const char = rawText[i];
+      const nextChar = rawText[i + 1];
+
+      if (char === '"') {
+        if (insideQuote && nextChar === '"') {
+          currentCell += '"';
+          i++; // skip escaped double quote
+        } else {
+          insideQuote = !insideQuote;
+        }
+      } else if (char === '\t' && !insideQuote) {
+        currentRow.push(currentCell.trim());
+        currentCell = '';
+      } else if ((char === '\r' || char === '\n') && !insideQuote) {
+        if (char === '\r' && nextChar === '\n') {
+          i++; // handle CRLF
+        }
+        currentRow.push(currentCell.trim());
+        currentCell = '';
+        if (currentRow.some((c) => c !== '')) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+      } else {
+        currentCell += char;
+      }
+    }
+
+    if (currentCell || currentRow.length > 0) {
+      currentRow.push(currentCell.trim());
+      if (currentRow.some((c) => c !== '')) {
+        rows.push(currentRow);
+      }
+    }
+
+    return rows;
+  };
+
   // --- Parse Clipboard TSV (Paste Table) ---
   const handleParsePasteText = (text) => {
     setPasteRawText(text);
@@ -417,15 +464,18 @@ export const EcnMonitoringPage = () => {
       return;
     }
 
-    const lines = text.trim().split(/\r\n|\n|\r/);
-    if (lines.length === 0) return;
+    const rows = parseExcelClipboard(text);
+    if (rows.length === 0) {
+      setParsedPasteRows([]);
+      return;
+    }
 
     let startIdx = 0;
-    const firstLineLower = lines[0].toLowerCase();
+    const firstRowStr = rows[0].join(' ').toLowerCase();
     if (
-      firstLineLower.includes('ecn') ||
-      firstLineLower.includes('model') ||
-      firstLineLower.includes('function')
+      firstRowStr.includes('ecn') ||
+      firstRowStr.includes('model') ||
+      firstRowStr.includes('function')
     ) {
       startIdx = 1;
     }
@@ -441,11 +491,9 @@ export const EcnMonitoringPage = () => {
       'marking_point', 'running_date_bom', 'distribution_date', 'status', 'remark'
     ];
 
-    for (let i = startIdx; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      const cols = line.split('\t').map((c) => c.trim());
-      if (cols.length === 0) continue;
+    for (let i = startIdx; i < rows.length; i++) {
+      const cols = rows[i];
+      if (!cols || cols.length === 0) continue;
 
       const record = {
         ecn_no: cols[0] || '',
@@ -1678,7 +1726,7 @@ Panduan Format Respons:
                                   Remark / Catatan Teknis:
                                 </span>
                                 {item.remark ? (
-                                  <div>{item.remark}</div>
+                                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{item.remark}</div>
                                 ) : (
                                   <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
                                     Tidak ada catatan remark untuk record ini.
