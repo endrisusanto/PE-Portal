@@ -607,7 +607,8 @@
 }
 
 .colFilterInput,
-.colFilterSelect {
+.colFilterSelect,
+.colFilterDate {
   width: 100%;
   height: 28px;
   padding: 0 8px;
@@ -638,8 +639,28 @@
   -moz-appearance: none;
 }
 
+.colFilterDate {
+  min-width: 110px;
+  padding: 0 4px 0 6px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.colFilterDate::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0;
+  margin: 0;
+  font-size: 11px;
+}
+
+[data-theme="dark"] .colFilterDate::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+}
+
 .colFilterInput:focus,
-.colFilterSelect:focus {
+.colFilterSelect:focus,
+.colFilterDate:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px var(--color-accent-subtle, rgba(26, 115, 232, 0.15));
 }

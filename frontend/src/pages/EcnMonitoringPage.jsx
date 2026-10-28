@@ -307,12 +307,18 @@ export const EcnMonitoringPage = () => {
       result = result.filter((r) => String(r.quantity || '').toLowerCase().includes(q));
     }
     if (colFilters.running_date_bom) {
-      const q = colFilters.running_date_bom.toLowerCase();
-      result = result.filter((r) => (r.running_date_bom || '').toLowerCase().includes(q));
+      const q = colFilters.running_date_bom.replace(/[\.\/]/g, '-').toLowerCase();
+      result = result.filter((r) => {
+        const val = String(r.running_date_bom || '').replace(/[\.\/]/g, '-').toLowerCase();
+        return val.includes(q);
+      });
     }
     if (colFilters.distribution_date) {
-      const q = colFilters.distribution_date.toLowerCase();
-      result = result.filter((r) => (r.distribution_date || '').toLowerCase().includes(q));
+      const q = colFilters.distribution_date.replace(/[\.\/]/g, '-').toLowerCase();
+      result = result.filter((r) => {
+        const val = String(r.distribution_date || '').replace(/[\.\/]/g, '-').toLowerCase();
+        return val.includes(q);
+      });
     }
     if (colFilters.status) {
       const q = colFilters.status.toLowerCase();
@@ -1120,8 +1126,8 @@ Panduan Format Respons:
                   { key: 'child_name', label: 'Part Description', minWidth: '160px' },
                   { key: 'specification', label: 'Specification', minWidth: '160px' },
                   { key: 'quantity', label: 'Qty', width: '70px' },
-                  { key: 'running_date_bom', label: 'Running BOM', width: '110px' },
-                  { key: 'distribution_date', label: 'Dist Date', width: '105px' },
+                  { key: 'running_date_bom', label: 'Running BOM', width: '125px', minWidth: '120px' },
+                  { key: 'distribution_date', label: 'Dist Date', width: '125px', minWidth: '120px' },
                   { key: 'status', label: 'Status', width: '115px' },
                 ].map((col) => (
                   <th
@@ -1246,18 +1252,18 @@ Panduan Format Respons:
                 </th>
                 <th>
                   <input
-                    type="text"
-                    className={styles.colFilterInput}
-                    placeholder="YYYY-MM..."
+                    type="date"
+                    className={styles.colFilterDate}
+                    title="Pilih tanggal Running BOM"
                     value={colFilters.running_date_bom}
                     onChange={(e) => setColFilters({ ...colFilters, running_date_bom: e.target.value })}
                   />
                 </th>
                 <th>
                   <input
-                    type="text"
-                    className={styles.colFilterInput}
-                    placeholder="YYYY-MM..."
+                    type="date"
+                    className={styles.colFilterDate}
+                    title="Pilih tanggal Distribution Date"
                     value={colFilters.distribution_date}
                     onChange={(e) => setColFilters({ ...colFilters, distribution_date: e.target.value })}
                   />
