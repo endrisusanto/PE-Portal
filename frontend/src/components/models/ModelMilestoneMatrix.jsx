@@ -1541,41 +1541,13 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                     </div>
                     <h3 className={styles.modelHeading}>{m.model_name}</h3>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* ponytail: Badge Icon kecil disamping button edit di card */}
-                    {(() => {
-                      const catInfo = getModelCategoryInfo(m);
-                      const CatIcon = catInfo.icon;
-                      return (
-                        <div
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 7px',
-                            borderRadius: '12px',
-                            backgroundColor: catInfo.bgColor,
-                            border: `1px solid ${catInfo.borderColor}`,
-                            color: catInfo.color,
-                            fontSize: '10.5px',
-                            fontWeight: 600,
-                            lineHeight: 1.2,
-                          }}
-                          title={`${t('models.category_prefix', 'Kategori')}: ${t(catInfo.labelKey, catInfo.label)}`}
-                        >
-                          <CatIcon size={12} />
-                          <span>{t(catInfo.shortLabelKey, catInfo.shortLabel)}</span>
-                        </div>
-                      );
-                    })()}
-                    <button
-                      className={styles.editModelIconBtn}
-                      onClick={() => onEditModel && onEditModel(m)}
-                      title="Edit metadata model"
-                    >
-                      <Edit3 size={13} />
-                    </button>
-                  </div>
+                  <button
+                    className={styles.editModelIconBtn}
+                    onClick={() => onEditModel && onEditModel(m)}
+                    title="Edit metadata model"
+                  >
+                    <Edit3 size={13} />
+                  </button>
                 </div>
 
                 {/* Basic Model variants (Informative Only) */}
@@ -1600,6 +1572,26 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                     <span className={styles.tbdCounter}>{stats.tbdCount} TBD</span>
                   )}
                 </div>
+
+                {/* ponytail: Fullwidth category badge at bottom of card */}
+                {(() => {
+                  const catInfo = getModelCategoryInfo(m);
+                  const CatIcon = catInfo.icon;
+                  return (
+                    <div
+                      className={styles.modelCategoryBottomBadge}
+                      style={{
+                        backgroundColor: catInfo.bgColor,
+                        borderColor: catInfo.borderColor,
+                        color: catInfo.color,
+                      }}
+                      title={`${t('models.category_prefix', 'Kategori')}: ${t(catInfo.labelKey, catInfo.label)}`}
+                    >
+                      <CatIcon size={12} />
+                      <span>{t(catInfo.labelKey, catInfo.label)}</span>
+                    </div>
+                  );
+                })()}
               </div>
             );
           }))}
