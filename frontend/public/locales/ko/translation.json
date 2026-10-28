@@ -1655,6 +1655,31 @@
       "delete_btn": "ECN 삭제",
       "bulk_delete_btn": "{{count}}건 삭제",
       "cancel": "취소"
+    },
+    "ai": {
+      "title": "SEIN ECN 엔지니어링 AI 어시스턴트",
+      "context_badge": "⚡ 전체 DB MCP 연동: {{total}}건 (테이블 {{active}}행)",
+      "context_badge_full": "⚡ 전체 DB MCP 연동: {{total}}건",
+      "context_badge_filtered": "⚡ 전체 DB MCP 연동: {{total}}건 (테이블: {{active}}행 필터)",
+      "llm_ready": "LLM 준비완료",
+      "hide_assistant": "AI 어시스턴트 접기",
+      "show_assistant": "AI 어시스턴트 열기",
+      "chip_in_progress": "💡 진행 중 ECN",
+      "prompt_in_progress": "진행 중(In Progress) 상태인 모든 ECN과 그 영향도를 요약해 주세요.",
+      "chip_material": "⚠️ 자재 및 공급사 이슈",
+      "prompt_material": "비고(Remark) 란에 중요 자재, FET 또는 공급사 변경 사항이 있습니까?",
+      "chip_cancelled": "❌ 취소된 ECN (Cancel)",
+      "prompt_cancelled": "ECO 취소(Cancel) 상태인 ECN은 몇 건이며 그 사유는 무엇입니까?",
+      "chip_process": "📊 공정별 분포",
+      "prompt_process": "SMD, 메인라인, 벤더 간의 설계변경 공정 분포를 설명해 주세요.",
+      "welcome_msg": "안녕하세요! **SEIN PE ECN 모니터링** 전문 AI 어시스턴트입니다.\n\n**MCP를 통해 전체 PostgreSQL 데이터베이스**(수천 건의 ECN)와 직접 연동되어 있으며 현재 보고 계신 테이블 필터 상태도 함께 파악합니다.\n다음과 같은 질문을 하실 수 있습니다:\n- 전체 데이터베이스 대상 **ECN 검색 및 요약**\n- *비고(Remark)* 란의 **부품/공급사 변경 분석**\n- **ECO 취소(Cancel)** 또는 **진행 중(In Progress)** 상태 확인\n- **Running BOM** 검증 및 권장 사항",
+      "thinking": "AI가 ECN 데이터베이스를 분석하고 있습니다...",
+      "input_placeholder": "ECN 분석, 모델, 부품 번호, 사양 변경, 자재 이슈 등을 질문하세요...",
+      "clear_history": "대화 기록 지우기",
+      "send_message": "질문 전송",
+      "send_btn": "전송",
+      "no_reply": "AI 응답이 없습니다.",
+      "comm_error": "⚠️ **죄송합니다, AI 통신 중 오류가 발생했습니다**: {{error}}"
     }
   }
 }

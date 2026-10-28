@@ -51,7 +51,7 @@ const normalizeDateStr = (str) => {
 };
 
 export const EcnMonitoringPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
@@ -178,11 +178,31 @@ export const EcnMonitoringPage = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      content:
-        'Halo! Saya asisten AI spesialis **ECN Monitoring SEIN PE**.\n\nSaya menganalisis seluruh database ECN yang sedang aktif (terfilter).\nAnda dapat menanyakan hal-hal seperti:\n- **Ringkasan ECN** model tertentu\n- **Analisis pergantian komponen/supplier** pada kolom *Remark*\n- Cek status **ECO Cancel** atau **In Progress**\n- Rekomendasi verifikasi **Running BOM**',
+      isWelcome: true,
+      content: t(
+        'ecn.ai.welcome_msg',
+        'Halo! Saya asisten AI spesialis **ECN Monitoring SEIN PE**.\n\nSaya menganalisis seluruh database ECN yang sedang aktif (terfilter).\nAnda dapat menanyakan hal-hal seperti:\n- **Ringkasan ECN** model tertentu\n- **Analisis pergantian komponen/supplier** pada kolom *Remark*\n- Cek status **ECO Cancel** atau **In Progress**\n- Rekomendasi verifikasi **Running BOM**'
+      ),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
+
+  // Dynamically update welcome message when language changes (ko, en, id)
+  useEffect(() => {
+    setChatMessages((prev) =>
+      prev.map((msg) =>
+        msg.isWelcome
+          ? {
+              ...msg,
+              content: t(
+                'ecn.ai.welcome_msg',
+                'Halo! Saya asisten AI spesialis **ECN Monitoring SEIN PE**.\n\nSaya menganalisis seluruh database ECN yang sedang aktif (terfilter).\nAnda dapat menanyakan hal-hal seperti:\n- **Ringkasan ECN** model tertentu\n- **Analisis pergantian komponen/supplier** pada kolom *Remark*\n- Cek status **ECO Cancel** atau **In Progress**\n- Rekomendasi verifikasi **Running BOM**'
+              ),
+            }
+          : msg
+      )
+    );
+  }, [i18n.language, t]);
   const [chatInput, setChatInput] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
 
@@ -868,21 +888,45 @@ export const EcnMonitoringPage = () => {
         part_name: r.child_name,
         spec: r.specification,
         bom_date: r.running_date_bom,
-        remark: r.remark ? (r.remark.length > 250 ? r.remark.substring(0, 250) + '...' : r.remark) : '',
+        remark: r.remark ? (r.remark.length > 800 ? r.remark.substring(0, 800) + '...' : r.remark) : '',
       }));
 
-      const systemPrompt = `Anda adalah asisten AI Production Engineering (PE) spesialis ECN Monitoring di PT Samsung Electronics Indonesia (SEIN).
-Tugas Anda adalah menganalisis data Engineering Change Notice (ECN) berikut, melacak perubahan part, mendeteksi status kendala material/supplier, dan menyajikan jawaban yang rapi, profesional, dan to-the-point.
+      const activeFilterSummary = [
+        selectedModel ? `Model: ${selectedModel}` : '',
+        selectedProcess ? `Process: ${selectedProcess}` : '',
+        selectedStatus ? `Status: ${selectedStatus}` : '',
+        search ? `Search Filter: "${search}"` : '',
+      ].filter(Boolean).join(', ');
 
-=== KONTEKS DATA ECN AKTIF (TOTAL ${totalRecords} DATA, SAMPEL TERMUAT: ${contextSummary.length} BARIS) ===
+      const systemPrompt = `Anda adalah asisten AI Production Engineering (PE) spesialis ECN Monitoring di PT Samsung Electronics Indonesia (SEIN).
+Anda terhubung langsung dengan seluruh database PostgreSQL ECN melalui SEIN PE-Portal MCP Tools (pe_search_ecn & pe_get_ecn_statistics).
+Tugas Anda adalah menganalisis data Engineering Change Notice (ECN) baik pada sampel aktif di tabel UI maupun seluruh database ribuan data ECN secara real-time.
+
+=== INFORMASI TAMPILAN UI & FILTER AKTIF ===
+Total Database: ${totalRecords} data
+Baris Aktif Ditampilkan: ${displayedRecords.length} data
+Filter UI yang Diterapkan User: ${activeFilterSummary || 'None (Semua Data)'}
+
+=== SAMPEL DATA ECN TAMPILAN AKTIF (SAMPEL TERMUAT: ${contextSummary.length} BARIS) ===
 ${JSON.stringify(contextSummary, null, 2)}
 ========================================================================================
 
+Catatan Penting:
+- Anda memiliki akses langsung ke seluruh ribuan data ECN melalui MCP Server terintegrasi (pe_search_ecn & pe_get_ecn_statistics).
+- Jika pengguna menanyakan ringkasan total, statistik menyeluruh, atau pencarian part di luar 35 baris tampilan UI di atas, gunakan data hasil MCP yang diinjeksi secara live oleh server.
+- Penanganan Remark Panjang: Kolom Remark sering berisi catatan teknis krusial (alasan modifikasi komponen, instruksi rework lini, verifikasi QA, approval Korea HQ, atau kompatibilitas vendor). Jika ada pertanyaan mengenai Remark atau ECN tertentu, kutip atau jelaskan isi Remark secara LENGKAP dan DETAIL tanpa memotong instruksi teknis yang penting.
+
 Panduan Format Respons:
-1. Gunakan Markdown yang kaya dan terstruktur: **bold** untuk penekanan, *italic* untuk istilah teknis, \`code\` untuk nomor part/kode, dan blockquote (\`> \`) untuk peringatan teknis atau kutipan remark.
+1. Gunakan Markdown yang kaya dan terstruktur: **bold** untuk penekanan, *italic* untuk istilah teknis, \`code\` untuk nomor part/kode, dan blockquote (\`> \`) untuk peringatan teknis atau kutipan remark lengkap.
 2. Gunakan bullet list (\`- \`) atau numbered list (\`1. \`) untuk poin-poin penjelasan.
-3. Jika menampilkan komparasi data atau daftar ECN, gunakan Markdown Table (\`| ECN NO | Model | Status | Keterangan |\`) agar rapi.
-4. Jawablah langsung pada inti pertanyaan dengan bahasa Indonesia yang baku dan ramah bagi Production Engineer.`;
+3. Jika menampilkan komparasi data atau daftar ECN, gunakan Markdown Table (\`| ECN NO | Model | Status | Keterangan / Remark |\`) agar rapi.
+${
+  i18n.language === 'ko'
+    ? '4. 답변은 한국어로 정중하고 전문적인 어조로 작성하며, 비고(Remark) 내용이 길더라도 핵심 기술 지침과 변경 사유를 누락 없이 상세히 설명하십시오.'
+    : i18n.language === 'en'
+    ? '4. Respond directly and concisely in English suitable for Production Engineers. Provide complete details from the Remark field without omitting technical instructions.'
+    : '4. Jawablah langsung pada inti pertanyaan dengan bahasa Indonesia yang baku bagi Production Engineer. Jabarkan detail isi Remark secara utuh tanpa memangkas instruksi penting.'
+}`;
 
       const history = [
         ...chatMessages
@@ -897,7 +941,7 @@ Panduan Format Respons:
         system_prompt: systemPrompt,
       });
 
-      const reply = res.data?.reply || 'Tidak ada balasan dari AI.';
+      const reply = res.data?.reply || t('ecn.ai.no_reply', 'Tidak ada balasan dari AI.');
       setChatMessages((prev) => [
         ...prev,
         {
@@ -913,7 +957,11 @@ Panduan Format Respons:
         {
           id: Math.random().toString(36).substring(2, 9),
           role: 'assistant',
-          content: `⚠️ **Maaf, terjadi kendala komunikasi dengan AI**: ${err.response?.data?.message || err.message}`,
+          content: t(
+            'ecn.ai.comm_error',
+            '⚠️ **Maaf, terjadi kendala komunikasi dengan AI**: {{error}}',
+            { error: err.response?.data?.message || err.message }
+          ),
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -1066,19 +1114,30 @@ Panduan Format Respons:
               <Sparkles size={16} />
             </div>
             <h3 className={styles.aiAccordionTitle}>
-              SEIN ECN Engineering AI Assistant
+              {t('ecn.ai.title', 'SEIN ECN Engineering AI Assistant')}
               <span className={styles.aiContextBadge}>
-                Konteks: {totalRecords} data ({displayedRecords.length} baris aktif)
+                {displayedRecords.length === totalRecords
+                  ? t('ecn.ai.context_badge_full', {
+                      total: totalRecords,
+                      defaultValue: `⚡ Full DB MCP: ${totalRecords} data`,
+                    })
+                  : t('ecn.ai.context_badge_filtered', {
+                      total: totalRecords,
+                      active: displayedRecords.length,
+                      defaultValue: `⚡ Full DB MCP: ${totalRecords} data (Tabel: ${displayedRecords.length} difilter)`,
+                    })}
               </span>
             </h3>
             <span className={styles.aiOnlinePill}>
               <span className={styles.aiOnlineDot} />
-              LLM Ready
+              {t('ecn.ai.llm_ready', 'LLM Ready')}
             </span>
           </div>
           <div className={styles.aiAccordionActions}>
             <span className={styles.aiToggleText}>
-              {isAiAccordionOpen ? 'Sembunyikan Asisten AI' : 'Buka Asisten AI'}
+              {isAiAccordionOpen
+                ? t('ecn.ai.hide_assistant', 'Sembunyikan Asisten AI')
+                : t('ecn.ai.show_assistant', 'Buka Asisten AI')}
             </span>
             <ChevronDown
               size={18}
@@ -1094,30 +1153,46 @@ Panduan Format Respons:
               <button
                 type="button"
                 className={styles.aiChipBtn}
-                onClick={() => handleSendAiMessage('Ringkas seluruh ECN yang berstatus In Progress beserta dampaknya.')}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_in_progress', 'Ringkas seluruh ECN yang berstatus In Progress beserta dampaknya.')
+                  )
+                }
               >
-                💡 ECN In Progress
+                {t('ecn.ai.chip_in_progress', '💡 ECN In Progress')}
               </button>
               <button
                 type="button"
                 className={styles.aiChipBtn}
-                onClick={() => handleSendAiMessage('Apakah ada perubahan material kritis, FET, atau supplier pada kolom Remark?')}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_material', 'Apakah ada perubahan material kritis, FET, atau supplier pada kolom Remark?')
+                  )
+                }
               >
-                ⚠️ Isu Material & Supplier
+                {t('ecn.ai.chip_material', '⚠️ Isu Material & Supplier')}
               </button>
               <button
                 type="button"
                 className={styles.aiChipBtn}
-                onClick={() => handleSendAiMessage('Berapa banyak ECN yang statusnya ECO Cancel dan apa alasannya?')}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_cancelled', 'Berapa banyak ECN yang statusnya ECO Cancel dan apa alasannya?')
+                  )
+                }
               >
-                ❌ ECN Dibatalkan (Cancel)
+                {t('ecn.ai.chip_cancelled', '❌ ECN Dibatalkan (Cancel)')}
               </button>
               <button
                 type="button"
                 className={styles.aiChipBtn}
-                onClick={() => handleSendAiMessage('Jelaskan distribusi proses perubahan antara SMD, Mainline, dan Vendor.')}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_process', 'Jelaskan distribusi proses perubahan antara SMD, Mainline, dan Vendor.')
+                  )
+                }
               >
-                📊 Distribusi Proses
+                {t('ecn.ai.chip_process', '📊 Distribusi Proses')}
               </button>
             </div>
 
@@ -1143,7 +1218,7 @@ Panduan Format Respons:
                 <div className={`${styles.aiMessageBubble} ${styles.aiMessageAssistant}`}>
                   <div className={styles.aiThinkingBox}>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>AI sedang menganalisis database ECN...</span>
+                    <span>{t('ecn.ai.thinking', 'AI sedang menganalisis database ECN...')}</span>
                   </div>
                 </div>
               )}
@@ -1160,7 +1235,10 @@ Panduan Format Respons:
               <input
                 type="text"
                 className={styles.aiInput}
-                placeholder="Tanyakan analisis ECN, model, part number, perubahan spek, kendala material..."
+                placeholder={t(
+                  'ecn.ai.input_placeholder',
+                  'Tanyakan analisis ECN, model, part number, perubahan spek, kendala material...'
+                )}
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 disabled={isAiThinking}
@@ -1168,8 +1246,21 @@ Panduan Format Respons:
               <button
                 type="button"
                 className={styles.aiClearBtn}
-                title="Bersihkan riwayat percakapan"
-                onClick={() => setChatMessages([chatMessages[0]])}
+                title={t('ecn.ai.clear_history', 'Bersihkan riwayat percakapan')}
+                onClick={() =>
+                  setChatMessages([
+                    {
+                      id: 'welcome',
+                      role: 'assistant',
+                      isWelcome: true,
+                      content: t(
+                        'ecn.ai.welcome_msg',
+                        'Halo! Saya asisten AI spesialis **ECN Monitoring SEIN PE**.\n\nSaya menganalisis seluruh database ECN yang sedang aktif (terfilter).\nAnda dapat menanyakan hal-hal seperti:\n- **Ringkasan ECN** model tertentu\n- **Analisis pergantian komponen/supplier** pada kolom *Remark*\n- Cek status **ECO Cancel** atau **In Progress**\n- Rekomendasi verifikasi **Running BOM**'
+                      ),
+                      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    },
+                  ])
+                }
               >
                 <RotateCcw size={14} />
               </button>
@@ -1177,9 +1268,10 @@ Panduan Format Respons:
                 type="submit"
                 className={styles.aiSendBtn}
                 disabled={!chatInput.trim() || isAiThinking}
+                title={t('ecn.ai.send_message', 'Kirim Pertanyaan')}
               >
                 <Send size={14} />
-                <span>Kirim</span>
+                <span>{t('ecn.ai.send_btn', 'Kirim')}</span>
               </button>
             </form>
           </div>

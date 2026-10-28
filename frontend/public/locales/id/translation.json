@@ -1655,6 +1655,31 @@
       "delete_btn": "Hapus ECN",
       "bulk_delete_btn": "Hapus {{count}} Data",
       "cancel": "Batal"
+    },
+    "ai": {
+      "title": "SEIN ECN Engineering AI Assistant",
+      "context_badge": "⚡ Full DB MCP: {{total}} data ({{active}} di tabel)",
+      "context_badge_full": "⚡ Full DB MCP: {{total}} data",
+      "context_badge_filtered": "⚡ Full DB MCP: {{total}} data (Tabel: {{active}} difilter)",
+      "llm_ready": "LLM Siap",
+      "hide_assistant": "Sembunyikan Asisten AI",
+      "show_assistant": "Buka Asisten AI",
+      "chip_in_progress": "💡 ECN In Progress",
+      "prompt_in_progress": "Ringkas seluruh ECN yang berstatus In Progress beserta dampaknya.",
+      "chip_material": "⚠️ Isu Material & Supplier",
+      "prompt_material": "Apakah ada perubahan material kritis, FET, atau supplier pada kolom Remark?",
+      "chip_cancelled": "❌ ECN Dibatalkan (Cancel)",
+      "prompt_cancelled": "Berapa banyak ECN yang statusnya ECO Cancel dan apa alasannya?",
+      "chip_process": "📊 Distribusi Proses",
+      "prompt_process": "Jelaskan distribusi proses perubahan antara SMD, Mainline, dan Vendor.",
+      "welcome_msg": "Halo! Saya asisten AI spesialis **ECN Monitoring SEIN PE**.\n\nSaya terhubung langsung ke **seluruh database PostgreSQL via MCP** (ribuan data ECN) serta memahami filter tabel yang sedang Anda buka.\nAnda dapat menanyakan hal-hal seperti:\n- **Pencarian & ringkasan ECN** model/part di seluruh database\n- **Analisis pergantian komponen/supplier** pada kolom *Remark*\n- Cek status **ECO Cancel** atau **In Progress**\n- Rekomendasi verifikasi **Running BOM**",
+      "thinking": "AI sedang menganalisis database ECN...",
+      "input_placeholder": "Tanyakan analisis ECN, model, part number, perubahan spek, kendala material...",
+      "clear_history": "Bersihkan riwayat percakapan",
+      "send_message": "Kirim Pertanyaan",
+      "send_btn": "Kirim",
+      "no_reply": "Tidak ada balasan dari AI.",
+      "comm_error": "⚠️ **Maaf, terjadi kendala komunikasi dengan AI**: {{error}}"
     }
   }
 }

@@ -107,7 +107,7 @@ func main() {
 	utilityHandler := handler.NewUtilityHandler()
 	dhlRepo := repository.NewDHLRepository(pgPool.Pool)
 	dhlHandler := handler.NewDHLHandler(dhlRepo, userRepo, reportRepo, smtpService)
-	dhlHandler.StartAutoUpdateWorker(context.Background(), 30*time.Minute)
+	dhlHandler.StartAutoUpdateWorker(context.Background(), 1*time.Hour)
 	gmesRepo := repository.NewGmesRepository(pgPool.Pool)
 	gmesHandler := handler.NewGmesHandler(gmesRepo)
 	navRepo := repository.NewNavigationRepository(pgPool.Pool)

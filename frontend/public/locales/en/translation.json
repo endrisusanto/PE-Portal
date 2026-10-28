@@ -1655,6 +1655,31 @@
       "delete_btn": "Delete ECN",
       "bulk_delete_btn": "Delete {{count}} Records",
       "cancel": "Cancel"
+    },
+    "ai": {
+      "title": "SEIN ECN Engineering AI Assistant",
+      "context_badge": "⚡ Full DB MCP: {{total}} records ({{active}} in table)",
+      "context_badge_full": "⚡ Full DB MCP: {{total}} records",
+      "context_badge_filtered": "⚡ Full DB MCP: {{total}} records (Table: {{active}} filtered)",
+      "llm_ready": "LLM Ready",
+      "hide_assistant": "Hide AI Assistant",
+      "show_assistant": "Open AI Assistant",
+      "chip_in_progress": "💡 ECN In Progress",
+      "prompt_in_progress": "Summarize all ECNs with In Progress status and their impacts.",
+      "chip_material": "⚠️ Material & Supplier Issues",
+      "prompt_material": "Are there any critical material, FET, or supplier changes in the Remark column?",
+      "chip_cancelled": "❌ Cancelled ECNs",
+      "prompt_cancelled": "How many ECNs are in ECO Cancel status and what are their reasons?",
+      "chip_process": "📊 Process Distribution",
+      "prompt_process": "Explain the distribution of change processes among SMD, Mainline, and Vendor.",
+      "welcome_msg": "Hello! I am the **SEIN PE ECN Monitoring** AI Assistant.\n\nI am directly connected to the **entire PostgreSQL database via MCP** (thousands of ECN records) and understand your current table filters.\nYou can ask questions such as:\n- **Search & summarize ECNs** across the entire database\n- **Component/supplier change analysis** in the *Remark* field\n- Check **ECO Cancel** or **In Progress** status\n- **Running BOM** verification recommendations",
+      "thinking": "AI is analyzing the ECN database...",
+      "input_placeholder": "Ask about ECN analysis, model, part number, specification changes, material issues...",
+      "clear_history": "Clear conversation history",
+      "send_message": "Send message",
+      "send_btn": "Send",
+      "no_reply": "No reply from AI.",
+      "comm_error": "⚠️ **Sorry, communication error with AI**: {{error}}"
     }
   }
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
 	"pe-portal/internal/service"
 )
@@ -265,19 +266,41 @@ func (h *DHLHandler) sendDeliveredEmailNotification(ctx context.Context, s *repo
 	}
 
 	var toEmails []string
+	emailSet := make(map[string]bool)
 	cleanPic := strings.TrimSpace(s.PIC)
 
-	// Check if PIC is registered user or email address
-	if strings.Contains(cleanPic, "@") {
-		toEmails = append(toEmails, cleanPic)
-	} else if cleanPic != "" && h.userRepo != nil {
-		allUsers, _ := h.userRepo.ListUsers(ctx, nil, "")
-		for _, u := range allUsers {
-			if strings.EqualFold(u.FullName, cleanPic) || strings.EqualFold(u.Username, cleanPic) {
-				if u.Email != "" {
-					toEmails = append(toEmails, u.Email)
+	// Support multiple PIC targets separated by comma or semicolon
+	rawPics := strings.FieldsFunc(s.PIC, func(r rune) bool {
+		return r == ',' || r == ';'
+	})
+	if len(rawPics) == 0 && cleanPic != "" {
+		rawPics = []string{cleanPic}
+	}
+
+	var allUsers []model.User
+	if h.userRepo != nil {
+		allUsers, _ = h.userRepo.ListUsers(ctx, nil, "")
+	}
+
+	for _, p := range rawPics {
+		cleanPic := strings.TrimSpace(p)
+		if cleanPic == "" {
+			continue
+		}
+		if strings.Contains(cleanPic, "@") {
+			if !emailSet[cleanPic] {
+				toEmails = append(toEmails, cleanPic)
+				emailSet[cleanPic] = true
+			}
+		} else {
+			for _, u := range allUsers {
+				if strings.EqualFold(u.FullName, cleanPic) || strings.EqualFold(u.Username, cleanPic) {
+					if u.Email != "" && !emailSet[u.Email] {
+						toEmails = append(toEmails, u.Email)
+						emailSet[u.Email] = true
+					}
+					break
 				}
-				break
 			}
 		}
 	}
@@ -585,7 +608,7 @@ func (h *DHLHandler) DeleteShipment(c echo.Context) error {
 func (h *DHLHandler) StartAutoUpdateWorker(ctx context.Context, interval time.Duration) {
 	h.mu.Lock()
 	if interval <= 0 {
-		interval = 30 * time.Minute
+		interval = 1 * time.Hour
 	}
 	h.workerInterval = interval
 	h.workerActive = true

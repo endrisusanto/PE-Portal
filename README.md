@@ -585,13 +585,63 @@ Sistem pencatatan, pelacakan, dan analisis **Engineering Change Notice (ECN)** u
      - **ECO Cancel**: ECN yang dibatalkan.
      - **Unique Models**: Jumlah model unik yang terpengaruh perubahan ECN.
 
-4. **SEIN ECN AI Chat Assistant (Accordion)**:
-   - Panel chatbot AI ditempatkan **di atas tabel** sebagai accordion (buka/tutup 1-klik).
-   - Terhubung ke LLM endpoint yang dikonfigurasi di portal (LM Studio / Ollama / OpenAI / Gemini).
-   - **Quick Suggestion Chips**: Klik chip pertanyaan preset untuk langsung bertanya ke AI (contoh: *"Rangkum semua ECN model S26"*, *"ECN mana yang masih pending lebih dari 2 minggu?"*).
+4. **SEIN ECN AI Chat Assistant (Accordion & MCP Integration)**:
+   - Panel chatbot AI ditempatkan **di atas tabel** sebagai accordion responsif (buka/tutup 1-klik).
+   - Terhubung ke LLM endpoint portal (LM Studio / Ollama / OpenAI / Gemini).
+   - **Dynamic Translation (Multi-Language)**: Seluruh elemen Card AI (judul, badge konteks, status pill, tombol toggle, quick preset chips & prompt, pesan sambutan, placeholder input, tombol kirim) mendukung translasi dinamis multibahasa (**Bahasa Korea / 한국어**, **Bahasa Indonesia**, dan **English**) yang otomatis reaktif saat user beralih bahasa antarmuka.
+   - **Integrasi MCP (Model Context Protocol)**: Mengatasi limitasi konteks prompt tradisional. AI terhubung langsung ke PostgreSQL melalui **SEIN PE-Portal MCP Tools**, memungkinkan LLM mencari dan menganalisis **ribuan data ECN** secara presisi dan terindeks dalam hitungan milidetik tanpa risiko *token overflow* atau halusinasi data.
+   - **Quick Suggestion Chips**: Preset pertanyaan teknik terjemahan otomatis (contoh: *"Ringkas seluruh ECN yang berstatus In Progress beserta dampaknya"*, *"Apakah ada perubahan material kritis, FET, atau supplier pada kolom Remark?"*).
    - **Rich Markdown Response**: Jawaban AI dirender dengan formatting lengkap — **bold**, *italic*, tabel Markdown, blockquote, code block, dan ordered/unordered list.
    - **Copy TSV**: Tombol salin untuk mengekstrak data tabel dari respons AI dalam format TSV (bisa langsung di-paste ke Excel).
-   - AI secara otomatis menerima konteks data ECN terkini dari database sehingga mampu menganalisis tren, mengidentifikasi bottleneck, dan memberikan rekomendasi berbasis data aktual.
+
+#### 🔄 Flowchart: Arsitektur ECN AI Assistant & MCP Query (Akses Ribuan Data)
+
+```mermaid
+flowchart TD
+    User([👨‍💻 Production Engineer]) -->|Ketik Pertanyaan / Klik Chip Preset| UI[Card AI Assistant ECN Monitoring]
+    
+    subgraph Frontend ["Frontend (React 19 + i18next)"]
+        UI -->|Deteksi Bahasa KO / ID / EN| ContextPrep[Format Request: Filter UI Aktif + Prompt User]
+        ContextPrep -->|POST /api/v1/ai/chat| Gateway[/API Gateway: /api/v1/ai/chat/]
+    end
+
+    subgraph BackendGo ["Backend (Go 1.22+ Echo Server)"]
+        Gateway --> IntentAnalyzer{Intent & Entity Analyzer}
+        
+        IntentAnalyzer -->|Query Spesifik / Agregasi ECN| MCPEngine[SEIN PE-Portal MCP Service]
+        
+        subgraph MCPTools ["MCP Server Tools (pe_mcp.go)"]
+            MCPEngine -->|Filter Model/Status/Remark/Part| T1[pe_search_ecn]
+            MCPEngine -->|Agregasi Total/Cancel/BOM/Process| T2[pe_get_ecn_statistics]
+            MCPEngine -->|Ad-hoc Query Kompleks| T3[pe_query_database]
+        end
+        
+        subgraph PostgreSQL ["PostgreSQL 16 (Full Indexed Database)"]
+            T1 -->|SQL Terindeks <10ms| DB[(Tabel ecn_records\nRibuan Baris Data)]
+            T2 -->|Agregasi Instan| DB
+            T3 -->|Read-only SELECT| DB
+        end
+        
+        DB -->|Data Terverifikasi 10-50 Baris| PromptInjector[Injeksi Live MCP Result ke Context LLM]
+        PromptInjector --> LLM[LLM Engine: LM Studio / Ollama / OpenAI / Gemini]
+    end
+
+    LLM -->|Analisis Mendalam & Tabel Markdown| Formatter[RichMessageContent Renderer]
+    Formatter -->|Tampilan Interaktif & Copy TSV| User
+```
+
+##### Perbandingan Arsitektur:
+
+```
+[SEBELUM] Client Prompt Stuffing (Terbatas):
+User Query ──► [Kirim 35 Baris JSON Mentah dari UI] ──► LLM ──► Jawaban Terbatas (Data baris 36+ tidak terbaca)
+
+[SESUDAH] Ponytail MCP Integration (Skalabel hingga Ribuan Data):
+User Query ──► [LLM + MCP Orchestrator] ──► [MCP Tool: pe_search_ecn / pe_get_ecn_statistics]
+                                                         │
+                                                         ▼
+[Jawaban Komprehensif Seluruh Database] ◄── [PostgreSQL Indexed Query (10.000+ Baris dalam <10ms)]
+```
 
 5. **Aksi Per-Record**:
    - **Edit**: Membuka modal form yang sama dengan data terisi untuk memperbarui record.
@@ -601,8 +651,12 @@ Sistem pencatatan, pelacakan, dan analisis **Engineering Change Notice (ECN)** u
 
 | Komponen | Teknologi | Detail |
 | :--- | :--- | :--- |
-| **Frontend** | React 19, CSS Modules | `EcnMonitoringPage.jsx` + `EcnMonitoringPage.module.css`, design tokens, dark mode support |
-| **Backend API** | Go 1.22+, Gin | 7 endpoint REST: `GET /ecn`, `GET /ecn/stats`, `POST /ecn`, `PUT /ecn/:id`, `DELETE /ecn/:id`, `POST /ecn/bulk`, `POST /ecn/parse-excel` |
+| **Frontend** | React 19, CSS Modules | `EcnMonitoringPage.jsx` + `EcnMonitoringPage.module.css`, dynamic i18n (`ko`, `id`, `en`), dark mode |
+| **Backend API** | Go 1.22+, Echo | REST endpoints ECN + integrasi LLM Chat & PEMCPService |
+| **MCP Tools** | In-Memory & SSE MCP | `pe_search_ecn`, `pe_get_ecn_statistics`, `pe_query_database` di `backend/internal/service/pe_mcp.go` |
+| **Excel Parser** | Python 3, openpyxl | `backend/scripts/ecn_parser.py` — DRM detection (NASCA/Fasoo/SoftCamp/Samsung), fuzzy header normalization |
+| **Database** | PostgreSQL 16 | Tabel `ecn_records` (20 kolom), 6 index performa terindeks, migrasi `029_ecn_monitoring.sql` |
+| **AI Engine** | Multi-Provider LLM | LM Studio, Ollama, OpenAI, Gemini dengan loop Tool-calling dan MCP live context injection |
 | **Excel Parser** | Python 3, openpyxl | `backend/scripts/ecn_parser.py` — DRM detection (NASCA/Fasoo/SoftCamp/Samsung), fuzzy header normalization, JSON output |
 | **Database** | PostgreSQL 16 | Tabel `ecn_records` (20 kolom), 6 index performa, migrasi `029_ecn_monitoring.sql` |
 | **AI Chat** | LLM Client (multi-provider) | Accordion panel dengan `RichMessageContent` renderer, mendukung Markdown penuh |

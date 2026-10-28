@@ -477,6 +477,7 @@ func (h *AIHandler) detectAndFetchPEData(ctx context.Context, userMsg string) st
 		"inovasi", "innovation", "kaizen", "ringkasan", "overview",
 		"summary", "statistik", "database", "unit", "mr release", "companion",
 		"evt", "dvt", "pvt", "sop", "s26", "s25",
+		"ecn", "eco", "running bom", "bom date", "child part", "remark", "smd", "mainline",
 	}
 	for _, kw := range keywords {
 		if strings.Contains(lower, kw) {
@@ -581,7 +582,57 @@ func (h *AIHandler) detectAndFetchPEData(ctx context.Context, userMsg string) st
 		}
 	}
 
-	// 7. Overview fallback / pulse
+	// 7. ECN (Engineering Change Notice) Monitoring - Full Database Access via MCP
+	if strings.Contains(lower, "ecn") || strings.Contains(lower, "eco") || strings.Contains(lower, "running bom") || strings.Contains(lower, "remark") || strings.Contains(lower, "bom date") {
+		statArgs := map[string]interface{}{}
+		for _, w := range strings.Fields(lower) {
+			wClean := strings.Trim(w, `",.?!'()[]`)
+			if strings.HasPrefix(wClean, "sm-") || strings.HasPrefix(wClean, "a5") || strings.HasPrefix(wClean, "a1") || strings.HasPrefix(wClean, "a0") {
+				statArgs["model"] = wClean
+				break
+			}
+		}
+		if sRes, err := h.peMCP.CallTool(ctx, "pe_get_ecn_statistics", statArgs); err == nil {
+			b, _ := json.Marshal(sRes)
+			dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_get_ecn_statistics ===\n%s", string(b)))
+		}
+
+		searchArgs := map[string]interface{}{"limit": float64(40)}
+		if mVal, ok := statArgs["model"]; ok {
+			searchArgs["model"] = mVal
+		}
+		if strings.Contains(lower, "cancel") {
+			searchArgs["status"] = "cancel"
+		} else if strings.Contains(lower, "progress") {
+			searchArgs["status"] = "in progress"
+		} else if strings.Contains(lower, "pending") {
+			searchArgs["status"] = "pending"
+		} else if strings.Contains(lower, "completed") || strings.Contains(lower, "selesai") {
+			searchArgs["status"] = "completed"
+		}
+
+		if strings.Contains(lower, "smd") {
+			searchArgs["process"] = "SMD"
+		} else if strings.Contains(lower, "mainline") {
+			searchArgs["process"] = "Mainline"
+		} else if strings.Contains(lower, "vendor") {
+			searchArgs["process"] = "Vendor"
+		}
+
+		for _, kw := range []string{"fet", "ic", "diode", "resistor", "pcb", "sub", "main", "conn", "cable", "supplier", "material"} {
+			if strings.Contains(lower, kw) {
+				searchArgs["search"] = kw
+				break
+			}
+		}
+
+		if ecnRes, err := h.peMCP.CallTool(ctx, "pe_search_ecn", searchArgs); err == nil {
+			b, _ := json.Marshal(ecnRes)
+			dataBlocks = append(dataBlocks, fmt.Sprintf("=== TOOL: pe_search_ecn (args: %+v) ===\n%s", searchArgs, string(b)))
+		}
+	}
+
+	// 8. Overview fallback / pulse
 	if len(dataBlocks) == 0 || strings.Contains(lower, "overview") || strings.Contains(lower, "summary") || strings.Contains(lower, "ringkasan") || strings.Contains(lower, "statistik") || strings.Contains(lower, "portal") {
 		res, err := h.peMCP.CallTool(ctx, "pe_get_portal_overview", map[string]interface{}{})
 		if err == nil {

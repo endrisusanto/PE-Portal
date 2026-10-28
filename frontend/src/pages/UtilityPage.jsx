@@ -3528,6 +3528,7 @@ const PPTXAutoSummaryTab = () => {
       'File Name',
       'Model',
       'Problem',
+      'Category',
       'CN',
       'Defect Date',
       'Defect Location',
@@ -4266,6 +4267,7 @@ Instruksi Analisis:
                   <th style={{ padding: '10px 12px', minWidth: '150px' }}>File Name</th>
                   <th style={{ padding: '10px 12px', minWidth: '110px' }}>Model</th>
                   <th style={{ padding: '10px 12px', minWidth: '140px' }}>Problem</th>
+                  <th style={{ padding: '10px 12px', minWidth: '95px', textAlign: 'center' }}>Kategori</th>
                   <th style={{ padding: '10px 12px', minWidth: '110px' }}>CN</th>
                   <th style={{ padding: '10px 12px', minWidth: '100px' }}>Defect Date</th>
                   <th style={{ padding: '10px 12px', minWidth: '120px' }}>Location</th>
@@ -4278,7 +4280,7 @@ Instruksi Analisis:
               <tbody>
                 {filteredResults.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    <td colSpan={12} style={{ padding: '30px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                       Tidak ada data yang cocok dengan pencarian "{searchQuery}"
                     </td>
                   </tr>
@@ -4321,6 +4323,20 @@ Instruksi Analisis:
                       </td>
                       <td style={{ padding: '10px 12px', fontWeight: 500 }}>
                         {row['Problem'] || <span style={{ color: 'var(--color-text-muted)' }}>-</span>}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          display: 'inline-block',
+                          backgroundColor: row['Category'] === 'Material' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                          color: row['Category'] === 'Material' ? '#f59e0b' : '#38bdf8',
+                          border: `1px solid ${row['Category'] === 'Material' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
+                        }}>
+                          {row['Category'] || 'Proses'}
+                        </span>
                       </td>
                       <td style={{ padding: '10px 12px', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>
                         {row['CN'] || '-'}

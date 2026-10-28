@@ -236,6 +236,52 @@ func (s *PEMCPService) GetTools() []MCPToolDef {
 				},
 			},
 		},
+		{
+			Name:        "pe_search_ecn",
+			Description: "Search and filter through the entire database of thousands of Engineering Change Notices (ECN) at SEIN PE. Supports filtering by model name, status (Completed, In Progress, Pending, ECO Cancel), process (SMD, Mainline, Vendor), keyword in title/remark/part_code/spec, and limit.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"model": map[string]interface{}{
+						"type":        "string",
+						"description": "Model name or code (e.g. 'SM-A566B', 'A16', 'S25')",
+					},
+					"status": map[string]interface{}{
+						"type":        "string",
+						"description": "ECN status: 'Completed', 'In Progress', 'Pending', 'ECO Cancel'",
+					},
+					"process": map[string]interface{}{
+						"type":        "string",
+						"description": "Process type: 'SMD', 'Mainline', 'Vendor', etc.",
+					},
+					"function_type": map[string]interface{}{
+						"type":        "string",
+						"description": "Function type: 'Circuit', 'Structure', 'Software', etc.",
+					},
+					"search": map[string]interface{}{
+						"type":        "string",
+						"description": "Search keyword in ECN No, EC Title, Remark, Specification, Child Part Code or Name",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"description": "Maximum records to return (default: 30, max: 100)",
+					},
+				},
+			},
+		},
+		{
+			Name:        "pe_get_ecn_statistics",
+			Description: "Get executive aggregated statistics across all ECN records in the database: total counts, breakdowns by status (Completed, In Progress, Pending, ECO Cancel), process breakdown (SMD, Mainline, Vendor), active running BOM count, and top models with most ECN changes.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"model": map[string]interface{}{
+						"type":        "string",
+						"description": "Optional: filter statistics for a specific model",
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -279,6 +325,12 @@ func (s *PEMCPService) CallTool(ctx context.Context, name string, args map[strin
 	case "pe_query_database":
 		return s.executeSafeQuery(ctx, args)
 
+	case "pe_search_ecn":
+		return s.searchECN(ctx, args)
+
+	case "pe_get_ecn_statistics":
+		return s.getECNStatistics(ctx, args)
+
 	default:
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
@@ -292,6 +344,11 @@ func (s *PEMCPService) getPortalOverview(ctx context.Context) (map[string]interf
 	var totalModels int
 	_ = s.pool.QueryRow(ctx, "SELECT COUNT(*) FROM new_models WHERE deleted_at IS NULL").Scan(&totalModels)
 	overview["total_new_models"] = totalModels
+
+	// ECN records count
+	var totalECN int
+	_ = s.pool.QueryRow(ctx, "SELECT COUNT(*) FROM ecn_records").Scan(&totalECN)
+	overview["total_ecn_records"] = totalECN
 
 	stageRows, err := s.pool.Query(ctx, "SELECT stage, COUNT(*) FROM new_models WHERE deleted_at IS NULL GROUP BY stage")
 	if err == nil {
@@ -998,4 +1055,177 @@ func (s *PEMCPService) executeSafeQuery(ctx context.Context, args map[string]int
 	}
 
 	return results, nil
+}
+
+// 12. Search ECN across thousands of records in PostgreSQL
+func (s *PEMCPService) searchECN(ctx context.Context, args map[string]interface{}) ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, ecn_no, COALESCE(model, ''), COALESCE(function_type, ''),
+		       COALESCE(purpose, ''), COALESCE(inventory_mgmt, ''), COALESCE(process, ''),
+		       COALESCE(ec_title, ''), COALESCE(parent_code, ''), COALESCE(parent_name, ''),
+		       COALESCE(before_after, ''), COALESCE(dl, ''), COALESCE(child_code, ''),
+		       COALESCE(child_name, ''), COALESCE(specification, ''), COALESCE(quantity, ''),
+		       COALESCE(marking_point, ''), COALESCE(running_date_bom, ''), COALESCE(distribution_date, ''),
+		       COALESCE(status, 'Pending'), COALESCE(remark, ''), to_char(created_at, 'YYYY-MM-DD')
+		FROM ecn_records
+		WHERE 1=1
+	`
+	params := []interface{}{}
+	pIdx := 1
+
+	if m, ok := args["model"].(string); ok && strings.TrimSpace(m) != "" {
+		query += fmt.Sprintf(" AND model ILIKE $%d", pIdx)
+		params = append(params, "%"+strings.TrimSpace(m)+"%")
+		pIdx++
+	}
+
+	if st, ok := args["status"].(string); ok && strings.TrimSpace(st) != "" {
+		query += fmt.Sprintf(" AND status ILIKE $%d", pIdx)
+		params = append(params, "%"+strings.TrimSpace(st)+"%")
+		pIdx++
+	}
+
+	if proc, ok := args["process"].(string); ok && strings.TrimSpace(proc) != "" {
+		query += fmt.Sprintf(" AND process ILIKE $%d", pIdx)
+		params = append(params, "%"+strings.TrimSpace(proc)+"%")
+		pIdx++
+	}
+
+	if fn, ok := args["function_type"].(string); ok && strings.TrimSpace(fn) != "" {
+		query += fmt.Sprintf(" AND function_type ILIKE $%d", pIdx)
+		params = append(params, "%"+strings.TrimSpace(fn)+"%")
+		pIdx++
+	}
+
+	if sVal, ok := args["search"].(string); ok && strings.TrimSpace(sVal) != "" {
+		pattern := "%" + strings.TrimSpace(sVal) + "%"
+		query += fmt.Sprintf(" AND (ecn_no ILIKE $%d OR ec_title ILIKE $%d OR remark ILIKE $%d OR specification ILIKE $%d OR child_code ILIKE $%d OR child_name ILIKE $%d OR parent_code ILIKE $%d)", pIdx, pIdx, pIdx, pIdx, pIdx, pIdx, pIdx)
+		params = append(params, pattern)
+		pIdx++
+	}
+
+	limit := 30
+	if l, ok := args["limit"].(float64); ok && l > 0 {
+		limit = int(l)
+		if limit > 100 {
+			limit = 100
+		}
+	} else if lInt, ok := args["limit"].(int); ok && lInt > 0 {
+		limit = lInt
+		if limit > 100 {
+			limit = 100
+		}
+	}
+
+	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d", limit)
+
+	rows, err := s.pool.Query(ctx, query, params...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := []map[string]interface{}{}
+	for rows.Next() {
+		var id, ecnNo, model, fnType, purpose, inv, process, title string
+		var parentCode, parentName, beforeAfter, dl, childCode, childName string
+		var spec, qty, marking, runningBom, distDate, status, remark, createdDate string
+
+		if err := rows.Scan(
+			&id, &ecnNo, &model, &fnType, &purpose, &inv, &process, &title,
+			&parentCode, &parentName, &beforeAfter, &dl, &childCode, &childName,
+			&spec, &qty, &marking, &runningBom, &distDate, &status, &remark, &createdDate,
+		); err == nil {
+			results = append(results, map[string]interface{}{
+				"id":                id,
+				"ecn_no":            ecnNo,
+				"model":             model,
+				"function_type":     fnType,
+				"purpose":           purpose,
+				"process":           process,
+				"ec_title":          title,
+				"parent_code":       parentCode,
+				"child_code":        childCode,
+				"child_name":        childName,
+				"specification":     spec,
+				"running_date_bom":  runningBom,
+				"distribution_date": distDate,
+				"status":            status,
+				"remark":            remark,
+				"created_date":      createdDate,
+			})
+		}
+	}
+	return results, nil
+}
+
+// 13. Get ECN Statistics across thousands of records in PostgreSQL
+func (s *PEMCPService) getECNStatistics(ctx context.Context, args map[string]interface{}) (map[string]interface{}, error) {
+	modelFilter := ""
+	params := []interface{}{}
+	if m, ok := args["model"].(string); ok && strings.TrimSpace(m) != "" {
+		modelFilter = " AND model ILIKE $1"
+		params = append(params, "%"+strings.TrimSpace(m)+"%")
+	}
+
+	// Total count
+	var total int
+	err := s.pool.QueryRow(ctx, "SELECT COUNT(*) FROM ecn_records WHERE 1=1"+modelFilter, params...).Scan(&total)
+	if err != nil {
+		return nil, err
+	}
+
+	// Status counts
+	statusMap := make(map[string]int)
+	rows, err := s.pool.Query(ctx, "SELECT COALESCE(status, 'Pending'), COUNT(*) FROM ecn_records WHERE 1=1"+modelFilter+" GROUP BY status", params...)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var st string
+			var cnt int
+			if rows.Scan(&st, &cnt) == nil {
+				statusMap[st] = cnt
+			}
+		}
+	}
+
+	// Process counts
+	processMap := make(map[string]int)
+	pRows, err := s.pool.Query(ctx, "SELECT COALESCE(process, 'Unspecified'), COUNT(*) FROM ecn_records WHERE 1=1"+modelFilter+" GROUP BY process", params...)
+	if err == nil {
+		defer pRows.Close()
+		for pRows.Next() {
+			var proc string
+			var cnt int
+			if pRows.Scan(&proc, &cnt) == nil {
+				processMap[proc] = cnt
+			}
+		}
+	}
+
+	// Active Running BOM count
+	var activeBomCount int
+	_ = s.pool.QueryRow(ctx, "SELECT COUNT(*) FROM ecn_records WHERE running_date_bom IS NOT NULL AND TRIM(running_date_bom) != '' AND TRIM(running_date_bom) != '-'"+modelFilter, params...).Scan(&activeBomCount)
+
+	// Top models with most ECN changes
+	topModels := []map[string]interface{}{}
+	mRows, err := s.pool.Query(ctx, "SELECT COALESCE(model, 'Unknown'), COUNT(*) FROM ecn_records WHERE 1=1"+modelFilter+" GROUP BY model ORDER BY COUNT(*) DESC LIMIT 5", params...)
+	if err == nil {
+		defer mRows.Close()
+		for mRows.Next() {
+			var mdl string
+			var cnt int
+			if mRows.Scan(&mdl, &cnt) == nil {
+				topModels = append(topModels, map[string]interface{}{"model": mdl, "count": cnt})
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"total_records":    total,
+		"by_status":        statusMap,
+		"by_process":       processMap,
+		"active_bom_count": activeBomCount,
+		"top_models":       topModels,
+	}, nil
 }

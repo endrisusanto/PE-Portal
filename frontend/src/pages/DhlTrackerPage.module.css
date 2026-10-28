@@ -1043,6 +1043,210 @@
   cursor: pointer;
 }
 
+/* PIC Chips Input Controls */
+.picChipsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  min-height: 42px;
+  padding: 0.375rem 0.625rem;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: 0.5rem;
+}
+
+.picEmptyHint {
+  font-size: 0.775rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.picCounter {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-left: 0.35rem;
+}
+
+.picChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem 0.2rem 0.55rem;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.picChip:hover {
+  border-color: var(--color-accent);
+}
+
+.picChipIcon {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.picChipText {
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picChipRemoveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin-left: 0.15rem;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.picChipRemoveBtn:hover {
+  background-color: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+}
+
+.picCustomInputRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+}
+
+.picTextInput {
+  flex: 1;
+  height: 38px;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  padding: 0 0.85rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.picTextInput:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.picTextInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.picAddBtn {
+  height: 38px !important;
+  border-radius: var(--radius-md, 8px) !important;
+  padding: 0 1rem !important;
+  font-size: 0.8125rem !important;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  box-sizing: border-box;
+}
+
+/* PIC Display Chips (Grid, Kanban, Table, Detail) */
+.picDisplayChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.picDisplayChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  background-color: var(--color-bg-tertiary, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.picDisplayChipSmall {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kanbanPicChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  flex: 1;
+}
+
+.kanbanPicLabel {
+  font-size: 0.725rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.tablePicChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  max-width: 260px;
+}
+
+.picUnassigned,
+.kanbanPicUnassigned,
+.tablePicUnassigned {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.detailPicRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.detailPicLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 /* Modals Forms */
 .modalForm {
   display: flex;

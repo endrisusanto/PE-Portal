@@ -29,6 +29,7 @@ import {
   Eye,
   PackageCheck,
   Mail,
+  X,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -38,6 +39,14 @@ import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
 import { portalConfirm } from '../contexts/ConfirmContext';
 import styles from './DhlTrackerPage.module.css';
+
+export const parsePics = (picStr) => {
+  if (!picStr || typeof picStr !== 'string') return [];
+  return picStr
+    .split(/[,;]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+};
 
 export const DhlTrackerPage = () => {
   const { t, i18n } = useTranslation();
@@ -68,10 +77,36 @@ export const DhlTrackerPage = () => {
   const [activeShipment, setActiveShipment] = useState(null);
   const [copiedId, setCopiedId] = useState('');
 
-  // PIC Option Users
+  // PIC Option Users & Multiple PIC states
   const [users, setUsers] = useState([]);
   const [addPicMode, setAddPicMode] = useState('registered'); // 'registered' | 'custom'
   const [editPicMode, setEditPicMode] = useState('registered'); // 'registered' | 'custom'
+  const [addPics, setAddPics] = useState([]);
+  const [customPicInput, setCustomPicInput] = useState('');
+  const [editPics, setEditPics] = useState([]);
+  const [editCustomPicInput, setEditCustomPicInput] = useState('');
+
+  const handleAddPicChip = (name, target = 'add') => {
+    const trimmed = name?.trim();
+    if (!trimmed) return;
+    if (target === 'add') {
+      if (!addPics.includes(trimmed)) {
+        setAddPics((prev) => [...prev, trimmed]);
+      }
+    } else {
+      if (!editPics.includes(trimmed)) {
+        setEditPics((prev) => [...prev, trimmed]);
+      }
+    }
+  };
+
+  const handleRemovePicChip = (indexToRemove, target = 'add') => {
+    if (target === 'add') {
+      setAddPics((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    } else {
+      setEditPics((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    }
+  };
 
   // DHL API Connectivity Status
   const [apiStatus, setApiStatus] = useState({ valid: true, status: 'checking', message: '' });
@@ -230,7 +265,7 @@ export const DhlTrackerPage = () => {
       setErrorMsg('');
       const payload = {
         tracking_number: addForm.tracking_number.trim(),
-        pic: addForm.pic.trim(),
+        pic: addPics.join(', '),
         notes: addForm.notes.trim(),
       };
       const { data } = await api.post('/dhl/shipments', payload);
@@ -242,6 +277,8 @@ export const DhlTrackerPage = () => {
       );
       setIsAddModalOpen(false);
       setAddForm({ tracking_number: '', pic: '', notes: '' });
+      setAddPics([]);
+      setCustomPicInput('');
       fetchShipments();
     } catch (err) {
       console.error('Error tracking DHL AWB:', err);
@@ -318,10 +355,13 @@ export const DhlTrackerPage = () => {
 
   // Open Edit Modal
   const handleOpenEdit = (shipment) => {
-    const isMatchingUser = users.some(
-      (u) => u.full_name === shipment.pic || u.username === shipment.pic
+    const initialPics = parsePics(shipment.pic);
+    setEditPics(initialPics);
+    setEditCustomPicInput('');
+    const hasCustom = initialPics.some(
+      (p) => !users.some((u) => u.full_name === p || u.username === p)
     );
-    setEditPicMode(isMatchingUser || !shipment.pic ? 'registered' : 'custom');
+    setEditPicMode(hasCustom ? 'custom' : 'registered');
     setEditForm({
       id: shipment.id,
       pic: shipment.pic || '',
@@ -337,7 +377,7 @@ export const DhlTrackerPage = () => {
     try {
       setSubmitting(true);
       await api.put(`/dhl/shipments/${editForm.id}`, {
-        pic: editForm.pic.trim(),
+        pic: editPics.join(', '),
         is_collected: editForm.is_collected,
         notes: editForm.notes.trim(),
       });
@@ -547,12 +587,14 @@ export const DhlTrackerPage = () => {
                     style={{ background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)', color: '#059669', gap: 4 }}
                     title={
                       apiStatus.worker.last_run_at
-                        ? `Auto-update aktif setiap ${apiStatus.worker.interval_minutes}m (Cek terakhir: ${new Date(apiStatus.worker.last_run_at).toLocaleTimeString()})`
-                        : `Auto-update aktif setiap ${apiStatus.worker.interval_minutes} menit`
+                        ? `Auto-update aktif setiap ${apiStatus.worker.interval_minutes >= 60 ? `${Math.round(apiStatus.worker.interval_minutes / 60)} jam` : `${apiStatus.worker.interval_minutes} menit`} (Cek terakhir: ${new Date(apiStatus.worker.last_run_at).toLocaleTimeString()})`
+                        : `Auto-update aktif setiap ${apiStatus.worker.interval_minutes >= 60 ? `${Math.round(apiStatus.worker.interval_minutes / 60)} jam` : `${apiStatus.worker.interval_minutes} menit`}`
                     }
                   >
                     <Clock size={11} />
-                    <span className={styles.apiStatusText}>Auto {apiStatus.worker.interval_minutes}m</span>
+                    <span className={styles.apiStatusText}>
+                      Auto {apiStatus.worker.interval_minutes >= 60 ? `${Math.round(apiStatus.worker.interval_minutes / 60)}h` : `${apiStatus.worker.interval_minutes}m`}
+                    </span>
                   </div>
                 )}
               </div>
@@ -794,11 +836,19 @@ export const DhlTrackerPage = () => {
 
                         {/* PIC Receiver */}
                         <div className={styles.kanbanPicRow}>
-                          <User size={13} />
-                          <span>{t('dhl.pic_label', 'PIC Penerima:')}</span>
-                          <span className={styles.kanbanPicName}>
-                            {item.pic || t('dhl.unassigned', 'Belum Ditugaskan')}
-                          </span>
+                          <span className={styles.kanbanPicLabel}>{t('dhl.pic_label', 'PIC:')}</span>
+                          <div className={styles.kanbanPicChips}>
+                            {parsePics(item.pic).length === 0 ? (
+                              <span className={styles.kanbanPicUnassigned}>{t('dhl.unassigned', 'Belum Ditugaskan')}</span>
+                            ) : (
+                              parsePics(item.pic).map((pic, pIdx) => (
+                                <span key={pIdx} className={styles.picDisplayChipSmall} title={pic}>
+                                  <User size={10} />
+                                  <span>{pic}</span>
+                                </span>
+                              ))
+                            )}
+                          </div>
                         </div>
 
                         {/* Checkpoint Snippet */}
@@ -952,9 +1002,17 @@ export const DhlTrackerPage = () => {
                         </div>
                       </td>
                       <td>
-                        <div className={styles.tablePic}>
-                          <User size={13} color="var(--color-text-muted)" />
-                          <span>{item.pic || t('dhl.unassigned', 'Belum Ditugaskan')}</span>
+                        <div className={styles.tablePicChips}>
+                          {parsePics(item.pic).length === 0 ? (
+                            <span className={styles.tablePicUnassigned}>{t('dhl.unassigned', 'Belum Ditugaskan')}</span>
+                          ) : (
+                            parsePics(item.pic).map((pic, pIdx) => (
+                              <span key={pIdx} className={styles.picDisplayChipSmall} title={pic}>
+                                <User size={11} />
+                                <span>{pic}</span>
+                              </span>
+                            ))
+                          )}
                         </div>
                       </td>
                       <td>
@@ -1131,10 +1189,18 @@ export const DhlTrackerPage = () => {
                 {/* PIC and Physical Sample Collection Status */}
                 <div className={styles.picSection}>
                   <div className={styles.picInfo}>
-                    <User size={14} className={styles.picIcon} />
-                    <div>
-                      <div className={styles.picLabel}>{t('dhl.pic_label', 'PIC Penerima:')}</div>
-                      <div className={styles.picName}>{item.pic || t('dhl.unassigned', 'Belum Ditugaskan')}</div>
+                    <div className={styles.picLabel}>{t('dhl.pic_label', 'PIC Penerima:')}</div>
+                    <div className={styles.picDisplayChips}>
+                      {parsePics(item.pic).length === 0 ? (
+                        <span className={styles.picUnassigned}>{t('dhl.unassigned', 'Belum Ditugaskan')}</span>
+                      ) : (
+                        parsePics(item.pic).map((pic, pIdx) => (
+                          <span key={pIdx} className={styles.picDisplayChip} title={pic}>
+                            <User size={11} />
+                            <span>{pic}</span>
+                          </span>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -1256,7 +1322,10 @@ export const DhlTrackerPage = () => {
 
           <div className={styles.formGroup}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-              <label className={styles.formLabel} style={{ margin: 0 }}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
+              <label className={styles.formLabel} style={{ margin: 0 }}>
+                {t('dhl.pic_input_label', 'PIC Penerima')}
+                {addPics.length > 0 && <span className={styles.picCounter}>({addPics.length})</span>}
+              </label>
               <div className={styles.picModeToggle}>
                 <label className={styles.picRadioLabel}>
                   <input
@@ -1276,32 +1345,92 @@ export const DhlTrackerPage = () => {
                     checked={addPicMode === 'custom'}
                     onChange={() => setAddPicMode('custom')}
                   />
-                  <span>Custom Input</span>
+                  <span>Input Manual</span>
                 </label>
               </div>
             </div>
 
+            {/* Chips Container */}
+            <div className={styles.picChipsContainer}>
+              {addPics.length === 0 ? (
+                <span className={styles.picEmptyHint}>
+                  Belum ada PIC dipilih. Tambahkan minimal satu PIC penerima sample.
+                </span>
+              ) : (
+                addPics.map((picName, idx) => (
+                  <span key={`${picName}-${idx}`} className={styles.picChip}>
+                    <User size={12} className={styles.picChipIcon} />
+                    <span className={styles.picChipText}>{picName}</span>
+                    <button
+                      type="button"
+                      className={styles.picChipRemoveBtn}
+                      onClick={() => handleRemovePicChip(idx, 'add')}
+                      title="Hapus PIC"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+
+            {/* Selector or Custom Input */}
             {addPicMode === 'registered' ? (
               <select
                 className={styles.selectInput}
-                style={{ width: '100%', height: '40px' }}
-                value={addForm.pic}
-                onChange={(e) => setAddForm({ ...addForm, pic: e.target.value })}
+                style={{ width: '100%', height: '38px' }}
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleAddPicChip(e.target.value, 'add');
+                  }
+                }}
               >
-                <option value="">-- Pilih PIC dari Akun Terdaftar --</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.full_name || u.username}>
-                    {u.full_name || u.username} ({u.email || u.role})
-                  </option>
-                ))}
+                <option value="">+ Pilih & Tambahkan User Terdaftar...</option>
+                {users.map((u) => {
+                  const name = u.full_name || u.username;
+                  const isSelected = addPics.includes(name);
+                  return (
+                    <option key={u.id} value={name} disabled={isSelected}>
+                      {isSelected ? `✓ ${name} (Sudah ditambahkan)` : `${name} (${u.email || u.role})`}
+                    </option>
+                  );
+                })}
               </select>
             ) : (
-              <Input
-                type="text"
-                placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
-                value={addForm.pic}
-                onChange={(e) => setAddForm({ ...addForm, pic: e.target.value })}
-              />
+              <div className={styles.picCustomInputRow}>
+                <input
+                  type="text"
+                  className={styles.picTextInput}
+                  placeholder={t('dhl.pic_custom_placeholder', 'Ketik nama / email PIC, tekan Enter')}
+                  value={customPicInput}
+                  onChange={(e) => setCustomPicInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (customPicInput.trim()) {
+                        handleAddPicChip(customPicInput.trim(), 'add');
+                        setCustomPicInput('');
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={styles.picAddBtn}
+                  onClick={() => {
+                    if (customPicInput.trim()) {
+                      handleAddPicChip(customPicInput.trim(), 'add');
+                      setCustomPicInput('');
+                    }
+                  }}
+                  disabled={!customPicInput.trim()}
+                >
+                  <Plus size={14} />
+                  Tambah
+                </Button>
+              </div>
             )}
           </div>
 
@@ -1337,7 +1466,10 @@ export const DhlTrackerPage = () => {
         <form onSubmit={handleEditSubmit} className={styles.modalForm}>
           <div className={styles.formGroup}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-              <label className={styles.formLabel} style={{ margin: 0 }}>{t('dhl.pic_input_label', 'PIC Penerima')}</label>
+              <label className={styles.formLabel} style={{ margin: 0 }}>
+                {t('dhl.pic_input_label', 'PIC Penerima')}
+                {editPics.length > 0 && <span className={styles.picCounter}>({editPics.length})</span>}
+              </label>
               <div className={styles.picModeToggle}>
                 <label className={styles.picRadioLabel}>
                   <input
@@ -1357,32 +1489,92 @@ export const DhlTrackerPage = () => {
                     checked={editPicMode === 'custom'}
                     onChange={() => setEditPicMode('custom')}
                   />
-                  <span>Custom Input</span>
+                  <span>Input Manual</span>
                 </label>
               </div>
             </div>
 
+            {/* Chips Container */}
+            <div className={styles.picChipsContainer}>
+              {editPics.length === 0 ? (
+                <span className={styles.picEmptyHint}>
+                  Belum ada PIC dipilih. Tambahkan minimal satu PIC penerima sample.
+                </span>
+              ) : (
+                editPics.map((picName, idx) => (
+                  <span key={`${picName}-${idx}`} className={styles.picChip}>
+                    <User size={12} className={styles.picChipIcon} />
+                    <span className={styles.picChipText}>{picName}</span>
+                    <button
+                      type="button"
+                      className={styles.picChipRemoveBtn}
+                      onClick={() => handleRemovePicChip(idx, 'edit')}
+                      title="Hapus PIC"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+
+            {/* Selector or Custom Input */}
             {editPicMode === 'registered' ? (
               <select
                 className={styles.selectInput}
-                style={{ width: '100%', height: '40px' }}
-                value={editForm.pic}
-                onChange={(e) => setEditForm({ ...editForm, pic: e.target.value })}
+                style={{ width: '100%', height: '38px' }}
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleAddPicChip(e.target.value, 'edit');
+                  }
+                }}
               >
-                <option value="">-- Pilih PIC dari Akun Terdaftar --</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.full_name || u.username}>
-                    {u.full_name || u.username} ({u.email || u.role})
-                  </option>
-                ))}
+                <option value="">+ Pilih & Tambahkan User Terdaftar...</option>
+                {users.map((u) => {
+                  const name = u.full_name || u.username;
+                  const isSelected = editPics.includes(name);
+                  return (
+                    <option key={u.id} value={name} disabled={isSelected}>
+                      {isSelected ? `✓ ${name} (Sudah ditambahkan)` : `${name} (${u.email || u.role})`}
+                    </option>
+                  );
+                })}
               </select>
             ) : (
-              <Input
-                type="text"
-                placeholder={t('dhl.pic_input_placeholder', 'Nama PIC penerima sample')}
-                value={editForm.pic}
-                onChange={(e) => setEditForm({ ...editForm, pic: e.target.value })}
-              />
+              <div className={styles.picCustomInputRow}>
+                <input
+                  type="text"
+                  className={styles.picTextInput}
+                  placeholder={t('dhl.pic_custom_placeholder', 'Ketik nama / email PIC, tekan Enter')}
+                  value={editCustomPicInput}
+                  onChange={(e) => setEditCustomPicInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (editCustomPicInput.trim()) {
+                        handleAddPicChip(editCustomPicInput.trim(), 'edit');
+                        setEditCustomPicInput('');
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={styles.picAddBtn}
+                  onClick={() => {
+                    if (editCustomPicInput.trim()) {
+                      handleAddPicChip(editCustomPicInput.trim(), 'edit');
+                      setEditCustomPicInput('');
+                    }
+                  }}
+                  disabled={!editCustomPicInput.trim()}
+                >
+                  <Plus size={14} />
+                  Tambah
+                </Button>
+              </div>
             )}
           </div>
 
@@ -1445,6 +1637,22 @@ export const DhlTrackerPage = () => {
                     <CheckCircle2 size={12} />
                     {activeShipment.dest_city || activeShipment.dest_country || 'Destination'}
                   </span>
+                </div>
+
+                <div className={styles.detailPicRow}>
+                  <span className={styles.detailPicLabel}>{t('dhl.pic_label', 'PIC Penerima:')}</span>
+                  <div className={styles.picDisplayChips}>
+                    {parsePics(activeShipment.pic).length === 0 ? (
+                      <span className={styles.picUnassigned}>{t('dhl.unassigned', 'Belum Ditugaskan')}</span>
+                    ) : (
+                      parsePics(activeShipment.pic).map((pic, pIdx) => (
+                        <span key={pIdx} className={styles.picDisplayChip}>
+                          <User size={11} />
+                          <span>{pic}</span>
+                        </span>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
