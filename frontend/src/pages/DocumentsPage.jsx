@@ -1114,28 +1114,39 @@ export const DocumentsPage = () => {
       >
         {previewDoc && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* Header Tab Switcher (Dokumen Asli vs Preview as Markdown vs DataHub Reader) */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px', flexWrap: 'wrap' }}>
+            {/* Header Tab Switcher (Full-width segmented group button) */}
+            <div style={{
+              display: 'flex',
+              width: '100%',
+              backgroundColor: 'var(--color-bg-primary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '4px',
+              gap: '6px',
+            }}>
               <button
                 type="button"
                 onClick={() => setPreviewMode('local')}
                 style={{
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  borderRadius: 'var(--radius-sm)',
+                  flex: 1,
+                  padding: '9px 12px',
+                  fontSize: '12.5px',
+                  borderRadius: 'var(--radius-xs)',
                   fontWeight: 600,
-                  backgroundColor: previewMode === 'local' ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
-                  color: previewMode === 'local' ? '#ffffff' : 'var(--color-text-primary)',
-                  border: '1px solid var(--color-border)',
+                  backgroundColor: previewMode === 'local' ? 'var(--color-accent)' : 'transparent',
+                  color: previewMode === 'local' ? '#ffffff' : 'var(--color-text-secondary)',
+                  border: 'none',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  justifyContent: 'center',
+                  gap: '8px',
                   transition: 'all 0.15s ease',
+                  boxShadow: previewMode === 'local' ? '0 1px 4px rgba(236, 72, 153, 0.25)' : 'none',
                 }}
               >
-                <FileText size={14} />
-                {t('documents.tab_local_file', 'Dokumen Asli')}
+                <FileText size={15} />
+                <span>{t('documents.tab_local_file', 'Dokumen Asli')}</span>
               </button>
 
               <button
@@ -1145,22 +1156,25 @@ export const DocumentsPage = () => {
                   if (!markdownData) fetchMarkdownView(previewDoc.id);
                 }}
                 style={{
-                  padding: '6px 14px',
-                  fontSize: '12px',
-                  borderRadius: 'var(--radius-sm)',
+                  flex: 1,
+                  padding: '9px 12px',
+                  fontSize: '12.5px',
+                  borderRadius: 'var(--radius-xs)',
                   fontWeight: 600,
-                  backgroundColor: previewMode === 'markdown' ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
-                  color: previewMode === 'markdown' ? '#ffffff' : 'var(--color-text-primary)',
-                  border: '1px solid var(--color-border)',
+                  backgroundColor: previewMode === 'markdown' ? 'var(--color-accent)' : 'transparent',
+                  color: previewMode === 'markdown' ? '#ffffff' : 'var(--color-text-secondary)',
+                  border: 'none',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  justifyContent: 'center',
+                  gap: '8px',
                   transition: 'all 0.15s ease',
+                  boxShadow: previewMode === 'markdown' ? '0 1px 4px rgba(236, 72, 153, 0.25)' : 'none',
                 }}
               >
-                <FileCode size={14} />
-                {t('documents.tab_markdown', 'Preview as Markdown')}
+                <FileCode size={15} />
+                <span>{t('documents.tab_markdown', 'Preview as Markdown')}</span>
                 <span style={{
                   fontSize: '10px',
                   padding: '1px 6px',
@@ -1181,23 +1195,33 @@ export const DocumentsPage = () => {
                     if (!datahubViewData) fetchDataHubView(previewDoc.id);
                   }}
                   style={{
-                    padding: '6px 14px',
-                    fontSize: '12px',
-                    borderRadius: 'var(--radius-sm)',
+                    flex: 1,
+                    padding: '9px 12px',
+                    fontSize: '12.5px',
+                    borderRadius: 'var(--radius-xs)',
                     fontWeight: 600,
-                    backgroundColor: previewMode === 'datahub' ? '#2563eb' : 'var(--color-bg-tertiary)',
-                    color: previewMode === 'datahub' ? '#ffffff' : 'var(--color-text-primary)',
-                    border: '1px solid var(--color-border)',
+                    backgroundColor: previewMode === 'datahub' ? '#2563eb' : 'transparent',
+                    color: previewMode === 'datahub' ? '#ffffff' : 'var(--color-text-secondary)',
+                    border: 'none',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
+                    justifyContent: 'center',
+                    gap: '8px',
                     transition: 'all 0.15s ease',
+                    boxShadow: previewMode === 'datahub' ? '0 1px 4px rgba(37, 99, 235, 0.25)' : 'none',
                   }}
                 >
-                  <ShieldCheck size={14} />
-                  {t('documents.tab_datahub_reader', 'DataHub Reader (Bypass DRM NASCA)')}
-                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.25)' }}>
+                  <ShieldCheck size={15} />
+                  <span>{t('documents.tab_datahub_reader', 'DataHub Reader')}</span>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    backgroundColor: previewMode === 'datahub' ? 'rgba(255,255,255,0.25)' : 'rgba(37, 99, 235, 0.15)',
+                    color: previewMode === 'datahub' ? '#ffffff' : '#2563eb',
+                    fontWeight: 700,
+                  }}>
                     Synced
                   </span>
                 </button>
