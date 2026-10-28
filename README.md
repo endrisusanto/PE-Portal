@@ -36,6 +36,7 @@ Dokumen ini disusun sebagai **dokumentasi teknis sistem**, **panduan penggunaan 
    - [14. Role-Based Access Control & Dynamic Menu Security](#14-role-based-access-control--dynamic-menu-security)
    - [15. Multi-Language & Canvas 60 FPS Personalization](#15-multi-language--canvas-60-fps-personalization)
    - [16. Windows Desktop Tray Manager (Tauri v2 + Rust)](#16-windows-desktop-tray-manager-tauri-v2--rust)
+   - [17. ECN Monitoring & AI Insight](#17-ecn-monitoring--ai-insight)
 4. [Tutorial Penggunaan Lengkap](#-tutorial-penggunaan-lengkap)
    - [Login dengan Akun ADCorp (LDAP Active Directory)](#login-dengan-akun-adcorp-ldap-active-directory)
    - [Login dengan Akun Lokal](#login-dengan-akun-lokal)
@@ -528,6 +529,104 @@ Aplikasi desktop native Windows berbobot sangat ringan (< 15 MB) untuk pengopera
 
 ---
 
+### 17. ECN Monitoring & AI Insight
+
+Sistem pencatatan, pelacakan, dan analisis **Engineering Change Notice (ECN)** untuk seluruh perubahan desain komponen, BOM, dan proses produksi di lini perakitan SEIN. Dilengkapi AI chatbot khusus untuk analisis data ECN secara interaktif.
+
+```
+[Excel DRM Bypass: Paste Table]──►[Preview & Validasi]──►[Bulk Import ke Database]
+         ▲                                                         │
+         │ (File NASCA Terproteksi)                                 ▼
+[Upload Excel (.xlsx)]──────────────────────────►[Python Parser]──►[DB PostgreSQL]
+         ▲                                                         │
+[Manual Entry (Wide Form)]──────────────────────────────────────────┘
+                                                                   │
+[AI Chat Accordion]◄── [Analisis Tren / Cari Pola / Ringkasan] ◄──┘
+```
+
+#### Alur Kerja (Workflow):
+
+1. **Tiga Jalur Input Data**:
+
+   - **Paste Table (Bypass Samsung NASCA DRM)**:
+     - Buka file ECN Excel yang diproteksi DRM NASCA di Microsoft Excel.
+     - Seleksi seluruh tabel data (termasuk header), tekan `Ctrl+C`.
+     - Di ECN Monitoring page, klik tombol **"Paste Table"** → *paste* (`Ctrl+V`) ke area teks.
+     - Parser frontend mendeteksi format TSV/CSV secara otomatis, menampilkan preview tabel lengkap.
+     - Klik **"Import [n] Records"** untuk menyimpan seluruh baris ke database sekaligus.
+     - **Mengapa Paste Table?** File ECN Samsung menggunakan DRM NASCA (`<## NASCA DRM FILE - VER1.00 ##>`) yang mengenkripsi container Excel. Membuka programatis file tersebut dari server tidak memungkinkan tanpa agent DRM Samsung terinstall. Metode Paste Table mem-bypass enkripsi karena data sudah didekripsi oleh Excel client di PC pengguna.
+
+   - **Upload File Excel (.xlsx)**:
+     - Klik tombol **"Upload Excel"** → pilih file `.xlsx` dari dialog.
+     - Backend mengirim file ke Python parser (`ecn_parser.py`) yang membaca konten via `openpyxl`.
+     - Parser melakukan DRM detection terlebih dahulu — jika terdeteksi signature NASCA/Fasoo/SoftCamp/Samsung DRM, parser mengembalikan pesan peringatan dan menyarankan menggunakan **Paste Table**.
+     - Jika file bersih, parser menormalisasi header kolom secara cerdas (fuzzy matching: `"ECN No"`, `"ecnno"`, `"ECN_NO"` semuanya dipetakan ke `ecn_no`), lalu mengembalikan data terstruktur JSON.
+     - Frontend menampilkan preview hasil parsing. Klik konfirmasi untuk bulk import.
+
+   - **Manual Entry (Wide Form Modal)**:
+     - Klik tombol **"+"** → modal form terbuka dalam layout horizontal 4 kolom (`maxWidth: min(1240px, 96vw)`).
+     - Form dikelompokkan dalam section: **Identifikasi ECN**, **Detail Komponen**, **Jadwal & Status**.
+     - Field mencakup: ECN No, Model, Function (Circuit/Mechanical/Software/dll), Process (SMD/MI/FA/ASSY/dll), EC Title, Parent Code, Parent Name, Before/After, D/L, Child Code, Child Name, Specification, Quantity, Marking Point, Running Date BOM, Distribution Date, Status, dan Remark.
+     - **Perlindungan Data Tidak Sengaja Hilang**: Modal tidak bisa ditutup dengan klik overlay atau tombol Escape (`closeOnOverlayClick={false}`, `closeOnEsc={false}`). Saat user menekan tombol `✕`, jika form sudah terisi sebagian, sistem menampilkan **dialog konfirmasi peringatan** (*"Data belum disimpan. Yakin ingin menutup?"*) sebelum benar-benar menutup modal.
+
+2. **Tabel Data Interaktif (12 Kolom)**:
+   - Menampilkan seluruh record ECN dalam tabel dengan kolom: ECN No, Model, Function, Process, EC Title, Child Code, Child Name, Specification, Qty, Running Date, Dist. Date, Status.
+   - **Sorting Multi-Kolom**: Klik header kolom untuk mengurutkan ascending/descending. Ikon panah (`↑`/`↓`) menunjukkan kolom dan arah sort aktif.
+   - **Individual Column Search (Per-Kolom Filter)**: Setiap header kolom memiliki input pencarian kecil di bawahnya. Ketik untuk memfilter data secara real-time pada kolom spesifik. Mendukung filter simultan di beberapa kolom sekaligus (contoh: filter `Model = S26` DAN `Process = SMD` DAN `Status = Completed`).
+   - **Reset Filter 1-Klik**: Tombol reset (ikon ↺) untuk menghapus seluruh filter kolom sekaligus.
+   - **Expandable Row**: Klik baris untuk melihat detail lengkap field tambahan (Parent Code, Parent Name, Before/After, D/L, Marking Point, Purpose, Inventory Mgmt, Remark) dalam panel ekspansi.
+
+3. **Dashboard Statistik**:
+   - Card overview di atas tabel menampilkan metrik real-time:
+     - **Total Records**: Jumlah seluruh entri ECN.
+     - **Completed**: ECN yang sudah selesai diimplementasikan.
+     - **In Progress**: ECN dalam proses penerapan.
+     - **Pending**: ECN yang belum dimulai.
+     - **ECO Cancel**: ECN yang dibatalkan.
+     - **Unique Models**: Jumlah model unik yang terpengaruh perubahan ECN.
+
+4. **SEIN ECN AI Chat Assistant (Accordion)**:
+   - Panel chatbot AI ditempatkan **di atas tabel** sebagai accordion (buka/tutup 1-klik).
+   - Terhubung ke LLM endpoint yang dikonfigurasi di portal (LM Studio / Ollama / OpenAI / Gemini).
+   - **Quick Suggestion Chips**: Klik chip pertanyaan preset untuk langsung bertanya ke AI (contoh: *"Rangkum semua ECN model S26"*, *"ECN mana yang masih pending lebih dari 2 minggu?"*).
+   - **Rich Markdown Response**: Jawaban AI dirender dengan formatting lengkap — **bold**, *italic*, tabel Markdown, blockquote, code block, dan ordered/unordered list.
+   - **Copy TSV**: Tombol salin untuk mengekstrak data tabel dari respons AI dalam format TSV (bisa langsung di-paste ke Excel).
+   - AI secara otomatis menerima konteks data ECN terkini dari database sehingga mampu menganalisis tren, mengidentifikasi bottleneck, dan memberikan rekomendasi berbasis data aktual.
+
+5. **Aksi Per-Record**:
+   - **Edit**: Membuka modal form yang sama dengan data terisi untuk memperbarui record.
+   - **Delete**: Hapus record dengan konfirmasi dialog (hanya Admin dan Manager).
+
+#### Arsitektur Teknis:
+
+| Komponen | Teknologi | Detail |
+| :--- | :--- | :--- |
+| **Frontend** | React 19, CSS Modules | `EcnMonitoringPage.jsx` + `EcnMonitoringPage.module.css`, design tokens, dark mode support |
+| **Backend API** | Go 1.22+, Gin | 7 endpoint REST: `GET /ecn`, `GET /ecn/stats`, `POST /ecn`, `PUT /ecn/:id`, `DELETE /ecn/:id`, `POST /ecn/bulk`, `POST /ecn/parse-excel` |
+| **Excel Parser** | Python 3, openpyxl | `backend/scripts/ecn_parser.py` — DRM detection (NASCA/Fasoo/SoftCamp/Samsung), fuzzy header normalization, JSON output |
+| **Database** | PostgreSQL 16 | Tabel `ecn_records` (20 kolom), 6 index performa, migrasi `029_ecn_monitoring.sql` |
+| **AI Chat** | LLM Client (multi-provider) | Accordion panel dengan `RichMessageContent` renderer, mendukung Markdown penuh |
+
+#### REST API Endpoints:
+
+| Method | Endpoint | Deskripsi |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/ecn` | List semua ECN records (paginasi, search, filter model/status/process/function) |
+| `GET` | `/api/v1/ecn/stats` | Statistik agregat: total, completed, pending, in_progress, eco_cancel, unique models |
+| `POST` | `/api/v1/ecn` | Buat satu ECN record baru (manual entry) |
+| `PUT` | `/api/v1/ecn/:id` | Update ECN record berdasarkan UUID |
+| `DELETE` | `/api/v1/ecn/:id` | Hapus ECN record (Admin/Manager only) |
+| `POST` | `/api/v1/ecn/bulk` | Bulk import array ECN records (dari Paste Table) |
+| `POST` | `/api/v1/ecn/parse-excel` | Upload file Excel → Python parser → return parsed JSON |
+
+#### Keuntungan (Benefit):
+- **Bypass DRM Tanpa Tool Tambahan**: Metode Paste Table memungkinkan impor data dari file Excel terproteksi Samsung NASCA DRM tanpa perlu menginstal tool dekripsi khusus di server — cukup copy-paste dari Excel client.
+- **Zero Data Loss Entry**: Modal form dilindungi dari penutupan tidak sengaja (*overlay click* dan *Escape* dinonaktifkan) dengan dialog konfirmasi peringatan.
+- **Pencarian Presisi Tinggi**: Filter per-kolom memungkinkan engineer menemukan ECN spesifik di antara ribuan record dalam hitungan detik (contoh: cari semua ECN dengan `Child Code = XYZ` dan `Status = Pending`).
+- **AI-Driven Insight**: Chat AI menganalisis data ECN aktual untuk mengidentifikasi tren, bottleneck, dan memberikan rekomendasi — mengurangi waktu analisis manual dari jam menjadi detik.
+
+---
+
 ## 📖 Tutorial Penggunaan Lengkap
 
 ---
@@ -847,7 +946,7 @@ Tampilkan tabel komparasi sebelum dan sesudah:
 | **Frontend Web** | React 19, Vite, Vanilla CSS Modules, Lucide Icons, i18next | Build ultra cepat (< 300ms), nol UI library bloat, responsif |
 | **Backend API** | Go 1.22+, Gin Web Framework, pgx, go-ldap | Idle memory < 35MB, throughput konkurensi tinggi |
 | **AI / Vision** | U2Net ONNX (Python), OpenAI / LM Studio / Ollama Client, MCP Client | Self-hosted AI, tanpa ketergantungan internet |
-| **Database** | PostgreSQL 16, pgvector (RAG embeddings) | ACID compliant, migrasi versi 001 – 024 |
+| **Database** | PostgreSQL 16, pgvector (RAG embeddings) | ACID compliant, migrasi versi 001 – 029 |
 | **Cache & Queue** | Redis 7 | Cache cepat, blacklist JWT, koordinasi scheduler cron |
 | **Kontainerisasi** | Docker Compose, Nginx Alpine (multi-stage build) | Image hemat ukuran, siap deploy produksi instan |
 | **CI/CD** | GitHub Actions, Minisign signing | Automated build & release untuk Windows installer |
@@ -1013,8 +1112,8 @@ PE-Portal/
 │   │   ├── model/            # Go domain struct definitions
 │   │   ├── repository/       # Database SQL queries
 │   │   └── service/          # SMTP dispatcher, LLM client, cron scheduler
-│   ├── scripts/              # U2Net background removal Python workers
-│   └── migrations/           # Database SQL schema migrations (001 – 024)
+│   ├── scripts/              # U2Net background removal, ECN Excel parser
+│   └── migrations/           # Database SQL schema migrations (001 – 029)
 │
 ├── frontend/                 # React 19 + Vite frontend
 │   ├── Dockerfile            # Multi-stage build with Nginx Alpine
@@ -1033,9 +1132,9 @@ PE-Portal/
 │       ├── pages/            # Dashboard, Innovations, Projects, Models,
 │       │                     # Articles, Documents, Reports, ReportEditor,
 │       │                     # SampleManagement, DhlTracker, SoftwareMR,
-│       │                     # GbaTasks, GmesMonitoring, Training,
-│       │                     # VirtualOffice, AiChat, Utility, Team,
-│       │                     # Profile, Settings, Admin, SharedDocument
+│       │                     # GbaTasks, GmesMonitoring, EcnMonitoring,
+│       │                     # Training, VirtualOffice, AiChat, Utility,
+│       │                     # Team, Profile, Settings, Admin, SharedDocument
 │       ├── index.css         # Design system tokens, grain, palettes
 │       └── main.jsx          # React DOM root entrypoint
 │
