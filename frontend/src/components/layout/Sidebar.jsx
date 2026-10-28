@@ -35,6 +35,7 @@ import {
   Pin,
   Presentation,
   FileSpreadsheet,
+  Languages,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/client';
@@ -58,7 +59,8 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
     location.pathname === '/tools/documents' ||
     location.pathname === '/tools/pdf-merge-split' ||
     location.pathname === '/tools/pptx-summary' ||
-    location.pathname === '/tools/powerpoint-summary';
+    location.pathname === '/tools/powerpoint-summary' ||
+    location.pathname === '/tools/wi-translator';
   const isToolsMediaActive =
     location.pathname === '/tools/images' ||
     location.pathname === '/tools/remove-bg' ||
@@ -267,6 +269,7 @@ export const Sidebar = ({ isCollapsed, onToggleChat, onToggleCollapse }) => {
         { key: 'tools-documents', to: '/tools/documents', label: t('nav.tools_docs', 'Document PDF Compress'), icon: FileArchive },
         { key: 'tools-pdf-merge-split', to: '/tools/pdf-merge-split', label: t('nav.tools_pdf_merge_split', 'PDF Merge & Split'), icon: FileStack },
         { key: 'tools-pptx-summary', to: '/tools/pptx-summary', label: t('nav.tools_pptx_summary', 'Technical Report Auto Summary'), icon: Presentation },
+        { key: 'tools-wi-translator', to: '/tools/wi-translator', label: t('nav.tools_wi_translator', 'Working Instruction Translator'), icon: Languages },
       ]
         .filter((sub) => isMenuAllowed(sub.key))
         .sort((a, b) => a.label.localeCompare(b.label)),

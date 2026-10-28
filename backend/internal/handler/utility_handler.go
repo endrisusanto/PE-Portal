@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,16 +12,44 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"pe-portal/internal/repository"
 	"pe-portal/internal/util"
 )
 
-type UtilityHandler struct{}
+type WITranslateJob struct {
+	JobID           string    `json:"job_id"`
+	Status          string    `json:"status"` // "processing", "completed", "failed"
+	CurrentPage     int       `json:"current_page"`
+	TotalPages      int       `json:"total_pages"`
+	ProgressPercent float64   `json:"progress_percent"`
+	Message         string    `json:"message"`
+	DownloadURL     string    `json:"download_url,omitempty"`
+	Filename        string    `json:"filename"`
+	TranslatedFile  string    `json:"translated_file,omitempty"`
+	TranslatedCount int       `json:"translated_count"`
+	DurationSec     float64   `json:"duration_sec"`
+	Error           string    `json:"error,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+}
 
-func NewUtilityHandler() *UtilityHandler {
-	return &UtilityHandler{}
+type UtilityHandler struct {
+	llmRepo *repository.LLMRepository
+	wiJobs  sync.Map
+}
+
+func NewUtilityHandler(llmRepo ...*repository.LLMRepository) *UtilityHandler {
+	var repo *repository.LLMRepository
+	if len(llmRepo) > 0 {
+		repo = llmRepo[0]
+	}
+	return &UtilityHandler{
+		llmRepo: repo,
+	}
 }
 
 // GetStatus checks if local Python, Ghostscript, and FFmpeg VAAPI utilities are available
@@ -718,6 +748,234 @@ func (h *UtilityHandler) DownloadPPTXSummary(c echo.Context) error {
 func findPythonExecutable() string {
 	return util.FindPythonExecutable()
 }
+
+// TranslateWIPDF handles upload of Working Instruction PDF and kicks off batch translation
+func (h *UtilityHandler) TranslateWIPDF(c echo.Context) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No file uploaded: " + err.Error()})
+	}
+
+	targetLang := c.FormValue("target_lang")
+	if targetLang == "" {
+		targetLang = "id"
+	}
+	mode := c.FormValue("mode")
+	if mode == "" {
+		mode = "replace"
+	}
+
+	jobID := uuid.New().String()
+	tempDir := filepath.Join(os.TempDir(), "wi_translator", jobID)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create working directory: " + err.Error()})
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Failed to open uploaded file: " + err.Error()})
+	}
+	defer src.Close()
+
+	inputPDFPath := filepath.Join(tempDir, filepath.Base(file.Filename))
+	dst, err := os.Create(inputPDFPath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save file: " + err.Error()})
+	}
+	if _, err = io.Copy(dst, src); err != nil {
+		dst.Close()
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to write file: " + err.Error()})
+	}
+	dst.Close()
+
+	// Storage directory for translated files
+	storageDir := os.Getenv("FILE_STORAGE_PATH")
+	if storageDir == "" {
+		storageDir = "/data/files"
+	}
+	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
+		storageDir = filepath.Join(os.TempDir(), "pe_translated_wi")
+		_ = os.MkdirAll(storageDir, 0755)
+	}
+
+	ext := filepath.Ext(file.Filename)
+	base := strings.TrimSuffix(filepath.Base(file.Filename), ext)
+	outFilename := fmt.Sprintf("[%s]_%s_%s%s", strings.ToUpper(targetLang), base, time.Now().Format("20060102_150405"), ext)
+	outPDFPath := filepath.Join(storageDir, outFilename)
+
+	job := &WITranslateJob{
+		JobID:           jobID,
+		Status:          "processing",
+		CurrentPage:     0,
+		TotalPages:      0,
+		ProgressPercent: 0,
+		Message:         "Inisialisasi dokumen...",
+		Filename:        file.Filename,
+		TranslatedFile:  outFilename,
+		CreatedAt:       time.Now(),
+	}
+	h.wiJobs.Store(jobID, job)
+
+	// Locate python script
+	scriptPath := filepath.Join("scripts", "pdf_wi_translator.py")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		scriptPath = filepath.Join("backend", "scripts", "pdf_wi_translator.py")
+		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+			scriptPath = "/app/scripts/pdf_wi_translator.py"
+		}
+	}
+
+	pythonBin := findPythonExecutable()
+
+	// Check active LLM config
+	var llmURL, llmModel, llmKey string
+	if h.llmRepo != nil {
+		if cfg, _, err := h.llmRepo.GetActiveLLM(context.Background(), nil); err == nil && cfg != nil && cfg.IsActive {
+			llmURL = cfg.BaseURL
+			llmModel = cfg.ModelName
+			llmKey = cfg.APIKey
+		}
+	}
+
+	// Launch async translation worker
+	go func() {
+		cmdArgs := []string{
+			scriptPath,
+			"--input-file", inputPDFPath,
+			"--output-pdf", outPDFPath,
+			"--target-lang", targetLang,
+			"--mode", mode,
+		}
+		if llmURL != "" {
+			cmdArgs = append(cmdArgs, "--llm-url", llmURL)
+		}
+		if llmModel != "" {
+			cmdArgs = append(cmdArgs, "--llm-model", llmModel)
+		}
+		if llmKey != "" {
+			cmdArgs = append(cmdArgs, "--llm-api-key", llmKey)
+		}
+
+		cmd := exec.Command(pythonBin, cmdArgs...)
+		cmd.Env = append(os.Environ(),
+			"PYTHONIOENCODING=utf-8",
+			"PYTHONUTF8=1",
+		)
+
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			job.Status = "failed"
+			job.Error = "Failed to open stdout pipe: " + err.Error()
+			job.Message = job.Error
+			return
+		}
+		if err := cmd.Start(); err != nil {
+			job.Status = "failed"
+			job.Error = "Failed to start python script: " + err.Error()
+			job.Message = job.Error
+			return
+		}
+
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+			var progressData map[string]interface{}
+			if err := json.Unmarshal([]byte(line), &progressData); err == nil {
+				if curr, ok := progressData["current"].(float64); ok {
+					job.CurrentPage = int(curr)
+				}
+				if tot, ok := progressData["total"].(float64); ok {
+					job.TotalPages = int(tot)
+				}
+				if pct, ok := progressData["percent"].(float64); ok {
+					job.ProgressPercent = pct
+				}
+				if msg, ok := progressData["message"].(string); ok && msg != "" {
+					job.Message = msg
+				}
+				if succ, ok := progressData["success"].(bool); ok && succ {
+					job.Status = "completed"
+					job.ProgressPercent = 100.0
+					if count, ok := progressData["translated_blocks"].(float64); ok {
+						job.TranslatedCount = int(count)
+					}
+					if dur, ok := progressData["duration_sec"].(float64); ok {
+						job.DurationSec = dur
+					}
+					job.DownloadURL = fmt.Sprintf("/api/v1/utility/translate-wi-pdf/download/%s", outFilename)
+				} else if errVal, ok := progressData["error"].(string); ok && errVal != "" {
+					job.Status = "failed"
+					job.Error = errVal
+					job.Message = "Gagal: " + errVal
+				}
+			}
+		}
+
+		if err := cmd.Wait(); err != nil {
+			if job.Status != "completed" {
+				job.Status = "failed"
+				if job.Error == "" {
+					job.Error = "Python process error: " + err.Error()
+					job.Message = job.Error
+				}
+			}
+		} else {
+			if job.Status != "failed" {
+				job.Status = "completed"
+				job.ProgressPercent = 100.0
+				job.DownloadURL = fmt.Sprintf("/api/v1/utility/translate-wi-pdf/download/%s", outFilename)
+			}
+		}
+	}()
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"job_id":  jobID,
+		"status":  "processing",
+		"message": "Penerjemahan dokumen dimulai di latar belakang...",
+	})
+}
+
+// GetTranslateWIStatus returns live translation progress
+func (h *UtilityHandler) GetTranslateWIStatus(c echo.Context) error {
+	jobID := c.Param("jobId")
+	val, ok := h.wiJobs.Load(jobID)
+	if !ok {
+		return c.JSON(http.StatusNotFound, map[string]string{"message": "Job not found"})
+	}
+	job := val.(*WITranslateJob)
+	return c.JSON(http.StatusOK, job)
+}
+
+// DownloadTranslatedWIPDF serves the translated PDF document
+func (h *UtilityHandler) DownloadTranslatedWIPDF(c echo.Context) error {
+	filename := c.Param("filename")
+	if filename == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Filename required"})
+	}
+
+	cleanName := filepath.Base(filename)
+	storageDir := os.Getenv("FILE_STORAGE_PATH")
+	if storageDir == "" {
+		storageDir = "/data/files"
+	}
+
+	filePath := filepath.Join(storageDir, cleanName)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		filePath = filepath.Join(os.TempDir(), "pe_translated_wi", cleanName)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			filePath = filepath.Join(os.TempDir(), cleanName)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				return c.JSON(http.StatusNotFound, map[string]string{"message": "Translated PDF not found or expired"})
+			}
+		}
+	}
+
+	return c.Attachment(filePath, cleanName)
+}
+
 
 
 

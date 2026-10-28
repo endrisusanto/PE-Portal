@@ -104,7 +104,7 @@ func main() {
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
 	sampleHandler := handler.NewSampleHandler(sampleRepo)
 	softwareMRHandler := handler.NewSoftwareMRHandler(softwareMRRepo)
-	utilityHandler := handler.NewUtilityHandler()
+	utilityHandler := handler.NewUtilityHandler(llmRepo)
 	dhlRepo := repository.NewDHLRepository(pgPool.Pool)
 	dhlHandler := handler.NewDHLHandler(dhlRepo, userRepo, reportRepo, smtpService)
 	dhlHandler.StartAutoUpdateWorker(context.Background(), 1*time.Hour)
@@ -381,6 +381,9 @@ func main() {
 	api.POST("/utility/compress-video", utilityHandler.CompressVideo)
 	api.POST("/utility/pptx-summary", utilityHandler.SummarizePPTX)
 	api.GET("/utility/pptx-summary/download/:filename", utilityHandler.DownloadPPTXSummary)
+	api.POST("/utility/translate-wi-pdf", utilityHandler.TranslateWIPDF)
+	api.GET("/utility/translate-wi-pdf/status/:jobId", utilityHandler.GetTranslateWIStatus)
+	api.GET("/utility/translate-wi-pdf/download/:filename", utilityHandler.DownloadTranslatedWIPDF)
 
 	// ECN Monitoring Routes
 	api.GET("/ecn", ecnHandler.List)
