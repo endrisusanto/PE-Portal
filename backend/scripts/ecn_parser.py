@@ -160,14 +160,11 @@ def parse_xlsx(file_path):
             data_rows_initial = sample_rows[header_idx + 1:]
 
         records = []
+        current_cache = {k: "" for k in ALL_KEYS}
         last_ecn_no = ""
-        last_model = ""
-        last_ec_title = ""
-        last_func_type = ""
-        last_process = ""
 
         def process_row(r):
-            nonlocal last_ecn_no, last_model, last_ec_title, last_func_type, last_process
+            nonlocal current_cache, last_ecn_no
             if not any(r):
                 return
             record = {k: "" for k in ALL_KEYS}
@@ -182,31 +179,19 @@ def parse_xlsx(file_path):
             if not has_any_content:
                 return
 
-            # Forward fill for merged/empty header cells across line items
-            if record['ecn_no']:
-                last_ecn_no = record['ecn_no']
-            elif last_ecn_no:
-                record['ecn_no'] = last_ecn_no
+            row_ecn_no = record['ecn_no'].strip()
+            # If a new distinct ECN NO is encountered, start a fresh cache block
+            if row_ecn_no and row_ecn_no != last_ecn_no:
+                current_cache = {k: "" for k in ALL_KEYS}
+                last_ecn_no = row_ecn_no
 
-            if record['model']:
-                last_model = record['model']
-            elif last_model:
-                record['model'] = last_model
-
-            if record['ec_title']:
-                last_ec_title = record['ec_title']
-            elif last_ec_title:
-                record['ec_title'] = last_ec_title
-
-            if record['function_type']:
-                last_func_type = record['function_type']
-            elif last_func_type:
-                record['function_type'] = last_func_type
-
-            if record['process']:
-                last_process = record['process']
-            elif last_process:
-                record['process'] = last_process
+            # Forward-fill all columns for merged cells (from parent_code to marking_point and headers)
+            for k in ALL_KEYS:
+                val = record[k].strip()
+                if val:
+                    current_cache[k] = val
+                elif current_cache[k]:
+                    record[k] = current_cache[k]
 
             # Safe fallbacks for missing/empty columns
             if not record['ecn_no']:

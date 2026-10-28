@@ -371,38 +371,30 @@ export const EcnMonitoringPage = () => {
     }
 
     const parsed = [];
+    let currentCache = {};
     let lastEcnNo = '';
-    let lastModel = '';
-    let lastTitle = '';
+
+    const ALL_KEYS = [
+      'ecn_no', 'model', 'function_type', 'purpose', 'inventory_mgmt',
+      'process', 'ec_title', 'parent_code', 'parent_name', 'before_after',
+      'dl', 'child_code', 'child_name', 'specification', 'quantity',
+      'marking_point', 'running_date_bom', 'distribution_date', 'status', 'remark'
+    ];
+
     for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
       const cols = line.split('\t').map((c) => c.trim());
       if (cols.length === 0) continue;
 
-      let ecnNo = cols[0] || '';
-      let model = cols[1] || '';
-      let ecTitle = cols[6] || '';
-
-      if (ecnNo) lastEcnNo = ecnNo;
-      else if (lastEcnNo) ecnNo = lastEcnNo;
-
-      if (model) lastModel = model;
-      else if (lastModel) model = lastModel;
-
-      if (ecTitle) lastTitle = ecTitle;
-      else if (lastTitle) ecTitle = lastTitle;
-
-      if (!ecnNo) ecnNo = '-';
-
-      parsed.push({
-        ecn_no: ecnNo,
-        model: model,
+      const record = {
+        ecn_no: cols[0] || '',
+        model: cols[1] || '',
         function_type: cols[2] || '',
         purpose: cols[3] || '',
         inventory_mgmt: cols[4] || '',
         process: cols[5] || '',
-        ec_title: ecTitle,
+        ec_title: cols[6] || '',
         parent_code: cols[7] || '',
         parent_name: cols[8] || '',
         before_after: cols[9] || '',
@@ -414,9 +406,33 @@ export const EcnMonitoringPage = () => {
         marking_point: cols[15] || '',
         running_date_bom: cols[16] || '',
         distribution_date: cols[17] || '',
-        status: cols[18] || 'Pending',
+        status: cols[18] || '',
         remark: cols[19] || (cols.length > 20 ? cols.slice(19).join(' ') : ''),
-      });
+      };
+
+      const hasContent = Object.values(record).some((v) => v !== '');
+      if (!hasContent) continue;
+
+      const rowEcnNo = record.ecn_no.trim();
+      if (rowEcnNo && rowEcnNo !== lastEcnNo) {
+        currentCache = {};
+        lastEcnNo = rowEcnNo;
+      }
+
+      // Forward-fill all columns for merged cells (parent_code through marking_point, headers, dates)
+      for (const k of ALL_KEYS) {
+        const val = (record[k] || '').trim();
+        if (val) {
+          currentCache[k] = val;
+        } else if (currentCache[k]) {
+          record[k] = currentCache[k];
+        }
+      }
+
+      if (!record.ecn_no) record.ecn_no = '-';
+      if (!record.status) record.status = 'Pending';
+
+      parsed.push(record);
     }
 
     setParsedPasteRows(parsed);
