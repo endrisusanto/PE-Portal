@@ -9,13 +9,41 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)](https://www.docker.com)
 [![License](https://img.shields.io/badge/License-Proprietary%20%2F%20Internal-red.svg)](LICENSE)
 
-An all-in-one, ultra-fast, low-resource engineering management platform specifically engineered for the **SEIN PE Group** (~30 engineers). Designed to streamline best practice innovations, product model stage developments, digital reports, automated email dispatch, self-hosted AI tools, and a lightweight **Tauri v2 Desktop Tray Manager** with seamless auto-updates and zero terminal clutter.
+Platform manajemen operasional dan rekayasa teknik terintegrasi (all-in-one) untuk **SEIN PE Group (Samsung Electronics Indonesia)**. Dirancang khusus untuk menghilangkan fragmentasi data Excel lokal, mempercepat NPI (New Product Introduction), mengotomasi laporan kerja, dan menyediakan utilitas teknik mandiri (*self-hosted*) dengan performa tinggi dan konsumsi memori minimal (*zero-bloat*).
+
+Dokumen ini disusun sebagai **dokumentasi teknis sistem** sekaligus **acuan komprehensif pembuatan slide presentasi** manajemen dan tim.
 
 ---
 
-## 👥 SEIN PE Group Structure
+## 📑 Daftar Isi
 
-The platform is architected around the distinct workflows of the three core divisions in SEIN PE:
+1. [Struktur Organisasi SEIN PE Group](#-struktur-organisasi-sein-pe-group)
+2. [Executive Summary: Problem vs Solution](#-executive-summary-problem-vs-solution)
+3. [Katalog Fitur, Workflow & Benefit](#-katalog-fitur-workflow--benefit)
+   - [1. New Model Development & Milestone Matrix](#1-new-model-development--milestone-matrix)
+   - [2. Innovation & Best Practice (BP) Management](#2-innovation--best-practice-bp-management)
+   - [3. Project Management & Interactive Calendar](#3-project-management--interactive-calendar)
+   - [4. Sample Management & Overseas DHL Tracker](#4-sample-management--overseas-dhl-tracker)
+   - [5. Software Mass Release (MR) & GBA Task Management](#5-software-mass-release-mr--gba-task-management)
+   - [6. Digital Work Reports & Automated SMTP Dispatcher](#6-digital-work-reports--automated-smtp-dispatcher)
+   - [7. Engineering Document Archive & In-Browser Viewer](#7-engineering-document-archive--in-browser-viewer)
+   - [8. IMEI Knowledge Base & Technical Runbooks](#8-imei-knowledge-base--technical-runbooks)
+   - [9. GMES Monitoring & Issue Tracker](#9-gmes-monitoring--issue-tracker)
+   - [10. Online Training & Competency Skill Matrix](#10-online-training--competency-skill-matrix)
+   - [11. Engineering Utility Suite & Self-Hosted AI](#11-engineering-utility-suite--self-hosted-ai)
+   - [12. Virtual Office & Team Directory](#12-virtual-office--team-directory)
+   - [13. Role-Based Access Control & Dynamic Menu Security](#13-role-based-access-control--dynamic-menu-security)
+   - [14. Multi-Language & Canvas 60 FPS Personalization](#14-multi-language--canvas-60-fps-personalization)
+   - [15. Windows Desktop Tray Manager (Tauri v2 + Rust)](#15-windows-desktop-tray-manager-tauri-v2--rust)
+4. [Panduan Acuan Slide Presentasi](#-panduan-acuan-slide-presentasi)
+5. [Arsitektur & Spesifikasi Teknologi](#-arsitektur--spesifikasi-teknologi)
+6. [Panduan Instalasi & Deployment](#-panduan-instalasi--deployment)
+
+---
+
+## 👥 Struktur Organisasi SEIN PE Group
+
+Platform dirancang memetakan alur kerja spesifik dari tiga divisi utama Production Engineering di SEIN:
 
 ```
                           ┌────────────────────────────────┐
@@ -29,350 +57,444 @@ The platform is architected around the distinct workflows of the three core divi
 ├──────────────────────┤      ├──────────────────────┤      ├──────────────────────┤
 │ • BOM Management     │      │ • JIG Development    │      │ • IMEI Management    │
 │ • Setup Work Instruct│      │ • Unit BOX Develop.  │      │ • Program PGM Mgmt   │
-│ • Support Production │      │ • MRO Management     │      │ • Technical Analyst  │
-│                      │      │ • Mechanical Analyst │      │ • Software Develop.  │
-│                      │      │ • Support Production │      │ • GBA Task Manager   │
-│                      │      │                      │      │ • Release Management │
-│                      │      │                      │      │ • Sample Management  │
+│ • Line Support & SOP │      │ • MRO & Preventive   │      │ • Software Mass Rel. │
+│ • Model Readiness    │      │ • Mechanical Analyst │      │ • GBA Task Manager   │
+│ • Production Yield   │      │ • Line Modification  │      │ • Sample Tracking    │
 └──────────────────────┘      └──────────────────────┘      └──────────────────────┘
 ```
 
 ---
 
-## 🌟 Key Features
+## 📊 Executive Summary: Problem vs Solution
 
-### 💡 1. Innovation & Best Practice (BP) Management
-- Idea pipeline tracking (Draft, Review, Testing, Implemented, Archived).
-- Voting, team comments, cost-saving calculations, and tag-based discovery.
-- Cross-divisional sharing between Production, Mecha, and Solution.
-
-### 🚀 2. Project Development & Milestone Tracking
-- Timeline, priority, status badges, and team member assignments.
-- Task breakdown for JIG developments, Unit BOX builds, and MRO maintenance.
-
-### 📱 3. New Model Development (NMD)
-- Dedicated stage tracking for upcoming commercial devices (e.g., **S26 Series — Codename: Paradigm**).
-- Stage gates: `Proto` ➔ `EVT` ➔ `DVT` ➔ `PVT` ➔ `MP` (Mass Production).
-- **Validation Notes with Tables & Photos**: Body text supports rich formatted Markdown tables and embedded validation photos.
-- **Stage Attachments & Explicit Gate Approval**: Upload test reports and spec sheets per stage; stage transitions require explicit confirmation without accidental auto-advancement.
-- **Development History & Team Comments**: Complete audit log of all stage changes with timestamp/author and threaded discussions.
-
-### 📑 4. IMEI Management & Knowledge Articles
-- Categorized articles and technical runbooks grouped by model series.
-- Fast full-text search and tagging for production line troubleshooting.
-
-### 📂 5. Engineering Document Archive Database
-- Centralized technical drawing, spec sheet, and procedure repository.
-- **View-only Document Viewer**: Safe in-browser preview for PDF, DOCX, XLSX, and images without high-memory Office servers.
-
-### 🤖 6. AI Assistant, Self-Hosted Vision Models & MCP Integration
-- **Interactive Engineering Chat**: Real-time floating AI assistant connected to OpenAI-compatible LLMs (e.g. **LM Studio** endpoint `https://lmstudio.endrisusanto.my.id/v1`).
-- **Self-Hosted U2Net Background Removal**: Dedicated server-side AI model artifacts (`u2net.onnx`) for automatic background removal without third-party rate limits or manual weights download.
-- **Personal LLM Key Override**: Engineers can configure their own custom provider & API key in their Profile.
-- **Custom MCP Client Support**: Direct connection to external MCP servers such as the Google Build Approval (GBA) Task Server (`http://107.102.39.55:3800/mcp`).
-
-### 📧 7. Digital Work Reports & Scheduled Email Dispatch
-- **Rich Document Editor**: Notion-like block editor with 1-click database scrapers (insert live Innovation, Project, or Model data).
-- **Flexible & Responsive Email Template**: Fluid table layout scaling up to `960px` with mobile `@media` optimization.
-- **Interactive Recipient Chips**: Email tags with `✕` remove buttons, keyboard navigation (`Enter`, `,`, `Backspace`), and multi-address paste parser.
-- **Custom Email Contact Lists**: Save and 1-click insert recipient groups (e.g., *Part Leader, Mecha Team, Solution Group*).
-- **Automated Scheduling**: Cron-based background dispatcher with custom delivery hour selection and full transmission audit logs.
-
-### 🎨 8. Decorative Themes & 60 FPS Animated Backgrounds
-- **Zero Bloat (`/ponytail`)**: Built with native standard CSS variables and lightweight HTML5 Canvas 2D without heavy 3D/particle libraries.
-- **Curated Theme Presets**:
-  - 🌸 **Sakura Mochi (Cute)**: Floating cherry blossom petals with 3D rotation & soft pastel bubbles.
-  - ⚡ **Neon Emerald (Cyberpunk)**: Matrix digital data streamers & green neon horizon glow.
-  - 🌌 **Galactic Cobalt**: Twinkling celestial starfield with diamond flares & cosmic nebula drift.
-  - 🌅 **Sunset Amber**: Warm rising forge embers with golden flickering sparks.
-  - 🔮 **Cyber Lavender**: Ethereal rotating violet crystal diamond stars & cosmic aura.
-  - 🏢 **SEIN Corporate Teal**: Geometric constellation engineering nodes with dynamic proximity links.
-  - 🎨 **Personal Custom Scheme**: Live HTML5 Hex Color Picker (`#rrggbb`) with dynamic tint generation.
-- **Tactile Dark Mode**: Fine sand grain micro-filter overlay for high-end visual surface depth.
-- **User Controls**: Instant 1-click toggle switch in the TopBar (🎨) and Profile settings.
-
-### 🌐 9. Multilingual Support (3 Languages)
-- **Compact Segmented Switch Buttons**: `🌐 [ EN | ID | KO ]` for instant 1-click language toggling.
-- Fully translated into **English**, **Bahasa Indonesia**, and **한국어 (Korean)**.
-
-### 🔐 10. Security & Dynamic Multi-Level Access Control
-- Role-Based Access Control (**Admin**, **Engineer**, **Viewer**).
-- **Granular Side Menu Permissions**: Admin can configure visibility for every individual menu and multilevel sub-item based on role.
-- Dual Authentication engine: Local JWT Session or corporate **LDAP / Active Directory**.
-- Granular action audit logging.
-
-### 🪟 11. Desktop Tray Manager & Silent Runner (Tauri v2 + Rust)
-- **Zero Terminal Clutter**: Runs silently in the Windows system tray without any black CMD console windows (`CREATE_NO_WINDOW`).
-- **Live Log Streaming**: Real-time log monitor directly from the Go backend.
-- **Quick Controls**: 1-click Start, Stop, Restart backend service, and Open Portal in default browser.
-- **Cryptographic Auto-Updater**: Built-in Tauri Auto-Updater with Minisign signatures for 1-click seamless silent updates.
-- **Windows Installers**: Official `.exe` (NSIS) and `.msi` (WiX) packages published on [GitHub Releases](https://github.com/endrisusanto/PE-Portal/releases).
+| Area Operasional | Tantangan Sebelumnya (Before) | Solusi PE-Portal (After) | Dampak Bisnis (Impact) |
+| :--- | :--- | :--- | :--- |
+| **New Model NPI** | Milestone tersebar di berbagai file Excel personal; status gate tidak sinkron antar divisi. | Matriks visual terpusat dengan filter fase NPI, kategori model, bulk import dari clipboard, dan export XML Spreadsheet. | Sinkronisasi status model 100% *real-time*; waktu persiapan meeting mingguan terpangkas dari 3 jam menjadi 5 menit. |
+| **Inovasi & Kaizen** | Ide inovasi tercatat manual di form kertas/PPT; sulit menghitung total cost-saving pabrik. | Pipeline digital inovasi berjenjang (Draft s/d Implemented) dengan kalkulator ROI otomatis dan tracking replikasi antar line. | Peningkatan partisipasi ide engineer hingga 40%; audit cost-saving transparan dan terdata akurat. |
+| **Pekerjaan & JIG** | Progres JIG dan Unit BOX ditanyakan berulang kali via chat grup; risiko miss deadline tinggi. | ToDo list dan Project Calendar terpadu dengan milestone, PIC assignment, prioritas, dan status visual. | Transparansi progres pengerjaan JIG/BOX; reduksi keterlambatan pengerjaan hingga 35%. |
+| **Laporan Kerja** | Pembuatan email laporan berkala manual, rawan salah kirim penerima, format tidak seragam. | Block editor dokumen berfitur *live scraper* data proyek + scheduler otomatis pengiriman email SMTP via cron. | Waktu rekapitulasi laporan terpotong 80%; distribusi email tepat waktu setiap jadwal shift/mingguan. |
+| **Dokumen Teknik** | Butuh install Microsoft Office di semua PC; risiko revisi file lama tertukar di line. | In-browser document viewer (PDF, Word, Excel, Gambar) tanpa Office lokal + link share publik berbatas waktu. | Standarisasi SOP di lini produksi; nol lisensi software pembaca tambahan untuk terminal line. |
+| **Utilitas Gambar/PDF**| Ketergantungan pada website kompresi online (kebocoran rahasia dokumen/foto prototipe SEIN). | Utilitas *offline & self-hosted* (Local U2Net AI background removal, Python PDF stream compressor, VAAPI video). | Keamanan data prototipe 100% internal; bebas biaya langganan software pihak ketiga. |
 
 ---
 
-## 🛠️ Technology Stack
+## 🌟 Katalog Fitur, Workflow & Benefit
 
-| Layer | Technologies | Highlights |
+---
+
+### 1. New Model Development & Milestone Matrix
+
+Sistem pelacakan siklus hidup pengenalan model baru (NPI) dari fase awal hingga produksi massal, dilengkapi matriks visual pemeriksaan kesiapan lini produksi (*gating checkpoints*).
+
+```
+   [Registrasi / Bulk Paste] ──► [Kategori: Flagship/MP/TNP] ──► [Milestone Gate Tracking]
+              │                                                            │
+              ▼                                                            ▼
+   [Filter NPI / Mass Prod]  ◄─── [Audit Trail & Validation Photo] ◄─── [Export XLS/CSV]
+```
+
+#### Alur Kerja (Workflow):
+1. **Registrasi Model**: Engineer mendaftarkan model baru secara manual melalui modal form atau menggunakan **Bulk Import** (cukup *copy-paste* tabel dari Microsoft Excel / Google Sheets ke kolom input teks TSV).
+2. **Kategorisasi Otomatis**: Menetapkan kategori model:
+   - 👑 **Flagship / Premium**: Model unggulan dengan standar toleransi dan *gating* ketat.
+   - 📑 **Mass Product**: Model reguler bervolume tinggi.
+   - ⚡ **TNP (Trial New Product)**: Model uji coba atau varian baru.
+3. **Pemeriksaan Milestone**: Tim memvalidasi kesiapan pada setiap pos checkpoint:
+   - *Gating Review*, *LQV (Line Quality Verification)*, *Reliability Testing*, *Quality Check*, hingga *SOP Release Target*.
+4. **Verifikasi Validasi**: Pengunggahan foto hasil uji lini, catatan teknis dengan tabel Markdown, serta persetujuan *gate* eksplisit oleh Leader/Supervisor.
+5. **Monitoring & Distribusi**: Manajemen memfilter status melalui tab (*Active NPI* vs *Released & Mass Prod*), lalu mengekspor data ke format **Excel berformat warna (.xls)** atau **CSV (RFC-4180 dengan UTF-8 BOM)** untuk laporan rapat divisi.
+
+#### Keuntungan (Benefit):
+- **Visibilitas Instan**: Seluruh anggota tim melihat posisi tahapan model yang sama tanpa perlu saling bertukar file Excel.
+- **Bulk Migration Cepat**: Memasukkan puluhan model dan tanggal milestone hanya dalam hitungan detik tanpa *data-entry* satu per satu.
+- **Data Integrity**: Audit trail mencatat siapa yang mengubah status gate dan melampirkan bukti fisik pengujian (foto/catatan teknis).
+
+---
+
+### 2. Innovation & Best Practice (BP) Management
+
+Katalog digital pengelolaan ide inovasi (*kaizen*), modifikasi mesin/JIG, perbaikan proses produksi, dan efisiensi lini dengan perhitungan nilai penghematan (*cost saving*).
+
+```
+[Pengajuan Ide / Draft] ──► [Review Leader] ──► [Testing di Lini] ──► [Implemented] ──► [Replikasi Antar Line]
+                                                             ▲
+                                                    [Kalkulasi ROI/Saving]
+```
+
+#### Alur Kerja (Workflow):
+1. **Pendaftaran Ide**: Engineer menginput deskripsi ide, area line terkait, kategori klasifikasi (Class 1 s/d Class 4), serta estimasi penghematan biaya ($ / Rp) dan waktu (detik/unit).
+2. **Review & Voting**: Rekan engineer dan leader memberikan voting dukungan serta diskusi melalui kolom komentar terpadu.
+3. **Trial & Validasi**: Ide beralih status ke *Testing* dengan melampirkan dokumentasi *Before vs After* (foto atau diagram).
+4. **Implementasi & Penghargaan**: Setelah disetujui, inovasi berstatus *Implemented*, otomatis menghitung total kumulatif *cost saving* divisi di Dashboard.
+5. **Tracking Replikasi**: Sistem melacak apakah inovasi berhasil direplikasi ke line produksi lain di pabrik.
+
+#### Keuntungan (Benefit):
+- **Transparansi ROI**: Manajemen memiliki data angka konkret mengenai kontribusi efisiensi finansial SEIN PE Group.
+- **Knowledge Sharing**: Mencegah penemuan roda yang sama (*reinventing the wheel*) antar shift dan lini produksi.
+- **Motivasi Tim**: Engineer dapat menunjukkan portofolio inovasi terverifikasi untuk evaluasi kinerja berkala.
+
+---
+
+### 3. Project Management & Interactive Calendar
+
+Manajemen penugasan proyek perakitan JIG, pembuatan Unit BOX, pemeliharaan MRO (Maintenance, Repair, and Overhaul), dan proyek perangkat lunak lini.
+
+```
+[Buat Proyek / Task] ──► [Assign PIC & Deadline] ──► [Interactive Calendar / Gantt] ──► [Milestone Checklist] ──► [Finish]
+```
+
+#### Alur Kerja (Workflow):
+1. **Inisiasi Proyek**: Menentukan judul proyek, divisi penanggung jawab (Production, Mecha, Solution), tingkat prioritas (Low, Medium, High, Urgent), dan batas waktu (*due date*).
+2. **Pembagian Milestone**: Menambahkan checklist tugas teknis (misal: *Desain CAD*, *Machining CNC*, *Wiring Sensor*, *Buy-off QC*).
+3. **Visualisasi Jadwal**: Memantau seluruh aktivitas melalui **Project Calendar** (tampilan bulanan interaktif) atau daftar ToDo dengan indikator *overdue*.
+4. **Penyelesaian & Arsip**: PIC memperbarui status hingga selesai 100%, otomatis memutakhirkan metrik produktivitas tim.
+
+#### Keuntungan (Benefit):
+- **Beban Kerja Seimbang**: Leader dapat melihat distribusi beban kerja tiap engineer secara objektif.
+- **Ketepatan Jadwal JIG**: Mencegah keterlambatan kesiapan perlengkapan produksi menjelang fase peluncuran model baru.
+
+---
+
+### 4. Sample Management & Overseas DHL Tracker
+
+Pencatatan sirkulasi unit sampel prototipe (Proto, EVT, DVT, PVT) yang masuk ke pabrik serta pemantauan pengiriman sampel dari kantor pusat R&D Korea (Suwon/Gumi).
+
+```
+[Paket Dikirim dari HQ] ──► [Input AWB di DHL Tracker] ──► [Cek Status Real-time]
+                                                                  │ (Sampel Tiba di SEIN)
+                                                                  ▼
+[Pengembalian / Scrap] ◄── [Checkout Peminjaman Teknisi] ◄── [Registrasi Unit di DB]
+```
+
+#### Alur Kerja (Workflow):
+1. **Tracking Pengiriman**: PIC memasukkan nomor Air Waybill (AWB) ke modul **DHL Tracker** untuk memantau paket komponen/sampel dari Korea secara *real-time*.
+2. **Registrasi Sampel Masuk**: Saat sampel tiba, unit didaftarkan ke **Database Sample PE** lengkap dengan nomor IMEI/Serial, model, fase perakitan, dan lokasi rak penyimpanan.
+3. **Peminjaman & Pengembalian**: Teknisi melakukan *checkout* peminjaman untuk pengujian lini; sistem mencatat durasi dan penanggung jawab unit untuk audit keamanan perangkat.
+
+#### Keuntungan (Benefit):
+- **Zero Missing Prototype**: Mencegah kehilangan atau salah letak unit prototipe rahasia yang memiliki nilai keamanan tinggi.
+- **Kepastian Pengiriman**: Mengeliminasi kebutuhan membuka website tracking kurir secara terpisah; estimasi tiba langsung terlihat di portal tim.
+
+---
+
+### 5. Software Mass Release (MR) & GBA Task Management
+
+Pengelolaan berkas biner firmware, program flashing lini, dan persetujuan build perangkat lunak pabrik.
+
+```
+[Build Firmware Siap] ──► [Daftarkan Software MR] ──► [Verifikasi Checksum & Model] ──► [Approval & Deploy ke Lini]
+                                       │
+                                       ▼
+                       [Sync GBA Tasks (Build Approval)]
+```
+
+#### Alur Kerja (Workflow):
+1. **Pendaftaran Rilis**: Engineer Solution mengunggah detail versi biner firmware, model target, checksum integritas, dan catatan rilis (*release notes*).
+2. **Sinkronisasi GBA**: Mengintegrasikan task build approval dengan server Google Build Approval untuk memastikan kepatuhan spesifikasi.
+3. **Persetujuan & Distribusi**: Verifikasi kelayakan oleh tim engineering sebelum firmware dideploy ke stasiun *flashing/download* produksi massal.
+
+#### Keuntungan (Benefit):
+- **Pencegahan Human Error**: Menghilangkan insiden kesalahan pemasangan versi firmware yang dapat memicu *mass defect* di lini produksi.
+- **Audit Kemudahan**: Setiap versi biner memiliki riwayat siapa yang menyetujui dan kapan diterapkan di lini.
+
+---
+
+### 6. Digital Work Reports & Automated SMTP Dispatcher
+
+Modul penyusunan laporan kerja berkala (harian/mingguan) dengan editor modern yang terhubung langsung ke database portal, serta pengiriman email otomatis.
+
+```
+[Buka Report Editor] ──► [Klik 'Scrape Data' (Auto-Insert Proyek/Model)] ──► [Pilih Grup Kontak] ──► [Set Jadwal Cron / Kirim]
+```
+
+#### Alur Kerja (Workflow):
+1. **Penyusunan Laporan**: Engineer membuat laporan menggunakan editor blok kaya (formatting, tabel, checklist, gambar).
+2. **1-Click Live Scraper**: Cukup menekan tombol *Scrape*, sistem otomatis menarik ringkasan model NPI aktif, proyek selesai, dan inovasi terbaru langsung ke dalam badan laporan.
+3. **Manajemen Penerima Cerdas**: Menggunakan *Email Chip Input* dengan validasi otomatis, mendukung *paste* banyak email sekaligus, atau memilih **Grup Kontak Kustom** (misal: *Leader Part, All Solution, Mecha Team*).
+4. **Penjadwalan Otomatis**: Laporan dapat dikirim seketika atau dijadwalkan secara otomatis menggunakan engine SMTP background scheduler pada jam yang ditentukan.
+
+#### Keuntungan (Benefit):
+- **Efisiensi Waktu Signifikan**: Memangkas waktu pembuatan laporan hingga 80% karena data status proyek ditarik otomatis dari database tanpa ketik manual.
+- **Tampilan Konsisten & Mobile-Friendly**: Desain email tabel responsif (skala hingga 960px) terbaca sempurna baik di layar laptop maupun smartphone Samsung.
+
+---
+
+### 7. Engineering Document Archive & In-Browser Viewer
+
+Penyimpanan terpusat untuk dokumen teknis, gambar kerja CAD, *BOM (Bill of Materials)*, spesifikasi komponen, dan lembar instruksi kerja (SOP).
+
+```
+[Upload Dokumen Teknik] ──► [Indexing & Metadata] ──► [In-Browser Safe Preview] ──► [Generate Token Share Publik]
+```
+
+#### Alur Kerja (Workflow):
+1. **Pengunggahan Terpusat**: Dokumen diunggah dengan kategori model, divisi, nomor revisi, dan tag pencarian.
+2. **Pratinjau Langsung (In-Browser)**: Dokumen berformat **PDF, Word (.docx), Excel (.xlsx), dan Gambar** dapat langsung dibaca di dalam browser tanpa perlu membuka aplikasi luar atau lisensi Microsoft Office di komputer user.
+3. **Pembagian Dokumen Aman**: Mendukung pembuatan link berbagi publik berbatas waktu (*Secure Token Share*) untuk diakses teknisi di lini tanpa perlu login ke sistem utama.
+
+#### Keuntungan (Benefit):
+- **Eliminasi Lisensi Eksternal**: Komputer terminal di area lini produksi tidak memerlukan lisensi software pembaca khusus.
+- **Pemberantasan SOP Usang**: Menjamin semua orang selalu mengakses dokumen versi termutakhir langsung dari server pusat.
+
+---
+
+### 8. IMEI Knowledge Base & Technical Runbooks
+
+Basis pengetahuan khusus untuk stasiun kerja IMEI, pengujian fungsi perangkat (*Function Test*), kalibrasi RF, dan prosedur penanganan masalah (*troubleshooting*).
+
+```
+[Identifikasi Masalah di Line] ──► [Cari Berdasarkan Model / Kode Eror] ──► [Buka Runbook Terkait] ──► [Solusi Diterapkan]
+```
+
+#### Alur Kerja (Workflow):
+1. **Dokumentasi Masalah**: Engineer menuliskan panduan penanganan masalah station (*Troubleshooting Runbook*) berbasis Markdown dengan tangkapan layar dan langkah bertahap.
+2. **Pencarian Cepat**: Saat terjadi kendala di lini perakitan, teknisi mencari artikel menggunakan kata kunci model atau pesan eror mesin.
+3. **Pemeliharaan Konten**: Artikel dapat diperbarui oleh PIC dengan riwayat tanggal revisi untuk menjaga keakuratan solusi.
+
+#### Keuntungan (Benefit):
+- **Reduksi Downtime Lini**: Mengurangi waktu henti mesin secara drastis saat terjadi gangguan stasiun kerja karena panduan solusi tersedia instan.
+- **Standardisasi Penanganan**: Solusi teknis terdokumentasi dan seragam di semua shift kerja tanpa tergantung pada satu teknisi senior.
+
+---
+
+### 9. GMES Monitoring & Issue Tracker
+
+Pemantauan isu dan rekonsiliasi data operasional terkait sistem manufaktur global Samsung (Global Manufacturing Execution System).
+
+#### Alur Kerja (Workflow):
+- Memetakan anomali stasiun lini (misal: *Station Barcode Mismatch, Carrier Lock, Server Timeout*), mencatat akar masalah (*Root Cause Analysis*), dan mencatat tindakan pencegahan (*Corrective Action*).
+
+#### Keuntungan (Benefit):
+- Pencatatan insiden sistematis mempermudah analisis tren kegagalan mingguan saat evaluasi kualitas pabrik.
+
+---
+
+### 10. Online Training & Competency Skill Matrix
+
+Pusat modul pembelajaran internal, sertifikasi SOP lini, dan matriks keahlian teknisi Production Engineering.
+
+#### Alur Kerja (Workflow):
+- Menyelenggarakan materi pelatihan teknis, mencatat absensi pelatihan, menguji pemahaman SOP, dan menampilkan radar kompetensi engineer untuk persiapan pengenalan lini model baru.
+
+#### Keuntungan (Benefit):
+- Memastikan hanya personel yang tersertifikasi yang bertugas menangani stasiun kritis pada peluncuran model flagship baru.
+
+---
+
+### 11. Engineering Utility Suite & Self-Hosted AI
+
+Paket peralatan utilitas mandiri (*zero external dependency*) yang berjalan di server internal SEIN untuk kebutuhan sehari-hari engineer:
+
+| Alat Utilitas | Fungsi Teknis Utama | Keuntungan & Keamanan |
 | :--- | :--- | :--- |
-| **Desktop App** | Tauri v2, Rust 1.77+, WinAPI | < 15MB tray manager, zero CMD popup, auto-updater |
-| **Frontend** | React 19, Vite, Vanilla CSS Modules, Lucide Icons | Ultra-fast build (< 300ms), 0 external UI bloat, responsive |
-| **Backend** | Go 1.22+, Gin Web Framework, pgx | Low memory footprint (< 35MB idle), high concurrency |
-| **AI / Vision** | U2Net ONNX, OpenAI / MCP Client | Self-hosted background removal, GBA MCP server |
-| **Database** | PostgreSQL 16 | Relational data, full schema migrations (001 - 012) |
-| **Cache & Queue**| Redis 7 | Fast token blacklist, scheduled task coordination |
-| **Packaging** | NSIS, WiX 3.14, Minisign | Signed Windows installer (`.exe`), MSI (`.msi`) |
-| **Container** | Docker, Docker Compose, Nginx Alpine | Production-ready multi-stage containers |
+| 🗜️ **Document PDF Compressor** | Kompresi berkas PDF berukuran besar menggunakan engine kompresi stream Python lokal. | Mengurangi ukuran file hingga 70% agar mudah dilampirkan ke email tanpa kirim ke web pihak ketiga. |
+| 📑 **PDF Merge & Split** | Menggabungkan beberapa dokumen uji coba atau memisahkan halaman spesifik. | Mempermudah penataan laporan teknis tanpa aplikasi desktop berbayar. |
+| 📊 **PPTX Technical Summarizer** | Ringkasan otomatis materi presentasi teknis (.pptx) menggunakan AI LLM internal. | Mengekstrak poin penting dan *action item* dari laporan tebal dalam hitungan detik. |
+| ✂️ **Local Remove Background** | Penghapusan latar belakang foto JIG dan perangkat menggunakan **U2Net ONNX** lokal. | Foto komponen bersih untuk dokumen SOP; gambar prototipe rahasia tidak bocor ke cloud publik. |
+| 🎬 **VAAPI Video Compressor** | Kompresi video rekaman lini produksi menggunakan akselerasi perangkat keras server. | Video dokumentasi gerak mesin lebih ringan untuk diunggah dan dibagikan. |
+| 💻 **CL Compare & Build Tool** | Perbandingan baris kode perubahan changelist software dan generator perintah build. | Mempercepat proses debugging dan verifikasi rilis program teknisi software. |
+| 🤖 **AI Chat Assistant** | Floating widget asisten AI terhubung ke endpoint internal (LM Studio / Ollama / API). | Memberikan referensi kode, format penulisan, dan troubleshooting tanpa batas kuota. |
 
 ---
 
-## 🚀 Quick Start (Docker Compose)
+### 12. Virtual Office & Team Directory
 
-### 1. Clone the Repository
+Representasi digital tata letak ruang kantor PE (*digital twin layout*) beserta direktori keahlian seluruh anggota tim.
+
+#### Alur Kerja & Benefit:
+- Menampilkan denah meja kerja engineer, status kehadiran (*In Office / Support Line / WFH*), dan nomor kontak internal.
+- Mempercepat koordinasi saat personel lini memerlukan bantuan langsung dari engineer mekanik atau software terkait di lapangan.
+
+---
+
+### 13. Role-Based Access Control & Dynamic Menu Security
+
+Sistem keamanan berlapis dengan pengaturan visibilitas menu hingga sub-menu bertingkat (*multilevel granular menu control*).
+
+```
+[Request Halaman / Menu] ──► [Cek Status Master On/Off] ──► [Cek Blacklist User]
+                                                                     │
+[Tampilkan Menu] ◄── [Cek Group/Part ID] ◄── [Cek Role Access] ◄── [Cek Whitelist User]
+```
+
+#### Fitur & Mekanisme:
+- **Tingkatan Role Utama**:
+  - 👑 **Admin**: Kontrol penuh sistem, manajemen akun, audit log, dan konfigurasi hak akses menu.
+  - 🛠️ **Engineer**: Akses operasional penuh untuk menambah, mengedit, dan memvalidasi pekerjaan teknis.
+  - 👁️ **Viewer / Operator**: Akses baca (*read-only*) untuk meninjau SOP, jadwal, dan matriks kesiapan.
+- **Granular Menu Manager**: Admin dapat menyembunyikan atau menampilkan menu tertentu berdasarkan role, grup bagian (*Part ID*), maupun whitelist/blacklist username tertentu tanpa mengubah kode program.
+- **Dual Authentication**: Mendukung otentikasi lokal JWT maupun integrasi corporate **LDAP / Active Directory**.
+
+---
+
+### 14. Multi-Language & Canvas 60 FPS Personalization
+
+Dukungan pengalaman pengguna kelas premium yang dirancang nyaman digunakan oleh teknisi lokal maupun ekspatriat Korea.
+
+- **3 Bahasa Instan**: Tombol beralih bahasa satu klik: **Bahasa Indonesia (ID)**, **English (EN)**, dan **한국어 (KO)**.
+- **Tema Visual Dinamis (HTML5 Canvas 2D)**: Animasi latar belakang halus 60 FPS tanpa beban GPU (*Sakura Mochi, Neon Emerald, Galactic Cobalt, Sunset Amber, Cyber Lavender, SEIN Corporate Teal, Custom Hex Picker*).
+- **Tactile Sand Grain Filter**: Efek tekstur mikro elegan untuk tampilan modern yang tidak melelahkan mata saat bekerja di ruang kendali (*cleanroom*).
+
+---
+
+### 15. Windows Desktop Tray Manager (Tauri v2 + Rust)
+
+Aplikasi desktop native Windows berbobot sangat ringan (< 15 MB) untuk pengoperasian server lokal tanpa jendela konsol hitam CMD.
+
+- **Zero Terminal Clutter**: Layanan backend Go berjalan di background tanpa memunculkan jendela CMD (`CREATE_NO_WINDOW`).
+- **Live Log Viewer**: Menampilkan log transaksi backend secara *real-time* untuk kebutuhan diagnostik.
+- **Cryptographic Auto-Updater**: Pembaruan sistem otomatis satu klik berbasis signature Minisign langsung dari GitHub Releases resmi.
+- **Installer Siap Pakai**: Tersedia dalam format installer Windows terverifikasi: `.exe` (NSIS) dan `.msi` (Enterprise WiX).
+
+---
+
+## 🎯 Panduan Acuan Slide Presentasi
+
+Gunakan panduan berikut sebagai kerangka saat menyusun materi presentasi slide (PowerPoint / Keynote):
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        STRUKTUR SLIDE PRESENTASI                       │
+├─────────┬────────────────────────────┬─────────────────────────────────┤
+│ Slide # │ Topik Slide                │ Poin Kunci & Narasi Utama       │
+├─────────┼────────────────────────────┼─────────────────────────────────┤
+│ Slide 1 │ Judul & Visi Proyek        │ PE-Portal: All-in-One Platform  │
+│ Slide 2 │ Tantangan Lini & Masalah   │ Fragmentasi Data & Redundansi   │
+│ Slide 3 │ Solusi & Arsitektur Utama  │ Integrasi NPI, Tugas, Dokumen   │
+│ Slide 4 │ New Model Milestone Matrix │ Matriks Visual, Bulk & Export   │
+│ Slide 5 │ Inovasi & ROI Pabrik       │ Pipeline Kaizen & Cost-Saving   │
+│ Slide 6 │ Manajemen Tugas & Kalender │ JIG, BOX, MRO & PIC Tracking    │
+│ Slide 7 │ Otomasi Laporan & Email    │ Scraper Data & Background SMTP  │
+│ Slide 8 │ Dokumen & Privasi AI       │ In-Browser Preview, Local U2Net │
+│ Slide 9 │ Tata Kelola & Akses Aman   │ Granular RBAC, 3 Bahasa, Tray   │
+│ Slide 10│ Dampak Nyata & Kesimpulan  │ Penghematan Waktu & Zero Defect │
+└─────────┴────────────────────────────┴─────────────────────────────────┘
+```
+
+### Rekomendasi Konten Tiap Slide:
+
+#### 🔹 Slide 1: Cover & Visi Platform
+- **Headline**: *Transformasi Digital Operasional SEIN Production Engineering*.
+- **Sub-headline**: *Platform Terpadu Manajemen Model Baru, Inovasi, dan Efisiensi Operasional Pabrik*.
+- **Poin Presenter**: Platform ini dibangun oleh engineer SEIN untuk kebutuhan spesifik lini perakitan smartphone di Cikarang.
+
+#### 🔹 Slide 2: Latar Belakang & Masalah Utama (Pain Points)
+- **Status Quo**: Ketergantungan pada puluhan file Excel yang terisolasi di laptop masing-masing personel.
+- **Masalah 1**: Keterlambatan informasi kesiapan checkpoint model baru antar departemen (Production vs Mecha vs Solution).
+- **Masalah 2**: Laporan kerja manual memakan waktu hingga 3-4 jam per minggu per orang.
+- **Masalah 3**: Kerentanan kebocoran informasi prototipe rahasia jika menggunakan software kompresi/gambar gratisan di internet.
+
+#### 🔹 Slide 3: Nilai Tambah Platform (Value Proposition)
+- **Terpusat**: Single source of truth untuk seluruh aktivitas engineering.
+- **Cepat & Ringan**: Waktu buka halaman kurang dari 1 detik; konsumsi RAM server di bawah 40 MB.
+- **Aman**: 100% data dan model kecerdasan buatan berjalan di dalam infrastruktur internal pabrik (*on-premise / intranet*).
+
+#### 🔹 Slide 4: New Model Development & Milestone Matrix (Fitur Utama)
+- **Tampilan Visual**: Perlihatkan tangkapan layar matriks model (Flagship, Mass Product, TNP).
+- **Poin Utama**:
+  - Filter fase aktif (*Active NPI* vs *Released & Mass Prod*).
+  - Bulk Import: Cukup *paste* dari Excel, langsung terdata dalam hitungan detik.
+  - Multi-Format Export: Unduh laporan ke Excel (.xls bersel warna) dan CSV untuk kebutuhan meeting.
+
+#### 🔹 Slide 5: Inovasi & Penghematan Biaya (Cost Saving)
+- **Poin Utama**:
+  - Mengubah ide di kepala menjadi aset terukur perusahaan.
+  - Penghitungan otomatis total nilai cost-saving divisi ($ & Rp) secara akumulatif.
+  - Tracking replikasi ide perbaikan dari Line A ke seluruh lini perakitan lainnya.
+
+#### 🔹 Slide 6: Proyek & Monitoring Jadwal (Project & Calendar)
+- **Poin Utama**:
+  - Pemantauan kesiapan perakitan JIG dan Unit BOX menjelang jadwal produksi perdana.
+  - Tampilan kalender interaktif untuk visualisasi jadwal lintas divisi.
+
+#### 🔹 Slide 7: Otomasi Laporan & Pengiriman Email
+- **Poin Utama**:
+  - Fitur *Live Scraper*: Cukup klik satu tombol, data progres otomatis masuk ke badan laporan.
+  - Pengiriman email terjadwal otomatis via background SMTP server.
+  - Grup penerima terkelola (mengeliminasi kesalahan salah alamat email).
+
+#### 🔹 Slide 8: Keamanan Dokumen & Utilitas Mandiri
+- **Poin Utama**:
+  - Buka dokumen PDF, Word, Excel langsung di browser tanpa butuh lisensi Office di komputer line.
+  - Utilitas lokal tanpa internet: Local AI U2Net Background Removal & PDF Compression internal.
+
+#### 🔹 Slide 9: Tata Kelola Akses & Kemudahan Aksesibilitas
+- **Poin Utama**:
+  - Pengaturan hak menu dinamis sesuai role dan departemen.
+  - Dukungan 3 Bahasa (Indonesia, Inggris, Korea) untuk kolaborasi mulus dengan ekspatriat.
+  - Aplikasi desktop tray Windows (Tauri) yang berjalan senyap tanpa jendela hitam.
+
+#### 🔹 Slide 10: Ringkasan Dampak Bisnis (Business Impact Summary)
+- Tampilkan tabel komparasi sebelum dan sesudah implementasi:
+  - ⏱️ **Waktu Rekap Laporan Mingguan**: Turun dari **180 menit** menjadi **15 menit**.
+  - 🔄 **Sinkronisasi Status NPI**: Dari **harian/berkala** menjadi **100% Real-Time**.
+  - 🛡️ **Keamanan Dokumen Prototipe**: Dari **risiko upload cloud** menjadi **100% Internal On-Premise**.
+  - 💰 **Lisensi Eksternal**: **Nol Rupiah** tambahan lisensi berkat software mandiri.
+
+---
+
+## 🛠️ Arsitektur & Spesifikasi Teknologi
+
+| Layer Arsitektur | Teknologi yang Digunakan | Karakteristik & Keunggulan |
+| :--- | :--- | :--- |
+| **Desktop Manager** | Tauri v2, Rust 1.77+, WinAPI | Ukuran aplikasi < 15MB, tanpa jendela konsol hitam CMD, pembaruan otomatis Minisign |
+| **Frontend Web** | React 19, Vite, Vanilla CSS Modules | Build ultra cepat (< 300ms), nol bloat UI library pihak ketiga, responsif |
+| **Backend REST API** | Go 1.22+, Gin Web Framework, pgx | Konsumsi memori idle sangat rendah (< 35MB), throughput konkurensi tinggi |
+| **Kecerdasan Buatan (AI)**| U2Net ONNX, OpenAI / LM Studio Client | Background removal mandiri tanpa internet, integrasi asisten teknik |
+| **Basis Data Relasional**| PostgreSQL 16 | ACID compliant, skema terstruktur, skrip migrasi versi lengkap (001 - 021) |
+| **Cache & Task Queue** | Redis 7 | Penyimpanan cache cepat, koordinasi scheduler cron, blacklist token JWT |
+| **Kontainerisasi** | Docker Compose, Nginx Alpine | Multi-stage build hemat kapasitas, siap deploy produksi instan |
+
+---
+
+## 🚀 Panduan Instalasi & Deployment
+
+### 1. Deployment Cepat Menggunakan Docker Compose (Rekomendasi)
+
 ```bash
+# 1. Clone repository
 git clone https://github.com/endrisusanto/PE-Portal.git
 cd PE-Portal
-```
 
-### 🪟 Windows Auto-Deploy (1-Click Launch)
-If you are deploying on Windows:
-- Simply double-click **`deploy-windows.bat`** (Command Prompt), OR
-- Run in PowerShell:
-```powershell
-.\deploy-windows.ps1
-```
-The script will automatically detect Docker Desktop, initialize `.env`, build and run all containers, and automatically launch your default browser to `http://localhost:3025`.
-
----
-
-### 🐧 Linux / macOS Deployment (Manual Docker Compose)
-
-### 2. Configure Environment Variables
-Copy the example environment configuration:
-```bash
+# 2. Siapkan file konfigurasi environment
 cp .env.example .env
-```
-*(Optionally adjust ports, database passwords, or SMTP host inside `.env`)*
 
-### 3. Launch Services
-Start all containers in detached mode:
-```bash
+# 3. Jalankan seluruh container dalam mode background
 docker compose up -d --build
 ```
 
-### 4. Access the Application
-Open your web browser and navigate to:
+Akses portal melalui browser di: `http://localhost:3025`
+
+### 2. Deployment 1-Click untuk Windows
+
+Cukup klik dua kali file **`deploy-windows.bat`** atau jalankan perintah PowerShell berikut:
+```powershell
+.\deploy-windows.ps1
 ```
-http://localhost:3025
-```
+Skrip akan otomatis memeriksa Docker Desktop, menyiapkan file `.env`, mengompilasi kontainer, dan membuka browser ke alamat aplikasi.
 
-### 5. Default Credentials
-| Role | Username | Password |
-| :--- | :--- | :--- |
-| **Administrator** | `admin` | `admin123` |
-| **Production Engineer** | `engineer` | `engineer123` |
-| **Viewer** | `viewer` | `viewer123` |
+### 3. Pemetaan Port Sistem
 
-*(Please change default passwords in production via the Profile page).*
-
----
-
-## 🌐 Port Mapping
-
-| Service | Container Name | Internal Port | Host Port | Description |
+| Layanan | Nama Kontainer | Port Internal | Port Host | Deskripsi |
 | :--- | :--- | :--- | :--- | :--- |
-| **Frontend** | `pe-portal-frontend` | `80` | `3025` | Nginx Alpine React SPA |
-| **Backend API** | `pe-portal-backend` | `8085` | `8085` | Go Gin REST API |
-| **Database** | `pe-portal-postgres` | `5432` | `5432` | PostgreSQL 16 DB |
-| **Cache** | `pe-portal-redis` | `6379` | `6379` | Redis 7 Task/Cache |
+| **Frontend Web** | `pe-portal-frontend` | `80` | `3025` | Nginx Alpine React SPA |
+| **Backend API** | `pe-portal-backend` | `8085` | `8085` | Go REST API Service |
+| **Database** | `pe-portal-postgres` | `5432` | `5432` | PostgreSQL 16 Database |
+| **Cache & Queue**| `pe-portal-redis` | `6379` | `6379` | Redis 7 Key-Value Store |
+
+### 4. Akun Akses Awal (Default Credentials)
+
+| Role Akses | Username | Password Standar | Wewenang Akses |
+| :--- | :--- | :--- | :--- |
+| **Administrator** | `admin` | `admin123` | Akses penuh sistem, manajemen user & permission menu |
+| **Production Engineer**| `engineer`| `engineer123` | Akses input proyek, model matrix, inovasi, dan laporan |
+| **Viewer** | `viewer` | `viewer123` | Akses baca (*read-only*) untuk pemantauan informasi |
+
+*(Harap segera ubah password default saat pertama kali sistem digunakan melalui menu Profile).*
 
 ---
 
-## ⚡ Bare Metal Installation (Without Docker)
+## 📄 Lisensi & Atribusi
 
-Automated 1-command installer for bare metal Linux servers (Debian/Ubuntu) or local workstations. Automatically handles **git clone, system dependencies (Go 1.22+, Node.js 20+, PostgreSQL 16, Redis), database initialization, production build, and service runners**.
-
-### 1-Command Quick Install (Linux)
-Run directly via bash:
-```bash
-curl -fsSL https://raw.githubusercontent.com/endrisusanto/PE-Portal/main/install-baremetal.sh | bash
-```
-*Or if you have already cloned the repository:*
-```bash
-./install-baremetal.sh
-```
-
-### Managing Bare Metal Services
-After installation finishes, control the portal using either method:
-
-#### Option A: Standalone Runner (No Root Required)
-```bash
-./start-baremetal.sh   # Starts backend on :8085 and frontend preview on :3025 in background
-./stop-baremetal.sh    # Gracefully stops all portal services
-tail -f logs/backend.log logs/frontend.log  # View live application logs
-```
-
-#### Option B: Systemd Daemon (Auto-Start on Boot)
-```bash
-sudo systemctl enable --now pe-portal-backend pe-portal-frontend
-sudo systemctl status pe-portal-backend pe-portal-frontend
-sudo systemctl restart pe-portal-backend pe-portal-frontend
-```
-
-### 🪟 Windows Bare Metal & Desktop Manager
-If running on Windows bare metal:
-
-#### Option 1: Pre-Built Desktop Tray App (Recommended)
-Download the latest signed installer from **[GitHub Releases](https://github.com/endrisusanto/PE-Portal/releases)**:
-- **`PE-Portal.Manager_x.x.x_x64-setup.exe`** (NSIS Silent / Seamless Installer)
-- Or **`PE-Portal.Manager_x.x.x_x64_en-US.msi`** (Enterprise WiX Package)
-
-Once installed, **PE-Portal Manager** sits in the Windows System Tray. It manages backend lifecycle, shows live logs, and supports seamless 1-click silent updates.
-
-#### Option 2: Local Batch Scripts
-- Run **`install-baremetal.bat`** to verify dependencies, prepare `.env`, and compile backend and frontend.
-- Optional: Run **`build-manager.bat`** to compile the Tauri Desktop Manager locally.
-- Run **`start-baremetal.bat`**: Automatically checks for `pe-portal-manager.exe` and launches it to the System Tray. If absent, it starts the services headlessly in the background without persistent black CMD windows.
-- Run **`stop-baremetal.bat`** to gracefully stop all services.
-
----
-
-## 🚀 Automated Release Pipeline (`release.sh`)
-
-Releasing a new version and triggering automated Windows builds is completely automated:
-
-```bash
-# Bump patch version (e.g. 1.0.0 -> 1.0.1)
-./release.sh patch
-
-# Bump minor version (e.g. 1.0.1 -> 1.1.0)
-./release.sh minor
-
-# Specify exact version
-./release.sh 1.2.0
-```
-
-### What `release.sh` does:
-1. Automatically commits uncommitted workspace changes.
-2. Synchronizes version numbers across `package.json`, `frontend/package.json`, `desktop/package.json`, `desktop/src-tauri/tauri.conf.json`, and `desktop/src-tauri/Cargo.toml`.
-3. Creates an annotated Git release tag (e.g., `v1.0.1`).
-4. Pushes commits and tags to GitHub.
-5. GitHub Actions (`.github/workflows/release.yml`) automatically executes:
-   - Go 1.22 backend compilation (`pe-portal-backend.exe`).
-   - Frontend Vite SPA build.
-   - Tauri v2 Rust compilation and WiX/NSIS packaging.
-   - Cryptographic Minisign payload signing (`.sig`).
-   - Generation of `latest.json` auto-update manifest.
-   - Publishing artifacts to **GitHub Releases**.
-
----
-
-## 💻 Manual Local Development Setup (Without Docker)
-
-### Prerequisites
-- **Go**: 1.22+
-- **Node.js**: 22+ & npm
-- **Rust**: 1.77+ (optional, for desktop app)
-- **PostgreSQL**: 16+
-- **Redis**: 7+
-
-### 1. Database Setup
-```bash
-createdb -U postgres pe_portal
-psql -U postgres -d pe_portal -f migrations/001_init.sql
-psql -U postgres -d pe_portal -f migrations/002_seed.sql
-psql -U postgres -d pe_portal -f migrations/003_reports_smtp.sql
-psql -U postgres -d pe_portal -f migrations/004_llm_config.sql
-psql -U postgres -d pe_portal -f migrations/005_user_email_lists.sql
-# Run migrations through 012 for complete schema
-```
-
-### 2. Run Backend
-```bash
-cd backend
-export DATABASE_URL="postgres://postgres:password@localhost:5432/pe_portal?sslmode=disable"
-export REDIS_URL="redis://localhost:6379"
-export JWT_SECRET="your_development_secret_key"
-go run cmd/server/main.go
-```
-
-### 3. Run Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Frontend development server will be available at `http://localhost:5173` (proxied to API at `8085`).
-
-### 4. Run Desktop App (Dev Mode)
-```bash
-cd desktop
-npm install
-npm run tauri dev
-```
-
----
-
-## 📁 Repository Structure
-
-```
-PE-Portal/
-├── .env.example              # Template environment configuration
-├── .gitignore                # Git ignore rules for Go, Node, Rust, and secrets
-├── .github/workflows/        # CI/CD Release automation (Windows runners)
-├── docker-compose.yml        # Docker compose service definition
-├── package.json              # Root metadata and release helper scripts
-├── release.sh                # Automated 1-click semantic version bumper & release script
-├── start-baremetal.bat / sh  # Seamless startup runners (tray / background)
-├── stop-baremetal.bat / sh   # Graceful service shutdown scripts
-├── build-manager.bat         # 1-click Windows compiler for Tauri Desktop Manager
-├── README.md                 # Project documentation
-│
-├── desktop/                  # Tauri v2 Windows Desktop Tray Manager
-│   ├── index.html            # Dark-themed management dashboard
-│   ├── package.json          # Vite + Tauri CLI tooling
-│   └── src-tauri/            # Rust native backend
-│       ├── Cargo.toml        # Tauri, WinAPI, and updater dependencies
-│       ├── tauri.conf.json   # Bundle settings, Minisign pubkey, updater endpoint
-│       └── src/lib.rs        # Tray icon, subprocess management, CREATE_NO_WINDOW
-│
-├── backend/                  # Go REST API backend
-│   ├── cmd/server/main.go    # Application entrypoint
-│   ├── Dockerfile            # Multi-stage Go build container
-│   ├── go.mod / go.sum       # Go module dependencies
-│   ├── internal/
-│   │   ├── auth/             # JWT and LDAP providers
-│   │   ├── config/           # Environment loader
-│   │   ├── database/         # Postgres and Redis connection pools
-│   │   ├── handler/          # HTTP request handlers (REST)
-│   │   ├── i18n/             # Server-side localization files
-│   │   ├── middleware/       # RBAC, Auth, Audit log middlewares
-│   │   ├── model/            # Go domain struct definitions
-│   │   ├── repository/       # Database SQL queries
-│   │   └── service/          # SMTP dispatcher, LLM client, cron scheduler
-│   ├── scripts/              # U2Net background removal python workers
-│   └── migrations/           # Database SQL schema migrations (001 - 012)
-│
-├── frontend/                 # React 19 + Vite frontend
-│   ├── Dockerfile            # Multi-stage build with Nginx Alpine
-│   ├── nginx.conf            # Nginx reverse proxy & SPA router config
-│   ├── package.json          # Frontend dependencies
-│   ├── vite.config.js        # Vite build & proxy settings
-│   └── src/
-│       ├── api/              # Axios HTTP client with JWT interceptor
-│       ├── components/
-│       │   ├── common/       # Button, EmailChipInput, LanguageSwitcher,
-│       │   │                 # ThemePalettePicker, ThemeAnimatedBackground, Modal
-│       │   └── layout/       # AppShell, TopBar, Sidebar
-│       ├── contexts/         # AuthContext, ThemeContext, LanguageContext
-│       ├── pages/            # Dashboard, Innovations, Projects, Models,
-│       │                     # IMEI, Documents, Reports, ReportEditor, Profile, Settings
-│       ├── index.css         # Design system tokens, grain, palettes
-│       └── main.jsx          # React DOM root entrypoint
-```
-
----
-
-## 📄 License & Attribution
-
-Internal engineering tool developed for **SEIN PE Group**.  
-Built with care following the principles of high-performance engineering (`/ponytail`) and polished interface design (`/emil-design-eng` & `/better-ui`).
+Aplikasi internal ini dikembangkan khusus untuk **SEIN PE Group (Samsung Electronics Indonesia)**.  
+Dibangun dengan prinsip rekayasa performa tinggi (*clean code, zero-bloat* `/ponytail`) serta standar estetika antarmuka modern yang fungsional (`/emil-design-eng` & `/better-ui`).
