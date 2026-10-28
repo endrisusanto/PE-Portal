@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FileSpreadsheet,
@@ -25,11 +25,17 @@ import {
   Check,
   Loader2,
   Cpu,
-  Boxes
+  Boxes,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw,
+  Copy
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
+import { RichMessageContent } from '../components/chat/AiChatWindow';
 import styles from './EcnMonitoringPage.module.css';
 
 export const EcnMonitoringPage = () => {
@@ -56,13 +62,33 @@ export const EcnMonitoringPage = () => {
     model_counts: {},
   });
 
-  // --- Filter State ---
+  // --- Global Toolbar Filter State ---
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedProcess, setSelectedProcess] = useState('');
   const [selectedFunction, setSelectedFunction] = useState('');
+
+  // --- Individual Column Search Filters ---
+  const [colFilters, setColFilters] = useState({
+    ecn_no: '',
+    model: '',
+    function_type: '',
+    process: '',
+    ec_title: '',
+    child_code: '',
+    child_name: '',
+    specification: '',
+    quantity: '',
+    running_date_bom: '',
+    distribution_date: '',
+    status: '',
+  });
+
+  // --- Table Header Sorting ---
+  const [sortKey, setSortKey] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // --- Expanded Rows State ---
   const [expandedRowIds, setExpandedRowIds] = useState(new Set());
@@ -103,20 +129,22 @@ export const EcnMonitoringPage = () => {
     remark: '',
   });
 
-  // --- AI Chatbot Drawer State ---
-  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  // --- AI Chatbot Accordion State ---
+  const [isAiAccordionOpen, setIsAiAccordionOpen] = useState(true);
+  const chatScrollRef = useRef(null);
   const [chatMessages, setChatMessages] = useState([
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Halo! Saya asisten AI spesialis **ECN Monitoring**. Saya dapat membantu menganalisis perubahan engineering, ringkasan model, status implementasi, dan catatan kendala material/supplier. Ada yang bisa saya bantu?',
+      content:
+        'Halo! Saya asisten AI spesialis **ECN Monitoring SEIN PE**.\n\nSaya menganalisis seluruh database ECN yang sedang aktif (terfilter).\nAnda dapat menanyakan hal-hal seperti:\n- **Ringkasan ECN** model tertentu\n- **Analisis pergantian komponen/supplier** pada kolom *Remark*\n- Cek status **ECO Cancel** atau **In Progress**\n- Rekomendasi verifikasi **Running BOM**',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
 
-  // Debounce search input
+  // Debounce global search
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(search);
@@ -124,6 +152,13 @@ export const EcnMonitoringPage = () => {
     }, 300);
     return () => clearTimeout(handler);
   }, [search]);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isAiThinking]);
 
   // Fetch Stats
   const fetchStats = useCallback(async () => {
@@ -135,7 +170,7 @@ export const EcnMonitoringPage = () => {
     }
   }, []);
 
-  // Fetch ECN Records List
+  // Fetch ECN Records List from Backend
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
@@ -147,6 +182,8 @@ export const EcnMonitoringPage = () => {
         status: selectedStatus,
         process: selectedProcess,
         function_type: selectedFunction,
+        sort_by: sortKey,
+        sort_order: sortDirection,
       };
       const res = await api.get('/ecn', { params });
       setRecords(res.data.records || []);
@@ -157,164 +194,251 @@ export const EcnMonitoringPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, selectedModel, selectedStatus, selectedProcess, selectedFunction]);
-
-  useEffect(() => {
-    fetchRecords();
-  }, [fetchRecords]);
+  }, [page, limit, debouncedSearch, selectedModel, selectedStatus, selectedProcess, selectedFunction, sortKey, sortDirection]);
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
 
-  // Row Expand Toggle
-  const toggleRowExpand = (id) => {
+  useEffect(() => {
+    fetchRecords();
+  }, [fetchRecords]);
+
+  // --- Sorting Handler ---
+  const handleSort = (key) => {
+    let nextDir = 'asc';
+    if (sortKey === key) {
+      if (sortDirection === 'asc') nextDir = 'desc';
+      else if (sortDirection === 'desc') {
+        setSortKey('created_at');
+        setSortDirection('desc');
+        return;
+      }
+    }
+    setSortKey(key);
+    setSortDirection(nextDir);
+  };
+
+  // --- Reset All Column Filters ---
+  const hasActiveColFilters = useMemo(() => {
+    return Object.values(colFilters).some((val) => Boolean(val));
+  }, [colFilters]);
+
+  const handleResetColFilters = () => {
+    setColFilters({
+      ecn_no: '',
+      model: '',
+      function_type: '',
+      process: '',
+      ec_title: '',
+      child_code: '',
+      child_name: '',
+      specification: '',
+      quantity: '',
+      running_date_bom: '',
+      distribution_date: '',
+      status: '',
+    });
+  };
+
+  // --- Filtered & Sorted Records (Client-side fast responsiveness) ---
+  const displayedRecords = useMemo(() => {
+    let result = [...records];
+
+    if (colFilters.ecn_no) {
+      const q = colFilters.ecn_no.toLowerCase();
+      result = result.filter((r) => (r.ecn_no || '').toLowerCase().includes(q));
+    }
+    if (colFilters.model) {
+      const q = colFilters.model.toLowerCase();
+      result = result.filter((r) => (r.model || '').toLowerCase().includes(q));
+    }
+    if (colFilters.function_type) {
+      const q = colFilters.function_type.toLowerCase();
+      result = result.filter((r) => (r.function_type || '').toLowerCase().includes(q));
+    }
+    if (colFilters.process) {
+      const q = colFilters.process.toLowerCase();
+      result = result.filter((r) => (r.process || '').toLowerCase().includes(q));
+    }
+    if (colFilters.ec_title) {
+      const q = colFilters.ec_title.toLowerCase();
+      result = result.filter((r) => (r.ec_title || '').toLowerCase().includes(q));
+    }
+    if (colFilters.child_code) {
+      const q = colFilters.child_code.toLowerCase();
+      result = result.filter((r) => (r.child_code || '').toLowerCase().includes(q));
+    }
+    if (colFilters.child_name) {
+      const q = colFilters.child_name.toLowerCase();
+      result = result.filter((r) => (r.child_name || '').toLowerCase().includes(q));
+    }
+    if (colFilters.specification) {
+      const q = colFilters.specification.toLowerCase();
+      result = result.filter((r) => (r.specification || '').toLowerCase().includes(q));
+    }
+    if (colFilters.quantity) {
+      const q = colFilters.quantity.toLowerCase();
+      result = result.filter((r) => String(r.quantity || '').toLowerCase().includes(q));
+    }
+    if (colFilters.running_date_bom) {
+      const q = colFilters.running_date_bom.toLowerCase();
+      result = result.filter((r) => (r.running_date_bom || '').toLowerCase().includes(q));
+    }
+    if (colFilters.distribution_date) {
+      const q = colFilters.distribution_date.toLowerCase();
+      result = result.filter((r) => (r.distribution_date || '').toLowerCase().includes(q));
+    }
+    if (colFilters.status) {
+      const q = colFilters.status.toLowerCase();
+      result = result.filter((r) => (r.status || '').toLowerCase() === q);
+    }
+
+    // In-memory sort fallback
+    if (sortKey && sortDirection) {
+      result.sort((a, b) => {
+        const valA = a[sortKey];
+        const valB = b[sortKey];
+        if (valA === valB) return 0;
+        if (valA === null || valA === undefined || valA === '') return 1;
+        if (valB === null || valB === undefined || valB === '') return -1;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return sortDirection === 'asc' ? valA - valB : valB - valA;
+        }
+        return sortDirection === 'asc'
+          ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' })
+          : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
+    return result;
+  }, [records, colFilters, sortKey, sortDirection]);
+
+  // Toggle Row Expansion
+  const toggleRow = (id) => {
     setExpandedRowIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  // --- TSV / Clipboard Paste Parsing (Bypass DRM) ---
-  const handleParseClipboard = (text) => {
+  // --- Parse Clipboard TSV (Paste Table) ---
+  const handleParsePasteText = (text) => {
     setPasteRawText(text);
-    if (!text.trim()) {
+    if (!text || !text.trim()) {
       setParsedPasteRows([]);
       return;
     }
 
-    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    const lines = text.trim().split(/\r\n|\n|\r/);
     if (lines.length === 0) return;
 
-    // Detect header row or check if first row contains 'ECN' or 'MODEL'
-    const firstLineCols = lines[0].split('\t');
     let startIdx = 0;
-    let colMap = {};
-
-    const normalizeHeader = (raw) => {
-      const h = (raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (h.includes('ecn') || h.includes('ecnno')) return 'ecn_no';
-      if (h === 'model' || h.includes('model')) return 'model';
-      if (h.includes('function') || h.includes('type')) return 'function_type';
-      if (h.includes('purpose')) return 'purpose';
-      if (h.includes('inventory') || h.includes('mgmt')) return 'inventory_mgmt';
-      if (h.includes('proses') || h.includes('process')) return 'process';
-      if (h.includes('ectitle') || h.includes('title')) return 'ec_title';
-      if (h.includes('parentcode')) return 'parent_code';
-      if (h.includes('parentname')) return 'parent_name';
-      if (h.includes('beforeafter') || h.includes('before')) return 'before_after';
-      if (h === 'dl' || h === 'd_l') return 'dl';
-      if (h.includes('childcode')) return 'child_code';
-      if (h.includes('childname')) return 'child_name';
-      if (h.includes('spec')) return 'specification';
-      if (h.includes('qty') || h.includes('quantity')) return 'quantity';
-      if (h.includes('marking')) return 'marking_point';
-      if (h.includes('running') || h.includes('bom')) return 'running_date_bom';
-      if (h.includes('dist')) return 'distribution_date';
-      if (h.includes('status')) return 'status';
-      if (h.includes('remark') || h.includes('note')) return 'remark';
-      return null;
-    };
-
-    const isHeaderRow = firstLineCols.some((c) => {
-      const k = normalizeHeader(c);
-      return k === 'ecn_no' || k === 'model' || k === 'process';
-    });
-
-    if (isHeaderRow) {
+    const firstLineLower = lines[0].toLowerCase();
+    if (
+      firstLineLower.includes('ecn') ||
+      firstLineLower.includes('model') ||
+      firstLineLower.includes('function')
+    ) {
       startIdx = 1;
-      firstLineCols.forEach((col, i) => {
-        const k = normalizeHeader(col);
-        if (k) colMap[i] = k;
-      });
-    } else {
-      // Positional fallback matching table order
-      const defaultOrder = [
-        'ecn_no', 'model', 'function_type', 'purpose', 'inventory_mgmt',
-        'process', 'ec_title', 'parent_code', 'parent_name', 'before_after',
-        'dl', 'child_code', 'child_name', 'specification', 'quantity',
-        'marking_point', 'running_date_bom', 'distribution_date', 'status', 'remark'
-      ];
-      defaultOrder.forEach((k, i) => {
-        colMap[i] = k;
-      });
     }
 
     const parsed = [];
     for (let i = startIdx; i < lines.length; i++) {
-      const cols = lines[i].split('\t');
-      if (cols.length === 0 || !cols.some((c) => c.trim())) continue;
+      const line = lines[i].trim();
+      if (!line) continue;
+      const cols = line.split('\t').map((c) => c.trim());
+      if (cols.length < 2) continue;
 
-      const row = {};
-      cols.forEach((val, cIdx) => {
-        const key = colMap[cIdx];
-        if (key) {
-          row[key] = val.trim();
-        }
+      parsed.push({
+        ecn_no: cols[0] || '',
+        model: cols[1] || '',
+        function_type: cols[2] || '',
+        purpose: cols[3] || '',
+        inventory_mgmt: cols[4] || '',
+        process: cols[5] || '',
+        ec_title: cols[6] || '',
+        parent_code: cols[7] || '',
+        parent_name: cols[8] || '',
+        before_after: cols[9] || '',
+        dl: cols[10] || '',
+        child_code: cols[11] || '',
+        child_name: cols[12] || '',
+        specification: cols[13] || '',
+        quantity: cols[14] || '',
+        marking_point: cols[15] || '',
+        running_date_bom: cols[16] || '',
+        distribution_date: cols[17] || '',
+        status: cols[18] || 'Pending',
+        remark: cols[19] || (cols.length > 20 ? cols.slice(19).join(' ') : ''),
       });
-
-      if (row.ecn_no || row.model || row.ec_title) {
-        if (!row.status) row.status = 'Pending';
-        parsed.push(row);
-      }
     }
 
     setParsedPasteRows(parsed);
   };
 
-  const handleCommitPaste = async () => {
-    if (parsedPasteRows.length === 0) return;
+  // Submit Bulk Import from Paste Table
+  const handleSubmitPasteBulk = async () => {
+    if (parsedPasteRows.length === 0) {
+      alert('Tidak ada data ECN valid yang dapat diimpor.');
+      return;
+    }
+
     setIsImportingPaste(true);
     try {
       const res = await api.post('/ecn/bulk', { records: parsedPasteRows });
-      alert(res.data.message || `Berhasil mengimpor ${parsedPasteRows.length} baris ECN.`);
+      alert(`Berhasil mengimpor ${res.data?.count || parsedPasteRows.length} baris data ECN!`);
       setIsPasteModalOpen(false);
       setPasteRawText('');
       setParsedPasteRows([]);
       fetchRecords();
       fetchStats();
     } catch (err) {
-      alert(`Gagal menyimpan data import: ${err.response?.data?.message || err.message}`);
+      alert(`Gagal import data: ${err.response?.data?.message || err.message}`);
     } finally {
       setIsImportingPaste(false);
     }
   };
 
-  // --- Excel File Upload Handler ---
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadFile(file);
-    setUploadDrmNotice(null);
-
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
+  // Submit Excel File Upload
+  const handleUploadExcelSubmit = async (e) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      alert('Pilih file Excel terlebih dahulu.');
+      return;
+    }
 
     setIsUploading(true);
+    setUploadDrmNotice(null);
+
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+
     try {
-      const res = await api.post('/ecn/parse-excel', formDataUpload, {
+      const res = await api.post('/ecn/parse-excel', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (res.data?.is_drm) {
-        setUploadDrmNotice(res.data.message);
-      } else if (res.data?.success && Array.isArray(res.data?.records)) {
-        const count = res.data.records.length;
-        if (window.confirm(`File Excel berhasil diparsing! Ditemukan ${count} baris ECN. Simpan ke database sekarang?`)) {
-          const bulkRes = await api.post('/ecn/bulk', { records: res.data.records });
-          alert(bulkRes.data.message || `Berhasil menyimpan ${count} baris.`);
-          setIsUploadModalOpen(false);
-          setUploadFile(null);
-          fetchRecords();
-          fetchStats();
-        }
+        setUploadDrmNotice({
+          message: res.data.message || 'File terenkripsi oleh Samsung NASCA DRM.',
+          recommendation:
+            'Gunakan menu Paste Table: Buka file di Microsoft Excel, tekan Ctrl+A -> Ctrl+C, lalu paste di form Paste Table.',
+        });
+        return;
+      }
+
+      if (res.data?.records && res.data.records.length > 0) {
+        const importRes = await api.post('/ecn/bulk', { records: res.data.records });
+        alert(`Berhasil mengimpor ${importRes.data?.count || res.data.records.length} data ECN dari Excel!`);
+        setIsUploadModalOpen(false);
+        setUploadFile(null);
+        fetchRecords();
+        fetchStats();
       } else {
-        alert(res.data?.error || 'Gagal membaca isi file Excel.');
+        alert('Tidak ada data valid yang ditemukan pada file Excel.');
       }
     } catch (err) {
       alert(`Gagal upload Excel: ${err.response?.data?.message || err.message}`);
@@ -323,7 +447,7 @@ export const EcnMonitoringPage = () => {
     }
   };
 
-  // --- Manual Entry Form Submit ---
+  // Manual Entry Form Submit
   const handleSaveForm = async (e) => {
     e.preventDefault();
     if (!formData.ecn_no.trim()) {
@@ -384,27 +508,59 @@ export const EcnMonitoringPage = () => {
     }
   };
 
-  // --- Export Clean CSV ---
+  // Export CSV
   const handleExportCSV = () => {
-    if (records.length === 0) {
+    if (displayedRecords.length === 0) {
       alert('Tidak ada data ECN untuk diekspor.');
       return;
     }
 
     const headers = [
-      'ECN NO', 'MODEL', 'Function Type', 'Purpose', 'Inventory Management',
-      'Proses', 'EC Title', 'PARENT CODE', 'PARENT NAME', 'Before After',
-      'D/L', 'CHILD CODE', 'CHILD NAME', 'SPECIFICATION', 'Quantity',
-      'Marking point', 'Running Date BOM', 'Distribution Date', 'Status', 'Remark'
+      'ECN NO',
+      'MODEL',
+      'Function Type',
+      'Purpose',
+      'Inventory Management',
+      'Proses',
+      'EC Title',
+      'PARENT CODE',
+      'PARENT NAME',
+      'Before After',
+      'D/L',
+      'CHILD CODE',
+      'CHILD NAME',
+      'SPECIFICATION',
+      'Quantity',
+      'Marking point',
+      'Running Date BOM',
+      'Distribution Date',
+      'Status',
+      'Remark',
     ];
 
     const csvRows = [headers.join(',')];
-    records.forEach((r) => {
+    displayedRecords.forEach((r) => {
       const vals = [
-        r.ecn_no, r.model, r.function_type, r.purpose, r.inventory_mgmt,
-        r.process, r.ec_title, r.parent_code, r.parent_name, r.before_after,
-        r.dl, r.child_code, r.child_name, r.specification, r.quantity,
-        r.marking_point, r.running_date_bom, r.distribution_date, r.status, r.remark
+        r.ecn_no,
+        r.model,
+        r.function_type,
+        r.purpose,
+        r.inventory_mgmt,
+        r.process,
+        r.ec_title,
+        r.parent_code,
+        r.parent_name,
+        r.before_after,
+        r.dl,
+        r.child_code,
+        r.child_name,
+        r.specification,
+        r.quantity,
+        r.marking_point,
+        r.running_date_bom,
+        r.distribution_date,
+        r.status,
+        r.remark,
       ].map((v) => `"${(v || '').replace(/"/g, '""')}"`);
       csvRows.push(vals.join(','));
     });
@@ -435,32 +591,38 @@ export const EcnMonitoringPage = () => {
     setIsAiThinking(true);
 
     try {
-      // Build compact context from currently active records
-      const contextSummary = records.slice(0, 40).map((r) => ({
+      const contextSummary = displayedRecords.slice(0, 35).map((r) => ({
         ecn: r.ecn_no,
         model: r.model,
         process: r.process,
         func: r.function_type,
         status: r.status,
         title: r.ec_title,
+        part_code: r.child_code,
+        part_name: r.child_name,
+        spec: r.specification,
         bom_date: r.running_date_bom,
         remark: r.remark,
       }));
 
       const systemPrompt = `Anda adalah asisten AI Production Engineering (PE) spesialis ECN Monitoring di PT Samsung Electronics Indonesia (SEIN).
-Tugas Anda adalah menganalisis data Engineering Change Notice (ECN) berikut, memberikan ringkasan status implementasi, melacak dampak perubahan model, mendeteksi risiko material, dan memberikan rekomendasi teknis.
+Tugas Anda adalah menganalisis data Engineering Change Notice (ECN) berikut, melacak perubahan part, mendeteksi status kendala material/supplier, dan menyajikan jawaban yang rapi, profesional, dan to-the-point.
 
-=== DATA AKTIF ECN (TOTAL ${totalRecords} DATA, SAMPEL TAMPIL: ${contextSummary.length} BARIS) ===
+=== KONTEKS DATA ECN AKTIF (TOTAL ${totalRecords} DATA, SAMPEL TERMUAT: ${contextSummary.length} BARIS) ===
 ${JSON.stringify(contextSummary, null, 2)}
 ========================================================================================
 
-Instruksi Analisis:
-1. Jawab pertanyaan dengan terstruktur, profesional, dan to-the-point menggunakan terminologi SEIN PE (ECN NO, Model, Proses SMD/Mainline/Vendor, Running Date BOM, Status, Remark).
-2. Jika ditanya status In Progress / ECO Cancel, sebutkan ECN NO dan modelnya.
-3. Rujuk kolom Remark jika ditanya detail perubahan komponen/supplier (misal: penggantian Diode/FET, modifikasi JIG, dsb).`;
+Panduan Format Respons:
+1. Gunakan Markdown yang kaya dan terstruktur: **bold** untuk penekanan, *italic* untuk istilah teknis, \`code\` untuk nomor part/kode, dan blockquote (\`> \`) untuk peringatan teknis atau kutipan remark.
+2. Gunakan bullet list (\`- \`) atau numbered list (\`1. \`) untuk poin-poin penjelasan.
+3. Jika menampilkan komparasi data atau daftar ECN, gunakan Markdown Table (\`| ECN NO | Model | Status | Keterangan |\`) agar rapi.
+4. Jawablah langsung pada inti pertanyaan dengan bahasa Indonesia yang baku dan ramah bagi Production Engineer.`;
 
       const history = [
-        ...chatMessages.filter((m) => m.id !== 'welcome').slice(-4).map((m) => ({ role: m.role, content: m.content })),
+        ...chatMessages
+          .filter((m) => m.id !== 'welcome')
+          .slice(-4)
+          .map((m) => ({ role: m.role, content: m.content })),
         { role: 'user', content: text },
       ];
 
@@ -485,7 +647,7 @@ Instruksi Analisis:
         {
           id: Math.random().toString(36).substring(2, 9),
           role: 'assistant',
-          content: `⚠️ Maaf, AI mengalami kendala: ${err.response?.data?.message || err.message}`,
+          content: `⚠️ **Maaf, terjadi kendala komunikasi dengan AI**: ${err.response?.data?.message || err.message}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -506,7 +668,7 @@ Instruksi Analisis:
 
   return (
     <div className={styles.container}>
-      {/* Header */}
+      {/* Page Header */}
       <div className={styles.header}>
         <div className={styles.titleArea}>
           <div className={styles.breadcrumbs}>
@@ -515,7 +677,7 @@ Instruksi Analisis:
             <span>Engineering Changes</span>
           </div>
           <h1 className={styles.pageTitle}>
-            <FileSpreadsheet className="w-7 h-7 text-blue-600" />
+            <FileSpreadsheet className="w-6 h-6 text-teal-600" />
             ECN Monitoring
             <span className={styles.titleBadge}>SEIN Production Engineering</span>
           </h1>
@@ -523,24 +685,34 @@ Instruksi Analisis:
 
         <div className={styles.headerActions}>
           <button
+            type="button"
             className={styles.btnSecondary}
             onClick={() => setIsPasteModalOpen(true)}
-            title="Salin tabel dari Excel lalu tempel langsung (Bypass NASCA DRM)"
+            title="Paste tabel langsung dari Excel clipboard (Bypass DRM NASCA)"
           >
-            <ClipboardPaste className="w-4 h-4 text-blue-600" />
-            <span>Paste Table (Bypass DRM)</span>
+            <ClipboardPaste size={15} />
+            Paste Table
           </button>
-
           <button
+            type="button"
             className={styles.btnSecondary}
             onClick={() => setIsUploadModalOpen(true)}
-            title="Upload file spreadsheet .xlsx"
+            title="Upload file dokumen Excel (.xlsx)"
           >
-            <Upload className="w-4 h-4 text-teal-600" />
-            <span>Upload Excel</span>
+            <Upload size={15} />
+            Upload Excel
           </button>
-
           <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={handleExportCSV}
+            title="Ekspor data aktif ke CSV"
+          >
+            <Download size={15} />
+            Export CSV
+          </button>
+          <button
+            type="button"
             className={styles.btnPrimary}
             onClick={() => {
               setEditingItem(null);
@@ -569,71 +741,37 @@ Instruksi Analisis:
               setIsFormModalOpen(true);
             }}
           >
-            <Plus className="w-4 h-4" />
-            <span>Manual Entry</span>
-          </button>
-
-          <button className={styles.btnSecondary} onClick={handleExportCSV} title="Export data ke CSV">
-            <Download className="w-4 h-4 text-slate-600" />
-            <span>Export CSV</span>
-          </button>
-
-          <button
-            className={styles.btnAi}
-            onClick={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
-            title="Buka asisten AI untuk analisis data ECN"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Tanya AI ECN</span>
+            <Plus size={15} />
+            Manual Entry
           </button>
         </div>
       </div>
 
-      {/* Metric Summary Cards */}
+      {/* Metric KPI Cards Grid */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#eff6ff', color: '#2563eb' }}>
-            <Layers className="w-6 h-6" />
+          <div className={styles.statIcon} style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#2563eb' }}>
+            <Layers size={20} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Total ECN</span>
+            <span className={styles.statLabel}>Total ECN Records</span>
             <span className={styles.statValue}>{stats.total.toLocaleString()}</span>
           </div>
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#dcfce7', color: '#16a34a' }}>
-            <CheckCircle2 className="w-6 h-6" />
+          <div className={styles.statIcon} style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#16a34a' }}>
+            <CheckCircle2 size={20} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Completed</span>
+            <span className={styles.statLabel}>ECN Completed</span>
             <span className={styles.statValue}>{stats.completed.toLocaleString()}</span>
           </div>
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#dbeafe', color: '#1d4ed8' }}>
-            <Clock className="w-6 h-6" />
-          </div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>In Progress</span>
-            <span className={styles.statValue}>{stats.in_progress.toLocaleString()}</span>
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Pending</span>
-            <span className={styles.statValue}>{stats.pending.toLocaleString()}</span>
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#fee2e2', color: '#dc2626' }}>
-            <XCircle className="w-6 h-6" />
+          <div className={styles.statIcon} style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#dc2626' }}>
+            <XCircle size={20} />
           </div>
           <div className={styles.statInfo}>
             <span className={styles.statLabel}>ECO Cancel</span>
@@ -642,32 +780,180 @@ Instruksi Analisis:
         </div>
 
         <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: '#f5f3ff', color: '#7c3aed' }}>
-            <Cpu className="w-6 h-6" />
+          <div className={styles.statIcon} style={{ background: 'rgba(13, 115, 119, 0.12)', color: 'var(--color-accent)' }}>
+            <Boxes size={20} />
           </div>
           <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Total Models</span>
+            <span className={styles.statLabel}>Active Models</span>
             <span className={styles.statValue}>{stats.unique_models.toLocaleString()}</span>
           </div>
         </div>
       </div>
 
-      {/* Toolbar & Filters */}
-      <div className={styles.toolbarCard}>
-        <div className={styles.toolbarRow}>
-          <div className={styles.searchBox}>
-            <Search className={`w-4 h-4 ${styles.searchIcon}`} />
-            <input
-              type="text"
-              className={styles.searchInput}
-              placeholder="Cari ECN No, Model, Judul EC, Remark, Part Code..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+      {/* ========================================================================
+          AI CHATBOX ACCORDION (Placed Above Table with Rich Formatting)
+          ======================================================================== */}
+      <div className={`${styles.aiAccordionCard} ${isAiAccordionOpen ? styles.aiAccordionCardOpen : ''}`}>
+        <div className={styles.aiAccordionHeader} onClick={() => setIsAiAccordionOpen(!isAiAccordionOpen)}>
+          <div className={styles.aiAccordionTitleArea}>
+            <div className={styles.aiIconWrapper}>
+              <Sparkles size={16} />
+            </div>
+            <h3 className={styles.aiAccordionTitle}>
+              SEIN ECN Engineering AI Assistant
+              <span className={styles.aiContextBadge}>
+                Konteks: {totalRecords} data ({displayedRecords.length} baris aktif)
+              </span>
+            </h3>
+            <span className={styles.aiOnlinePill}>
+              <span className={styles.aiOnlineDot} />
+              LLM Ready
+            </span>
+          </div>
+          <div className={styles.aiAccordionActions}>
+            <span className={styles.aiToggleText}>
+              {isAiAccordionOpen ? 'Sembunyikan Asisten AI' : 'Buka Asisten AI'}
+            </span>
+            <ChevronDown
+              size={18}
+              className={`${styles.aiChevron} ${isAiAccordionOpen ? styles.aiChevronOpen : ''}`}
             />
           </div>
+        </div>
 
-          <div className={styles.filtersGroup}>
-            {/* Filter Status */}
+        {isAiAccordionOpen && (
+          <div className={styles.aiAccordionBody}>
+            {/* Quick Suggestion Chips */}
+            <div className={styles.aiQuickChips}>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() => handleSendAiMessage('Ringkas seluruh ECN yang berstatus In Progress beserta dampaknya.')}
+              >
+                💡 ECN In Progress
+              </button>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() => handleSendAiMessage('Apakah ada perubahan material kritis, FET, atau supplier pada kolom Remark?')}
+              >
+                ⚠️ Isu Material & Supplier
+              </button>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() => handleSendAiMessage('Berapa banyak ECN yang statusnya ECO Cancel dan apa alasannya?')}
+              >
+                ❌ ECN Dibatalkan (Cancel)
+              </button>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() => handleSendAiMessage('Jelaskan distribusi proses perubahan antara SMD, Mainline, dan Vendor.')}
+              >
+                📊 Distribusi Proses
+              </button>
+            </div>
+
+            {/* Chat Messages List */}
+            <div className={styles.aiMessagesContainer} ref={chatScrollRef}>
+              {chatMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`${styles.aiMessageBubble} ${
+                    msg.role === 'user' ? styles.aiMessageUser : styles.aiMessageAssistant
+                  }`}
+                >
+                  {msg.role === 'assistant' ? (
+                    <RichMessageContent content={msg.content} />
+                  ) : (
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                  )}
+                  <div className={styles.aiMessageTime}>{msg.timestamp}</div>
+                </div>
+              ))}
+
+              {isAiThinking && (
+                <div className={`${styles.aiMessageBubble} ${styles.aiMessageAssistant}`}>
+                  <div className={styles.aiThinkingBox}>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>AI sedang menganalisis database ECN...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Composer Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendAiMessage();
+              }}
+              className={styles.aiComposerBar}
+            >
+              <input
+                type="text"
+                className={styles.aiInput}
+                placeholder="Tanyakan analisis ECN, model, part number, perubahan spek, kendala material..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={isAiThinking}
+              />
+              <button
+                type="button"
+                className={styles.aiClearBtn}
+                title="Bersihkan riwayat percakapan"
+                onClick={() => setChatMessages([chatMessages[0]])}
+              >
+                <RotateCcw size={14} />
+              </button>
+              <button
+                type="submit"
+                className={styles.aiSendBtn}
+                disabled={!chatInput.trim() || isAiThinking}
+              >
+                <Send size={14} />
+                <span>Kirim</span>
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================
+          MAIN TABLE CONTAINER & TOOLBAR
+          ======================================================================== */}
+      <div className={styles.tableContainer}>
+        {/* Global Toolbar */}
+        <div className={styles.tableToolbar}>
+          <div className={styles.toolbarFilters}>
+            <div className={styles.searchBox}>
+              <Search className={styles.searchIcon} size={15} />
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="Pencarian cepat (ECN, Model, Title, Part)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            <select
+              className={styles.selectInput}
+              value={selectedModel}
+              onChange={(e) => {
+                setSelectedModel(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua Model</option>
+              {Object.keys(stats.model_counts || {}).map((m) => (
+                <option key={m} value={m}>
+                  {m} ({stats.model_counts[m]})
+                </option>
+              ))}
+            </select>
+
             <select
               className={styles.selectInput}
               value={selectedStatus}
@@ -683,7 +969,6 @@ Instruksi Analisis:
               <option value="ECO Cancel">ECO Cancel</option>
             </select>
 
-            {/* Filter Process */}
             <select
               className={styles.selectInput}
               value={selectedProcess}
@@ -696,10 +981,9 @@ Instruksi Analisis:
               <option value="SMD">SMD</option>
               <option value="Mainline">Mainline</option>
               <option value="Vendor">Vendor</option>
-              <option value="Sub-line">Sub-line</option>
+              <option value="PBA">PBA</option>
             </select>
 
-            {/* Filter Function */}
             <select
               className={styles.selectInput}
               value={selectedFunction}
@@ -710,179 +994,409 @@ Instruksi Analisis:
             >
               <option value="">Semua Fungsi</option>
               <option value="Circuit">Circuit</option>
-              <option value="Mechanical">Mechanical</option>
+              <option value="Mechanism">Mechanism</option>
               <option value="Software">Software</option>
+              <option value="Process">Process</option>
             </select>
+          </div>
 
-            {(search || selectedStatus || selectedProcess || selectedFunction || selectedModel) && (
-              <button
-                className={styles.btnSecondary}
-                onClick={() => {
-                  setSearch('');
-                  setSelectedStatus('');
-                  setSelectedProcess('');
-                  setSelectedFunction('');
-                  setSelectedModel('');
-                  setPage(1);
-                }}
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Reset</span>
-              </button>
-            )}
-
+          <div className={styles.toolbarActions}>
             <button
+              type="button"
               className={styles.btnSecondary}
               onClick={() => {
                 fetchRecords();
                 fetchStats();
               }}
-              title="Refresh data"
+              title="Muat ulang data"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              Refresh
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Main Table Card */}
-      <div className={styles.tableCard}>
-        <div className={styles.tableContainer}>
+        {/* Data Table with Sortable Columns & Individual Column Search */}
+        <div className={styles.tableScroll}>
           <table className={styles.table}>
             <thead>
+              {/* Row 1: Sortable Column Headers */}
               <tr>
-                <th style={{ width: '40px' }}></th>
-                <th>ECN NO</th>
-                <th>MODEL</th>
-                <th>FUNCTION</th>
-                <th>PROSES</th>
-                <th>EC TITLE</th>
-                <th>RUNNING DATE BOM</th>
-                <th>DISTRIBUTION DATE</th>
-                <th>STATUS</th>
-                <th style={{ width: '90px', textAlign: 'center' }}>ACTION</th>
+                <th style={{ width: '40px', textAlign: 'center' }}>#</th>
+                {[
+                  { key: 'ecn_no', label: 'ECN NO', width: '135px' },
+                  { key: 'model', label: 'Model', width: '115px' },
+                  { key: 'function_type', label: 'Function', width: '95px' },
+                  { key: 'process', label: 'Process', width: '90px' },
+                  { key: 'ec_title', label: 'EC Title', minWidth: '180px' },
+                  { key: 'child_code', label: 'Item Code', width: '125px' },
+                  { key: 'child_name', label: 'Part Description', minWidth: '160px' },
+                  { key: 'specification', label: 'Specification', minWidth: '160px' },
+                  { key: 'quantity', label: 'Qty', width: '70px' },
+                  { key: 'running_date_bom', label: 'Running BOM', width: '110px' },
+                  { key: 'distribution_date', label: 'Dist Date', width: '105px' },
+                  { key: 'status', label: 'Status', width: '115px' },
+                ].map((col) => (
+                  <th
+                    key={col.key}
+                    className={styles.thSortable}
+                    onClick={() => handleSort(col.key)}
+                    style={{ width: col.width, minWidth: col.minWidth }}
+                    title={`Klik untuk mengurutkan berdasarkan ${col.label}`}
+                  >
+                    <div className={styles.thSortContent}>
+                      <span>{col.label}</span>
+                      {sortKey === col.key ? (
+                        sortDirection === 'asc' ? (
+                          <ArrowUp size={12} className={styles.sortIconActive} />
+                        ) : (
+                          <ArrowDown size={12} className={styles.sortIconActive} />
+                        )
+                      ) : (
+                        <ArrowUpDown size={11} className={styles.sortIconInactive} />
+                      )}
+                    </div>
+                  </th>
+                ))}
+                <th style={{ width: '85px', textAlign: 'center' }}>Aksi</th>
+              </tr>
+
+              {/* Row 2: Individual Column Filter Inputs */}
+              <tr className={styles.columnFilterRow}>
+                <th style={{ textAlign: 'center' }}>
+                  <Filter size={11} style={{ opacity: 0.5 }} />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Filter ECN..."
+                    value={colFilters.ecn_no}
+                    onChange={(e) => setColFilters({ ...colFilters, ecn_no: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Filter model..."
+                    value={colFilters.model}
+                    onChange={(e) => setColFilters({ ...colFilters, model: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <select
+                    className={styles.colFilterSelect}
+                    value={colFilters.function_type}
+                    onChange={(e) => setColFilters({ ...colFilters, function_type: e.target.value })}
+                  >
+                    <option value="">Semua</option>
+                    <option value="Circuit">Circuit</option>
+                    <option value="Mechanism">Mechanism</option>
+                    <option value="Software">Software</option>
+                    <option value="Process">Process</option>
+                  </select>
+                </th>
+                <th>
+                  <select
+                    className={styles.colFilterSelect}
+                    value={colFilters.process}
+                    onChange={(e) => setColFilters({ ...colFilters, process: e.target.value })}
+                  >
+                    <option value="">Semua</option>
+                    <option value="SMD">SMD</option>
+                    <option value="Mainline">Mainline</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="PBA">PBA</option>
+                  </select>
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Cari title..."
+                    value={colFilters.ec_title}
+                    onChange={(e) => setColFilters({ ...colFilters, ec_title: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Part code..."
+                    value={colFilters.child_code}
+                    onChange={(e) => setColFilters({ ...colFilters, child_code: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Part desc..."
+                    value={colFilters.child_name}
+                    onChange={(e) => setColFilters({ ...colFilters, child_name: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Spec..."
+                    value={colFilters.specification}
+                    onChange={(e) => setColFilters({ ...colFilters, specification: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Qty..."
+                    value={colFilters.quantity}
+                    onChange={(e) => setColFilters({ ...colFilters, quantity: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="YYYY-MM..."
+                    value={colFilters.running_date_bom}
+                    onChange={(e) => setColFilters({ ...colFilters, running_date_bom: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="YYYY-MM..."
+                    value={colFilters.distribution_date}
+                    onChange={(e) => setColFilters({ ...colFilters, distribution_date: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <select
+                    className={styles.colFilterSelect}
+                    value={colFilters.status}
+                    onChange={(e) => setColFilters({ ...colFilters, status: e.target.value })}
+                  >
+                    <option value="">Semua</option>
+                    <option value="Completed">Completed</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Pending">Pending</option>
+                    <option value="ECO Cancel">ECO Cancel</option>
+                  </select>
+                </th>
+                <th style={{ textAlign: 'center' }}>
+                  {hasActiveColFilters && (
+                    <button
+                      type="button"
+                      className={styles.colFilterResetBtn}
+                      title="Reset semua filter kolom"
+                      onClick={handleResetColFilters}
+                    >
+                      <RotateCcw size={10} />
+                      Reset
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" style={{ textAlign: 'center', padding: '3rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#64748b' }}>
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                      <span>Memuat data ECN...</span>
+                  <td colSpan={14} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                      <span>Memuat data ECN Monitoring...</span>
                     </div>
                   </td>
                 </tr>
-              ) : records.length === 0 ? (
+              ) : displayedRecords.length === 0 ? (
                 <tr>
-                  <td colSpan="10" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', color: '#94a3b8' }}>
-                      <FileSpreadsheet className="w-12 h-12 stroke-1 text-slate-300" />
-                      <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#475569', margin: 0 }}>Belum ada data ECN Monitoring</p>
-                      <p style={{ fontSize: '0.8125rem', maxWidth: '420px', margin: 0 }}>
-                        Gunakan tombol <strong>Paste Table</strong> untuk menempel data langsung dari Microsoft Excel (Bypass DRM), atau lakukan Manual Entry.
-                      </p>
-                      <button className={styles.btnPrimary} onClick={() => setIsPasteModalOpen(true)} style={{ marginTop: '0.5rem' }}>
-                        <ClipboardPaste className="w-4 h-4" />
-                        <span>Mulai Paste Table</span>
-                      </button>
+                  <td colSpan={14} style={{ textAlign: 'center', padding: '3.5rem', color: 'var(--color-text-muted)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                      <FileSpreadsheet size={32} style={{ opacity: 0.3 }} />
+                      <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                        Tidak ada record ECN yang cocok
+                      </span>
+                      <span style={{ fontSize: '12px' }}>
+                        Coba sesuaikan kata kunci pencarian, filter kolom di header, atau lakukan import baru.
+                      </span>
+                      {hasActiveColFilters && (
+                        <button
+                          type="button"
+                          className={styles.btnSecondary}
+                          style={{ marginTop: '0.5rem' }}
+                          onClick={handleResetColFilters}
+                        >
+                          <RotateCcw size={13} />
+                          Bersihkan Filter Kolom
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ) : (
-                records.map((r) => {
-                  const isExpanded = expandedRowIds.has(r.id);
+                displayedRecords.map((item, idx) => {
+                  const isExpanded = expandedRowIds.has(item.id);
                   return (
-                    <React.Fragment key={r.id}>
+                    <React.Fragment key={item.id}>
                       <tr className={isExpanded ? styles.rowExpanded : ''}>
-                        <td>
-                          <button className={styles.expandBtn} onClick={() => toggleRowExpand(r.id)} title="Lihat detail">
-                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        {/* Expand Trigger */}
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className={styles.expandBtn}
+                            onClick={() => toggleRow(item.id)}
+                            title={isExpanded ? 'Tutup Detail' : 'Buka Detail Lengkap'}
+                          >
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
                         </td>
+
+                        {/* ECN No */}
                         <td>
-                          <span className={styles.ecnBadge}>{r.ecn_no || '-'}</span>
+                          <span className={styles.ecnBadge}>{item.ecn_no}</span>
                         </td>
+
+                        {/* Model */}
                         <td>
-                          <span className={styles.modelBadge}>{r.model || '-'}</span>
+                          <span className={styles.modelBadge}>{item.model || '-'}</span>
                         </td>
+
+                        {/* Function Type */}
+                        <td>{item.function_type || '-'}</td>
+
+                        {/* Process */}
                         <td>
-                          <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>{r.function_type || '-'}</span>
+                          <span className={styles.processBadge}>{item.process || '-'}</span>
                         </td>
+
+                        {/* EC Title */}
+                        <td style={{ maxWidth: '240px', fontWeight: 500 }} title={item.ec_title}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.ec_title || '-'}
+                          </div>
+                        </td>
+
+                        {/* Child Code */}
                         <td>
-                          <span className={styles.processBadge}>{r.process || '-'}</span>
-                        </td>
-                        <td style={{ maxWidth: '320px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.ec_title}>
-                          {r.ec_title || '-'}
-                        </td>
-                        <td style={{ whiteSpace: 'nowrap' }}>{r.running_date_bom || '-'}</td>
-                        <td style={{ whiteSpace: 'nowrap' }}>{r.distribution_date || '-'}</td>
-                        <td>
-                          <span className={getStatusBadgeClass(r.status)}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'currentColor' }}></span>
-                            {r.status || 'Pending'}
+                          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px' }}>
+                            {item.child_code || '-'}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+
+                        {/* Child Name */}
+                        <td style={{ maxWidth: '200px' }} title={item.child_name}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.child_name || '-'}
+                          </div>
+                        </td>
+
+                        {/* Specification */}
+                        <td style={{ maxWidth: '200px' }} title={item.specification}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.specification || '-'}
+                          </div>
+                        </td>
+
+                        {/* Quantity */}
+                        <td style={{ textAlign: 'center' }}>{item.quantity || '-'}</td>
+
+                        {/* Running Date BOM */}
+                        <td style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                          {item.running_date_bom || '-'}
+                        </td>
+
+                        {/* Distribution Date */}
+                        <td style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                          {item.distribution_date || '-'}
+                        </td>
+
+                        {/* Status */}
+                        <td>
+                          <span className={getStatusBadgeClass(item.status)}>{item.status || 'Pending'}</span>
+                        </td>
+
+                        {/* Actions */}
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <button
-                              className={styles.expandBtn}
-                              onClick={() => handleEditClick(r)}
-                              title="Edit ECN"
+                              type="button"
+                              className={styles.actionBtn}
+                              title="Edit Record"
+                              onClick={() => handleEditClick(item)}
                             >
-                              <Edit className="w-3.5 h-3.5 text-blue-600" />
+                              <Edit size={14} />
                             </button>
                             {isAdmin && (
                               <button
-                                className={styles.expandBtn}
-                                onClick={() => handleDeleteClick(r.id, r.ecn_no)}
-                                title="Hapus ECN"
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+                                title="Hapus Record"
+                                onClick={() => handleDeleteClick(item.id, item.ecn_no)}
                               >
-                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                <Trash2 size={14} />
                               </button>
                             )}
                           </div>
                         </td>
                       </tr>
 
-                      {/* Expanded Row Detail */}
+                      {/* Expandable Full Detail */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan="10" style={{ padding: 0 }}>
+                          <td colSpan={14} style={{ padding: 0 }}>
                             <div className={styles.detailGrid}>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Purpose of Modification</span>
-                                <span className={styles.detailValue}>{r.purpose || '-'}</span>
+                                <span className={styles.detailLabel}>Parent Code</span>
+                                <span className={styles.detailValue} style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+                                  {item.parent_code || '-'}
+                                </span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Inventory Management</span>
-                                <span className={styles.detailValue}>{r.inventory_mgmt || '-'}</span>
+                                <span className={styles.detailLabel}>Parent Name</span>
+                                <span className={styles.detailValue}>{item.parent_name || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Parent Code / Name</span>
-                                <span className={styles.detailValue}>{r.parent_code || '-'} {r.parent_name ? `(${r.parent_name})` : ''}</span>
+                                <span className={styles.detailLabel}>Purpose</span>
+                                <span className={styles.detailValue}>{item.purpose || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Child Code / Name</span>
-                                <span className={styles.detailValue}>{r.child_code || '-'} {r.child_name ? `(${r.child_name})` : ''}</span>
+                                <span className={styles.detailLabel}>Inventory Mgmt</span>
+                                <span className={styles.detailValue}>{item.inventory_mgmt || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>Before / After</span>
-                                <span className={styles.detailValue}>{r.before_after || '-'}</span>
+                                <span className={styles.detailValue}>{item.before_after || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>Specification & Qty</span>
-                                <span className={styles.detailValue}>{r.specification || '-'} (Qty: {r.quantity || '-'})</span>
+                                <span className={styles.detailLabel}>D/L (Distribution Level)</span>
+                                <span className={styles.detailValue}>{item.dl || '-'}</span>
                               </div>
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>D/L & Marking Point</span>
-                                <span className={styles.detailValue}>{r.dl || '-'} / {r.marking_point || '-'}</span>
+                                <span className={styles.detailLabel}>Marking Point</span>
+                                <span className={styles.detailValue}>{item.marking_point || '-'}</span>
                               </div>
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>Record ID & Created</span>
+                                <span className={styles.detailValue} style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                                  {item.id} (Dibuat: {new Date(item.created_at).toLocaleDateString()})
+                                </span>
+                              </div>
+
                               <div className={styles.remarkBox}>
-                                <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', marginBottom: '0.35rem' }}>
-                                  Catatan Teknis (Remark):
-                                </div>
-                                {r.remark || 'Tidak ada catatan teknis.'}
+                                <span className={styles.detailLabel} style={{ display: 'block', marginBottom: '4px' }}>
+                                  Remark / Catatan Teknis:
+                                </span>
+                                {item.remark ? (
+                                  <div>{item.remark}</div>
+                                ) : (
+                                  <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                                    Tidak ada catatan remark untuk record ini.
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -896,136 +1410,140 @@ Instruksi Analisis:
           </table>
         </div>
 
-        {/* Pagination Footer */}
+        {/* Table Pagination Footer */}
         <div className={styles.pagination}>
           <div>
-            Menampilkan <strong>{records.length}</strong> dari <strong>{totalRecords.toLocaleString()}</strong> data ECN (Halaman {page} dari {totalPages})
+            Menampilkan <strong>{displayedRecords.length}</strong> dari <strong>{totalRecords}</strong> data ECN (Halaman{' '}
+            <strong>{page}</strong> dari <strong>{totalPages}</strong>)
           </div>
 
           <div className={styles.pageControls}>
             <button
-              className={styles.btnSecondary}
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              type="button"
+              className={styles.pageBtn}
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Sebelumnya
             </button>
-            <span style={{ padding: '0 0.5rem', fontWeight: 600 }}>{page}</span>
+            <span style={{ fontWeight: 600 }}>{page}</span>
             <button
-              className={styles.btnSecondary}
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              type="button"
+              className={styles.pageBtn}
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
               Selanjutnya
             </button>
-
-            <select
-              className={styles.selectInput}
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              style={{ marginLeft: '0.5rem' }}
-            >
-              <option value={25}>25 baris</option>
-              <option value={50}>50 baris</option>
-              <option value={100}>100 baris</option>
-              <option value={200}>200 baris</option>
-            </select>
           </div>
         </div>
       </div>
 
-      {/* --- MODAL 1: PASTE TABLE (Bypass DRM) --- */}
+      {/* ========================================================================
+          MODAL 1: BULK IMPORT VIA PASTE TABLE (Bypass DRM NASCA)
+          ======================================================================== */}
       {isPasteModalOpen && (
         <Modal
           isOpen={isPasteModalOpen}
-          onClose={() => setIsPasteModalOpen(false)}
-          title="Paste Table (Bypass Enkripsi NASCA DRM)"
+          onClose={() => {
+            setIsPasteModalOpen(false);
+            setPasteRawText('');
+            setParsedPasteRows([]);
+          }}
+          title="Bulk Import via Paste Table (Bypass DRM NASCA)"
           maxWidth="900px"
         >
-          <div className={styles.pasteModalContent}>
-            <div className={styles.drmNoticeBox}>
-              <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-blue-600 mt-0.5" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className={styles.drmAlertBox}>
+              <Sparkles size={18} style={{ color: 'var(--color-warning)', flexShrink: 0 }} />
               <div>
-                <strong>Solusi Cepat Bebas DRM:</strong> Buka file Excel di Microsoft Excel PC Anda, blok tabel (Ctrl+A atau drag baris), tekan <strong>Ctrl+C</strong>, lalu tempelkan (Ctrl+V) di area bawah ini.
-                Format Clipboard otomatis terdekripsi dan siap diimpor ke database tanpa hambatan.
+                <strong>Metode Bypass Samsung NASCA DRM:</strong>
+                <p style={{ margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                  Buka dokumen Excel Anda di PC (aplikasi Microsoft Excel membuka data terdekripsi secara otomatis). Tekan{' '}
+                  <kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 4px', borderRadius: '3px', border: '1px solid var(--color-border)' }}>Ctrl+A</kbd> lalu{' '}
+                  <kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 4px', borderRadius: '3px', border: '1px solid var(--color-border)' }}>Ctrl+C</kbd>, kemudian paste di bawah.
+                </p>
               </div>
             </div>
 
-            <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '0.35rem' }}>
-                Tempel data tabel di sini (Ctrl+V):
-              </label>
-              <textarea
-                className={styles.pasteTextarea}
-                placeholder="Paste baris dari Excel di sini (format TSV / Tab-Separated)..."
-                value={pasteRawText}
-                onChange={(e) => handleParseClipboard(e.target.value)}
-              />
-            </div>
+            <textarea
+              className={styles.formTextarea}
+              style={{ minHeight: '140px', fontFamily: 'var(--font-mono, monospace)', fontSize: '11.5px' }}
+              placeholder="Paste data sel dari Excel di sini (Ctrl+V)... Kolom: ECN NO, MODEL, Function Type, Purpose, Inventory, Process, EC Title, dll."
+              value={pasteRawText}
+              onChange={(e) => handleParsePasteText(e.target.value)}
+            />
 
             {parsedPasteRows.length > 0 && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#16a34a' }}>
-                    ✓ Terdeteksi {parsedPasteRows.length} baris valid siap diimpor
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                    Preview Data Siap Impor ({parsedPasteRows.length} baris):
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    Menampilkan pratinjau 5 baris pertama:
-                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-success)' }}>✓ Format Kolom Valid</span>
                 </div>
 
-                <div className={styles.previewTableWrap}>
-                  <table className={styles.table}>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+                  <table className={styles.table} style={{ fontSize: '11px' }}>
                     <thead>
                       <tr>
                         <th>ECN NO</th>
-                        <th>MODEL</th>
-                        <th>FUNGSI</th>
-                        <th>PROSES</th>
-                        <th>EC TITLE</th>
-                        <th>STATUS</th>
+                        <th>Model</th>
+                        <th>Process</th>
+                        <th>EC Title</th>
+                        <th>Child Code</th>
+                        <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {parsedPasteRows.slice(0, 5).map((row, idx) => (
-                        <tr key={idx}>
-                          <td><span className={styles.ecnBadge}>{row.ecn_no || '-'}</span></td>
-                          <td><span className={styles.modelBadge}>{row.model || '-'}</span></td>
-                          <td>{row.function_type || '-'}</td>
-                          <td>{row.process || '-'}</td>
-                          <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {row.ec_title || '-'}
-                          </td>
-                          <td><span className={getStatusBadgeClass(row.status)}>{row.status || 'Pending'}</span></td>
+                      {parsedPasteRows.slice(0, 10).map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 700 }}>{row.ecn_no}</td>
+                          <td>{row.model}</td>
+                          <td>{row.process}</td>
+                          <td>{row.ec_title}</td>
+                          <td>{row.child_code}</td>
+                          <td>{row.status}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {parsedPasteRows.length > 10 && (
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                    Menampilkan 10 baris pertama dari total {parsedPasteRows.length} baris.
+                  </span>
+                )}
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.625rem', marginTop: '0.5rem' }}>
-              <button className={styles.btnSecondary} onClick={() => setIsPasteModalOpen(false)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => {
+                  setIsPasteModalOpen(false);
+                  setPasteRawText('');
+                  setParsedPasteRows([]);
+                }}
+              >
                 Batal
               </button>
               <button
+                type="button"
                 className={styles.btnPrimary}
                 disabled={parsedPasteRows.length === 0 || isImportingPaste}
-                onClick={handleCommitPaste}
+                onClick={handleSubmitPasteBulk}
               >
                 {isImportingPaste ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Menyimpan ke database...</span>
+                    <Loader2 size={14} className="animate-spin" />
+                    Mengimpor...
                   </>
                 ) : (
                   <>
-                    <Check className="w-4 h-4" />
-                    <span>Impor {parsedPasteRows.length} Baris ke Database</span>
+                    <Check size={14} />
+                    Impor {parsedPasteRows.length} Baris ECN
                   </>
                 )}
               </button>
@@ -1034,88 +1552,100 @@ Instruksi Analisis:
         </Modal>
       )}
 
-      {/* --- MODAL 2: UPLOAD EXCEL --- */}
+      {/* ========================================================================
+          MODAL 2: UPLOAD EXCEL (.XLSX) DENGAN PENDETEKSI DRM
+          ======================================================================== */}
       {isUploadModalOpen && (
         <Modal
           isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          title="Upload Berkas Excel ECN (.xlsx)"
-          maxWidth="560px"
+          onClose={() => {
+            setIsUploadModalOpen(false);
+            setUploadFile(null);
+            setUploadDrmNotice(null);
+          }}
+          title="Upload Dokumen Excel (.xlsx)"
+          maxWidth="600px"
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: 0 }}>
-              Pilih file Microsoft Excel <code>.xlsx</code> yang sudah bersih/tidak ber-DRM untuk diparsing langsung oleh backend Python handler.
+          <form onSubmit={handleUploadExcelSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              Pilih file format <code>.xlsx</code> yang berisi daftar ECN. Sistem akan membaca baris tabel secara otomatis melalui script parsing Python.
             </p>
 
-            <div
-              style={{
-                border: '2px dashed #cbd5e1',
-                borderRadius: '0.75rem',
-                padding: '2rem',
-                textAlign: 'center',
-                background: '#f8fafc',
-                cursor: 'pointer',
-              }}
-              onClick={() => document.getElementById('ecnFileInput')?.click()}
-            >
-              <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-              <input
-                id="ecnFileInput"
-                type="file"
-                accept=".xlsx,.xls"
-                style={{ display: 'none' }}
-                onChange={handleFileUpload}
-              />
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
-                {uploadFile ? uploadFile.name : 'Klik untuk memilih file .xlsx'}
-              </span>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
-                Ukuran maksimum 25 MB
-              </p>
-            </div>
-
-            {isUploading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#2563eb', fontSize: '0.8125rem' }}>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Mengeksekusi parser backend Python...</span>
-              </div>
-            )}
-
             {uploadDrmNotice && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '0.875rem', borderRadius: '0.5rem', color: '#b91c1c', fontSize: '0.8125rem' }}>
-                <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚠️ Terdeteksi Enkripsi Dokumen:</div>
-                {uploadDrmNotice}
-                <div style={{ marginTop: '0.5rem' }}>
+              <div className={styles.drmAlertBox} style={{ background: 'var(--color-error-subtle)', borderColor: 'var(--color-error)' }}>
+                <AlertCircle size={20} style={{ color: 'var(--color-error)', flexShrink: 0 }} />
+                <div>
+                  <strong style={{ color: 'var(--color-error)' }}>{uploadDrmNotice.message}</strong>
+                  <p style={{ margin: '4px 0 0 0', lineHeight: 1.4, fontSize: '12px' }}>
+                    {uploadDrmNotice.recommendation}
+                  </p>
                   <button
+                    type="button"
                     className={styles.btnPrimary}
+                    style={{ marginTop: '8px' }}
                     onClick={() => {
                       setIsUploadModalOpen(false);
                       setIsPasteModalOpen(true);
                     }}
-                    style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
                   >
-                    Buka Fitur Paste Table Sekarang
+                    Buka Paste Table Sekarang
                   </button>
                 </div>
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button className={styles.btnSecondary} onClick={() => setIsUploadModalOpen(false)}>
-                Tutup
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label className={styles.formLabel}>Pilih File Excel:</label>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className={styles.formInput}
+                onChange={(e) => setUploadFile(e.target.files[0] || null)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => {
+                  setIsUploadModalOpen(false);
+                  setUploadFile(null);
+                  setUploadDrmNotice(null);
+                }}
+              >
+                Batal
+              </button>
+              <button type="submit" className={styles.btnPrimary} disabled={!uploadFile || isUploading}>
+                {isUploading ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Memproses File...
+                  </>
+                ) : (
+                  <>
+                    <Upload size={14} />
+                    Mulai Parsing & Simpan
+                  </>
+                )}
               </button>
             </div>
-          </div>
+          </form>
         </Modal>
       )}
 
-      {/* --- MODAL 3: MANUAL ENTRY FORM --- */}
+      {/* ========================================================================
+          MODAL 3: MANUAL ENTRY / EDIT SINGLE RECORD
+          ======================================================================== */}
       {isFormModalOpen && (
         <Modal
           isOpen={isFormModalOpen}
-          onClose={() => setIsFormModalOpen(false)}
-          title={editingItem ? `Edit ECN: ${editingItem.ecn_no}` : 'Tambah ECN Baru (Manual Entry)'}
-          maxWidth="760px"
+          onClose={() => {
+            setIsFormModalOpen(false);
+            setEditingItem(null);
+          }}
+          title={editingItem ? `Edit ECN Record (${editingItem.ecn_no})` : 'Manual Entry ECN Record'}
+          maxWidth="850px"
         >
           <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className={styles.formGrid}>
@@ -1125,18 +1655,19 @@ Instruksi Analisis:
                   type="text"
                   required
                   className={styles.formInput}
-                  placeholder="e.g. GHW20260076"
+                  placeholder="Contoh: GHW260105001"
                   value={formData.ecn_no}
                   onChange={(e) => setFormData({ ...formData, ecn_no: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>MODEL</label>
+                <label className={styles.formLabel}>Model *</label>
                 <input
                   type="text"
+                  required
                   className={styles.formInput}
-                  placeholder="e.g. SM-S947B, SM-X400"
+                  placeholder="Contoh: SM-S947B"
                   value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                 />
@@ -1145,48 +1676,48 @@ Instruksi Analisis:
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Function Type</label>
                 <select
-                  className={styles.formInput}
+                  className={styles.formSelect}
                   value={formData.function_type}
                   onChange={(e) => setFormData({ ...formData, function_type: e.target.value })}
                 >
                   <option value="Circuit">Circuit</option>
-                  <option value="Mechanical">Mechanical</option>
+                  <option value="Mechanism">Mechanism</option>
                   <option value="Software">Software</option>
-                  <option value="Quality">Quality</option>
+                  <option value="Process">Process</option>
                 </select>
               </div>
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Proses</label>
                 <select
-                  className={styles.formInput}
+                  className={styles.formSelect}
                   value={formData.process}
                   onChange={(e) => setFormData({ ...formData, process: e.target.value })}
                 >
                   <option value="SMD">SMD</option>
                   <option value="Mainline">Mainline</option>
                   <option value="Vendor">Vendor</option>
-                  <option value="Sub-line">Sub-line</option>
+                  <option value="PBA">PBA</option>
                 </select>
               </div>
 
               <div className={styles.formGroupFull}>
-                <label className={styles.formLabel}>EC Title</label>
+                <label className={styles.formLabel}>EC Title (Deskripsi Perubahan)</label>
                 <input
                   type="text"
                   className={styles.formInput}
-                  placeholder="Deskripsi singkat judul perubahan engineering..."
+                  placeholder="Contoh: [CIRCUIT] Change diode due to supplier issue"
                   value={formData.ec_title}
                   onChange={(e) => setFormData({ ...formData, ec_title: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Purpose of Modification</label>
+                <label className={styles.formLabel}>Purpose</label>
                 <input
                   type="text"
                   className={styles.formInput}
-                  placeholder="e.g. Material supply and demand, Quality Improvement"
+                  placeholder="Contoh: Quality Improvement"
                   value={formData.purpose}
                   onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
                 />
@@ -1197,55 +1728,130 @@ Instruksi Analisis:
                 <input
                   type="text"
                   className={styles.formInput}
-                  placeholder="e.g. Running change_Materials Mixed"
+                  placeholder="Contoh: Use up old stock"
                   value={formData.inventory_mgmt}
                   onChange={(e) => setFormData({ ...formData, inventory_mgmt: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Parent Code / Name</label>
+                <label className={styles.formLabel}>Parent Code</label>
                 <input
                   type="text"
                   className={styles.formInput}
-                  placeholder="Parent Part Code & Name"
+                  placeholder="Contoh: GH82-39201A"
                   value={formData.parent_code}
                   onChange={(e) => setFormData({ ...formData, parent_code: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Child Code / Name</label>
+                <label className={styles.formLabel}>Parent Name</label>
                 <input
                   type="text"
                   className={styles.formInput}
-                  placeholder="Child Part Code & Name"
+                  placeholder="Contoh: PBA MAIN-SM-S947B"
+                  value={formData.parent_name}
+                  onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Child Code (Part Code)</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: 0401-006201"
                   value={formData.child_code}
                   onChange={(e) => setFormData({ ...formData, child_code: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Running Date BOM</label>
+                <label className={styles.formLabel}>Child Name (Part Description)</label>
                 <input
                   type="text"
                   className={styles.formInput}
-                  placeholder="e.g. 1/15/2026 atau ECO Cancel"
+                  placeholder="Contoh: DIODE-SCHOTTKY"
+                  value={formData.child_name}
+                  onChange={(e) => setFormData({ ...formData, child_name: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Specification</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: 30V, 1A, SOD-323"
+                  value={formData.specification}
+                  onChange={(e) => setFormData({ ...formData, specification: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Quantity</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: 1"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Before / After</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: Before / After"
+                  value={formData.before_after}
+                  onChange={(e) => setFormData({ ...formData, before_after: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>D/L (Distribution Level)</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  placeholder="Contoh: Level 1"
+                  value={formData.dl}
+                  onChange={(e) => setFormData({ ...formData, dl: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Running Date BOM</label>
+                <input
+                  type="date"
+                  className={styles.formInput}
                   value={formData.running_date_bom}
                   onChange={(e) => setFormData({ ...formData, running_date_bom: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Distribution Date</label>
+                <input
+                  type="date"
+                  className={styles.formInput}
+                  value={formData.distribution_date}
+                  onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Status</label>
                 <select
-                  className={styles.formInput}
+                  className={styles.formSelect}
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 >
-                  <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
                   <option value="Completed">Completed</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Pending">Pending</option>
                   <option value="ECO Cancel">ECO Cancel</option>
                 </select>
               </div>
@@ -1272,100 +1878,6 @@ Instruksi Analisis:
           </form>
         </Modal>
       )}
-
-      {/* --- SLIDE-OVER DRAWER: INTERACTIVE AI CHATBOT --- */}
-      <div className={`${styles.chatDrawer} ${isAiDrawerOpen ? styles.chatDrawerOpen : ''}`}>
-        <div className={styles.chatHeader}>
-          <div className={styles.chatTitleArea}>
-            <Bot className="w-5 h-5 text-indigo-600" />
-            <h3 className={styles.chatTitle}>AI Insight & ECN Chat</h3>
-            <span className={styles.chatContextBadge}>Konteks: {records.length} data</span>
-          </div>
-          <button className={styles.chatCloseBtn} onClick={() => setIsAiDrawerOpen(false)}>
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Quick Question Chips */}
-        <div className={styles.chatQuickChips}>
-          <button
-            className={styles.chipBtn}
-            onClick={() => handleSendAiMessage('Ringkas seluruh ECN yang berstatus In Progress beserta dampaknya.')}
-          >
-            💡 ECN In Progress
-          </button>
-          <button
-            className={styles.chipBtn}
-            onClick={() => handleSendAiMessage('Apakah ada perubahan material kritis atau supplier pada kolom Remark?')}
-          >
-            ⚠️ Isu Material & Supplier
-          </button>
-          <button
-            className={styles.chipBtn}
-            onClick={() => handleSendAiMessage('Berapa banyak ECN yang statusnya ECO Cancel dan apa alasannya?')}
-          >
-            ❌ ECN Dibatalkan (Cancel)
-          </button>
-          <button
-            className={styles.chipBtn}
-            onClick={() => handleSendAiMessage('Jelaskan distribusi proses perubahan antara SMD, Mainline, dan Vendor.')}
-          >
-            📊 Distribusi Proses
-          </button>
-        </div>
-
-        {/* Chat Messages List */}
-        <div className={styles.chatMessagesList}>
-          {chatMessages.map((msg) => (
-            <div
-              key={msg.id}
-              className={msg.role === 'user' ? `${styles.chatBubble} ${styles.chatBubbleUser}` : `${styles.chatBubble} ${styles.chatBubbleAssistant}`}
-            >
-              <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
-              <div
-                style={{
-                  fontSize: '0.625rem',
-                  marginTop: '0.35rem',
-                  opacity: 0.7,
-                  textAlign: msg.role === 'user' ? 'right' : 'left',
-                }}
-              >
-                {msg.timestamp}
-              </div>
-            </div>
-          ))}
-
-          {isAiThinking && (
-            <div className={`${styles.chatBubble} ${styles.chatBubbleAssistant}`}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#6366f1' }}>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>AI sedang menganalisis database ECN...</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Chat Input */}
-        <div className={styles.chatInputArea}>
-          <input
-            type="text"
-            className={styles.chatInput}
-            placeholder="Ketik pertanyaan terkait data ECN..."
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSendAiMessage();
-            }}
-          />
-          <button
-            className={styles.chatSendBtn}
-            disabled={!chatInput.trim() || isAiThinking}
-            onClick={() => handleSendAiMessage()}
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

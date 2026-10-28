@@ -88,12 +88,30 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		sortCol = "ecn_no"
 	case "model":
 		sortCol = "model"
+	case "function_type":
+		sortCol = "function_type"
+	case "purpose":
+		sortCol = "purpose"
 	case "status":
 		sortCol = "status"
 	case "process":
 		sortCol = "process"
+	case "ec_title":
+		sortCol = "ec_title"
+	case "child_code":
+		sortCol = "child_code"
+	case "child_name":
+		sortCol = "child_name"
+	case "specification":
+		sortCol = "specification"
+	case "quantity":
+		sortCol = "quantity"
 	case "running_date_bom":
 		sortCol = "running_date_bom"
+	case "distribution_date":
+		sortCol = "distribution_date"
+	case "created_at":
+		sortCol = "created_at"
 	case "updated_at":
 		sortCol = "updated_at"
 	}
