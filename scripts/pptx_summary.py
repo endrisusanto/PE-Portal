@@ -248,6 +248,25 @@ def parse_pptx_report(file_path):
 
     # 3. Final fallback: retry pure XML parser
     return parse_with_xml_fallback(file_path)
+# ponytail: XML sanitization and OpenXML helpers
+ILLEGAL_XML_CHARS_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f]')
+
+
+def clean_cell_str(val):
+    """Sanitize strings removing forbidden XML control characters and normalizing soft-breaks."""
+    if val is None:
+        return ""
+    s = str(val).replace('\r\n', '\n').replace('\r', '\n').replace('\x0b', '\n')
+    return ILLEGAL_XML_CHARS_RE.sub('', s)
+
+
+def get_column_letter(n):
+    """Convert integer 1..N to Excel column name (A..Z, AA..AZ, etc)."""
+    string = ""
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        string = chr(65 + remainder) + string
+    return string
 
 
 def save_to_formatted_excel(results, output_path):
@@ -264,74 +283,81 @@ def save_to_formatted_excel(results, output_path):
         "Action & Countermeasure"
     ]
 
+    saved_successfully = False
+
     if HAS_OPENPYXL:
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Summary Report"
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Summary Report"
 
-        # Styling Header
-        header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-        header_font = Font(name="Calibri", size=11, color="FFFFFF", bold=True)
-        thin_border = Border(
-            left=Side(style='thin', color='D9D9D9'),
-            right=Side(style='thin', color='D9D9D9'),
-            top=Side(style='thin', color='D9D9D9'),
-            bottom=Side(style='thin', color='D9D9D9')
-        )
+            # Styling Header
+            header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+            header_font = Font(name="Calibri", size=11, color="FFFFFF", bold=True)
+            thin_border = Border(
+                left=Side(style='thin', color='D9D9D9'),
+                right=Side(style='thin', color='D9D9D9'),
+                top=Side(style='thin', color='D9D9D9'),
+                bottom=Side(style='thin', color='D9D9D9')
+            )
 
-        ws.append(headers)
+            ws.append(headers)
 
-        for col_idx, cell in enumerate(ws[1], start=1):
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            for col_idx, cell in enumerate(ws[1], start=1):
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-        ws.row_dimensions[1].height = 28
+            ws.row_dimensions[1].height = 28
 
-        # Isi Data
-        for row_idx, item in enumerate(results, start=2):
-            row_vals = [item.get(h, "") for h in headers]
-            ws.append(row_vals)
-            ws.row_dimensions[row_idx].height = 45  # Tinggi cukup untuk multi-line text
+            # Isi Data
+            for row_idx, item in enumerate(results, start=2):
+                # ponytail: sanitize illegal xml characters to prevent openpyxl IllegalCharacterError
+                row_vals = [clean_cell_str(item.get(h, "")) for h in headers]
+                ws.append(row_vals)
+                ws.row_dimensions[row_idx].height = 45  # Tinggi cukup untuk multi-line text
 
-            # Zebra stripe rows for readability
-            bg_color = "F9FBFD" if row_idx % 2 == 0 else "FFFFFF"
-            row_fill = PatternFill(start_color=bg_color, end_color=bg_color, fill_type="solid")
+                # Zebra stripe rows for readability
+                bg_color = "F9FBFD" if row_idx % 2 == 0 else "FFFFFF"
+                row_fill = PatternFill(start_color=bg_color, end_color=bg_color, fill_type="solid")
 
-            for col_idx in range(1, len(headers) + 1):
-                cell = ws.cell(row=row_idx, column=col_idx)
-                cell.fill = row_fill
-                cell.border = thin_border
-                cell.font = Font(name="Calibri", size=10)
-                # Align left for long text, center for short metadata
-                if col_idx in [2, 4, 5, 6, 7]:  # Model, CN, Date, Location, Qty
-                    cell.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
-                else:
-                    cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+                for col_idx in range(1, len(headers) + 1):
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    cell.fill = row_fill
+                    cell.border = thin_border
+                    cell.font = Font(name="Calibri", size=10)
+                    # Align left for long text, center for short metadata
+                    if col_idx in [2, 4, 5, 6, 7]:  # Model, CN, Date, Location, Qty
+                        cell.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
+                    else:
+                        cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
 
-        # Atur lebar kolom
-        for col in ws.columns:
-            max_len = 0
-            for cell in col:
-                val = str(cell.value or "")
-                # ambil baris terpanjang jika ada multiline
-                lines = val.split('\n')
-                line_max = max(len(l) for l in lines) if lines else 0
-                max_len = max(max_len, line_max)
+            # Atur lebar kolom
+            for col in ws.columns:
+                max_len = 0
+                for cell in col:
+                    val = str(cell.value or "")
+                    lines = val.split('\n')
+                    line_max = max(len(l) for l in lines) if lines else 0
+                    max_len = max(max_len, line_max)
 
-            col_letter = col[0].column_letter
-            ws.column_dimensions[col_letter].width = min(max(max_len + 5, 16), 55)
+                col_letter = col[0].column_letter
+                ws.column_dimensions[col_letter].width = min(max(max_len + 5, 16), 55)
 
-        # Freeze header row
-        ws.freeze_panes = "A2"
+            # Freeze header row
+            ws.freeze_panes = "A2"
 
-        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        wb.save(output_path)
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            wb.save(output_path)
+            saved_successfully = True
+        except Exception:
+            saved_successfully = False
 
-    else:
+    if not saved_successfully:
         # Fallback: Buat genuine .xlsx menggunakan zipfile + XML tanpa external dependency
         try:
             create_pure_xlsx(results, headers, output_path)
+            saved_successfully = True
         except Exception:
             # Secondary fallback: CSV
             import csv
@@ -341,14 +367,14 @@ def save_to_formatted_excel(results, output_path):
                 writer = csv.DictWriter(f, fieldnames=headers)
                 writer.writeheader()
                 for row in results:
-                    writer.writerow({h: row.get(h, "") for h in headers})
+                    writer.writerow({h: clean_cell_str(row.get(h, "")) for h in headers})
             output_path = csv_path
 
     return output_path
 
 
 def create_pure_xlsx(rows, headers, output_path):
-    """Membuat file .xlsx valid secara langsung dengan zipfile dan OpenXML XML."""
+    """Membuat file .xlsx valid secara langsung dengan zipfile dan OpenXML XML (ECMA-376 compliant)."""
     import xml.sax.saxutils as saxutils
 
     content_types = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -373,24 +399,34 @@ def create_pure_xlsx(rows, headers, output_path):
 
     workbook = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <workbookPr/>
+  <bookViews>
+    <workbookView visibility="visible" minimized="0" showHorizontalScroll="1" showVerticalScroll="1" showSheetTabs="1" activeTab="0"/>
+  </bookViews>
   <sheets>
-    <sheet name="Summary Report" sheetId="1" r:id="rId1"/>
+    <sheet name="Summary Report" sheetId="1" state="visible" r:id="rId1"/>
   </sheets>
+  <calcPr calcId="124519" fullCalcOnLoad="1"/>
 </workbook>'''
 
     styles = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="0"/>
   <fonts count="2">
-    <font><name val="Calibri"/><sz val="11"/></font>
-    <font><b/><color rgb="FFFFFFFF"/><name val="Calibri"/><sz val="11"/></font>
+    <font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>
   </fonts>
   <fills count="3">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/></patternFill></fill>
   </fills>
-  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <borders count="1">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
   <cellXfs count="3">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1">
@@ -400,28 +436,48 @@ def create_pure_xlsx(rows, headers, output_path):
       <alignment horizontal="left" vertical="top" wrapText="1"/>
     </xf>
   </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+  <dxfs count="0"/>
+  <tableStyles count="0" defaultTableStyle="TableStyleMedium9" defaultPivotStyle="PivotStyleLight16"/>
 </styleSheet>'''
 
+    last_col = get_column_letter(len(headers))
+    last_row = max(len(rows) + 1, 1)
+    dim = f"A1:{last_col}{last_row}"
+
     sheet_data = ['<sheetData>']
-    # Header row
     sheet_data.append('<row r="1" ht="28" customHeight="1">')
     for col_i, h in enumerate(headers, 1):
-        col_letter = chr(64 + col_i) if col_i <= 26 else f'A{chr(64 + col_i - 26)}'
-        esc = saxutils.escape(str(h))
-        sheet_data.append(f'<c r="{col_letter}1" s="1" t="inlineStr"><is><t>{esc}</t></is></c>')
+        col_letter = get_column_letter(col_i)
+        esc = saxutils.escape(clean_cell_str(h))
+        sheet_data.append(f'<c r="{col_letter}1" s="1" t="inlineStr"><is><t xml:space="preserve">{esc}</t></is></c>')
     sheet_data.append('</row>')
 
     for row_i, row in enumerate(rows, 2):
         sheet_data.append(f'<row r="{row_i}" ht="45" customHeight="1">')
         for col_i, h in enumerate(headers, 1):
-            col_letter = chr(64 + col_i) if col_i <= 26 else f'A{chr(64 + col_i - 26)}'
-            val = saxutils.escape(str(row.get(h, '')))
-            sheet_data.append(f'<c r="{col_letter}{row_i}" s="2" t="inlineStr"><is><t>{val}</t></is></c>')
+            col_letter = get_column_letter(col_i)
+            val = saxutils.escape(clean_cell_str(row.get(h, '')))
+            sheet_data.append(f'<c r="{col_letter}{row_i}" s="2" t="inlineStr"><is><t xml:space="preserve">{val}</t></is></c>')
         sheet_data.append('</row>')
     sheet_data.append('</sheetData>')
 
     sheet1 = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetPr>
+    <outlinePr summaryBelow="1" summaryRight="1"/>
+    <pageSetUpPr/>
+  </sheetPr>
+  <dimension ref="{dim}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0">
+      <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
+      <selection pane="bottomLeft" activeCell="A2" sqref="A2"/>
+    </sheetView>
+  </sheetViews>
+  <sheetFormatPr baseColWidth="8" defaultRowHeight="15"/>
   <cols>
     <col min="1" max="1" width="25" customWidth="1"/>
     <col min="2" max="2" width="18" customWidth="1"/>
@@ -434,6 +490,7 @@ def create_pure_xlsx(rows, headers, output_path):
     <col min="9" max="9" width="45" customWidth="1"/>
   </cols>
   {''.join(sheet_data)}
+  <pageMargins left="0.75" right="0.75" top="1" bottom="1" header="0.5" footer="0.5"/>
 </worksheet>'''
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)

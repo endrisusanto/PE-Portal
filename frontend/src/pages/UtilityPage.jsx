@@ -3619,6 +3619,17 @@ const PPTXAutoSummaryTab = () => {
     if (!downloadUrl) return;
     try {
       const resp = await api.get(downloadUrl, { responseType: 'blob' });
+      // ponytail: guard against server returning json error in blob
+      if (resp.data?.type && resp.data.type.includes('json')) {
+        const text = await resp.data.text();
+        try {
+          const errJson = JSON.parse(text);
+          setErrorMsg(`Gagal unduh Excel: ${errJson.message || 'File tidak valid'}`);
+        } catch {
+          setErrorMsg('Gagal unduh Excel: format file server tidak valid.');
+        }
+        return;
+      }
       safeDownloadBlob(resp.data, excelFileName || 'Summary_Report.xlsx');
     } catch (err) {
       console.error('Download excel error:', err);
