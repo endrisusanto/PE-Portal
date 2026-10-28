@@ -333,6 +333,7 @@ func (h *UtilityHandler) SplitPDF(c echo.Context) error {
 
 	firstPage := c.FormValue("first_page")
 	lastPage := c.FormValue("last_page")
+	pages := c.FormValue("pages")
 	if firstPage == "" {
 		firstPage = "1"
 	}
@@ -360,18 +361,27 @@ func (h *UtilityHandler) SplitPDF(c echo.Context) error {
 	pythonBin := findPythonExecutable()
 	scriptPath := findPDFHandlerScript()
 
+	downloadName := fmt.Sprintf("split_%s", file.Filename)
+	if pages != "" {
+		downloadName = fmt.Sprintf("split_p%s_%s", strings.ReplaceAll(strings.ReplaceAll(pages, " ", ""), ",", "_"), file.Filename)
+	} else {
+		downloadName = fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename)
+	}
+
 	// 1. Run Python PDF Engine
-	cmd := exec.Command(pythonBin, scriptPath, "split",
-		"--input", inPath,
-		"--output", outPath,
-		"--first-page", firstPage,
-		"--last-page", lastPage,
-	)
+	pyArgs := []string{scriptPath, "split", "--input", inPath, "--output", outPath}
+	if pages != "" {
+		pyArgs = append(pyArgs, "--pages", pages)
+	} else {
+		pyArgs = append(pyArgs, "--first-page", firstPage, "--last-page", lastPage)
+	}
+
+	cmd := exec.Command(pythonBin, pyArgs...)
 	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8", "PYTHONUTF8=1")
 	output, err := cmd.CombinedOutput()
 	if err == nil {
 		if fiNew, statErr := os.Stat(outPath); statErr == nil && fiNew.Size() > 0 {
-			return c.Attachment(outPath, fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename))
+			return c.Attachment(outPath, downloadName)
 		}
 	}
 
@@ -383,7 +393,7 @@ func (h *UtilityHandler) SplitPDF(c echo.Context) error {
 		fmt.Sprintf("-sOutputFile=%s", outPath), inPath)
 	outGs, errGs := cmdGs.CombinedOutput()
 	if errGs == nil {
-		return c.Attachment(outPath, fmt.Sprintf("split_pages_%s-%s_%s", firstPage, lastPage, file.Filename))
+		return c.Attachment(outPath, downloadName)
 	}
 
 	return c.JSON(http.StatusInternalServerError, map[string]string{

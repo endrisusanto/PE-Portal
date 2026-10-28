@@ -39,15 +39,17 @@ def open_pdf_safely(file_path):
     """
     Opens PDF with lenient parsing, auto-decrypts empty/standard user passwords,
     and returns (reader, drm_detected).
+    Uses in-memory stream buffer to prevent closed-file issues on subsequent writes.
     """
+    import io
     drm_detected = detect_drm_signature(file_path)
     try:
-        reader = pypdf.PdfReader(file_path, strict=False)
+        with open(file_path, "rb") as f:
+            stream = io.BytesIO(f.read())
+        reader = pypdf.PdfReader(stream, strict=False)
     except Exception as e:
-        # Retry with stream buffer if direct path had issues
         try:
-            with open(file_path, "rb") as f:
-                reader = pypdf.PdfReader(f, strict=False)
+            reader = pypdf.PdfReader(file_path, strict=False)
         except Exception as e2:
             raise RuntimeError(f"Gagal membaca PDF ({e2}). Pastikan berkas PDF valid.")
 
@@ -187,17 +189,47 @@ def handle_split(args):
     if total_pages == 0:
         raise RuntimeError("Dokumen tidak memiliki halaman untuk dipotong.")
 
-    first_page = max(1, args.first_page)
-    last_page = min(total_pages, args.last_page) if args.last_page > 0 else total_pages
+    target_indices = []
+    # If custom pages string provided (e.g. "1-3,5,7-9")
+    pages_arg = getattr(args, "pages", None)
+    if pages_arg and str(pages_arg).strip():
+        for part in str(pages_arg).split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if "-" in part:
+                pieces = part.split("-", 1)
+                try:
+                    start_p = max(1, int(pieces[0].strip()))
+                    end_p = min(total_pages, int(pieces[1].strip()))
+                    if start_p <= end_p:
+                        for p in range(start_p - 1, end_p):
+                            if p not in target_indices:
+                                target_indices.append(p)
+                except ValueError:
+                    pass
+            else:
+                try:
+                    p = int(part)
+                    if 1 <= p <= total_pages:
+                        idx = p - 1
+                        if idx not in target_indices:
+                            target_indices.append(idx)
+                except ValueError:
+                    pass
+        target_indices.sort()
 
-    if first_page > last_page:
-        raise ValueError(f"Halaman awal ({first_page}) tidak boleh lebih besar dari halaman akhir ({last_page}).")
+    if not target_indices:
+        first_page = max(1, args.first_page)
+        last_page = min(total_pages, args.last_page) if args.last_page > 0 else total_pages
 
-    if first_page > total_pages:
-        raise ValueError(f"Halaman awal ({first_page}) melebihi jumlah halaman dokumen ({total_pages}).")
+        if first_page > last_page:
+            raise ValueError(f"Halaman awal ({first_page}) tidak boleh lebih besar dari halaman akhir ({last_page}).")
 
-    # Slice 0-indexed range
-    target_indices = range(first_page - 1, last_page)
+        if first_page > total_pages:
+            raise ValueError(f"Halaman awal ({first_page}) melebihi jumlah halaman dokumen ({total_pages}).")
+
+        target_indices = list(range(first_page - 1, last_page))
 
     writer = pypdf.PdfWriter()
     transferred = clean_and_transfer_pages(reader, writer, target_indices)
@@ -216,8 +248,8 @@ def handle_split(args):
     return {
         "success": True,
         "action": "split",
-        "first_page": first_page,
-        "last_page": last_page,
+        "first_page": target_indices[0] + 1 if target_indices else 1,
+        "last_page": target_indices[-1] + 1 if target_indices else total_pages,
         "pages_extracted": transferred,
         "total_original_pages": total_pages,
         "output_size": out_size,
@@ -266,6 +298,7 @@ def main():
     p_split.add_argument("--output", "-o", required=True, help="Path ke berkas PDF output")
     p_split.add_argument("--first-page", "-f", type=int, default=1, help="Halaman pertama (1-based)")
     p_split.add_argument("--last-page", "-l", type=int, default=-1, help="Halaman terakhir (1-based)")
+    p_split.add_argument("--pages", "-p", default="", help="Daftar atau range halaman, cth: 1-3,5,7")
 
     # Inspect
     p_insp = subparsers.add_parser("inspect", help="Inspeksi metadata dan enkripsi PDF")

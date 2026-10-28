@@ -1504,7 +1504,7 @@ const PdfMergeSplitTab = () => {
         let isDRM = false;
 
         try {
-          const pdfDoc = await PDFDocument.load(arrayBuffer);
+          const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
           pageCount = pdfDoc.getPageCount();
         } catch (pdfErr) {
           // Document has DRM NASCA/Fasoo or corporate encryption
@@ -1546,6 +1546,7 @@ const PdfMergeSplitTab = () => {
     setMergeFiles((prev) => prev.filter((item) => item.id !== id));
   };
 
+  // ponytail: directly delegate merge to backend Python engine (same reliable pattern as Compress PDF)
   const handleExecuteMerge = async () => {
     if (mergeFiles.length < 2) {
       alert('Silakan pilih minimal 2 dokumen PDF untuk digabungkan.');
@@ -1555,100 +1556,41 @@ const PdfMergeSplitTab = () => {
     setMergeSuccess(null);
 
     const filename = mergeOutputName.endsWith('.pdf') ? mergeOutputName : `${mergeOutputName}.pdf`;
-    const hasAnyDRM = mergeFiles.some((f) => f.isDRM);
-
-    // If files contain DRM NASCA, delegate directly to Backend Python Engine
-    if (hasAnyDRM) {
-      try {
-        const formData = new FormData();
-        mergeFiles.forEach((item) => formData.append('documents', item.file));
-
-        const res = await api.post('/utility/merge-pdf', formData, {
-          responseType: 'blob',
-        });
-        const blob = res.data;
-        safeDownloadBlob(blob, filename);
-
-        setMergeSuccess({
-          filename,
-          size: blob.size,
-          totalPages: mergeFiles.reduce((acc, cur) => acc + (cur.pageCount || 1), 0),
-          fileCount: mergeFiles.length,
-          blob,
-        });
-        setIsMerging(false);
-        return;
-      } catch (backendErr) {
-        console.warn('Backend Python merge error:', backendErr);
-        let msg = 'Gagal menggabungkan PDF via Python Engine.';
-        if (backendErr.response?.data instanceof Blob) {
-          try {
-            const txt = await backendErr.response.data.text();
-            const j = JSON.parse(txt);
-            if (j.message) msg = j.message;
-          } catch (_) {}
-        }
-        alert(msg);
-        setIsMerging(false);
-        return;
-      }
-    }
 
     try {
-      const mergedPdf = await PDFDocument.create();
-      let totalPagesCount = 0;
+      const formData = new FormData();
+      mergeFiles.forEach((item) => formData.append('documents', item.file));
 
-      for (const item of mergeFiles) {
-        const srcPdf = await PDFDocument.load(item.arrayBuffer);
-        const copiedPages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-        copiedPages.forEach((page) => mergedPdf.addPage(page));
-        totalPagesCount += copiedPages.length;
-      }
-
-      const mergedPdfBytes = await mergedPdf.save();
-      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-
-      // Safe download with guaranteed filename and extension
+      const res = await api.post('/utility/merge-pdf', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        responseType: 'blob',
+      });
+      const blob = res.data;
       safeDownloadBlob(blob, filename);
 
+      const totalPages = mergeFiles.reduce((acc, cur) => acc + (cur.pageCount || 1), 0);
       setMergeSuccess({
         filename,
         size: blob.size,
-        totalPages: totalPagesCount,
+        totalPages,
         fileCount: mergeFiles.length,
         blob,
       });
     } catch (err) {
-      console.warn('Client merge error, falling back to backend Python Engine:', err);
-      // Fallback to backend Python Engine
-      try {
-        const formData = new FormData();
-        mergeFiles.forEach((item) => formData.append('documents', item.file));
-
-        const res = await api.post('/utility/merge-pdf', formData, {
-          responseType: 'blob',
-        });
-        const blob = res.data;
-        safeDownloadBlob(blob, filename);
-
-        setMergeSuccess({
-          filename,
-          size: blob.size,
-          totalPages: mergeFiles.reduce((acc, cur) => acc + (cur.pageCount || 1), 0),
-          fileCount: mergeFiles.length,
-          blob,
-        });
-      } catch (backendErr) {
-        let msg = err.message;
-        if (backendErr.response?.data instanceof Blob) {
+      console.error('Merge PDF error:', err);
+      let errorMsg = 'Gagal menggabungkan dokumen PDF.';
+      if (err.response?.data) {
+        if (err.response.data instanceof Blob) {
           try {
-            const txt = await backendErr.response.data.text();
+            const txt = await err.response.data.text();
             const j = JSON.parse(txt);
-            if (j.message) msg = j.message;
+            if (j.message) errorMsg = j.message;
           } catch (_) {}
+        } else if (err.response.data.message) {
+          errorMsg = err.response.data.message;
         }
-        alert('Gagal menggabungkan PDF: ' + msg);
       }
+      alert(errorMsg);
     } finally {
       setIsMerging(false);
     }
@@ -1669,7 +1611,7 @@ const PdfMergeSplitTab = () => {
       let isDRM = false;
 
       try {
-        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
         pageCount = pdfDoc.getPageCount();
       } catch (pdfErr) {
         // Document has DRM NASCA/Fasoo or corporate encryption
@@ -1692,6 +1634,7 @@ const PdfMergeSplitTab = () => {
     }
   };
 
+  // ponytail: directly delegate split to backend Python engine with batch support for Every N pages
   const handleExecuteSplit = async () => {
     if (!splitFile) return;
     setIsSplitting(true);
@@ -1699,70 +1642,26 @@ const PdfMergeSplitTab = () => {
 
     const filename = splitOutputName.endsWith('.pdf') ? splitOutputName : `${splitOutputName}.pdf`;
 
-    // If file has DRM, delegate directly to Backend Python Engine
-    if (splitFile.isDRM) {
-      try {
-        const pagesToExtract = parsePageRange(pageRange, splitFile.pageCount || 9999);
-        const firstP = pagesToExtract[0] || 1;
-        const lastP = pagesToExtract[pagesToExtract.length - 1] || firstP;
-
-        const formData = new FormData();
-        formData.append('document', splitFile.file);
-        formData.append('first_page', firstP);
-        formData.append('last_page', lastP);
-
-        const res = await api.post('/utility/split-pdf', formData, {
-          responseType: 'blob',
-        });
-        const blob = res.data;
-        safeDownloadBlob(blob, filename);
-
-        setSplitSuccess({
-          filename,
-          size: blob.size,
-          extractedPages: pagesToExtract.length,
-          pagesList: `${firstP} - ${lastP}`,
-          blob,
-        });
-        setIsSplitting(false);
-        return;
-      } catch (backendErr) {
-        console.warn('Backend Python split error:', backendErr);
-        let msg = 'Gagal memotong PDF via Python Engine.';
-        if (backendErr.response?.data instanceof Blob) {
-          try {
-            const txt = await backendErr.response.data.text();
-            const j = JSON.parse(txt);
-            if (j.message) msg = j.message;
-          } catch (_) {}
-        }
-        alert(msg);
-        setIsSplitting(false);
-        return;
-      }
-    }
-
     try {
-      const srcPdf = await PDFDocument.load(splitFile.arrayBuffer);
-      const totalPages = splitFile.pageCount;
-
       if (splitMethod === 'range') {
-        const pagesToExtract = parsePageRange(pageRange, totalPages);
+        const pagesToExtract = parsePageRange(pageRange, splitFile.pageCount || 9999);
         if (pagesToExtract.length === 0) {
           alert('Pilihan range halaman tidak valid.');
           setIsSplitting(false);
           return;
         }
 
-        const subPdf = await PDFDocument.create();
-        const pageIndices = pagesToExtract.map((p) => p - 1);
-        const copiedPages = await subPdf.copyPages(srcPdf, pageIndices);
-        copiedPages.forEach((page) => subPdf.addPage(page));
+        const formData = new FormData();
+        formData.append('document', splitFile.file);
+        formData.append('pages', pageRange);
+        formData.append('first_page', pagesToExtract[0]);
+        formData.append('last_page', pagesToExtract[pagesToExtract.length - 1]);
 
-        const subPdfBytes = await subPdf.save();
-        const blob = new Blob([subPdfBytes], { type: 'application/pdf' });
-
-        // Safe download
+        const res = await api.post('/utility/split-pdf', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          responseType: 'blob',
+        });
+        const blob = res.data;
         safeDownloadBlob(blob, filename);
 
         setSplitSuccess({
@@ -1773,31 +1672,34 @@ const PdfMergeSplitTab = () => {
           blob,
         });
       } else {
+        const totalPages = splitFile.pageCount || 1;
         const n = Math.max(1, parseInt(everyN, 10) || 1);
         const partsCount = Math.ceil(totalPages / n);
         const generatedParts = [];
 
         for (let i = 0; i < partsCount; i++) {
-          const start = i * n;
-          const end = Math.min(start + n, totalPages);
-          const pageIndices = [];
-          for (let p = start; p < end; p++) pageIndices.push(p);
+          const start = i * n + 1;
+          const end = Math.min(start + n - 1, totalPages);
 
-          const partPdf = await PDFDocument.create();
-          const copied = await partPdf.copyPages(srcPdf, pageIndices);
-          copied.forEach((cp) => partPdf.addPage(cp));
+          const formData = new FormData();
+          formData.append('document', splitFile.file);
+          formData.append('first_page', start);
+          formData.append('last_page', end);
+          formData.append('pages', `${start}-${end}`);
 
-          const bytes = await partPdf.save();
-          const blob = new Blob([bytes], { type: 'application/pdf' });
-
+          const res = await api.post('/utility/split-pdf', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            responseType: 'blob',
+          });
+          const blob = res.data;
           const baseCleanName = splitFile.name.replace(/\.pdf$/i, '');
-          const partName = `${baseCleanName}_part_${i + 1}_hal_${start + 1}-${end}.pdf`;
+          const partName = `${baseCleanName}_part_${i + 1}_hal_${start}-${end}.pdf`;
 
           generatedParts.push({
             partIndex: i + 1,
             filename: partName,
-            pagesText: `Halaman ${start + 1} - ${end}`,
-            pageCount: pageIndices.length,
+            pagesText: `Halaman ${start} - ${end}`,
+            pageCount: end - start + 1,
             size: blob.size,
             blob,
           });
@@ -1819,41 +1721,20 @@ const PdfMergeSplitTab = () => {
         }
       }
     } catch (err) {
-      console.warn('Client split error, falling back to backend Python Engine:', err);
-      try {
-        const pagesToExtract = parsePageRange(pageRange, splitFile.pageCount || 9999);
-        const firstP = pagesToExtract[0] || 1;
-        const lastP = pagesToExtract[pagesToExtract.length - 1] || firstP;
-
-        const formData = new FormData();
-        formData.append('document', splitFile.file);
-        formData.append('first_page', firstP);
-        formData.append('last_page', lastP);
-
-        const res = await api.post('/utility/split-pdf', formData, {
-          responseType: 'blob',
-        });
-        const blob = res.data;
-        safeDownloadBlob(blob, filename);
-
-        setSplitSuccess({
-          filename,
-          size: blob.size,
-          extractedPages: pagesToExtract.length,
-          pagesList: `${firstP} - ${lastP}`,
-          blob,
-        });
-      } catch (backendErr) {
-        let msg = err.message;
-        if (backendErr.response?.data instanceof Blob) {
+      console.error('Split PDF error:', err);
+      let errorMsg = 'Gagal memotong dokumen PDF.';
+      if (err.response?.data) {
+        if (err.response.data instanceof Blob) {
           try {
-            const txt = await backendErr.response.data.text();
+            const txt = await err.response.data.text();
             const j = JSON.parse(txt);
-            if (j.message) msg = j.message;
+            if (j.message) errorMsg = j.message;
           } catch (_) {}
+        } else if (err.response.data.message) {
+          errorMsg = err.response.data.message;
         }
-        alert('Gagal memotong PDF: ' + msg);
       }
+      alert(errorMsg);
     } finally {
       setIsSplitting(false);
     }
@@ -2025,7 +1906,9 @@ const PdfMergeSplitTab = () => {
                           {item.name}
                         </span>
                         <div className={styles.pdfMeta}>
-                          <span className={styles.pdfBadge}>{item.pageCount} Halaman</span>
+                          <span className={styles.pdfBadge}>
+                            {item.pageCount ? `${item.pageCount} Halaman` : 'Dokumen PDF'}
+                          </span>
                           <span>•</span>
                           <span>{formatBytes(item.size)}</span>
                         </div>
@@ -2123,7 +2006,9 @@ const PdfMergeSplitTab = () => {
                       {splitFile.name}
                     </span>
                     <div className={styles.pdfMeta}>
-                      <span className={styles.pdfBadge}>{splitFile.pageCount} Halaman Total</span>
+                      <span className={styles.pdfBadge}>
+                        {splitFile.pageCount ? `${splitFile.pageCount} Halaman Total` : 'Dokumen PDF'}
+                      </span>
                       <span>•</span>
                       <span>Ukuran: {formatBytes(splitFile.size)}</span>
                     </div>
