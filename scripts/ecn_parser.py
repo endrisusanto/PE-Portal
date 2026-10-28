@@ -36,6 +36,13 @@ DRM_SIGNATURES = [
     b"<## NASCA DRM",
 ]
 
+ALL_KEYS = [
+    'ecn_no', 'model', 'function_type', 'purpose', 'inventory_mgmt',
+    'process', 'ec_title', 'parent_code', 'parent_name', 'before_after',
+    'dl', 'child_code', 'child_name', 'specification', 'quantity',
+    'marking_point', 'running_date_bom', 'distribution_date', 'status', 'remark'
+]
+
 
 def clean_cell_str(val):
     if val is None:
@@ -65,45 +72,52 @@ def normalize_header(header_text):
     h = str(header_text or '').strip().lower()
     h = re.sub(r'[^a-z0-9]', '', h)
 
-    if 'ecn' in h or 'ecnno' in h:
+    if not h:
+        return None
+
+    if 'ecn' in h:
         return 'ecn_no'
-    if h == 'model' or 'model' in h:
+    if 'model' in h:
         return 'model'
-    if 'function' in h or 'type' in h:
+    if 'function' in h or 'division' in h or 'dept' in h or (h in ['type', 'tipe']):
         return 'function_type'
-    if 'purpose' in h:
+    if 'purpose' in h or 'alasan' in h or 'reason' in h:
         return 'purpose'
-    if 'inventory' in h or 'mgmt' in h:
+    if 'inventory' in h or 'mgmt' in h or 'disposition' in h or 'stock' in h or 'wip' in h:
         return 'inventory_mgmt'
     if 'proses' in h or 'process' in h:
         return 'process'
-    if 'ectitle' in h or 'title' in h:
+    if 'title' in h or 'subject' in h or 'judul' in h:
         return 'ec_title'
-    if 'parentcode' in h:
+    if 'parent' in h:
+        if any(x in h for x in ['name', 'desc', 'nm', 'nama']):
+            return 'parent_name'
         return 'parent_code'
-    if 'parentname' in h:
-        return 'parent_name'
-    if 'beforeafter' in h or 'before' in h:
+    if 'child' in h:
+        if any(x in h for x in ['name', 'desc', 'nm', 'nama']):
+            return 'child_name'
+        return 'child_code'
+    if 'before' in h or 'after' in h or 'change' in h:
         return 'before_after'
     if h in ['dl', 'd_l']:
         return 'dl'
-    if 'childcode' in h:
+    if 'itemcode' in h or 'partcode' in h or 'partno' in h:
         return 'child_code'
-    if 'childname' in h:
+    if 'itemname' in h or 'partname' in h or 'partdesc' in h:
         return 'child_name'
     if 'specification' in h or 'spec' in h:
         return 'specification'
-    if 'qty' in h or 'quantity' in h:
+    if 'qty' in h or 'quantity' in h or 'count' in h or 'amount' in h:
         return 'quantity'
-    if 'marking' in h:
+    if 'marking' in h or 'location' in h or 'designator' in h:
         return 'marking_point'
-    if 'runningdate' in h or 'running' in h:
+    if 'running' in h or 'apply' in h or 'bomdate' in h:
         return 'running_date_bom'
-    if 'distribution' in h or 'distdate' in h:
+    if 'dist' in h or 'release' in h or 'issued' in h:
         return 'distribution_date'
     if 'status' in h:
         return 'status'
-    if 'remark' in h or 'note' in h:
+    if 'remark' in h or 'note' in h or 'keterangan' in h:
         return 'remark'
 
     return None
@@ -112,58 +126,107 @@ def normalize_header(header_text):
 def parse_xlsx(file_path):
     import openpyxl
 
-    wb = openpyxl.load_workbook(file_path, data_only=True)
-    ws = wb.active
+    # Use read_only=True and data_only=True for streaming large files with minimal RAM and maximum speed
+    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+    try:
+        ws = wb.active
+        row_iter = ws.iter_rows(values_only=True)
 
-    rows = list(ws.iter_rows(values_only=True))
-    if not rows:
-        return []
+        # 1. Read first up to 15 rows to find header
+        header_idx = -1
+        col_mapping = {}
+        sample_rows = []
+        for idx in range(15):
+            try:
+                r = next(row_iter)
+                sample_rows.append(r)
+                row_str = ' '.join([str(c or '') for c in r]).upper()
+                if 'ECN' in row_str or 'MODEL' in row_str:
+                    header_idx = idx
+                    for c_idx, cell in enumerate(r):
+                        key = normalize_header(cell)
+                        if key:
+                            col_mapping[c_idx] = key
+                    break
+            except StopIteration:
+                break
 
-    # Find header row (search first 10 rows for 'ECN NO' or 'MODEL')
-    header_idx = -1
-    col_mapping = {}
+        if header_idx == -1:
+            # Fallback to default positional mapping
+            for i, k in enumerate(ALL_KEYS):
+                col_mapping[i] = k
+            data_rows_initial = sample_rows
+        else:
+            data_rows_initial = sample_rows[header_idx + 1:]
 
-    for idx, r in enumerate(rows[:10]):
-        row_str = ' '.join([str(c or '') for c in r]).upper()
-        if 'ECN NO' in row_str or 'ECN' in row_str:
-            header_idx = idx
-            for c_idx, cell in enumerate(r):
-                key = normalize_header(cell)
-                if key:
-                    col_mapping[c_idx] = key
-            break
+        records = []
+        last_ecn_no = ""
+        last_model = ""
+        last_ec_title = ""
+        last_func_type = ""
+        last_process = ""
 
-    if header_idx == -1:
-        # Fallback to row 0 or default positional mapping
-        default_keys = [
-            'ecn_no', 'model', 'function_type', 'purpose', 'inventory_mgmt',
-            'process', 'ec_title', 'parent_code', 'parent_name', 'before_after',
-            'dl', 'child_code', 'child_name', 'specification', 'quantity',
-            'marking_point', 'running_date_bom', 'distribution_date', 'status', 'remark'
-        ]
-        for i, k in enumerate(default_keys):
-            col_mapping[i] = k
-        data_rows = rows
-    else:
-        data_rows = rows[header_idx + 1:]
+        def process_row(r):
+            nonlocal last_ecn_no, last_model, last_ec_title, last_func_type, last_process
+            if not any(r):
+                return
+            record = {k: "" for k in ALL_KEYS}
+            has_any_content = False
+            for c_idx, val in enumerate(r):
+                if c_idx in col_mapping:
+                    clean_val = clean_cell_str(val)
+                    if clean_val:
+                        has_any_content = True
+                    record[col_mapping[c_idx]] = clean_val
 
-    records = []
-    for r in data_rows:
-        if not any(r):
-            continue
-        record = {}
-        for c_idx, val in enumerate(r):
-            if c_idx in col_mapping:
-                record[col_mapping[c_idx]] = clean_cell_str(val)
+            if not has_any_content:
+                return
 
-        # Only add if has at least ECN NO or MODEL or EC TITLE
-        if record.get('ecn_no') or record.get('model') or record.get('ec_title'):
-            # Default status if empty
-            if not record.get('status'):
+            # Forward fill for merged/empty header cells across line items
+            if record['ecn_no']:
+                last_ecn_no = record['ecn_no']
+            elif last_ecn_no:
+                record['ecn_no'] = last_ecn_no
+
+            if record['model']:
+                last_model = record['model']
+            elif last_model:
+                record['model'] = last_model
+
+            if record['ec_title']:
+                last_ec_title = record['ec_title']
+            elif last_ec_title:
+                record['ec_title'] = last_ec_title
+
+            if record['function_type']:
+                last_func_type = record['function_type']
+            elif last_func_type:
+                record['function_type'] = last_func_type
+
+            if record['process']:
+                last_process = record['process']
+            elif last_process:
+                record['process'] = last_process
+
+            # Safe fallbacks for missing/empty columns
+            if not record['ecn_no']:
+                record['ecn_no'] = '-'
+            if not record['status']:
                 record['status'] = 'Pending'
+
             records.append(record)
 
-    return records
+        # Process initial cached rows
+        for r in data_rows_initial:
+            process_row(r)
+
+        # Stream remaining rows
+        for r in row_iter:
+            process_row(r)
+
+        return records
+    finally:
+        wb.close()
 
 
 def main():

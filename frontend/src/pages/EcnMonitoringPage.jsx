@@ -103,6 +103,10 @@ export const EcnMonitoringPage = () => {
   const [uploadFile, setUploadFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadDrmNotice, setUploadDrmNotice] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState('idle');
+  const [uploadStatusText, setUploadStatusText] = useState('');
+  const [uploadSeconds, setUploadSeconds] = useState(0);
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
@@ -367,20 +371,38 @@ export const EcnMonitoringPage = () => {
     }
 
     const parsed = [];
+    let lastEcnNo = '';
+    let lastModel = '';
+    let lastTitle = '';
     for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
       const cols = line.split('\t').map((c) => c.trim());
-      if (cols.length < 2) continue;
+      if (cols.length === 0) continue;
+
+      let ecnNo = cols[0] || '';
+      let model = cols[1] || '';
+      let ecTitle = cols[6] || '';
+
+      if (ecnNo) lastEcnNo = ecnNo;
+      else if (lastEcnNo) ecnNo = lastEcnNo;
+
+      if (model) lastModel = model;
+      else if (lastModel) model = lastModel;
+
+      if (ecTitle) lastTitle = ecTitle;
+      else if (lastTitle) ecTitle = lastTitle;
+
+      if (!ecnNo) ecnNo = '-';
 
       parsed.push({
-        ecn_no: cols[0] || '',
-        model: cols[1] || '',
+        ecn_no: ecnNo,
+        model: model,
         function_type: cols[2] || '',
         purpose: cols[3] || '',
         inventory_mgmt: cols[4] || '',
         process: cols[5] || '',
-        ec_title: cols[6] || '',
+        ec_title: ecTitle,
         parent_code: cols[7] || '',
         parent_name: cols[8] || '',
         before_after: cols[9] || '',
@@ -410,7 +432,7 @@ export const EcnMonitoringPage = () => {
     setIsImportingPaste(true);
     try {
       const res = await api.post('/ecn/bulk', { records: parsedPasteRows });
-      alert(`Berhasil mengimpor ${res.data?.count || parsedPasteRows.length} baris data ECN!`);
+      alert(`Berhasil mengimpor ${res.data?.count || res.data?.imported || parsedPasteRows.length} baris data ECN!`);
       setIsPasteModalOpen(false);
       setPasteRawText('');
       setParsedPasteRows([]);
@@ -423,7 +445,7 @@ export const EcnMonitoringPage = () => {
     }
   };
 
-  // Submit Excel File Upload
+  // Submit Excel File Upload with Fallback Progress (Ponytail)
   const handleUploadExcelSubmit = async (e) => {
     e.preventDefault();
     if (!uploadFile) {
@@ -433,6 +455,14 @@ export const EcnMonitoringPage = () => {
 
     setIsUploading(true);
     setUploadDrmNotice(null);
+    setUploadProgress(0);
+    setUploadStage('uploading');
+    setUploadStatusText('Mengunggah berkas Excel ke server (0%)...');
+    setUploadSeconds(0);
+
+    const timer = setInterval(() => {
+      setUploadSeconds((prev) => prev + 1);
+    }, 1000);
 
     const formData = new FormData();
     formData.append('file', uploadFile);
@@ -440,6 +470,18 @@ export const EcnMonitoringPage = () => {
     try {
       const res = await api.post('/ecn/parse-excel', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percent);
+            if (percent < 100) {
+              setUploadStatusText(`Mengunggah berkas Excel ke server (${percent}%)...`);
+            } else {
+              setUploadStage('parsing');
+              setUploadStatusText('Berkas terunggah. Membaca & mengurai struktur Excel di server (file besar sedang diekstrak)...');
+            }
+          }
+        },
       });
 
       if (res.data?.is_drm) {
@@ -452,8 +494,12 @@ export const EcnMonitoringPage = () => {
       }
 
       if (res.data?.records && res.data.records.length > 0) {
+        setUploadStage('importing');
+        setUploadStatusText(`Mengekstrak ${res.data.records.length} data. Menyimpan ke database...`);
+
         const importRes = await api.post('/ecn/bulk', { records: res.data.records });
-        alert(`Berhasil mengimpor ${importRes.data?.count || res.data.records.length} data ECN dari Excel!`);
+        const importedCount = importRes.data?.imported ?? importRes.data?.count ?? res.data.records.length;
+        alert(`Berhasil mengimpor ${importedCount} data ECN dari Excel!`);
         setIsUploadModalOpen(false);
         setUploadFile(null);
         fetchRecords();
@@ -462,9 +508,13 @@ export const EcnMonitoringPage = () => {
         alert('Tidak ada data valid yang ditemukan pada file Excel.');
       }
     } catch (err) {
-      alert(`Gagal upload Excel: ${err.response?.data?.message || err.message}`);
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+      alert(`Gagal upload Excel: ${errMsg}`);
     } finally {
+      clearInterval(timer);
       setIsUploading(false);
+      setUploadStage('idle');
+      setUploadProgress(0);
     }
   };
 
@@ -1621,15 +1671,56 @@ Panduan Format Respons:
                 type="file"
                 accept=".xlsx,.xls"
                 className={styles.formInput}
+                disabled={isUploading}
                 onChange={(e) => setUploadFile(e.target.files[0] || null)}
               />
             </div>
+
+            {/* Fallback Progress Container for Large Excel Uploads (Ponytail) */}
+            {isUploading && (
+              <div className={styles.uploadProgressBox}>
+                <div className={styles.progressHeader}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+                    <span>
+                      {uploadStage === 'uploading'
+                        ? `Tahap 1/2: Mengunggah berkas (${uploadProgress}%)`
+                        : uploadStage === 'parsing'
+                        ? 'Tahap 2/2: Membaca & Memproses Excel'
+                        : uploadStage === 'importing'
+                        ? 'Menyimpan Data ke Database'
+                        : 'Memproses data...'}
+                    </span>
+                  </div>
+                  <span className={styles.progressTimer}>
+                    ⏱️ {uploadSeconds}s
+                  </span>
+                </div>
+
+                <div className={styles.progressBarTrack}>
+                  {uploadStage === 'uploading' ? (
+                    <div
+                      className={styles.progressBarFill}
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  ) : (
+                    <div className={styles.progressBarIndeterminate} />
+                  )}
+                </div>
+
+                <p className={styles.progressDetailText}>
+                  {uploadStatusText || 'Sedang memproses... File Excel berukuran besar memerlukan beberapa detik untuk diekstrak. Browser tidak freeze/hang.'}
+                </p>
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button
                 type="button"
                 className={styles.btnSecondary}
+                disabled={isUploading}
                 onClick={() => {
+                  if (isUploading) return;
                   setIsUploadModalOpen(false);
                   setUploadFile(null);
                   setUploadDrmNotice(null);
@@ -1641,7 +1732,13 @@ Panduan Format Respons:
                 {isUploading ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    Memproses File...
+                    {uploadStage === 'uploading'
+                      ? `Mengunggah (${uploadProgress}%)...`
+                      : uploadStage === 'parsing'
+                      ? 'Mengekstrak Excel...'
+                      : uploadStage === 'importing'
+                      ? 'Menyimpan ke DB...'
+                      : 'Memproses File...'}
                   </>
                 ) : (
                   <>

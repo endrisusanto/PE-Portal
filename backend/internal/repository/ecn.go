@@ -315,19 +315,27 @@ func (r *ECNRepository) BulkInsert(ctx context.Context, records []model.ECNRecor
 		)
 	`
 
+	// ponytail: simple batch insert with fallback defaults for empty columns
 	inserted := 0
 	for _, rec := range records {
 		recID := uuid.New()
-		st := rec.Status
+		st := strings.TrimSpace(rec.Status)
 		if st == "" {
 			st = "Pending"
 		}
+		ecnNo := strings.TrimSpace(rec.ECNNo)
+		if ecnNo == "" {
+			ecnNo = "-"
+		}
 
 		batch.Queue(insertSQL,
-			recID, rec.ECNNo, rec.Model, rec.FunctionType, rec.Purpose, rec.InventoryMgmt, rec.Process,
-			rec.ECTitle, rec.ParentCode, rec.ParentName, rec.BeforeAfter, rec.DL, rec.ChildCode,
-			rec.ChildName, rec.Specification, rec.Quantity, rec.MarkingPoint, rec.RunningDateBOM,
-			rec.DistributionDate, st, rec.Remark, createdBy, now, now,
+			recID, ecnNo, strings.TrimSpace(rec.Model), strings.TrimSpace(rec.FunctionType),
+			strings.TrimSpace(rec.Purpose), strings.TrimSpace(rec.InventoryMgmt), strings.TrimSpace(rec.Process),
+			strings.TrimSpace(rec.ECTitle), strings.TrimSpace(rec.ParentCode), strings.TrimSpace(rec.ParentName),
+			strings.TrimSpace(rec.BeforeAfter), strings.TrimSpace(rec.DL), strings.TrimSpace(rec.ChildCode),
+			strings.TrimSpace(rec.ChildName), strings.TrimSpace(rec.Specification), strings.TrimSpace(rec.Quantity),
+			strings.TrimSpace(rec.MarkingPoint), strings.TrimSpace(rec.RunningDateBOM), strings.TrimSpace(rec.DistributionDate),
+			st, strings.TrimSpace(rec.Remark), createdBy, now, now,
 		)
 		inserted++
 	}

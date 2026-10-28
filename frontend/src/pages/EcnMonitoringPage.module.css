@@ -1008,3 +1008,86 @@
   border-color: #a51816;
 }
 
+/* Fallback Progress Container for Large Excel Uploads (Ponytail) */
+@keyframes progressStripes {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 0; }
+}
+
+.uploadProgressBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--color-bg-secondary, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  padding: 14px 16px;
+  margin-top: 4px;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.progressTimer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-primary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.progressBarTrack {
+  width: 100%;
+  height: 8px;
+  background: var(--color-bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.progressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), #3b82f6);
+  border-radius: 4px;
+  transition: width 0.25s ease;
+}
+
+.progressBarIndeterminate {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(
+    45deg,
+    rgba(59, 130, 246, 0.75) 25%,
+    rgba(99, 102, 241, 0.75) 25%,
+    rgba(99, 102, 241, 0.75) 50%,
+    rgba(59, 130, 246, 0.75) 50%,
+    rgba(59, 130, 246, 0.75) 75%,
+    rgba(99, 102, 241, 0.75) 75%,
+    rgba(99, 102, 241, 0.75) 100%
+  );
+  background-size: 40px 40px;
+  animation: progressStripes 1.2s linear infinite;
+  border-radius: 4px;
+}
+
+.progressDetailText {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
