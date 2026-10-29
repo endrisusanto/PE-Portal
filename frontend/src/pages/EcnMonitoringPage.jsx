@@ -216,6 +216,28 @@ export const EcnMonitoringPage = () => {
 
   // --- Modals State ---
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  // ponytail: active reminder schedule & due count badge state
+  const [reminderStatus, setReminderStatus] = useState(null);
+
+  const fetchReminderStatus = useCallback(async () => {
+    try {
+      const res = await api.get('/ecn/reminder/settings');
+      setReminderStatus(res.data);
+    } catch {
+      // silent fallback
+    }
+  }, []);
+
+  const formatReminderSchedule = (settings) => {
+    if (!settings || !settings.is_enabled) return null;
+    const rawTimes = (settings.send_time || '08:00')
+      .split(/[,;\n]/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const timesStr = rawTimes.length <= 2 ? rawTimes.join(', ') : `${rawTimes[0]}, ${rawTimes[1]} (+${rawTimes.length - 2})`;
+    return `${timesStr} • H-${settings.days_before || 1}`;
+  };
+
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [pasteRawText, setPasteRawText] = useState('');
   const [parsedPasteRows, setParsedPasteRows] = useState([]);
@@ -406,6 +428,10 @@ export const EcnMonitoringPage = () => {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  useEffect(() => {
+    fetchReminderStatus();
+  }, [fetchReminderStatus]);
 
   useEffect(() => {
     fetchRecords();
@@ -1074,7 +1100,30 @@ ${
             title={t('ecn.reminder.btn_title', 'Pengaturan Pengingat Email Running BOM')}
           >
             <Bell size={15} style={{ color: 'var(--color-accent, #0d7377)' }} />
-            {t('ecn.reminder.btn_label', 'Pengingat Running BOM')}
+            <span>{t('ecn.reminder.btn_label', 'Pengingat Running BOM')}</span>
+            {/* ponytail: active schedule chip & due count badge */}
+            {reminderStatus?.settings && (
+              reminderStatus.settings.is_enabled ? (
+                <>
+                  <span className={styles.reminderChip}>
+                    <span className={styles.reminderChipDot} />
+                    <span>{formatReminderSchedule(reminderStatus.settings)}</span>
+                  </span>
+                  {reminderStatus.due_count > 0 && (
+                    <span
+                      className={styles.reminderDueBadge}
+                      title={`${reminderStatus.due_count} ECN Running BOM jatuh tempo (${reminderStatus.target_date || ''})`}
+                    >
+                      {reminderStatus.due_count} Due
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className={`${styles.reminderChip} ${styles.reminderChipDisabled}`}>
+                  Off
+                </span>
+              )
+            )}
           </button>
           <button
             type="button"
@@ -2727,7 +2776,10 @@ ${
       {/* ECN Running BOM Deadline Email Reminder Modal (ponytail) */}
       <EcnReminderModal
         isOpen={isReminderModalOpen}
-        onClose={() => setIsReminderModalOpen(false)}
+        onClose={() => {
+          setIsReminderModalOpen(false);
+          fetchReminderStatus();
+        }}
       />
     </div>
   );
