@@ -29,6 +29,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ArrowLeftRight,
   RotateCcw,
   Copy,
   Bell,
@@ -278,13 +279,16 @@ export const EcnMonitoringPage = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [ecnChangeLogs, setEcnChangeLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
-  // ponytail: Modal form accordion state for Sections 1, 2, 3, 4, 6 (default 1,2,3 collapsed, 4 expanded)
+  // ponytail: Shortcut filter to only show records with Part Number Changes
+  const [onlyPartChanges, setOnlyPartChanges] = useState(false);
+
+  // ponytail: Modal form accordion state for Sections 1, 2, 3, 4, 5 (default 1,2,3 collapsed, 4 expanded)
   const [openSections, setOpenSections] = useState({
     1: false,
     2: false,
     3: false,
     4: true,
-    6: true,
+    5: true,
   });
 
   const toggleSection = (secNum) => {
@@ -439,6 +443,7 @@ export const EcnMonitoringPage = () => {
         ec_title: debouncedColFilters.ec_title?.trim() || undefined,
         col_part_before: debouncedColFilters.part_before?.trim() || undefined,
         col_part_after: debouncedColFilters.part_after?.trim() || undefined,
+        has_part_change: onlyPartChanges ? 'true' : undefined,
         child_code: debouncedColFilters.child_code?.trim() || undefined,
         child_name: debouncedColFilters.child_name?.trim() || undefined,
         specification: debouncedColFilters.specification?.trim() || undefined,
@@ -467,6 +472,7 @@ export const EcnMonitoringPage = () => {
     selectedFunction,
     sortKey,
     sortDirection,
+    onlyPartChanges,
   ]);
 
   useEffect(() => {
@@ -519,6 +525,7 @@ export const EcnMonitoringPage = () => {
       status: '',
       author_name: '',
     });
+    setOnlyPartChanges(false);
     setPage(1);
   };
 
@@ -892,13 +899,13 @@ export const EcnMonitoringPage = () => {
       status: item.status || 'Pending',
       remark: item.remark || '',
     });
-    // ponytail: Default 1,2,3 collapse and 4 expand when editing
+    // ponytail: Default 1,2,3 collapse and 4 expand when editing (sections 1-5)
     setOpenSections({
       1: false,
       2: false,
       3: false,
       4: true,
-      6: true,
+      5: true,
     });
     setIsFormModalOpen(true);
   };
@@ -913,6 +920,36 @@ export const EcnMonitoringPage = () => {
         part_after: detected.after || prev.part_after,
       }));
     }
+  };
+
+  // ponytail: Warning confirmation modal when picking/changing critical Running BOM date
+  const handleRunningBomDateChange = async (newVal) => {
+    const currentVal = normalizeToDateInput(formData.running_date_bom);
+    const normalizedNew = normalizeToDateInput(newVal);
+    if (normalizedNew === currentVal) return;
+
+    const ok = await portalConfirm({
+      title: t('ecn.alert_running_bom.title', 'Peringatan Perubahan Running Date BOM'),
+      message: currentVal
+        ? t(
+            'ecn.alert_running_bom.msg_change',
+            'Jadwal Running BOM adalah milestone KRITIKAL yang menentukan kesiapan material di lini produksi. Mengubah jadwal ini dapat mempengaruhi perencanaan produksi dan monitoring line. Apakah Anda yakin ingin mengubah jadwal ini?'
+          )
+        : t(
+            'ecn.alert_running_bom.msg_set',
+            'Jadwal Running BOM adalah milestone KRITIKAL yang menentukan kesiapan material di lini produksi. Pastikan tanggal yang dipilih telah diverifikasi bersama tim PPIC dan Line Leader.'
+          ),
+      highlight: currentVal ? `${currentVal} ➔ ${normalizedNew || '(Dikosongkan)'}` : `Jadwal Dipilih: ${normalizedNew}`,
+      confirmText: t('ecn.alert_running_bom.confirm', 'Ya, Tetapkan Tanggal'),
+      cancelText: t('common.cancel', 'Batal'),
+      variant: 'warning',
+    });
+
+    if (!ok) {
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, running_date_bom: normalizedNew }));
   };
 
   const handleDeleteClick = async (id, ecnNo) => {
@@ -1294,7 +1331,7 @@ ${
                 2: true,
                 3: true,
                 4: true,
-                6: false,
+                5: false,
               });
               setIsFormModalOpen(true);
             }}
@@ -1599,6 +1636,21 @@ ${
               <option value="Software">Software</option>
               <option value="Process">Process</option>
             </select>
+
+            {/* ponytail: Shortcut filter for BOM Part Number Changes */}
+            <button
+              type="button"
+              className={`${styles.shortcutFilterBtn} ${onlyPartChanges ? styles.shortcutFilterBtnActive : ''}`}
+              onClick={() => {
+                setOnlyPartChanges((prev) => !prev);
+                setPage(1);
+              }}
+              title={t('ecn.filter.part_changes_tooltip', 'Tampilkan hanya data ECN yang memiliki perubahan Part Number (BOM Change)')}
+            >
+              <ArrowLeftRight size={13} />
+              <span>{t('ecn.filter.part_changes_only', 'Part Change BOM')}</span>
+              {onlyPartChanges && <span className={styles.activeDot} />}
+            </button>
           </div>
 
           <div className={styles.toolbarActions}>
@@ -2625,8 +2677,8 @@ ${
           onClose={handleRequestCloseForm}
           title={editingItem ? `${t('ecn.form_modal.edit_title', 'Edit Data ECN')} (${editingItem.ecn_no})` : t('ecn.form_modal.add_title', 'Tambah Data ECN Baru')}
           maxWidth="min(1380px, 98vw)"
-          height="94vh"
-          maxHeight="96vh"
+          maxHeight="92vh"
+          style={{ height: 'auto' }}
           closeOnOverlayClick={false}
           closeOnEsc={false}
         >
@@ -2977,10 +3029,11 @@ ${
                           <span className={styles.criticalChip}>CRITICAL</span>
                         </div>
                         <input
+                          key={`running-bom-${normalizeToDateInput(formData.running_date_bom)}`}
                           type="date"
                           className={`${styles.formInput} ${styles.formInputCritical}`}
                           value={normalizeToDateInput(formData.running_date_bom)}
-                          onChange={(e) => setFormData({ ...formData, running_date_bom: e.target.value })}
+                          onChange={(e) => handleRunningBomDateChange(e.target.value)}
                           onClick={(e) => {
                             try {
                               e.target.showPicker?.();
@@ -3109,21 +3162,21 @@ ${
                 )}
               </div>
 
-              {/* ================= SECTION 6 ACCORDION (AUDIT TRAIL) ================= */}
+              {/* ================= SECTION 5 ACCORDION (AUDIT TRAIL) ================= */}
               {editingItem && (
-                <div className={`${styles.accordionSection} ${openSections[6] ? styles.accordionSectionActive : ''}`}>
+                <div className={`${styles.accordionSection} ${openSections[5] ? styles.accordionSectionActive : ''}`}>
                   <button
                     type="button"
                     className={styles.accordionHeader}
-                    onClick={() => toggleSection(6)}
-                    aria-expanded={openSections[6]}
+                    onClick={() => toggleSection(5)}
+                    aria-expanded={openSections[5]}
                   >
                     <div className={styles.accordionHeaderLeft}>
                       <span className={styles.accordionTitle}>
                         <History size={13} />
-                        6. {t('ecn.form_modal.sec_history', 'Riwayat Perubahan & Audit Trail')} ({ecnChangeLogs.length})
+                        5. {t('ecn.form_modal.sec_history', 'Riwayat Perubahan & Audit Trail')} ({ecnChangeLogs.length})
                       </span>
-                      {!openSections[6] && ecnChangeLogs.length > 0 && (
+                      {!openSections[5] && ecnChangeLogs.length > 0 && (
                         <span className={styles.accordionSummary}>
                           Terakhir oleh {ecnChangeLogs[0].changed_by_name || 'System'} ({new Date(ecnChangeLogs[0].created_at).toLocaleDateString('id-ID')})
                         </span>
@@ -3131,11 +3184,11 @@ ${
                     </div>
                     <ChevronDown
                       size={16}
-                      className={`${styles.accordionChevron} ${openSections[6] ? styles.accordionChevronRotated : ''}`}
+                      className={`${styles.accordionChevron} ${openSections[5] ? styles.accordionChevronRotated : ''}`}
                     />
                   </button>
 
-                  {openSections[6] && (
+                  {openSections[5] && (
                     <div className={styles.accordionBody}>
                       {logsLoading ? (
                         <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-muted)' }}>

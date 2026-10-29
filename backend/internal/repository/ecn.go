@@ -163,6 +163,11 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		argIdx++
 	}
 
+	// ponytail: shortcut filter for records with part number changes
+	if strings.ToLower(q.HasPartChange) == "true" || q.HasPartChange == "1" {
+		where = append(where, "(COALESCE(e.part_before, '') != '' OR COALESCE(e.part_after, '') != '')")
+	}
+
 	if q.Specification != "" {
 		where = append(where, fmt.Sprintf("LOWER(e.specification) LIKE $%d", argIdx))
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.Specification))+"%")

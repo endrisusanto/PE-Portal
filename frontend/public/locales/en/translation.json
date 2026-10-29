@@ -1618,6 +1618,8 @@
       "running_bom": "Running BOM...",
       "dist_date": "Dist Date...",
       "reset": "Reset",
+      "part_changes_only": "Part Change BOM",
+      "part_changes_tooltip": "Show only ECN records with Part Number changes (BOM Change)",
       "bulk_delete": "Delete Selected",
       "select_all": "Select All",
       "clear_selection": "Clear Selection"
@@ -1702,10 +1704,17 @@
       "sec_parent": "Parent Component",
       "sec_child": "Child Component (New Component)",
       "sec_remark": "Remark (Technical Detail Notes & Special Instructions)",
+      "sec_history": "Change History & Audit Trail",
       "saving": "Saving...",
       "save_changes": "Save Changes",
       "save_new": "Save ECN Data",
       "cancel": "Cancel"
+    },
+    "alert_running_bom": {
+      "title": "Running Date BOM Change Warning",
+      "msg_change": "Running Date BOM is a CRITICAL milestone determining material deployment on the production line. Modifying this schedule affects line planning and monitoring. Are you sure you want to change it?",
+      "msg_set": "Running Date BOM is a CRITICAL milestone for material readiness. Please confirm this schedule has been coordinated with PPIC and Line Leaders.",
+      "confirm": "Yes, Set Date"
     },
     "delete_modal": {
       "title": "Confirm Delete ECN",

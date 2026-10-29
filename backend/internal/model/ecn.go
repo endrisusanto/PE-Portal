@@ -75,6 +75,7 @@ type ECNListQuery struct {
 	ChildName        string `query:"child_name"`
 	PartBefore       string `query:"col_part_before"`
 	PartAfter        string `query:"col_part_after"`
+	HasPartChange    string `query:"has_part_change"` // ponytail: shortcut filter for records with part changes
 	Specification    string `query:"specification"`
 	Quantity         string `query:"quantity"`
 	RunningDateBOM   string `query:"running_date_bom"`

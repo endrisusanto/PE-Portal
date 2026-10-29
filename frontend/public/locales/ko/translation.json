@@ -1618,6 +1618,8 @@
       "running_bom": "Running BOM...",
       "dist_date": "배포일...",
       "reset": "초기화",
+      "part_changes_only": "Part Change BOM",
+      "part_changes_tooltip": "부품 번호 변경(BOM Change)이 있는 ECN 데이터만 필터링합니다",
       "bulk_delete": "선택 삭제",
       "select_all": "전체 선택",
       "clear_selection": "선택 해제"
@@ -1702,10 +1704,17 @@
       "sec_parent": "모품목 정보 (Parent)",
       "sec_child": "자품목 정보 (Child / 신규 부품)",
       "sec_remark": "비고 (기술 세부사항 및 특별 지침)",
+      "sec_history": "변경 이력 및 감사 로그",
       "saving": "저장 중...",
       "save_changes": "변경사항 저장",
       "save_new": "ECN 등록",
       "cancel": "취소"
+    },
+    "alert_running_bom": {
+      "title": "Running Date BOM 변경 주의",
+      "msg_change": "Running Date BOM은 생산 라인의 자재 적용 시점을 결정하는 핵심(CRITICAL) 일정입니다. 일정을 변경하면 생산 계획 및 라인 모니터링에 영향을 줍니다. 변경하시겠습니까?",
+      "msg_set": "Running Date BOM은 자재 준비 핵심 일정입니다. 선택한 일정이 PPIC 및 라인 리더와 협의되었는지 확인하십시오.",
+      "confirm": "예, 일정 확정"
     },
     "delete_modal": {
       "title": "ECN 삭제 확인",

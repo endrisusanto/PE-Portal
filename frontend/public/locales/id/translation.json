@@ -1618,6 +1618,8 @@
       "running_bom": "Running BOM...",
       "dist_date": "Dist Date...",
       "reset": "Reset",
+      "part_changes_only": "Part Change BOM",
+      "part_changes_tooltip": "Tampilkan hanya data ECN yang memiliki perubahan Part Number (BOM Change)",
       "bulk_delete": "Hapus Terpilih",
       "select_all": "Pilih Semua",
       "clear_selection": "Batal Pilih"
@@ -1702,10 +1704,17 @@
       "sec_parent": "Komponen Parent (Induk)",
       "sec_child": "Komponen Child (Anak / Komponen Baru)",
       "sec_remark": "Remark (Catatan Detail Teknis & Instruksi Khusus)",
+      "sec_history": "Riwayat Perubahan & Audit Trail",
       "saving": "Menyimpan...",
       "save_changes": "Simpan Perubahan",
       "save_new": "Simpan Data ECN",
       "cancel": "Batal"
+    },
+    "alert_running_bom": {
+      "title": "Peringatan Perubahan Running Date BOM",
+      "msg_change": "Jadwal Running BOM adalah milestone KRITIKAL yang menentukan kesiapan material di lini produksi. Mengubah jadwal ini dapat mempengaruhi perencanaan produksi dan monitoring line. Apakah Anda yakin ingin mengubah jadwal ini?",
+      "msg_set": "Jadwal Running BOM adalah milestone KRITIKAL yang menentukan kesiapan material di lini produksi. Pastikan tanggal yang dipilih telah diverifikasi bersama tim PPIC dan Line Leader.",
+      "confirm": "Ya, Tetapkan Tanggal"
     },
     "delete_modal": {
       "title": "Konfirmasi Hapus ECN",
