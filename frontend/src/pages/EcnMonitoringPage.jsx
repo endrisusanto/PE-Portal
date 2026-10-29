@@ -951,11 +951,16 @@ export const EcnMonitoringPage = () => {
         remark: r.remark ? (r.remark.length > 800 ? r.remark.substring(0, 800) + '...' : r.remark) : '',
       }));
 
+      const activeColFilterList = Object.entries(colFilters)
+        .filter(([_, val]) => Boolean(val && String(val).trim()))
+        .map(([key, val]) => `${key.replace(/_/g, ' ')}: "${String(val).trim()}"`);
+
       const activeFilterSummary = [
         selectedModel ? `Model: ${selectedModel}` : '',
         selectedProcess ? `Process: ${selectedProcess}` : '',
         selectedStatus ? `Status: ${selectedStatus}` : '',
-        search ? `Search Filter: "${search}"` : '',
+        search ? `Global Search: "${search}"` : '',
+        ...activeColFilterList,
       ].filter(Boolean).join(', ');
 
       const systemPrompt = `Anda adalah asisten AI Production Engineering (PE) spesialis ECN Monitoring di PT Samsung Electronics Indonesia (SEIN).
