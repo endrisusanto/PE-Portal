@@ -1294,8 +1294,28 @@ ${
               {isAiThinking && (
                 <div className={`${styles.aiMessageBubble} ${styles.aiMessageAssistant}`}>
                   <div className={styles.aiThinkingBox}>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>{t('ecn.ai.thinking', 'AI sedang menganalisis database ECN...')}</span>
+                    <svg
+                      className={styles.aiCircleProgress}
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className={styles.aiCircleTrack}
+                        cx="12"
+                        cy="12"
+                        r="9.5"
+                      />
+                      <circle
+                        className={styles.aiCircleIndicator}
+                        cx="12"
+                        cy="12"
+                        r="9.5"
+                      />
+                    </svg>
+                    <span className={styles.aiShimmerText}>
+                      {t('ecn.ai.thinking', 'AI sedang menganalisis database ECN...')}
+                    </span>
+                    <span className={styles.aiThinkingPulseDot} />
                   </div>
                 </div>
               )}
