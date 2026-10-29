@@ -173,13 +173,13 @@ def match_table_metadata(row_texts, data):
                 data["Model"] = next_val
             elif cell_lower == "problem" and not data["Problem"]:
                 data["Problem"] = next_val
-            elif cell_lower == "cn" and not data["CN"]:
+            elif (cell_lower == "cn" or "sample cn" in cell_lower or "tracking cn" in cell_lower or cell_lower.endswith(" cn")) and not data["CN"]:
                 data["CN"] = next_val
             elif ("defect date" in cell_lower or "date" in cell_lower) and not data["Defect Date"]:
                 data["Defect Date"] = next_val
             elif ("defect location" in cell_lower or "location" in cell_lower) and not data["Defect Location"]:
                 data["Defect Location"] = next_val
-            elif ("sample" in cell_lower or "defect qty" in cell_lower or "qty" in cell_lower) and not data["Defect Qty"]:
+            elif ("qty" in cell_lower or "quantity" in cell_lower or cell_lower in ("sample", "sample (ea)", "sample(ea)")) and "cn" not in cell_lower and not data["Defect Qty"]:
                 data["Defect Qty"] = next_val
 
 
