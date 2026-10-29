@@ -20,6 +20,7 @@ import re
 import json
 import time
 import argparse
+import tempfile
 import urllib.request
 import urllib.parse
 
@@ -337,6 +338,73 @@ def group_page_text_elements(page, page_width, page_height):
 
     return blocks
 
+def repair_pdf_if_needed(input_path):
+    """
+    ponytail: multi-tier pre-flight stream healer for truncated or corrupted PDFs.
+    Returns (usable_pdf_path, temp_file_to_clean_or_None).
+    """
+    try:
+        probe = pypdf.PdfReader(input_path, strict=False)
+        if probe.is_encrypted:
+            try:
+                probe.decrypt("")
+            except Exception:
+                pass
+        if len(probe.pages) > 0:
+            return input_path, None
+    except Exception as probe_err:
+        sys.stderr.write(f"[INFO] Initial PDF probe failed ({probe_err}). Initiating multi-tier repair...\n")
+
+    # Tier 1: Ghostscript CLI if installed (Linux / Docker / Windows)
+    try:
+        import shutil
+        import subprocess
+        gs_bin = shutil.which("gs") or shutil.which("gswin64c") or shutil.which("gswin32c")
+        if gs_bin:
+            tmp_gs = tempfile.NamedTemporaryFile(suffix="_repaired.pdf", delete=False)
+            tmp_gs.close()
+            cmd = [gs_bin, "-o", tmp_gs.name, "-sDEVICE=pdfwrite", "-dPDFSETTINGS=/default", input_path]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+            if res.returncode == 0 and os.path.exists(tmp_gs.name) and os.path.getsize(tmp_gs.name) > 0:
+                r = pypdf.PdfReader(tmp_gs.name, strict=False)
+                if len(r.pages) > 0:
+                    sys.stderr.write(f"[INFO] Ghostscript successfully repaired PDF ({len(r.pages)} pages).\n")
+                    return tmp_gs.name, tmp_gs.name
+            if os.path.exists(tmp_gs.name):
+                os.remove(tmp_gs.name)
+    except Exception as gs_err:
+        sys.stderr.write(f"[WARN] Ghostscript repair skipped: {gs_err}\n")
+
+    # Tier 2: Pure Python EOF & startxref patch
+    try:
+        with open(input_path, "rb") as f:
+            raw_bytes = f.read()
+
+        eof_pos = raw_bytes.rfind(b"%%EOF")
+        if eof_pos != -1:
+            fixed_bytes = raw_bytes[: eof_pos + 5] + b"\n"
+        else:
+            sx_pos = raw_bytes.rfind(b"startxref")
+            if sx_pos != -1:
+                fixed_bytes = raw_bytes + b"\n%%EOF\n"
+            else:
+                fixed_bytes = raw_bytes + b"\ntrailer\n<< >>\nstartxref\n0\n%%EOF\n"
+
+        tmp_py = tempfile.NamedTemporaryFile(suffix="_pyrepair.pdf", delete=False)
+        tmp_py.write(fixed_bytes)
+        tmp_py.close()
+
+        r = pypdf.PdfReader(tmp_py.name, strict=False)
+        if len(r.pages) > 0:
+            sys.stderr.write(f"[INFO] Pure Python stream healer repaired PDF ({len(r.pages)} pages).\n")
+            return tmp_py.name, tmp_py.name
+        if os.path.exists(tmp_py.name):
+            os.remove(tmp_py.name)
+    except Exception as py_err:
+        sys.stderr.write(f"[WARN] Pure Python repair failed: {py_err}\n")
+
+    return input_path, None
+
 def process_pdf(
     input_file,
     output_pdf,
@@ -345,167 +413,219 @@ def process_pdf(
     llm_url="",
     llm_model="",
     llm_key="",
-    batch_size=1,
+    batch_size=5,
 ):
     """
-    Main processing loop. Iterates through pages, translates text blocks,
-    creates vector overlay masks, and writes merged output PDF.
+    ponytail: auto-chunking batch processor (5 pages per batch) with shared document-level
+    translation cache and per-page fault tolerance to prevent memory exhaustion and stream truncation.
     """
     start_time = time.time()
 
     if not os.path.exists(input_file):
         raise FileNotFoundError(f"Input file not found: {input_file}")
 
-    # Read leniently for NASCA encrypted files
-    reader = pypdf.PdfReader(input_file, strict=False)
-    if reader.is_encrypted:
-        try:
-            reader.decrypt("")
-        except Exception:
-            pass
+    # 1. Pre-flight repair if needed
+    usable_path, temp_repair_file = repair_pdf_if_needed(input_file)
 
-    total_pages = len(reader.pages)
-    if total_pages == 0:
-        raise ValueError("PDF file has 0 pages")
+    try:
+        reader = pypdf.PdfReader(usable_path, strict=False)
+        if reader.is_encrypted:
+            try:
+                reader.decrypt("")
+            except Exception:
+                pass
 
-    writer = pypdf.PdfWriter()
-    total_translated_count = 0
+        total_pages = len(reader.pages)
+        if total_pages == 0:
+            raise ValueError("PDF file has 0 pages")
 
-    # Stream initial start message
-    print(
-        json.dumps({
-            "current": 0,
-            "total": total_pages,
-            "percent": 0.0,
-            "status": "processing",
-            "message": f"Memulai penerjemahan {total_pages} halaman dokumen...",
-        }),
-        flush=True,
-    )
+        chunk_size = batch_size if batch_size and batch_size > 0 else 5
+        total_chunks = (total_pages + chunk_size - 1) // chunk_size
 
-    for page_idx in range(total_pages):
-        page = reader.pages[page_idx]
-        media_box = page.mediabox
-        page_width = float(media_box.width)
-        page_height = float(media_box.height)
-
-        # 1. Extract and group text blocks
-        blocks = group_page_text_elements(page, page_width, page_height)
-
-        # 2. Translate translatable texts
-        unique_texts = list(set([b["text"] for b in blocks]))
-        translation_map = {}
-
-        if unique_texts:
-            # Try LLM if configured
-            if llm_url:
-                translation_map = translate_with_llm(
-                    unique_texts,
-                    target_lang=target_lang,
-                    llm_url=llm_url,
-                    llm_model=llm_model,
-                    llm_key=llm_key,
-                )
-
-            # Fallback for any unmapped text
-            for t in unique_texts:
-                if t not in translation_map:
-                    translation_map[t] = translate_fallback(t, target_lang=target_lang)
-
-        # 3. Create ReportLab overlay canvas
-        overlay_buf = io.BytesIO()
-        overlay_canvas = canvas.Canvas(overlay_buf, pagesize=(page_width, page_height))
-
-        for block in blocks:
-            orig = block["text"]
-            translated = translation_map.get(orig, orig)
-            if not translated or translated == orig:
-                continue
-
-            total_translated_count += 1
-            x = block["x"]
-            y = block["y"]
-            fs = block["font_size"]
-            orig_w = block["width"]
-
-            # Calculate height and padding
-            # PDF text baseline: descent is ~0.25 * fs, cap height ~0.75 * fs
-            pad_x = 2.0
-            pad_y = 1.5
-            mask_y = y - (fs * 0.28)
-            mask_h = fs * 1.25
-
-            # Font scaling calculation
-            trans_w = overlay_canvas.stringWidth(translated, FONT_REGULAR, fs)
-
-            # In replace mode: draw white rectangle mask over original text, then draw translated text
-            if mode == "replace":
-                # Allow max width to cover either original or translated, capped to reasonable margin
-                mask_w = max(orig_w, trans_w) + (pad_x * 2)
-                overlay_canvas.setFillColor(colors.white)
-                overlay_canvas.rect(x - pad_x, mask_y - pad_y, mask_w, mask_h + (pad_y * 2), fill=1, stroke=0)
-
-                # Draw translated text
-                overlay_canvas.setFillColor(colors.black)
-                # Auto-scale if translated text is significantly wider than cell allows
-                avail_w = max(orig_w * 1.15, 30.0)
-                if trans_w > avail_w:
-                    scale = max(0.65, avail_w / trans_w)
-                    draw_fs = fs * scale
-                else:
-                    draw_fs = fs
-
-                overlay_canvas.setFont(FONT_REGULAR, draw_fs)
-                overlay_canvas.drawString(x, y, translated)
-
-            elif mode == "bilingual":
-                # Bilingual mode: Keep original text visible, place translated text as subtitle
-                # If room below, draw in subtle dark blue/cyan
-                overlay_canvas.setFillColor(colors.HexColor("#0D47A1"))
-                draw_fs = max(6.0, fs * 0.75)
-                overlay_canvas.setFont(FONT_REGULAR, draw_fs)
-                overlay_canvas.drawString(x, y - (fs * 0.85), f"[{translated}]")
-
-        overlay_canvas.save()
-        overlay_buf.seek(0)
-
-        # 4. Merge overlay onto original page (preserving all vector graphics, borders, photos)
-        overlay_pdf_reader = pypdf.PdfReader(overlay_buf)
-        if len(overlay_pdf_reader.pages) > 0:
-            page.merge_page(overlay_pdf_reader.pages[0])
-
-        writer.add_page(page)
-
-        # 5. Stream progress update
-        curr_page = page_idx + 1
-        pct = round((curr_page / total_pages) * 100, 1)
+        # Stream initial start message
         print(
             json.dumps({
-                "current": curr_page,
+                "current": 0,
                 "total": total_pages,
-                "percent": pct,
+                "percent": 0.0,
                 "status": "processing",
-                "message": f"Halaman {curr_page} dari {total_pages} berhasil diproses ({pct}%)...",
+                "message": f"Memulai penerjemahan {total_pages} halaman ({total_chunks} batch)...",
             }),
             flush=True,
         )
 
-    # 6. Save final output PDF
-    os.makedirs(os.path.dirname(os.path.abspath(output_pdf)), exist_ok=True)
-    with open(output_pdf, "wb") as f_out:
-        writer.write(f_out)
+        doc_translation_cache = {}
+        total_translated_count = 0
+        chunk_files = []
+        temp_dir = tempfile.mkdtemp(prefix="wi_chunks_")
 
-    elapsed = round(time.time() - start_time, 2)
-    final_res = {
-        "success": True,
-        "total_pages": total_pages,
-        "translated_blocks": total_translated_count,
-        "output_file": os.path.basename(output_pdf),
-        "duration_sec": elapsed,
-        "message": f"Berhasil menerjemahkan {total_pages} halaman ({total_translated_count} teks) dalam {elapsed} detik.",
-    }
-    print(json.dumps(final_res), flush=True)
-    return final_res
+        try:
+            for chunk_idx in range(total_chunks):
+                start_p = chunk_idx * chunk_size
+                end_p = min(start_p + chunk_size, total_pages)
+                chunk_num = chunk_idx + 1
+
+                chunk_writer = pypdf.PdfWriter()
+
+                for page_idx in range(start_p, end_p):
+                    curr_page = page_idx + 1
+                    try:
+                        page = reader.pages[page_idx]
+                        media_box = page.mediabox
+                        page_width = float(media_box.width)
+                        page_height = float(media_box.height)
+
+                        # Extract text
+                        blocks = group_page_text_elements(page, page_width, page_height)
+                        unique_texts = list(set([b["text"] for b in blocks]))
+
+                        # Determine missing texts not in doc_translation_cache
+                        missing_texts = [t for t in unique_texts if t not in doc_translation_cache]
+                        if missing_texts:
+                            if llm_url:
+                                llm_mapped = translate_with_llm(
+                                    missing_texts,
+                                    target_lang=target_lang,
+                                    llm_url=llm_url,
+                                    llm_model=llm_model,
+                                    llm_key=llm_key,
+                                )
+                                doc_translation_cache.update(llm_mapped)
+
+                            # Fallback for remaining missing texts
+                            for t in missing_texts:
+                                if t not in doc_translation_cache:
+                                    doc_translation_cache[t] = translate_fallback(t, target_lang=target_lang)
+
+                        # Create ReportLab overlay canvas
+                        overlay_buf = io.BytesIO()
+                        overlay_canvas = canvas.Canvas(overlay_buf, pagesize=(page_width, page_height))
+
+                        for block in blocks:
+                            orig = block["text"]
+                            translated = doc_translation_cache.get(orig, orig)
+                            if not translated or translated == orig:
+                                continue
+
+                            total_translated_count += 1
+                            x = block["x"]
+                            y = block["y"]
+                            fs = block["font_size"]
+                            orig_w = block["width"]
+
+                            pad_x = 2.0
+                            pad_y = 1.5
+                            mask_y = y - (fs * 0.28)
+                            mask_h = fs * 1.25
+
+                            trans_w = overlay_canvas.stringWidth(translated, FONT_REGULAR, fs)
+
+                            if mode == "replace":
+                                mask_w = max(orig_w, trans_w) + (pad_x * 2)
+                                overlay_canvas.setFillColor(colors.white)
+                                overlay_canvas.rect(x - pad_x, mask_y - pad_y, mask_w, mask_h + (pad_y * 2), fill=1, stroke=0)
+
+                                overlay_canvas.setFillColor(colors.black)
+                                avail_w = max(orig_w * 1.15, 30.0)
+                                if trans_w > avail_w:
+                                    scale = max(0.65, avail_w / trans_w)
+                                    draw_fs = fs * scale
+                                else:
+                                    draw_fs = fs
+
+                                overlay_canvas.setFont(FONT_REGULAR, draw_fs)
+                                overlay_canvas.drawString(x, y, translated)
+                            elif mode == "bilingual":
+                                overlay_canvas.setFillColor(colors.HexColor("#0D47A1"))
+                                draw_fs = max(6.0, fs * 0.75)
+                                overlay_canvas.setFont(FONT_REGULAR, draw_fs)
+                                overlay_canvas.drawString(x, y - (fs * 0.85), f"[{translated}]")
+
+                        overlay_canvas.save()
+                        overlay_buf.seek(0)
+
+                        # Merge overlay with per-page error protection
+                        try:
+                            overlay_pdf_reader = pypdf.PdfReader(overlay_buf, strict=False)
+                            if len(overlay_pdf_reader.pages) > 0:
+                                page.merge_page(overlay_pdf_reader.pages[0])
+                        except Exception as merge_err:
+                            sys.stderr.write(f"[WARN] Overlay merge error on page {curr_page}: {merge_err}\n")
+
+                        chunk_writer.add_page(page)
+
+                    except Exception as page_err:
+                        sys.stderr.write(f"[WARN] Error on page {curr_page}: {page_err}. Preserving raw page.\n")
+                        try:
+                            chunk_writer.add_page(reader.pages[page_idx])
+                        except Exception:
+                            pass
+
+                    # Stream progress per-page
+                    pct = round((curr_page / total_pages) * 100, 1)
+                    print(
+                        json.dumps({
+                            "current": curr_page,
+                            "total": total_pages,
+                            "percent": pct,
+                            "status": "processing",
+                            "message": f"Halaman {curr_page} dari {total_pages} (Batch {chunk_num}/{total_chunks}) berhasil diproses ({pct}%)...",
+                        }),
+                        flush=True,
+                    )
+
+                # Write chunk to disk and free memory
+                chunk_file = os.path.join(temp_dir, f"chunk_{chunk_idx:03d}_{start_p}_{end_p}.pdf")
+                with open(chunk_file, "wb") as f_chunk:
+                    chunk_writer.write(f_chunk)
+                chunk_files.append(chunk_file)
+                del chunk_writer
+
+            # Final Assembly: Merge all chunks into output_pdf
+            os.makedirs(os.path.dirname(os.path.abspath(output_pdf)), exist_ok=True)
+            if len(chunk_files) == 1:
+                import shutil
+                shutil.copy2(chunk_files[0], output_pdf)
+            else:
+                merger = pypdf.PdfMerger(strict=False)
+                for cf in chunk_files:
+                    merger.append(cf)
+                with open(output_pdf, "wb") as f_final:
+                    merger.write(f_final)
+                merger.close()
+
+        finally:
+            # Clean up temporary chunk files
+            for cf in chunk_files:
+                if os.path.exists(cf):
+                    try:
+                        os.remove(cf)
+                    except Exception:
+                        pass
+            if os.path.exists(temp_dir):
+                try:
+                    os.rmdir(temp_dir)
+                except Exception:
+                    pass
+
+        elapsed = round(time.time() - start_time, 2)
+        final_res = {
+            "success": True,
+            "total_pages": total_pages,
+            "translated_blocks": total_translated_count,
+            "output_file": os.path.basename(output_pdf),
+            "duration_sec": elapsed,
+            "message": f"Berhasil menerjemahkan {total_pages} halaman ({total_translated_count} teks) dalam {elapsed} detik.",
+        }
+        print(json.dumps(final_res), flush=True)
+        return final_res
+
+    finally:
+        if temp_repair_file and os.path.exists(temp_repair_file):
+            try:
+                os.remove(temp_repair_file)
+            except Exception:
+                pass
 
 def main():
     parser = argparse.ArgumentParser(description="Working Instruction PDF Auto-Translator")
@@ -516,7 +636,7 @@ def main():
     parser.add_argument("--llm-url", default="", help="Optional OpenAI-compatible endpoint URL")
     parser.add_argument("--llm-model", default="", help="Optional LLM model name")
     parser.add_argument("--llm-api-key", default="", help="Optional LLM API key")
-    parser.add_argument("--batch-size", type=int, default=1, help="Page batch size")
+    parser.add_argument("--batch-size", type=int, default=5, help="Page batch size (default: 5)")
 
     args = parser.parse_args()
 

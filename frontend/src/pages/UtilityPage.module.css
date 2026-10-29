@@ -304,7 +304,91 @@
 .progressBarFill {
   height: 100%;
   background: linear-gradient(90deg, #ec4899, #8b5cf6);
-  transition: width 0.3s ease;
+  transition: width 350ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* emil-design-eng: High-fidelity micro-interactions and motion curves */
+.wiProgressBarContainer {
+  width: 100%;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 9999px;
+  height: 7px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.wiProgressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+  background-size: 200% 100%;
+  border-radius: 9999px;
+  transition: width 350ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.wiProgressBarFillProcessing {
+  animation: wiShimmerMove 2s linear infinite;
+}
+
+@keyframes wiShimmerMove {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* Active Row Ambient Glow */
+.wiRowProcessing {
+  background-color: rgba(236, 72, 153, 0.04) !important;
+  box-shadow: inset 3px 0 0 var(--color-accent), 0 0 16px rgba(236, 72, 153, 0.08);
+  transition: background-color 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Pulse Dot for Pending State */
+.wiPulseDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #d97706;
+  display: inline-block;
+  animation: wiBreath 1.8s ease-in-out infinite;
+}
+
+@keyframes wiBreath {
+  0%, 100% { transform: scale(0.85); opacity: 0.5; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+/* Badge Entrance Pop */
+.wiBadgePop {
+  animation: wiPopIn 200ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+@keyframes wiPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Interactive Action Buttons & Cards */
+.wiInteractiveBtn {
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.wiInteractiveBtn:active {
+  transform: scale(0.97);
+}
+
+.wiRow {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.wiRow:hover {
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 /* ponytail: PDF Merge & Split Utility Components */

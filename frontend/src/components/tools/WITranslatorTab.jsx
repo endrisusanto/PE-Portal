@@ -715,10 +715,9 @@ export const WITranslatorTab = () => {
                   return (
                     <tr
                       key={j.id}
+                      className={`${styles.wiRow} ${isProcessing ? styles.wiRowProcessing : ''}`}
                       style={{
-                        borderBottom: '1px solid var(--color-border)',
-                        backgroundColor: isSelected ? 'rgba(236, 72, 153, 0.04)' : 'transparent',
-                        transition: 'background-color 0.1s ease',
+                        backgroundColor: isSelected ? 'rgba(236, 72, 153, 0.05)' : undefined,
                       }}
                     >
                       {/* Checkbox */}
@@ -813,19 +812,19 @@ export const WITranslatorTab = () => {
                                 fontWeight: 600,
                                 color: 'var(--color-accent)',
                               }}>
-                                <RefreshCw size={12} style={{ animation: 'spin 1.5s linear infinite' }} />
+                                <RefreshCw size={12} style={{ animation: 'spin 1.2s linear infinite' }} />
                                 {j.total_pages > 0
                                   ? `Hal ${j.current_page}/${j.total_pages}`
-                                  : 'Mempersiapkan...'}
+                                  : 'Mempersiapkan batch...'}
                               </span>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>
                                 {j.progress_percent || 0}%
                               </span>
                             </div>
-                            <div className={styles.progressBarContainer} style={{ height: '6px' }}>
+                            <div className={styles.wiProgressBarContainer}>
                               <div
-                                className={styles.progressBarFill}
-                                style={{ width: `${j.progress_percent || 5}%` }}
+                                className={`${styles.wiProgressBarFill} ${styles.wiProgressBarFillProcessing}`}
+                                style={{ width: `${Math.max(j.progress_percent || 0, 4)}%` }}
                               />
                             </div>
                             {j.message && (
@@ -838,7 +837,7 @@ export const WITranslatorTab = () => {
 
                         {isCompleted && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span style={{
+                            <span className={styles.wiBadgePop} style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '5px',
@@ -863,7 +862,7 @@ export const WITranslatorTab = () => {
                           <span style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '5px',
+                            gap: '7px',
                             padding: '3px 8px',
                             borderRadius: '4px',
                             backgroundColor: 'rgba(245, 158, 11, 0.12)',
@@ -872,14 +871,14 @@ export const WITranslatorTab = () => {
                             fontWeight: 600,
                             width: 'fit-content',
                           }}>
-                            <Clock size={12} />
+                            <span className={styles.wiPulseDot} />
                             Menunggu Antrean Server
                           </span>
                         )}
 
                         {isFailed && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span style={{
+                            <span className={styles.wiBadgePop} style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '5px',
@@ -917,6 +916,7 @@ export const WITranslatorTab = () => {
                               variant="primary"
                               size="sm"
                               icon={Download}
+                              className={styles.wiInteractiveBtn}
                               onClick={() => handleDownloadJob(j)}
                               style={{ padding: '5px 10px', fontSize: '12px' }}
                             >
@@ -930,6 +930,7 @@ export const WITranslatorTab = () => {
                               variant="secondary"
                               size="sm"
                               icon={Play}
+                              className={styles.wiInteractiveBtn}
                               onClick={() => handleExecuteSingle(j.id)}
                               style={{ padding: '5px 10px', fontSize: '12px' }}
                               title="Mulai Terjemahkan Berkas Ini"

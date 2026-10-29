@@ -854,6 +854,7 @@ func (h *UtilityHandler) TranslateWIPDF(c echo.Context) error {
 			"--output-pdf", outPDFPath,
 			"--target-lang", targetLang,
 			"--mode", mode,
+			"--batch-size", "5",
 		}
 		if llmURL != "" {
 			cmdArgs = append(cmdArgs, "--llm-url", llmURL)
@@ -888,7 +889,10 @@ func (h *UtilityHandler) TranslateWIPDF(c echo.Context) error {
 			return
 		}
 
+		// ponytail: defensive 1MB buffer for streaming progress
 		scanner := bufio.NewScanner(stdout)
+		scanBuf := make([]byte, 64*1024)
+		scanner.Buffer(scanBuf, 1024*1024)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if line == "" {
@@ -1061,7 +1065,7 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 		"--output-pdf", outPath,
 		"--target-lang", job.TargetLang,
 		"--mode", job.Mode,
-		"--batch-size", "1",
+		"--batch-size", "5",
 	}
 
 	if h.llmRepo != nil {
@@ -1098,7 +1102,10 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 		return
 	}
 
+	// ponytail: defensive 1MB buffer for streaming progress
 	scanner := bufio.NewScanner(stdoutPipe)
+	scanBuf := make([]byte, 64*1024)
+	scanner.Buffer(scanBuf, 1024*1024)
 	var finalSuccess bool
 	var translatedBlocks int
 	var durationSec float64
@@ -1144,6 +1151,10 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 				_ = h.wiRepo.UpdateProgress(ctx, job.ID, currPage, totalPages, pct, msg)
 			}
 		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil && lastErr == "" {
+		lastErr = "Scanner error: " + scanErr.Error()
 	}
 
 	if err := cmd.Wait(); err != nil {
