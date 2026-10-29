@@ -1345,7 +1345,7 @@ export const DocumentsPage = () => {
 
             {previewMode === 'datahub' ? (
               /* ========================================================================= */
-              /* DATAHUB READER (BYPASS DRM NASCA)                                         */
+              /* DATAHUB READER                                                           */
               /* ========================================================================= */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: '450px' }}>
                 {datahubViewLoading ? (

@@ -1090,7 +1090,7 @@
     "copy_markdown": "Salin Markdown",
     "download_md": "Unduh .md",
     "re_extract": "Segarkan Ekstraksi",
-    "tab_datahub_reader": "DataHub Reader (Bypass DRM NASCA)",
+    "tab_datahub_reader": "DataHub Reader",
     "drm_warning": "Dokumen ini terdeteksi memiliki enkripsi Samsung DRM (Fasoo/NASCA). Pratinjau lokal mungkin tidak dapat dibuka.",
     "open_datahub_reader": "Buka via DataHub Reader",
     "open_datahub_portal": "Buka di Portal DataHub",

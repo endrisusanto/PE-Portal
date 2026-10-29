@@ -1090,7 +1090,7 @@
     "copy_markdown": "Copy Markdown",
     "download_md": "Download .md",
     "re_extract": "Re-extract / Refresh",
-    "tab_datahub_reader": "DataHub Reader (Bypass DRM NASCA)",
+    "tab_datahub_reader": "DataHub Reader",
     "drm_warning": "This document is detected to have Samsung DRM (Fasoo/NASCA) encryption. Local preview might not render properly.",
     "open_datahub_reader": "Open with DataHub Reader",
     "open_datahub_portal": "Open in DataHub Portal",

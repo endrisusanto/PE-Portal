@@ -1090,7 +1090,7 @@
     "copy_markdown": "마크다운 복사",
     "download_md": ".md 다운로드",
     "re_extract": "추출 새로고침",
-    "tab_datahub_reader": "DataHub 리더 (NASCA/DRM 우회)",
+    "tab_datahub_reader": "DataHub 리더",
     "drm_warning": "이 문서는 삼성 DRM(Fasoo/NASCA)으로 암호화되어 있습니다. 로컬 뷰어에서 열리지 않을 경우 DataHub 리더를 사용하십시오.",
     "open_datahub_reader": "DataHub 리더로 열기",
     "open_datahub_portal": "삼성 DataHub 웹 포털에서 열기",
