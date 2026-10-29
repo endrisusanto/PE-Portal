@@ -23,11 +23,35 @@ import argparse
 import urllib.request
 import urllib.parse
 
-import pypdf
-from reportlab.pdfgen import canvas
-import reportlab.lib.colors as colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+# ponytail: graceful auto-install & error reporting for missing PDF dependencies
+try:
+    import pypdf
+    from reportlab.pdfgen import canvas
+    import reportlab.lib.colors as colors
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+except ImportError:
+    try:
+        import subprocess
+        # Attempt quiet auto-installation of pypdf and reportlab
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--quiet", "pypdf", "reportlab"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        import pypdf
+        from reportlab.pdfgen import canvas
+        import reportlab.lib.colors as colors
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+    except Exception as e:
+        err_obj = {
+            "success": False,
+            "error": f"Dependensi Python 'pypdf' atau 'reportlab' belum terpasang: {e}",
+            "message": "Dependensi translator belum terpasang. Silakan jalankan 'pip install pypdf reportlab' di terminal server.",
+        }
+        print(json.dumps(err_obj), flush=True)
+        sys.exit(1)
 
 # Attempt to register Unicode TrueType font (DejaVuSans) if available in system
 FONT_REGULAR = "Helvetica"

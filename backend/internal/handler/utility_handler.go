@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -869,6 +871,9 @@ func (h *UtilityHandler) TranslateWIPDF(c echo.Context) error {
 			"PYTHONUTF8=1",
 		)
 
+		var stderrBuf bytes.Buffer
+		cmd.Stderr = &stderrBuf
+
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			job.Status = "failed"
@@ -925,7 +930,13 @@ func (h *UtilityHandler) TranslateWIPDF(c echo.Context) error {
 			if job.Status != "completed" {
 				job.Status = "failed"
 				if job.Error == "" {
-					job.Error = "Python process error: " + err.Error()
+					stderrStr := strings.TrimSpace(stderrBuf.String())
+					if stderrStr != "" {
+						lines := strings.Split(stderrStr, "\n")
+						job.Error = strings.TrimSpace(lines[len(lines)-1])
+					} else {
+						job.Error = "Python process error: " + err.Error()
+					}
 					job.Message = job.Error
 				}
 			}
@@ -1004,9 +1015,16 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 
 	storageDir := os.Getenv("FILE_STORAGE_PATH")
 	if storageDir == "" {
-		storageDir = "/data/files"
+		if runtime.GOOS == "windows" {
+			storageDir = filepath.Join("data", "files")
+		} else {
+			storageDir = "/data/files"
+		}
 	}
-	_ = os.MkdirAll(storageDir, 0755)
+	if err := os.MkdirAll(storageDir, 0755); err != nil {
+		storageDir = filepath.Join(".", "data", "files")
+		_ = os.MkdirAll(storageDir, 0755)
+	}
 
 	timestamp := time.Now().Format("20060102_150405")
 	cleanBase := strings.TrimSuffix(filepath.Base(job.FileName), filepath.Ext(job.FileName))
@@ -1023,9 +1041,23 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 
 	pythonBin := util.FindPythonExecutable()
 
+	// ponytail: resolve input file path defensively (support absolute, relative, or Windows paths)
+	inputPath := job.FilePath
+	if !filepath.IsAbs(inputPath) {
+		if abs, err := filepath.Abs(inputPath); err == nil {
+			inputPath = abs
+		}
+	}
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		altPath := filepath.Join(storageDir, "wi_uploads", filepath.Base(job.FilePath))
+		if _, err := os.Stat(altPath); err == nil {
+			inputPath = altPath
+		}
+	}
+
 	cmdArgs := []string{
 		scriptPath,
-		"--input-file", job.FilePath,
+		"--input-file", inputPath,
 		"--output-pdf", outPath,
 		"--target-lang", job.TargetLang,
 		"--mode", job.Mode,
@@ -1051,6 +1083,9 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 		"PYTHONIOENCODING=utf-8",
 		"PYTHONUTF8=1",
 	)
+
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -1114,7 +1149,16 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 	if err := cmd.Wait(); err != nil {
 		if !finalSuccess {
 			if lastErr == "" {
-				lastErr = "Process exit error: " + err.Error()
+				stderrStr := strings.TrimSpace(stderrBuf.String())
+				if stderrStr != "" {
+					lines := strings.Split(stderrStr, "\n")
+					lastErr = strings.TrimSpace(lines[len(lines)-1])
+					if lastErr == "" {
+						lastErr = stderrStr
+					}
+				} else {
+					lastErr = "Process exit error: " + err.Error()
+				}
 			}
 			_ = h.wiRepo.MarkFailed(ctx, job.ID, lastErr)
 			return
@@ -1162,7 +1206,15 @@ func (h *UtilityHandler) UploadWIJobs(c echo.Context) error {
 
 	storageDir := os.Getenv("FILE_STORAGE_PATH")
 	if storageDir == "" {
-		storageDir = "/data/files"
+		if runtime.GOOS == "windows" {
+			storageDir = filepath.Join("data", "files")
+		} else {
+			storageDir = "/data/files"
+		}
+	}
+	if err := os.MkdirAll(storageDir, 0755); err != nil {
+		storageDir = filepath.Join(".", "data", "files")
+		_ = os.MkdirAll(storageDir, 0755)
 	}
 	uploadDir := filepath.Join(storageDir, "wi_uploads")
 	_ = os.MkdirAll(uploadDir, 0755)

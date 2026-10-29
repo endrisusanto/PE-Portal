@@ -65,7 +65,14 @@ Write-Host "--- [1/6] Memeriksa & Menginstal Runtimes ---" -ForegroundColor Cyan
 Check-And-Install "git" "Git.Git" "Git for Windows"
 Check-And-Install "go" "GoLang.Go" "Go Compiler (1.22+)"
 Check-And-Install "node" "OpenJS.NodeJS.LTS" "Node.js LTS (20+)"
+Check-And-Install "python" "Python.Python.3.11" "Python 3 Runtime" -Optional
 Check-And-Install "ffmpeg" "Gyan.FFmpeg.Essentials" "FFmpeg Media Tool" -Optional
+
+# Instal paket Python esensial untuk PDF WI Translator dan PPTX Summary
+try {
+    Write-Host "[i] Memeriksa & menginstal paket Python pendukung (pypdf, reportlab, openpyxl)..." -ForegroundColor Yellow
+    Start-Process python -ArgumentList "-m pip install --quiet pypdf reportlab openpyxl" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+} catch {}
 
 # 2. Database & Redis Services
 Write-Host ""
