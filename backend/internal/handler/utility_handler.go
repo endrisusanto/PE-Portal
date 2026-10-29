@@ -709,7 +709,7 @@ func (h *UtilityHandler) SummarizePPTX(c echo.Context) error {
 			if nameFromRes, ok := result["excel_file"].(string); ok && nameFromRes != "" {
 				actualExcelName = nameFromRes
 			}
-			result["download_url"] = fmt.Sprintf("/api/v1/utility/pptx-summary/download/%s", actualExcelName)
+			result["download_url"] = fmt.Sprintf("/utility/pptx-summary/download/%s", actualExcelName)
 			return c.JSON(http.StatusOK, result)
 		}
 	}
@@ -717,7 +717,7 @@ func (h *UtilityHandler) SummarizePPTX(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":      true,
 		"raw_output":   outStr,
-		"download_url": fmt.Sprintf("/api/v1/utility/pptx-summary/download/%s", excelFilename),
+		"download_url": fmt.Sprintf("/utility/pptx-summary/download/%s", excelFilename),
 	})
 }
 
@@ -747,6 +747,7 @@ func (h *UtilityHandler) DownloadPPTXSummary(c echo.Context) error {
 		}
 	}
 
+	c.Response().Header().Set(echo.HeaderContentType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	return c.Attachment(filePath, cleanName)
 }
 

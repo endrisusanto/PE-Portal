@@ -384,6 +384,8 @@ func main() {
 	api.POST("/utility/compress-video", utilityHandler.CompressVideo)
 	api.POST("/utility/pptx-summary", utilityHandler.SummarizePPTX)
 	api.GET("/utility/pptx-summary/download/:filename", utilityHandler.DownloadPPTXSummary)
+	e.GET("/api/v1/api/v1/utility/pptx-summary/download/:filename", utilityHandler.DownloadPPTXSummary)
+	e.GET("/utility/pptx-summary/download/:filename", utilityHandler.DownloadPPTXSummary)
 	api.POST("/utility/translate-wi-pdf", utilityHandler.TranslateWIPDF)
 	api.GET("/utility/translate-wi-pdf/status/:jobId", utilityHandler.GetTranslateWIStatus)
 	api.GET("/utility/translate-wi-pdf/download/:filename", utilityHandler.DownloadTranslatedWIPDF)

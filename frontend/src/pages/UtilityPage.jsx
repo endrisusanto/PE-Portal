@@ -3517,9 +3517,15 @@ const PPTXAutoSummaryTab = () => {
   };
 
   const handleDownloadExcel = async () => {
-    if (!downloadUrl) return;
+    if (!downloadUrl && !excelFileName) return;
     try {
-      const resp = await api.get(downloadUrl, { responseType: 'blob' });
+      // Normalize url: remove /api/v1 prefix if present since api client has baseURL '/api/v1'
+      let targetUrl = downloadUrl || `/utility/pptx-summary/download/${excelFileName}`;
+      if (targetUrl.startsWith('/api/v1')) {
+        targetUrl = targetUrl.substring('/api/v1'.length);
+      }
+
+      const resp = await api.get(targetUrl, { responseType: 'blob' });
       // ponytail: guard against server returning json error in blob
       if (resp.data?.type && resp.data.type.includes('json')) {
         const text = await resp.data.text();
@@ -3534,7 +3540,12 @@ const PPTXAutoSummaryTab = () => {
       safeDownloadBlob(resp.data, excelFileName || 'Summary_Report.xlsx');
     } catch (err) {
       console.error('Download excel error:', err);
-      setErrorMsg('Gagal mengunduh file Excel.');
+      if (results.length > 0) {
+        handleExportCSV();
+        setErrorMsg('File Excel server tidak ditemukan, mengunduh data dalam format CSV sebagai alternatif.');
+      } else {
+        setErrorMsg('Gagal mengunduh file Excel.');
+      }
     }
   };
 

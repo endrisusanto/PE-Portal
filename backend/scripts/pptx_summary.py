@@ -552,16 +552,13 @@ def save_to_formatted_excel(results, output_path):
             cats_ref_ws3 = Reference(ws3, min_col=1, min_row=2, max_row=len(sorted_models) + 1)
 
             chart_ws3.add_data(data_count_ref, titles_from_data=True)
-            if chart_ws3.series:
-                chart_ws3.series[0].title = None
             chart_ws3.set_categories(cats_ref_ws3)
 
             chart_line3 = LineChart()
             chart_line3.add_data(data_pct_ref, titles_from_data=True)
-            if chart_line3.series:
-                chart_line3.series[0].title = None
             chart_line3.y_axis.axId = 200
             chart_line3.y_axis.crosses = "max"
+            chart_line3.y_axis.axPos = "r"
             chart_line3.y_axis.title = None
             chart_line3.y_axis.number_format = '0.0%'
 
@@ -638,19 +635,16 @@ def save_to_formatted_excel(results, output_path):
 
             data_qty_ref = Reference(ws4, min_col=3, min_row=1, max_row=worst_rows_count + 1)
             data_pct_ref = Reference(ws4, min_col=4, min_row=1, max_row=worst_rows_count + 1)
-            cats_ref_ws4 = Reference(ws4, min_col=1, min_row=2, max_col=2, max_row=worst_rows_count + 1)
+            cats_ref_ws4 = Reference(ws4, min_col=2, min_row=2, max_col=2, max_row=worst_rows_count + 1)
 
             chart_ws4.add_data(data_qty_ref, titles_from_data=True)
-            if chart_ws4.series:
-                chart_ws4.series[0].title = None
             chart_ws4.set_categories(cats_ref_ws4)
 
             chart_line4 = LineChart()
             chart_line4.add_data(data_pct_ref, titles_from_data=True)
-            if chart_line4.series:
-                chart_line4.series[0].title = None
             chart_line4.y_axis.axId = 200
             chart_line4.y_axis.crosses = "max"
+            chart_line4.y_axis.axPos = "r"
             chart_line4.y_axis.title = None
             chart_line4.y_axis.number_format = '0.0%'
 
@@ -699,16 +693,13 @@ def save_to_formatted_excel(results, output_path):
             cats_ref_m = Reference(ws3, min_col=1, min_row=2, max_row=len(sorted_models) + 1)
 
             chart_main_model.add_data(data_count_ref_m, titles_from_data=True)
-            if chart_main_model.series:
-                chart_main_model.series[0].title = None
             chart_main_model.set_categories(cats_ref_m)
 
             chart_line_m = LineChart()
             chart_line_m.add_data(data_pct_ref_m, titles_from_data=True)
-            if chart_line_m.series:
-                chart_line_m.series[0].title = None
             chart_line_m.y_axis.axId = 200
             chart_line_m.y_axis.crosses = "max"
+            chart_line_m.y_axis.axPos = "r"
             chart_line_m.y_axis.title = None
             chart_line_m.y_axis.number_format = '0.0%'
 
@@ -732,19 +723,16 @@ def save_to_formatted_excel(results, output_path):
 
             data_qty_ref_w = Reference(ws4, min_col=3, min_row=1, max_row=worst_rows_count + 1)
             data_pct_ref_w = Reference(ws4, min_col=4, min_row=1, max_row=worst_rows_count + 1)
-            cats_ref_w = Reference(ws4, min_col=1, min_row=2, max_col=2, max_row=worst_rows_count + 1)
+            cats_ref_w = Reference(ws4, min_col=2, min_row=2, max_col=2, max_row=worst_rows_count + 1)
 
             chart_main_worst.add_data(data_qty_ref_w, titles_from_data=True)
-            if chart_main_worst.series:
-                chart_main_worst.series[0].title = None
             chart_main_worst.set_categories(cats_ref_w)
 
             chart_line_w = LineChart()
             chart_line_w.add_data(data_pct_ref_w, titles_from_data=True)
-            if chart_line_w.series:
-                chart_line_w.series[0].title = None
             chart_line_w.y_axis.axId = 200
             chart_line_w.y_axis.crosses = "max"
+            chart_line_w.y_axis.axPos = "r"
             chart_line_w.y_axis.title = None
             chart_line_w.y_axis.number_format = '0.0%'
 
