@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -106,9 +107,16 @@ func (h *PEMCPHandler) handlePost(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "failed to read request body")
 	}
 
-	// 1. Check if JSON-RPC 2.0
+	trimmed := bytes.TrimSpace(body)
+
+	// Ponytail resilience: Clean Windows CMD / PowerShell single-quote wrapping e.g. '{"jsonrpc":...}'
+	if len(trimmed) >= 2 && trimmed[0] == '\'' && trimmed[len(trimmed)-1] == '\'' {
+		trimmed = bytes.TrimSpace(trimmed[1 : len(trimmed)-1])
+	}
+
+	// 1. Check if JSON-RPC (single request)
 	var rpcReq jsonRPCRequest
-	if err := json.Unmarshal(body, &rpcReq); err == nil && rpcReq.JSONRPC == "2.0" {
+	if err := json.Unmarshal(trimmed, &rpcReq); err == nil && (rpcReq.JSONRPC == "2.0" || rpcReq.Method != "") {
 		return h.handleJSONRPC(c, &rpcReq)
 	}
 
@@ -117,7 +125,7 @@ func (h *PEMCPHandler) handlePost(c echo.Context) error {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments"`
 	}
-	if err := json.Unmarshal(body, &directCall); err == nil && directCall.Name != "" {
+	if err := json.Unmarshal(trimmed, &directCall); err == nil && directCall.Name != "" {
 		result, err := h.mcpService.CallTool(c.Request().Context(), directCall.Name, directCall.Arguments)
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]interface{}{
