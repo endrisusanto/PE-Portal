@@ -75,6 +75,125 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		argIdx++
 	}
 
+	// ponytail: Table header column filters applied directly in SQL for full DB pagination support
+	if q.ECNNo != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.ecn_no) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.ECNNo))+"%")
+		argIdx++
+	}
+
+	if q.ColModel != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.model) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.ColModel))+"%")
+		argIdx++
+	}
+
+	if q.ColFunctionType != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.function_type) = LOWER($%d)", argIdx))
+		args = append(args, strings.TrimSpace(q.ColFunctionType))
+		argIdx++
+	}
+
+	if q.ColProcess != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.process) = LOWER($%d)", argIdx))
+		args = append(args, strings.TrimSpace(q.ColProcess))
+		argIdx++
+	}
+
+	if q.ColStatus != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.status) = LOWER($%d)", argIdx))
+		args = append(args, strings.TrimSpace(q.ColStatus))
+		argIdx++
+	}
+
+	if q.ECTitle != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.ec_title) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.ECTitle))+"%")
+		argIdx++
+	}
+
+	if q.ChildCode != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.child_code) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.ChildCode))+"%")
+		argIdx++
+	}
+
+	if q.ChildName != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.child_name) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.ChildName))+"%")
+		argIdx++
+	}
+
+	if q.Specification != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.specification) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.Specification))+"%")
+		argIdx++
+	}
+
+	if q.Quantity != "" {
+		where = append(where, fmt.Sprintf("LOWER(e.quantity) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.Quantity))+"%")
+		argIdx++
+	}
+
+	if q.RunningDateBOM != "" {
+		trimmed := strings.TrimSpace(q.RunningDateBOM)
+		parts := strings.Split(trimmed, "-")
+		if len(parts) == 3 {
+			mShort := strings.TrimPrefix(parts[1], "0")
+			dShort := strings.TrimPrefix(parts[2], "0")
+			where = append(where, fmt.Sprintf(`(
+				e.running_date_bom LIKE $%d OR 
+				e.running_date_bom LIKE $%d OR 
+				e.running_date_bom LIKE $%d OR 
+				e.running_date_bom LIKE $%d
+			)`, argIdx, argIdx+1, argIdx+2, argIdx+3))
+			args = append(args,
+				"%"+trimmed+"%",
+				fmt.Sprintf("%%%s/%s/%s%%", mShort, dShort, parts[0]),
+				fmt.Sprintf("%%%s/%s/%s%%", parts[1], parts[2], parts[0]),
+				fmt.Sprintf("%%%s/%s/%s%%", parts[0], parts[1], parts[2]),
+			)
+			argIdx += 4
+		} else {
+			where = append(where, fmt.Sprintf("LOWER(e.running_date_bom) LIKE $%d", argIdx))
+			args = append(args, "%"+strings.ToLower(trimmed)+"%")
+			argIdx++
+		}
+	}
+
+	if q.DistributionDate != "" {
+		trimmed := strings.TrimSpace(q.DistributionDate)
+		parts := strings.Split(trimmed, "-")
+		if len(parts) == 3 {
+			mShort := strings.TrimPrefix(parts[1], "0")
+			dShort := strings.TrimPrefix(parts[2], "0")
+			where = append(where, fmt.Sprintf(`(
+				e.distribution_date LIKE $%d OR 
+				e.distribution_date LIKE $%d OR 
+				e.distribution_date LIKE $%d OR 
+				e.distribution_date LIKE $%d
+			)`, argIdx, argIdx+1, argIdx+2, argIdx+3))
+			args = append(args,
+				"%"+trimmed+"%",
+				fmt.Sprintf("%%%s/%s/%s%%", mShort, dShort, parts[0]),
+				fmt.Sprintf("%%%s/%s/%s%%", parts[1], parts[2], parts[0]),
+				fmt.Sprintf("%%%s/%s/%s%%", parts[0], parts[1], parts[2]),
+			)
+			argIdx += 4
+		} else {
+			where = append(where, fmt.Sprintf("LOWER(e.distribution_date) LIKE $%d", argIdx))
+			args = append(args, "%"+strings.ToLower(trimmed)+"%")
+			argIdx++
+		}
+	}
+
+	if q.AuthorName != "" {
+		where = append(where, fmt.Sprintf("LOWER(COALESCE(u.full_name, u.username, '')) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.AuthorName))+"%")
+		argIdx++
+	}
+
 	whereClause := strings.Join(where, " AND ")
 
 	// Count total

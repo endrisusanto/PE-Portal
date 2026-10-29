@@ -333,7 +333,22 @@ export const EcnMonitoringPage = () => {
     }
   }, []);
 
-  // Fetch ECN Records List from Backend
+  // Debounce column filters & reset to page 1 for whole-database search (ponytail)
+  const [debouncedColFilters, setDebouncedColFilters] = useState(colFilters);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedColFilters(colFilters);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [colFilters]);
+
+  // Reset page when toolbar filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedModel, selectedStatus, selectedProcess, selectedFunction]);
+
+  // Fetch ECN Records List from Backend (Server-side whole database filter & pagination)
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
@@ -347,6 +362,20 @@ export const EcnMonitoringPage = () => {
         function_type: selectedFunction,
         sort_by: sortKey,
         sort_order: sortDirection,
+        // Header column filters for full DB search across pagination
+        ecn_no: debouncedColFilters.ecn_no?.trim() || undefined,
+        col_model: debouncedColFilters.model?.trim() || undefined,
+        col_function_type: debouncedColFilters.function_type || undefined,
+        col_process: debouncedColFilters.process || undefined,
+        col_status: debouncedColFilters.status || undefined,
+        ec_title: debouncedColFilters.ec_title?.trim() || undefined,
+        child_code: debouncedColFilters.child_code?.trim() || undefined,
+        child_name: debouncedColFilters.child_name?.trim() || undefined,
+        specification: debouncedColFilters.specification?.trim() || undefined,
+        quantity: debouncedColFilters.quantity?.trim() || undefined,
+        running_date_bom: debouncedColFilters.running_date_bom || undefined,
+        distribution_date: debouncedColFilters.distribution_date || undefined,
+        author_name: debouncedColFilters.author_name?.trim() || undefined,
       };
       const res = await api.get('/ecn', { params });
       setRecords(res.data.records || []);
@@ -357,7 +386,18 @@ export const EcnMonitoringPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, selectedModel, selectedStatus, selectedProcess, selectedFunction, sortKey, sortDirection]);
+  }, [
+    page,
+    limit,
+    debouncedSearch,
+    debouncedColFilters,
+    selectedModel,
+    selectedStatus,
+    selectedProcess,
+    selectedFunction,
+    sortKey,
+    sortDirection,
+  ]);
 
   useEffect(() => {
     fetchStats();
@@ -403,92 +443,11 @@ export const EcnMonitoringPage = () => {
       status: '',
       author_name: '',
     });
+    setPage(1);
   };
 
-  // --- Filtered & Sorted Records (Client-side fast responsiveness) ---
-  const displayedRecords = useMemo(() => {
-    let result = [...records];
-
-    if (colFilters.ecn_no) {
-      const q = colFilters.ecn_no.toLowerCase();
-      result = result.filter((r) => (r.ecn_no || '').toLowerCase().includes(q));
-    }
-    if (colFilters.model) {
-      const q = colFilters.model.toLowerCase();
-      result = result.filter((r) => (r.model || '').toLowerCase().includes(q));
-    }
-    if (colFilters.function_type) {
-      const q = colFilters.function_type.toLowerCase();
-      result = result.filter((r) => (r.function_type || '').toLowerCase().includes(q));
-    }
-    if (colFilters.process) {
-      const q = colFilters.process.toLowerCase();
-      result = result.filter((r) => (r.process || '').toLowerCase().includes(q));
-    }
-    if (colFilters.ec_title) {
-      const q = colFilters.ec_title.toLowerCase();
-      result = result.filter((r) => (r.ec_title || '').toLowerCase().includes(q));
-    }
-    if (colFilters.child_code) {
-      const q = colFilters.child_code.toLowerCase();
-      result = result.filter((r) => (r.child_code || '').toLowerCase().includes(q));
-    }
-    if (colFilters.child_name) {
-      const q = colFilters.child_name.toLowerCase();
-      result = result.filter((r) => (r.child_name || '').toLowerCase().includes(q));
-    }
-    if (colFilters.specification) {
-      const q = colFilters.specification.toLowerCase();
-      result = result.filter((r) => (r.specification || '').toLowerCase().includes(q));
-    }
-    if (colFilters.quantity) {
-      const q = colFilters.quantity.toLowerCase();
-      result = result.filter((r) => String(r.quantity || '').toLowerCase().includes(q));
-    }
-    if (colFilters.running_date_bom) {
-      const qNorm = normalizeDateStr(colFilters.running_date_bom);
-      result = result.filter((r) => {
-        const raw = String(r.running_date_bom || '');
-        if (!raw) return false;
-        return normalizeDateStr(raw).includes(qNorm) || raw.includes(colFilters.running_date_bom);
-      });
-    }
-    if (colFilters.distribution_date) {
-      const qNorm = normalizeDateStr(colFilters.distribution_date);
-      result = result.filter((r) => {
-        const raw = String(r.distribution_date || '');
-        if (!raw) return false;
-        return normalizeDateStr(raw).includes(qNorm) || raw.includes(colFilters.distribution_date);
-      });
-    }
-    if (colFilters.status) {
-      const q = colFilters.status.toLowerCase();
-      result = result.filter((r) => (r.status || '').toLowerCase() === q);
-    }
-    if (colFilters.author_name) {
-      const q = colFilters.author_name.toLowerCase();
-      result = result.filter((r) => (r.author_name || 'system').toLowerCase().includes(q));
-    }
-
-    // In-memory sort fallback
-    if (sortKey && sortDirection) {
-      result.sort((a, b) => {
-        const valA = a[sortKey];
-        const valB = b[sortKey];
-        if (valA === valB) return 0;
-        if (valA === null || valA === undefined || valA === '') return 1;
-        if (valB === null || valB === undefined || valB === '') return -1;
-        if (typeof valA === 'number' && typeof valB === 'number') {
-          return sortDirection === 'asc' ? valA - valB : valB - valA;
-        }
-        return sortDirection === 'asc'
-          ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' })
-          : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: 'base' });
-      });
-    }
-
-    return result;
-  }, [records, colFilters, sortKey, sortDirection]);
+  // ponytail: records are already filtered, sorted, and paginated by PostgreSQL across the entire database
+  const displayedRecords = records;
 
   // Toggle Row Expansion
   const toggleRow = (id) => {

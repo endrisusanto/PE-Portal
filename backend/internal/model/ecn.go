@@ -37,15 +37,30 @@ type ECNRecord struct {
 
 // ECNListQuery parameters for filtering, searching, and pagination.
 type ECNListQuery struct {
-	Page         int    `query:"page"`
-	Limit        int    `query:"limit"`
-	Search       string `query:"search"`
-	Model        string `query:"model"`
-	Status       string `query:"status"`
-	Process      string `query:"process"`
-	FunctionType string `query:"function_type"`
-	SortBy       string `query:"sort_by"`
-	SortOrder    string `query:"sort_order"`
+	Page             int    `query:"page"`
+	Limit            int    `query:"limit"`
+	Search           string `query:"search"`
+	Model            string `query:"model"`
+	Status           string `query:"status"`
+	Process          string `query:"process"`
+	FunctionType     string `query:"function_type"`
+	SortBy           string `query:"sort_by"`
+	SortOrder        string `query:"sort_order"`
+
+	// Table header column filters (ponytail: query entire DB across pages)
+	ECNNo            string `query:"ecn_no"`
+	ColModel         string `query:"col_model"`
+	ColFunctionType  string `query:"col_function_type"`
+	ColProcess       string `query:"col_process"`
+	ColStatus        string `query:"col_status"`
+	ECTitle          string `query:"ec_title"`
+	ChildCode        string `query:"child_code"`
+	ChildName        string `query:"child_name"`
+	Specification    string `query:"specification"`
+	Quantity         string `query:"quantity"`
+	RunningDateBOM   string `query:"running_date_bom"`
+	DistributionDate string `query:"distribution_date"`
+	AuthorName       string `query:"author_name"`
 }
 
 // ECNListResponse paginated response.
