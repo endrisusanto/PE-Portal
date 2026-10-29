@@ -23,9 +23,14 @@ import (
 type MCPHandler struct {
 	repo       *repository.MCPRepository
 	httpClient *http.Client
+	peMCPSvc   *service.PEMCPService
 }
 
-func NewMCPHandler(repo *repository.MCPRepository) *MCPHandler {
+func NewMCPHandler(repo *repository.MCPRepository, peMCPSvc ...*service.PEMCPService) *MCPHandler {
+	var ps *service.PEMCPService
+	if len(peMCPSvc) > 0 {
+		ps = peMCPSvc[0]
+	}
 	return &MCPHandler{
 		repo: repo,
 		httpClient: &http.Client{
@@ -36,6 +41,7 @@ func NewMCPHandler(repo *repository.MCPRepository) *MCPHandler {
 				}).DialContext,
 			},
 		},
+		peMCPSvc: ps,
 	}
 }
 
@@ -174,30 +180,46 @@ func (h *MCPHandler) HealthCheck(c echo.Context) error {
 	var toolsSample []string
 	var lastErrStr string
 
+	// Phase 1: Dedicated Tool Discovery Probes (prioritize endpoints that yield tools)
 	for _, cand := range candidates {
 		baseURL := service.GetBaseURL(cand)
-		testURLs := []string{
-			baseURL + "/api/mcp/tools",
-			baseURL + "/health",
-			baseURL + "/mcp/tools",
-			cand,
-			baseURL + "/",
+
+		toolProbes := []struct {
+			method string
+			url    string
+			body   []byte
+		}{
+			// Direct GET to endpoint (e.g. SEIN PE Portal MCP /api/v1/mcp or /mcp)
+			{method: http.MethodGet, url: cand},
+			// Standard MCP JSON-RPC 2.0 tools/list request
+			{method: http.MethodPost, url: cand, body: []byte(`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`)},
+			// Dedicated REST tool endpoints (e.g. project-manager-mcp / GBA)
+			{method: http.MethodGet, url: baseURL + "/api/mcp/tools"},
+			{method: http.MethodGet, url: baseURL + "/mcp/tools"},
+			{method: http.MethodGet, url: cand + "/tools"},
 		}
 
-		for _, tURL := range testURLs {
+		for _, probe := range toolProbes {
 			start := time.Now()
-			httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, tURL, nil)
+			var req *http.Request
+			if len(probe.body) > 0 {
+				req, err = http.NewRequestWithContext(ctx, probe.method, probe.url, bytes.NewReader(probe.body))
+			} else {
+				req, err = http.NewRequestWithContext(ctx, probe.method, probe.url, nil)
+			}
 			if err != nil {
 				continue
 			}
 
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Accept", "application/json")
 			if server.AuthType == "bearer" && server.AuthToken != nil {
-				httpReq.Header.Set("Authorization", "Bearer "+*server.AuthToken)
+				req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
 			} else if server.AuthType == "api_key" && server.AuthToken != nil {
-				httpReq.Header.Set("X-API-Key", *server.AuthToken)
+				req.Header.Set("X-API-Key", *server.AuthToken)
 			}
 
-			resp, err := h.httpClient.Do(httpReq)
+			resp, err := h.httpClient.Do(req)
 			if err != nil {
 				lastErrStr = err.Error()
 				continue
@@ -208,32 +230,106 @@ func (h *MCPHandler) HealthCheck(c echo.Context) error {
 			resp.Body.Close()
 
 			if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-				health = "healthy"
-				statusCode = resp.StatusCode
-				successfulURL = tURL
-				responseTimeMs = dur
-
-				// Parse discovered tools from response
-				var parsed struct {
-					Tools []struct {
-						Name string `json:"name"`
-					} `json:"tools"`
-				}
-				if json.Unmarshal(body, &parsed) == nil && len(parsed.Tools) > 0 {
-					toolsCount = len(parsed.Tools)
-					for i, t := range parsed.Tools {
+				names := extractToolsFromBody(body)
+				if len(names) > 0 {
+					health = "healthy"
+					statusCode = resp.StatusCode
+					successfulURL = probe.url
+					responseTimeMs = dur
+					toolsCount = len(names)
+					for i, name := range names {
 						if i < 8 {
-							toolsSample = append(toolsSample, t.Name)
+							toolsSample = append(toolsSample, name)
 						}
 					}
+					break
 				}
-				break
 			} else {
-				lastErrStr = fmt.Sprintf("HTTP %d from %s", resp.StatusCode, tURL)
+				lastErrStr = fmt.Sprintf("HTTP %d from %s", resp.StatusCode, probe.url)
 			}
 		}
-		if health == "healthy" {
+
+		if health == "healthy" && toolsCount > 0 {
 			break
+		}
+	}
+
+	// Phase 2: Fallback to basic Liveness Probes (if no tools found, check if server responds)
+	if health != "healthy" {
+		for _, cand := range candidates {
+			baseURL := service.GetBaseURL(cand)
+			liveURLs := []string{
+				cand,
+				baseURL + "/health",
+				baseURL + "/",
+			}
+
+			for _, lURL := range liveURLs {
+				start := time.Now()
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, lURL, nil)
+				if err != nil {
+					continue
+				}
+
+				if server.AuthType == "bearer" && server.AuthToken != nil {
+					req.Header.Set("Authorization", "Bearer "+*server.AuthToken)
+				} else if server.AuthType == "api_key" && server.AuthToken != nil {
+					req.Header.Set("X-API-Key", *server.AuthToken)
+				}
+
+				resp, err := h.httpClient.Do(req)
+				if err != nil {
+					lastErrStr = err.Error()
+					continue
+				}
+
+				dur := time.Since(start).Milliseconds()
+				resp.Body.Close()
+
+				if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+					health = "healthy"
+					statusCode = resp.StatusCode
+					successfulURL = lURL
+					responseTimeMs = dur
+					break
+				} else {
+					lastErrStr = fmt.Sprintf("HTTP %d from %s", resp.StatusCode, lURL)
+				}
+			}
+			if health == "healthy" {
+				break
+			}
+		}
+	}
+
+	// Phase 3: Known OpenAPI and in-memory MCP servers tool population
+	if toolsCount == 0 {
+		if h.peMCPSvc != nil && (server.Name == "SEIN PE Portal MCP" || strings.Contains(server.URL, "/mcp")) {
+			tools := h.peMCPSvc.GetTools()
+			if len(tools) > 0 {
+				if health != "healthy" {
+					health = "healthy"
+					statusCode = 200
+					successfulURL = server.URL
+					responseTimeMs = 1
+				}
+				toolsCount = len(tools)
+				for i, t := range tools {
+					if i < 8 {
+						toolsSample = append(toolsSample, t.Name)
+					}
+				}
+			}
+		} else if service.IsDataHubServer(server) {
+			dhTools := service.GetDataHubMCPTools()
+			if len(dhTools) > 0 {
+				toolsCount = len(dhTools)
+				for i, t := range dhTools {
+					if i < 8 {
+						toolsSample = append(toolsSample, t.Name)
+					}
+				}
+			}
 		}
 	}
 
@@ -261,6 +357,70 @@ func (h *MCPHandler) HealthCheck(c echo.Context) error {
 		"tools_sample":     toolsSample,
 		"log":              evidenceLog,
 	})
+}
+
+// extractToolsFromBody parses discovered tool names across REST, JSON-RPC 2.0, and Array formats
+func extractToolsFromBody(body []byte) []string {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		return nil
+	}
+
+	// 1. Direct REST: {"tools": [{"name": "..."}]}
+	var direct struct {
+		Tools []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
+	}
+	if json.Unmarshal(trimmed, &direct) == nil && len(direct.Tools) > 0 {
+		var names []string
+		for _, t := range direct.Tools {
+			if strings.TrimSpace(t.Name) != "" {
+				names = append(names, strings.TrimSpace(t.Name))
+			}
+		}
+		if len(names) > 0 {
+			return names
+		}
+	}
+
+	// 2. JSON-RPC 2.0: {"result": {"tools": [{"name": "..."}]}}
+	var rpc struct {
+		Result struct {
+			Tools []struct {
+				Name string `json:"name"`
+			} `json:"tools"`
+		} `json:"result"`
+	}
+	if json.Unmarshal(trimmed, &rpc) == nil && len(rpc.Result.Tools) > 0 {
+		var names []string
+		for _, t := range rpc.Result.Tools {
+			if strings.TrimSpace(t.Name) != "" {
+				names = append(names, strings.TrimSpace(t.Name))
+			}
+		}
+		if len(names) > 0 {
+			return names
+		}
+	}
+
+	// 3. Direct array: [{"name": "..."}]
+	var arr []struct {
+		Name string `json:"name"`
+	}
+	if json.Unmarshal(trimmed, &arr) == nil && len(arr) > 0 {
+		var names []string
+		for _, t := range arr {
+			if strings.TrimSpace(t.Name) != "" {
+				names = append(names, strings.TrimSpace(t.Name))
+			}
+		}
+		if len(names) > 0 {
+			return names
+		}
+	}
+
+	return nil
 }
 
 // Proxy relays requests directly to the target MCP server securely

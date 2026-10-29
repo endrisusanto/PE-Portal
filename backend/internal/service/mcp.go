@@ -197,6 +197,11 @@ func (s *MCPClientService) FetchTools(ctx context.Context, server *model.MCPServ
 		return s.peMCPSvc.GetTools(), nil
 	}
 
+	// In-memory lookup for Samsung DataHub (NDH Connector API v3)
+	if IsDataHubServer(server) {
+		return GetDataHubMCPTools(), nil
+	}
+
 	candidates := GetCandidateURLs(server.URL)
 	if len(candidates) == 0 {
 		candidates = []string{server.URL}
@@ -303,6 +308,11 @@ func (s *MCPClientService) CallTool(ctx context.Context, server *model.MCPServer
 		}
 		resBytes, _ := json.MarshalIndent(res, "", "  ")
 		return string(resBytes), nil
+	}
+
+	// Samsung DataHub (NDH Connector API v3) execution
+	if IsDataHubServer(server) {
+		return s.callDataHubTool(ctx, server, toolName, args)
 	}
 
 	candidates := GetCandidateURLs(server.URL)
@@ -502,4 +512,282 @@ func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPSer
 		return "", lastErr
 	}
 	return "", fmt.Errorf("failed to reach mcp chat across candidates for %s", server.Name)
+}
+
+// IsDataHubServer checks whether the registered MCP server represents Samsung Data Hub (NDH)
+func IsDataHubServer(server *model.MCPServer) bool {
+	if server == nil {
+		return false
+	}
+	name := strings.ToUpper(strings.TrimSpace(server.Name))
+	urlLower := strings.ToLower(server.URL)
+	return name == "DATAHUB" || strings.Contains(urlLower, "datahub") || strings.Contains(urlLower, "ndh")
+}
+
+// GetDataHubMCPTools returns the 7 MCP tool definitions exposed by NDH Connector API v3
+func GetDataHubMCPTools() []MCPToolDef {
+	return []MCPToolDef{
+		{
+			Name:        "get_project_list",
+			Description: "List projects the user can access in Samsung Data Hub (NDH), paginated. Supports tenant filtering and source types (TEAM, SOURCE, PERSONAL).",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"tenant_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Tenant ID. Default: 't_dx_001' (DX Division).",
+					},
+					"page": map[string]interface{}{
+						"type":        "integer",
+						"description": "Page number (min: 1)",
+					},
+					"pagesize": map[string]interface{}{
+						"type":        "integer",
+						"description": "Number of projects per page (default: 10)",
+					},
+				},
+			},
+		},
+		{
+			Name:        "get_project",
+			Description: "Read a single project in Samsung Data Hub with its top-level children (root folders + root objects).",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"project_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Project ID",
+					},
+				},
+				"required": []string{"project_id"},
+			},
+		},
+		{
+			Name:        "get_folder_list",
+			Description: "List folders the user can access in Samsung Data Hub, including sub-folders inherited from top-level membership.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"tenant_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Tenant ID. Default: 't_dx_001'.",
+					},
+					"project_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Project ID (optional filter)",
+					},
+					"page": map[string]interface{}{
+						"type":        "integer",
+						"description": "Page number (min: 1)",
+					},
+					"pagesize": map[string]interface{}{
+						"type":        "integer",
+						"description": "Page size (default: 10)",
+					},
+				},
+			},
+		},
+		{
+			Name:        "get_file_list",
+			Description: "List a folder's children in Samsung Data Hub: sub-folders + its own files/objects (only successfully parsed objects are returned).",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"folder_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Folder ID",
+					},
+					"tenant_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Tenant ID. Default: 't_dx_001'.",
+					},
+					"page": map[string]interface{}{
+						"type":        "integer",
+						"description": "Page number (min: 1)",
+					},
+					"pagesize": map[string]interface{}{
+						"type":        "integer",
+						"description": "Page size (default: 10)",
+					},
+				},
+				"required": []string{"folder_id"},
+			},
+		},
+		{
+			Name:        "get_folder_meta_info",
+			Description: "Read distinct system and document-purpose metadata for a specific folder in Samsung Data Hub.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"folder_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Folder ID",
+					},
+					"tenant_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Tenant ID. Default: 't_dx_001'.",
+					},
+				},
+				"required": []string{"folder_id"},
+			},
+		},
+		{
+			Name:        "load_json_object",
+			Description: "Load stored JSON document content for the given object in Samsung Data Hub.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"object_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Object UUID in Data Hub",
+					},
+				},
+				"required": []string{"object_id"},
+			},
+		},
+		{
+			Name:        "load_markdown_object",
+			Description: "Load the parsed markdown (.md) content for the given object in Samsung Data Hub.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"object_id": map[string]interface{}{
+						"type":        "string",
+						"description": "Object UUID in Data Hub",
+					},
+				},
+				"required": []string{"object_id"},
+			},
+		},
+	}
+}
+
+func (s *MCPClientService) callDataHubTool(ctx context.Context, server *model.MCPServer, toolName string, args map[string]interface{}) (string, error) {
+	baseURL := strings.TrimRight(GetBaseURL(server.URL), "/")
+	if baseURL == "" {
+		baseURL = "https://datahub-api.bigdata.samsung.com"
+	}
+
+	token := ""
+	if server.AuthToken != nil && strings.TrimSpace(*server.AuthToken) != "" {
+		token = strings.TrimSpace(*server.AuthToken)
+	} else if envKey := os.Getenv("DATAHUB_API_KEY"); envKey != "" {
+		token = envKey
+	}
+
+	var reqURL string
+	switch toolName {
+	case "get_project_list":
+		tenantID := "t_dx_001"
+		if v, ok := args["tenant_id"].(string); ok && v != "" {
+			tenantID = v
+		}
+		page := 1
+		if p, ok := args["page"].(float64); ok && p > 0 {
+			page = int(p)
+		}
+		pageSize := 10
+		if ps, ok := args["pagesize"].(float64); ok && ps > 0 {
+			pageSize = int(ps)
+		}
+		reqURL = fmt.Sprintf("%s/v3/projects?tenant_id=%s&page=%d&pagesize=%d", baseURL, url.QueryEscape(tenantID), page, pageSize)
+
+	case "get_project":
+		projID, _ := args["project_id"].(string)
+		if projID == "" {
+			return "", fmt.Errorf("project_id is required")
+		}
+		reqURL = fmt.Sprintf("%s/v3/projects/%s", baseURL, url.PathEscape(projID))
+
+	case "get_folder_list":
+		tenantID := "t_dx_001"
+		if v, ok := args["tenant_id"].(string); ok && v != "" {
+			tenantID = v
+		}
+		page := 1
+		if p, ok := args["page"].(float64); ok && p > 0 {
+			page = int(p)
+		}
+		pageSize := 10
+		if ps, ok := args["pagesize"].(float64); ok && ps > 0 {
+			pageSize = int(ps)
+		}
+		reqURL = fmt.Sprintf("%s/v3/folders?tenant_id=%s&page=%d&pagesize=%d", baseURL, url.QueryEscape(tenantID), page, pageSize)
+		if projID, ok := args["project_id"].(string); ok && projID != "" {
+			reqURL += "&project_id=" + url.QueryEscape(projID)
+		}
+
+	case "get_file_list":
+		folderID, _ := args["folder_id"].(string)
+		if folderID == "" {
+			return "", fmt.Errorf("folder_id is required")
+		}
+		tenantID := "t_dx_001"
+		if v, ok := args["tenant_id"].(string); ok && v != "" {
+			tenantID = v
+		}
+		page := 1
+		if p, ok := args["page"].(float64); ok && p > 0 {
+			page = int(p)
+		}
+		pageSize := 10
+		if ps, ok := args["pagesize"].(float64); ok && ps > 0 {
+			pageSize = int(ps)
+		}
+		reqURL = fmt.Sprintf("%s/v3/folders/%s?tenant_id=%s&page=%d&pagesize=%d", baseURL, url.PathEscape(folderID), url.QueryEscape(tenantID), page, pageSize)
+
+	case "get_folder_meta_info":
+		folderID, _ := args["folder_id"].(string)
+		if folderID == "" {
+			return "", fmt.Errorf("folder_id is required")
+		}
+		tenantID := "t_dx_001"
+		if v, ok := args["tenant_id"].(string); ok && v != "" {
+			tenantID = v
+		}
+		reqURL = fmt.Sprintf("%s/v3/folders/%s/meta-info?tenant_id=%s", baseURL, url.PathEscape(folderID), url.QueryEscape(tenantID))
+
+	case "load_json_object":
+		objectID, _ := args["object_id"].(string)
+		if objectID == "" {
+			return "", fmt.Errorf("object_id is required")
+		}
+		reqURL = fmt.Sprintf("%s/v3/objects/load/json?object_id=%s", baseURL, url.QueryEscape(objectID))
+
+	case "load_markdown_object":
+		objectID, _ := args["object_id"].(string)
+		if objectID == "" {
+			return "", fmt.Errorf("object_id is required")
+		}
+		reqURL = fmt.Sprintf("%s/v3/objects/load/md?object_id=%s", baseURL, url.QueryEscape(objectID))
+
+	default:
+		return "", fmt.Errorf("unknown DataHub tool: %s", toolName)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("DataHub API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read DataHub response: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("DataHub error (HTTP %d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return string(bodyBytes), nil
 }
