@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +13,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"pe-portal/internal/model"
 )
+
+// ponytail: Detect part number changes (e.g. GH63-23138A -> GH63-23137A or 0401-006201 -> 0401-006202)
+var PartChangeRegex = regexp.MustCompile(`(?i)([A-Za-z0-9]{2,6}-[A-Za-z0-9]{4,7}[A-Za-z0-9]?)\s*(?:->|➔|→|=>|to)\s*([A-Za-z0-9]{2,6}-[A-Za-z0-9]{4,7}[A-Za-z0-9]?)`)
+
+func ExtractPartNumberChange(remark, ecTitle string) (before, after string) {
+	if m := PartChangeRegex.FindStringSubmatch(remark); len(m) >= 3 {
+		return strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+	}
+	if m := PartChangeRegex.FindStringSubmatch(ecTitle); len(m) >= 3 {
+		return strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+	}
+	return "", ""
+}
 
 type ECNRepository struct {
 	pool *pgxpool.Pool
@@ -46,8 +60,10 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 			LOWER(e.remark) LIKE $%d OR 
 			LOWER(e.parent_code) LIKE $%d OR 
 			LOWER(e.child_code) LIKE $%d OR
+			LOWER(COALESCE(e.part_before, '')) LIKE $%d OR
+			LOWER(COALESCE(e.part_after, '')) LIKE $%d OR
 			LOWER(COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, '')) LIKE $%d
-		)`, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx))
+		)`, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx))
 		args = append(args, s)
 		argIdx++
 	}
@@ -132,6 +148,18 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	if q.ChildName != "" {
 		where = append(where, fmt.Sprintf("LOWER(e.child_name) LIKE $%d", argIdx))
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.ChildName))+"%")
+		argIdx++
+	}
+
+	if q.PartBefore != "" {
+		where = append(where, fmt.Sprintf("LOWER(COALESCE(e.part_before, '')) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.PartBefore))+"%")
+		argIdx++
+	}
+
+	if q.PartAfter != "" {
+		where = append(where, fmt.Sprintf("LOWER(COALESCE(e.part_after, '')) LIKE $%d", argIdx))
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.PartAfter))+"%")
 		argIdx++
 	}
 
@@ -241,6 +269,10 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		sortCol = "e.child_code"
 	case "child_name":
 		sortCol = "e.child_name"
+	case "part_before":
+		sortCol = "e.part_before"
+	case "part_after":
+		sortCol = "e.part_after"
 	case "specification":
 		sortCol = "e.specification"
 	case "quantity":
@@ -264,7 +296,7 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 
 	query := fmt.Sprintf(`
 		SELECT e.id, e.ecn_no, e.model, e.function_type, e.purpose, e.inventory_mgmt, e.process,
-		       e.ec_title, e.parent_code, e.parent_name, e.before_after, e.dl, e.child_code,
+		       e.ec_title, e.parent_code, e.parent_name, COALESCE(e.part_before, ''), COALESCE(e.part_after, ''), e.before_after, e.dl, e.child_code,
 		       e.child_name, e.specification, e.quantity, e.marking_point, e.running_date_bom,
 		       e.distribution_date, e.status, e.remark, e.created_by, e.updated_by, e.created_at, e.updated_at,
 		       COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, 'System') AS author_name,
@@ -291,7 +323,7 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		var rec model.ECNRecord
 		if err := rows.Scan(
 			&rec.ID, &rec.ECNNo, &rec.Model, &rec.FunctionType, &rec.Purpose, &rec.InventoryMgmt, &rec.Process,
-			&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
+			&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.PartBefore, &rec.PartAfter, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
 			&rec.ChildName, &rec.Specification, &rec.Quantity, &rec.MarkingPoint, &rec.RunningDateBOM,
 			&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.UpdatedBy, &rec.CreatedAt, &rec.UpdatedAt,
 			&rec.AuthorName, &rec.CreatedByName, &rec.UpdaterName,
@@ -385,17 +417,17 @@ func (r *ECNRepository) Create(ctx context.Context, item *model.ECNRecord) (*mod
 	query := `
 		INSERT INTO ecn_records (
 			id, ecn_no, model, function_type, purpose, inventory_mgmt, process,
-			ec_title, parent_code, parent_name, before_after, dl, child_code,
+			ec_title, parent_code, parent_name, part_before, part_after, before_after, dl, child_code,
 			child_name, specification, quantity, marking_point, running_date_bom,
 			distribution_date, status, remark, created_by, created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-			$16, $17, $18, $19, $20, $21, $22, $23, $24
+			$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
 		)
 	`
 	_, err := r.pool.Exec(ctx, query,
 		item.ID, item.ECNNo, item.Model, item.FunctionType, item.Purpose, item.InventoryMgmt, item.Process,
-		item.ECTitle, item.ParentCode, item.ParentName, item.BeforeAfter, item.DL, item.ChildCode,
+		item.ECTitle, item.ParentCode, item.ParentName, item.PartBefore, item.PartAfter, item.BeforeAfter, item.DL, item.ChildCode,
 		item.ChildName, item.Specification, item.Quantity, item.MarkingPoint, item.RunningDateBOM,
 		item.DistributionDate, item.Status, item.Remark, item.CreatedBy, item.CreatedAt, item.UpdatedAt,
 	)
@@ -409,7 +441,7 @@ func (r *ECNRepository) Create(ctx context.Context, item *model.ECNRecord) (*mod
 func (r *ECNRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.ECNRecord, error) {
 	query := `
 		SELECT e.id, e.ecn_no, e.model, e.function_type, e.purpose, e.inventory_mgmt, e.process,
-		       e.ec_title, e.parent_code, e.parent_name, e.before_after, e.dl, e.child_code,
+		       e.ec_title, e.parent_code, e.parent_name, COALESCE(e.part_before, ''), COALESCE(e.part_after, ''), e.before_after, e.dl, e.child_code,
 		       e.child_name, e.specification, e.quantity, e.marking_point, e.running_date_bom,
 		       e.distribution_date, e.status, e.remark, e.created_by, e.updated_by, e.created_at, e.updated_at,
 		       COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, 'System') AS author_name,
@@ -423,7 +455,7 @@ func (r *ECNRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.ECNRe
 	var rec model.ECNRecord
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&rec.ID, &rec.ECNNo, &rec.Model, &rec.FunctionType, &rec.Purpose, &rec.InventoryMgmt, &rec.Process,
-		&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
+		&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.PartBefore, &rec.PartAfter, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
 		&rec.ChildName, &rec.Specification, &rec.Quantity, &rec.MarkingPoint, &rec.RunningDateBOM,
 		&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.UpdatedBy, &rec.CreatedAt, &rec.UpdatedAt,
 		&rec.AuthorName, &rec.CreatedByName, &rec.UpdaterName,
@@ -442,18 +474,20 @@ func (r *ECNRepository) Update(ctx context.Context, id uuid.UUID, item *model.EC
 	query := `
 		UPDATE ecn_records SET
 			ecn_no = $1, model = $2, function_type = $3, purpose = $4, inventory_mgmt = $5,
-			process = $6, ec_title = $7, parent_code = $8, parent_name = $9, before_after = $10,
-			dl = $11, child_code = $12, child_name = $13, specification = $14, quantity = $15,
-			marking_point = $16, running_date_bom = $17, distribution_date = $18, status = $19,
-			remark = $20, updated_by = $21, updated_at = $22
-		WHERE id = $23
+			process = $6, ec_title = $7, parent_code = $8, parent_name = $9,
+			part_before = $10, part_after = $11, before_after = $12, dl = $13, child_code = $14,
+			child_name = $15, specification = $16, quantity = $17, marking_point = $18,
+			running_date_bom = $19, distribution_date = $20, status = $21, remark = $22,
+			updated_by = $23, updated_at = $24
+		WHERE id = $25
 	`
 	tag, err := r.pool.Exec(ctx, query,
 		item.ECNNo, item.Model, item.FunctionType, item.Purpose, item.InventoryMgmt,
-		item.Process, item.ECTitle, item.ParentCode, item.ParentName, item.BeforeAfter,
-		item.DL, item.ChildCode, item.ChildName, item.Specification, item.Quantity,
-		item.MarkingPoint, item.RunningDateBOM, item.DistributionDate, item.Status,
-		item.Remark, item.UpdatedBy, item.UpdatedAt, id,
+		item.Process, item.ECTitle, item.ParentCode, item.ParentName,
+		item.PartBefore, item.PartAfter, item.BeforeAfter, item.DL, item.ChildCode,
+		item.ChildName, item.Specification, item.Quantity, item.MarkingPoint,
+		item.RunningDateBOM, item.DistributionDate, item.Status, item.Remark,
+		item.UpdatedBy, item.UpdatedAt, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update ecn record: %w", err)
@@ -540,16 +574,16 @@ func (r *ECNRepository) BulkInsert(ctx context.Context, records []model.ECNRecor
 	insertSQL := `
 		INSERT INTO ecn_records (
 			id, ecn_no, model, function_type, purpose, inventory_mgmt, process,
-			ec_title, parent_code, parent_name, before_after, dl, child_code,
+			ec_title, parent_code, parent_name, part_before, part_after, before_after, dl, child_code,
 			child_name, specification, quantity, marking_point, running_date_bom,
 			distribution_date, status, remark, created_by, created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-			$16, $17, $18, $19, $20, $21, $22, $23, $24
+			$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
 		)
 	`
 
-	// ponytail: simple batch insert with fallback defaults for empty columns
+	// ponytail: simple batch insert with fallback defaults for empty columns & part change detection
 	inserted := 0
 	for _, rec := range records {
 		recID := uuid.New()
@@ -562,11 +596,17 @@ func (r *ECNRepository) BulkInsert(ctx context.Context, records []model.ECNRecor
 			ecnNo = "-"
 		}
 
+		pBefore := strings.TrimSpace(rec.PartBefore)
+		pAfter := strings.TrimSpace(rec.PartAfter)
+		if pBefore == "" && pAfter == "" {
+			pBefore, pAfter = ExtractPartNumberChange(rec.Remark, rec.ECTitle)
+		}
+
 		batch.Queue(insertSQL,
 			recID, ecnNo, strings.TrimSpace(rec.Model), strings.TrimSpace(rec.FunctionType),
 			strings.TrimSpace(rec.Purpose), strings.TrimSpace(rec.InventoryMgmt), strings.TrimSpace(rec.Process),
 			strings.TrimSpace(rec.ECTitle), strings.TrimSpace(rec.ParentCode), strings.TrimSpace(rec.ParentName),
-			strings.TrimSpace(rec.BeforeAfter), strings.TrimSpace(rec.DL), strings.TrimSpace(rec.ChildCode),
+			pBefore, pAfter, strings.TrimSpace(rec.BeforeAfter), strings.TrimSpace(rec.DL), strings.TrimSpace(rec.ChildCode),
 			strings.TrimSpace(rec.ChildName), strings.TrimSpace(rec.Specification), strings.TrimSpace(rec.Quantity),
 			strings.TrimSpace(rec.MarkingPoint), strings.TrimSpace(rec.RunningDateBOM), strings.TrimSpace(rec.DistributionDate),
 			st, strings.TrimSpace(rec.Remark), createdBy, now, now,

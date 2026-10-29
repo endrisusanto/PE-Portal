@@ -1630,6 +1630,8 @@
       "inventory_mgmt": "Inventory Mgmt",
       "process": "Process",
       "ec_title": "EC Title",
+      "part_before": "Part (Before)",
+      "part_after": "Part (After)",
       "parent_code": "Parent Code",
       "child_code": "Child Code",
       "child_name": "Child Name",

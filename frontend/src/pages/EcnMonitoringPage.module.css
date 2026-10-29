@@ -1860,3 +1860,121 @@
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
+/* ponytail: Part Number Change Badges (Before / After) */
+.partBeforeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #dc2626;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .partBeforeBadge {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.partAfterBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #059669;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .partAfterBadge {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.partSubTagOld {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: rgba(239, 68, 68, 0.16);
+  color: #dc2626;
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+[data-theme='dark'] .partSubTagOld {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.partSubTagNew {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #059669;
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+[data-theme='dark'] .partSubTagNew {
+  background: rgba(16, 185, 129, 0.25);
+  color: #86efac;
+}
+
+.partMono {
+  letter-spacing: 0.2px;
+}
+
+.ecnBomTag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+[data-theme='dark'] .ecnBomTag {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.btnDetectPart {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-accent);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  cursor: pointer;
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+.btnDetectPart:hover {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+

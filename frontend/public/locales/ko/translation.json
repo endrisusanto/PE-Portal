@@ -1630,6 +1630,8 @@
       "inventory_mgmt": "재고 관리",
       "process": "공정",
       "ec_title": "설계변경 제목",
+      "part_before": "변경 전 부품 (Before)",
+      "part_after": "변경 후 부품 (After)",
       "parent_code": "모품목 코드",
       "child_code": "자품목 코드",
       "child_name": "자품목 명",

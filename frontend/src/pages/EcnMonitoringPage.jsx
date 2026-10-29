@@ -57,12 +57,25 @@ const normalizeDateStr = (str) => {
   return s.replace(/[\.\/]/g, '-').toLowerCase();
 };
 
+// ponytail: Detect part number changes (e.g. GH63-23138A -> GH63-23137A or 0401-006201 -> 0401-006202)
+const parsePartChange = (remark, ecTitle) => {
+  const text = `${remark || ''} ${ecTitle || ''}`;
+  const regex = /([A-Za-z0-9]{2,6}-[A-Za-z0-9]{4,7}[A-Za-z0-9]?)\s*(?:->|➔|→|=>|to)\s*([A-Za-z0-9]{2,6}-[A-Za-z0-9]{4,7}[A-Za-z0-9]?)/i;
+  const match = text.match(regex);
+  if (match) {
+    return { before: match[1].trim(), after: match[2].trim() };
+  }
+  return { before: '', after: '' };
+};
+
 const DEFAULT_COLUMN_WIDTHS = {
   ecn_no: 135,
   model: 115,
   function_type: 95,
   process: 90,
   ec_title: 220,
+  part_before: 130,
+  part_after: 130,
   child_code: 125,
   child_name: 180,
   specification: 180,
@@ -79,6 +92,8 @@ const MIN_COLUMN_WIDTHS = {
   function_type: 65,
   process: 65,
   ec_title: 110,
+  part_before: 85,
+  part_after: 85,
   child_code: 80,
   child_name: 90,
   specification: 90,
@@ -197,6 +212,8 @@ export const EcnMonitoringPage = () => {
     function_type: '',
     process: '',
     ec_title: '',
+    part_before: '',
+    part_after: '',
     child_code: '',
     child_name: '',
     specification: '',
@@ -286,6 +303,8 @@ export const EcnMonitoringPage = () => {
     ec_title: '',
     parent_code: '',
     parent_name: '',
+    part_before: '',
+    part_after: '',
     before_after: '',
     dl: '',
     child_code: '',
@@ -308,6 +327,8 @@ export const EcnMonitoringPage = () => {
       formData.child_code.trim() ||
       formData.child_name.trim() ||
       formData.specification.trim() ||
+      formData.part_before.trim() ||
+      formData.part_after.trim() ||
       formData.remark.trim()
     );
 
@@ -416,6 +437,8 @@ export const EcnMonitoringPage = () => {
         col_process: debouncedColFilters.process || undefined,
         col_status: debouncedColFilters.status || undefined,
         ec_title: debouncedColFilters.ec_title?.trim() || undefined,
+        col_part_before: debouncedColFilters.part_before?.trim() || undefined,
+        col_part_after: debouncedColFilters.part_after?.trim() || undefined,
         child_code: debouncedColFilters.child_code?.trim() || undefined,
         child_name: debouncedColFilters.child_name?.trim() || undefined,
         specification: debouncedColFilters.specification?.trim() || undefined,
@@ -485,6 +508,8 @@ export const EcnMonitoringPage = () => {
       function_type: '',
       process: '',
       ec_title: '',
+      part_before: '',
+      part_after: '',
       child_code: '',
       child_name: '',
       specification: '',
@@ -539,7 +564,7 @@ export const EcnMonitoringPage = () => {
     setSelectedIds(next);
   };
 
-  const totalColSpan = (isAdmin ? 1 : 0) + 1 + 13 + 1;
+  const totalColSpan = (isAdmin ? 1 : 0) + 1 + 15 + 1;
 
   // Helper to parse TSV clipboard copied from Excel, handling multiline quoted cells, quotes in text, and escaped quotes
   const parseExcelClipboard = (rawText) => {
@@ -702,6 +727,11 @@ export const EcnMonitoringPage = () => {
       if (!record.ecn_no) record.ecn_no = '-';
       if (!record.status) record.status = 'Pending';
 
+      // ponytail: Auto-detect part number changes
+      const partChange = parsePartChange(record.remark, record.ec_title);
+      record.part_before = partChange.before || '';
+      record.part_after = partChange.after || '';
+
       parsed.push(record);
     }
 
@@ -837,6 +867,7 @@ export const EcnMonitoringPage = () => {
         .catch(() => setEcnChangeLogs([]))
         .finally(() => setLogsLoading(false));
     }
+    const detected = parsePartChange(item.remark, item.ec_title);
     setFormData({
       ecn_no: item.ecn_no || '',
       model: item.model || '',
@@ -847,6 +878,8 @@ export const EcnMonitoringPage = () => {
       ec_title: item.ec_title || '',
       parent_code: item.parent_code || '',
       parent_name: item.parent_name || '',
+      part_before: item.part_before || detected.before || '',
+      part_after: item.part_after || detected.after || '',
       before_after: item.before_after || '',
       dl: item.dl || '',
       child_code: item.child_code || '',
@@ -868,6 +901,18 @@ export const EcnMonitoringPage = () => {
       6: true,
     });
     setIsFormModalOpen(true);
+  };
+
+  // ponytail: Auto-detect part numbers from Remark/Title in form modal
+  const handleAutoDetectPart = () => {
+    const detected = parsePartChange(formData.remark, formData.ec_title);
+    if (detected.before || detected.after) {
+      setFormData((prev) => ({
+        ...prev,
+        part_before: detected.before || prev.part_before,
+        part_after: detected.after || prev.part_after,
+      }));
+    }
   };
 
   const handleDeleteClick = async (id, ecnNo) => {
@@ -1230,6 +1275,8 @@ ${
                 ec_title: '',
                 parent_code: '',
                 parent_name: '',
+                part_before: '',
+                part_after: '',
                 before_after: '',
                 dl: '',
                 child_code: '',
@@ -1646,6 +1693,8 @@ ${
                   { key: 'function_type', label: t('ecn.table.function', 'Function') },
                   { key: 'process', label: t('ecn.table.process', 'Process') },
                   { key: 'ec_title', label: t('ecn.table.ec_title', 'EC Title') },
+                  { key: 'part_before', label: t('ecn.table.part_before', 'Part (Before)') },
+                  { key: 'part_after', label: t('ecn.table.part_after', 'Part (After)') },
                   { key: 'child_code', label: t('ecn.table.child_code', 'Item Code') },
                   { key: 'child_name', label: t('ecn.table.child_name', 'Part Description') },
                   { key: 'specification', label: t('ecn.table.specification', 'Specification') },
@@ -1776,6 +1825,24 @@ ${
                     placeholder={t('ecn.filter.search_placeholder', 'Cari title...')}
                     value={colFilters.ec_title}
                     onChange={(e) => setColFilters({ ...colFilters, ec_title: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Part before..."
+                    value={colFilters.part_before}
+                    onChange={(e) => setColFilters({ ...colFilters, part_before: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Part after..."
+                    value={colFilters.part_after}
+                    onChange={(e) => setColFilters({ ...colFilters, part_after: e.target.value })}
                   />
                 </th>
                 <th>
@@ -1918,6 +1985,13 @@ ${
               ) : (
                 displayedRecords.map((item, idx) => {
                   const isExpanded = expandedRowIds.has(item.id);
+                  const partChange = parsePartChange(item.remark, item.ec_title);
+                  const partBefore = item.part_before || partChange.before;
+                  const partAfter = item.part_after || partChange.after;
+                  const isEcnBom = Boolean(
+                    (item.ec_title && item.ec_title.toUpperCase().includes('[ECN-BOM]')) ||
+                    (partBefore && partAfter)
+                  );
                   return (
                     <React.Fragment key={item.id}>
                       <tr className={`${isExpanded ? styles.rowExpanded : ''} ${selectedIds.has(item.id) ? styles.rowSelected : ''}`}>
@@ -1979,8 +2053,35 @@ ${
                         {/* EC Title */}
                         <td style={{ maxWidth: '240px', fontWeight: 500 }} title={item.ec_title}>
                           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {isEcnBom && !item.ec_title?.toUpperCase().includes('[ECN-BOM]') && (
+                              <span className={styles.ecnBomTag}>[ECN-BOM]</span>
+                            )}
                             {item.ec_title || '-'}
                           </div>
+                        </td>
+
+                        {/* Part Before (Lama) - ponytail */}
+                        <td>
+                          {partBefore ? (
+                            <span className={styles.partBeforeBadge} title={`Part Lama (Before): ${partBefore}`}>
+                              <span className={styles.partSubTagOld}>OLD</span>
+                              <span className={styles.partMono}>{partBefore}</span>
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                          )}
+                        </td>
+
+                        {/* Part After (Baru) - ponytail */}
+                        <td>
+                          {partAfter ? (
+                            <span className={styles.partAfterBadge} title={`Part Baru (After): ${partAfter}`}>
+                              <span className={styles.partSubTagNew}>NEW</span>
+                              <span className={styles.partMono}>{partAfter}</span>
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                          )}
                         </td>
 
                         {/* Child Code */}
@@ -2101,6 +2202,22 @@ ${
                                 <span className={styles.detailLabel}>{t('ecn.table.purpose', 'Purpose')}</span>
                                 <span className={styles.detailValue}>{item.purpose || '-'}</span>
                               </div>
+                              {(item.part_before || item.part_after || partBefore || partAfter) && (
+                                <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
+                                  <span className={styles.detailLabel}>Perubahan Part (BOM Change)</span>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                    <span className={styles.partBeforeBadge}>
+                                      <span className={styles.partSubTagOld}>OLD</span>
+                                      <span className={styles.partMono}>{item.part_before || partBefore || '-'}</span>
+                                    </span>
+                                    <span style={{ color: 'var(--color-text-muted)' }}>➔</span>
+                                    <span className={styles.partAfterBadge}>
+                                      <span className={styles.partSubTagNew}>NEW</span>
+                                      <span className={styles.partMono}>{item.part_after || partAfter || '-'}</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>{t('ecn.table.inventory_mgmt', 'Inventory Mgmt')}</span>
                                 <span className={styles.detailValue}>{item.inventory_mgmt || '-'}</span>
@@ -2923,6 +3040,49 @@ ${
                         </select>
                       </div>
 
+                      {/* ponytail: Part Before (Lama) */}
+                      <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                        <div className={styles.formLabelRow}>
+                          <label className={styles.formLabel}>
+                            <span className={styles.partSubTagOld} style={{ marginRight: '5px' }}>OLD</span>
+                            <span>{t('ecn.table.part_before', 'Part (Before / Lama)')}</span>
+                          </label>
+                          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>BOM Lama</span>
+                        </div>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: GH63-23138A"
+                          value={formData.part_before}
+                          onChange={(e) => setFormData({ ...formData, part_before: e.target.value })}
+                        />
+                      </div>
+
+                      {/* ponytail: Part After (Baru) with Detect button */}
+                      <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                        <div className={styles.formLabelRow}>
+                          <label className={styles.formLabel}>
+                            <span className={styles.partSubTagNew} style={{ marginRight: '5px' }}>NEW</span>
+                            <span>{t('ecn.table.part_after', 'Part (After / Baru)')}</span>
+                          </label>
+                          <button
+                            type="button"
+                            className={styles.btnDetectPart}
+                            onClick={handleAutoDetectPart}
+                            title="Deteksi otomatis part lama & baru dari Remark / Title"
+                          >
+                            ⚡ Deteksi Part
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: GH63-23137A"
+                          value={formData.part_after}
+                          onChange={(e) => setFormData({ ...formData, part_after: e.target.value })}
+                        />
+                      </div>
+
                       {/* Remark (Catatan Detail Teknis & Instruksi Khusus) */}
                       <div className={`${styles.formGroup} ${styles.colSpan4}`}>
                         <div className={styles.formLabelRow}>
@@ -2932,7 +3092,16 @@ ${
                           className={styles.formTextarea}
                           placeholder="Tuliskan catatan teknis, nomor dokumen pendukung, nama engineer PIC, instruksi verifikasi line..."
                           value={formData.remark}
-                          onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                          onChange={(e) => {
+                            const newRemark = e.target.value;
+                            const nextForm = { ...formData, remark: newRemark };
+                            if (!formData.part_before || !formData.part_after) {
+                              const auto = parsePartChange(newRemark, formData.ec_title);
+                              if (auto.before && !formData.part_before) nextForm.part_before = auto.before;
+                              if (auto.after && !formData.part_after) nextForm.part_after = auto.after;
+                            }
+                            setFormData(nextForm);
+                          }}
                         />
                       </div>
                     </div>

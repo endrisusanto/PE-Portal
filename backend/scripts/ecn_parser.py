@@ -38,7 +38,7 @@ DRM_SIGNATURES = [
 
 ALL_KEYS = [
     'ecn_no', 'model', 'function_type', 'purpose', 'inventory_mgmt',
-    'process', 'ec_title', 'parent_code', 'parent_name', 'before_after',
+    'process', 'ec_title', 'parent_code', 'parent_name', 'part_before', 'part_after', 'before_after',
     'dl', 'child_code', 'child_name', 'specification', 'quantity',
     'marking_point', 'running_date_bom', 'distribution_date', 'status', 'remark'
 ]
@@ -219,6 +219,14 @@ def parse_xlsx(file_path):
                 record['ecn_no'] = '-'
             if not record['status']:
                 record['status'] = 'Pending'
+
+            # ponytail: Auto-detect part number change from remark or ec_title
+            if not record.get('part_before') and not record.get('part_after'):
+                text_to_check = (record.get('remark') or '') + ' ' + (record.get('ec_title') or '')
+                m = re.search(r'([A-Za-z0-9]{2,6}-[A-Za-z0-9]{4,7}[A-Za-z0-9]?)\s*(?:->|➔|→|=>|to)\s*([A-Za-z0-9]{2,6}-[A-Za-z0-9]{4,7}[A-Za-z0-9]?)', text_to_check)
+                if m:
+                    record['part_before'] = m.group(1)
+                    record['part_after'] = m.group(2)
 
             records.append(record)
 

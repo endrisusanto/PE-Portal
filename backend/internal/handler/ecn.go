@@ -84,6 +84,11 @@ func (h *ECNHandler) Create(c echo.Context) error {
 	item.CreatedBy = userID
 	item.UpdatedBy = userID
 
+	// ponytail: Auto-detect part number change if not provided
+	if strings.TrimSpace(item.PartBefore) == "" && strings.TrimSpace(item.PartAfter) == "" {
+		item.PartBefore, item.PartAfter = repository.ExtractPartNumberChange(item.Remark, item.ECTitle)
+	}
+
 	created, err := h.repo.Create(c.Request().Context(), &item)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -121,6 +126,11 @@ func (h *ECNHandler) Update(c echo.Context) error {
 	userID := getUserIDFromContext(c)
 	item.UpdatedBy = userID
 
+	// ponytail: Auto-detect part number change if not provided
+	if strings.TrimSpace(item.PartBefore) == "" && strings.TrimSpace(item.PartAfter) == "" {
+		item.PartBefore, item.PartAfter = repository.ExtractPartNumberChange(item.Remark, item.ECTitle)
+	}
+
 	// Fetch existing record to calculate delta / changes
 	oldRec, _ := h.repo.GetByID(c.Request().Context(), id)
 
@@ -135,6 +145,16 @@ func (h *ECNHandler) Update(c echo.Context) error {
 	noteParts := []string{}
 
 	if oldRec != nil {
+		if oldRec.PartBefore != item.PartBefore || oldRec.PartAfter != item.PartAfter {
+			if item.PartBefore != "" || item.PartAfter != "" {
+				changes["part_change"] = map[string]string{
+					"from": fmt.Sprintf("%s ➔ %s", oldRec.PartBefore, oldRec.PartAfter),
+					"to":   fmt.Sprintf("%s ➔ %s", item.PartBefore, item.PartAfter),
+				}
+				action = "PART_CHANGE"
+				noteParts = append(noteParts, fmt.Sprintf("Part: %s ➔ %s", item.PartBefore, item.PartAfter))
+			}
+		}
 		if oldRec.Status != item.Status && item.Status != "" {
 			changes["status"] = map[string]string{"from": oldRec.Status, "to": item.Status}
 			action = "STATUS_CHANGE"

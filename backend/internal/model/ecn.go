@@ -18,6 +18,8 @@ type ECNRecord struct {
 	ECTitle          string     `json:"ec_title"`
 	ParentCode       string     `json:"parent_code"`
 	ParentName       string     `json:"parent_name"`
+	PartBefore       string     `json:"part_before"`
+	PartAfter        string     `json:"part_after"`
 	BeforeAfter      string     `json:"before_after"`
 	DL               string     `json:"dl"`
 	ChildCode        string     `json:"child_code"`
@@ -71,6 +73,8 @@ type ECNListQuery struct {
 	ECTitle          string `query:"ec_title"`
 	ChildCode        string `query:"child_code"`
 	ChildName        string `query:"child_name"`
+	PartBefore       string `query:"col_part_before"`
+	PartAfter        string `query:"col_part_after"`
 	Specification    string `query:"specification"`
 	Quantity         string `query:"quantity"`
 	RunningDateBOM   string `query:"running_date_bom"`
