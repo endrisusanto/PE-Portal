@@ -1370,10 +1370,55 @@
   font-size: var(--font-size-xs, 11px);
   font-weight: 600;
   color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 20px;
+  line-height: 20px;
+  margin: 0;
+}
+
+.formLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 20px;
+  min-height: 20px;
+  line-height: 20px;
+  margin-bottom: 2px;
+}
+
+.formLabelCritical {
+  font-weight: 700;
+  color: #d97706 !important;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+}
+
+[data-theme='dark'] .formLabelCritical {
+  color: #fbbf24 !important;
 }
 
 .formInput,
-.formSelect,
+.formSelect {
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  line-height: 36px;
+  padding: 0 10px;
+  font-size: var(--font-size-sm, 13px);
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  outline: none;
+  box-sizing: border-box;
+  width: 100%;
+  transition: border-color var(--transition-fast, 120ms ease), box-shadow var(--transition-fast, 120ms ease);
+}
+
 .formTextarea {
   padding: 8px 10px;
   font-size: var(--font-size-sm, 13px);
@@ -1382,6 +1427,10 @@
   background: var(--color-bg-secondary);
   color: var(--color-text-primary);
   outline: none;
+  min-height: 80px;
+  resize: vertical;
+  box-sizing: border-box;
+  width: 100%;
   transition: border-color var(--transition-fast, 120ms ease);
 }
 
@@ -1389,11 +1438,6 @@
 .formSelect:focus,
 .formTextarea:focus {
   border-color: var(--color-accent);
-}
-
-.formTextarea {
-  min-height: 80px;
-  resize: vertical;
 }
 
 .drmAlertBox {
@@ -1543,38 +1587,134 @@
   flex-shrink: 0;
 }
 
-/* ponytail: Form Modal Critical Field Highlight */
-.formGroupCritical {
-  background: rgba(245, 158, 11, 0.05);
-  padding: 10px 12px;
-  border-radius: var(--radius-sm, 6px);
-  border: 1px dashed rgba(245, 158, 11, 0.45);
+/* ponytail: Form Modal Critical Field Highlight (running BOM equal height) */
+.formInputCritical {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  line-height: 36px !important;
+  box-sizing: border-box !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+  border: 1.5px solid #f59e0b !important;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
 }
 
-[data-theme='dark'] .formGroupCritical {
-  background: rgba(245, 158, 11, 0.08);
-  border-color: rgba(245, 158, 11, 0.5);
+.formInputCritical:focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme='dark'] .formInputCritical {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
 }
 
 .criticalChip {
   font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  padding: 1px 6px;
+  padding: 0 6px;
+  height: 18px;
+  line-height: 18px;
   border-radius: 4px;
   background: #f59e0b;
   color: #ffffff;
+  display: inline-flex;
+  align-items: center;
 }
 
-.formInputCritical {
-  border-color: rgba(245, 158, 11, 0.6) !important;
-  font-weight: 600;
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.15);
+.formHint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
 }
 
-.formInputCritical:focus {
-  border-color: #f59e0b !important;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+/* ponytail: Modal Form Accordion Sections */
+.accordionContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.accordionSection {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+  transition: border-color var(--transition-fast, 120ms ease), box-shadow var(--transition-fast, 120ms ease);
+}
+
+.accordionSectionActive {
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.accordionHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color-bg-tertiary);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition: background var(--transition-fast, 120ms ease);
+}
+
+.accordionHeader:hover {
+  background: var(--color-bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.accordionHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.accordionTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.accordionSummary {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 8px;
+  border-left: 1px solid var(--color-border);
+}
+
+.accordionChevron {
+  color: var(--color-text-muted);
+  transition: transform 180ms ease;
+  flex-shrink: 0;
+}
+
+.accordionChevronRotated {
+  transform: rotate(180deg);
+  color: var(--color-accent);
+}
+
+.accordionBody {
+  padding: 12px 14px 14px 14px;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-primary);
 }
 
 /* ponytail: Breadcrumb & Change Log Trail in Modal */

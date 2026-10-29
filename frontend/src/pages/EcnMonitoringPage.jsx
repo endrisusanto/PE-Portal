@@ -261,6 +261,21 @@ export const EcnMonitoringPage = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [ecnChangeLogs, setEcnChangeLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  // ponytail: Modal form accordion state for Sections 1, 2, 3, 4, 6 (default 1,2,3 collapsed, 4 expanded)
+  const [openSections, setOpenSections] = useState({
+    1: false,
+    2: false,
+    3: false,
+    4: true,
+    6: true,
+  });
+
+  const toggleSection = (secNum) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [secNum]: !prev[secNum],
+    }));
+  };
   const [formData, setFormData] = useState({
     ecn_no: '',
     model: '',
@@ -844,6 +859,14 @@ export const EcnMonitoringPage = () => {
       status: item.status || 'Pending',
       remark: item.remark || '',
     });
+    // ponytail: Default 1,2,3 collapse and 4 expand when editing
+    setOpenSections({
+      1: false,
+      2: false,
+      3: false,
+      4: true,
+      6: true,
+    });
     setIsFormModalOpen(true);
   };
 
@@ -1218,6 +1241,13 @@ ${
                 distribution_date: '',
                 status: 'Pending',
                 remark: '',
+              });
+              setOpenSections({
+                1: true,
+                2: true,
+                3: true,
+                4: true,
+                6: false,
               });
               setIsFormModalOpen(true);
             }}
@@ -2511,344 +2541,485 @@ ${
               </div>
             )}
 
-            <div className={styles.formGrid}>
-              {/* Section 1: Identifikasi ECN & Model */}
-              <div className={styles.formSectionHeader}>
-                <Layers size={13} />
-                <span>1. {t('ecn.form_modal.sec_general', 'Informasi Umum ECN')}</span>
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.ecn_no', 'ECN NO')} *</label>
-                <input
-                  type="text"
-                  required
-                  className={styles.formInput}
-                  placeholder="Contoh: GHW260105001"
-                  value={formData.ecn_no}
-                  onChange={(e) => setFormData({ ...formData, ecn_no: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.model', 'Model')} *</label>
-                <input
-                  type="text"
-                  required
-                  className={styles.formInput}
-                  placeholder="Contoh: SM-S947B"
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.function', 'Function Type')}</label>
-                <select
-                  className={styles.formSelect}
-                  value={formData.function_type}
-                  onChange={(e) => setFormData({ ...formData, function_type: e.target.value })}
+            <div className={styles.accordionContainer}>
+              {/* ================= SECTION 1 ACCORDION ================= */}
+              <div className={`${styles.accordionSection} ${openSections[1] ? styles.accordionSectionActive : ''}`}>
+                <button
+                  type="button"
+                  className={styles.accordionHeader}
+                  onClick={() => toggleSection(1)}
+                  aria-expanded={openSections[1]}
                 >
-                  <option value="Circuit">Circuit</option>
-                  <option value="Mechanism">Mechanism</option>
-                  <option value="Software">Software</option>
-                  <option value="Process">Process</option>
-                </select>
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.process', 'Proses')}</label>
-                <select
-                  className={styles.formSelect}
-                  value={formData.process}
-                  onChange={(e) => setFormData({ ...formData, process: e.target.value })}
-                >
-                  <option value="SMD">SMD</option>
-                  <option value="Mainline">Mainline</option>
-                  <option value="Vendor">Vendor</option>
-                  <option value="PBA">PBA</option>
-                </select>
-              </div>
-
-              {/* Section 2: Deskripsi & Parent Assembly */}
-              <div className={styles.formSectionHeader}>
-                <Boxes size={13} />
-                <span>2. {t('ecn.form_modal.sec_parent', 'Komponen Parent (Induk)')}</span>
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>{t('ecn.table.ec_title', 'EC Title')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: [CIRCUIT] Change diode due to supplier issue"
-                  value={formData.ec_title}
-                  onChange={(e) => setFormData({ ...formData, ec_title: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.detail.parent_code', 'Parent Code')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: GH82-39201A"
-                  value={formData.parent_code}
-                  onChange={(e) => setFormData({ ...formData, parent_code: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.detail.parent_name', 'Parent Name')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: PBA MAIN-SM-S947B"
-                  value={formData.parent_name}
-                  onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>{t('ecn.table.purpose', 'Purpose')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: Quality Improvement"
-                  value={formData.purpose}
-                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>{t('ecn.table.inventory_mgmt', 'Inventory Management')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: Use up old stock"
-                  value={formData.inventory_mgmt}
-                  onChange={(e) => setFormData({ ...formData, inventory_mgmt: e.target.value })}
-                />
-              </div>
-
-              {/* Section 3: Detail Komponen & Spesifikasi */}
-              <div className={styles.formSectionHeader}>
-                <Cpu size={13} />
-                <span>3. {t('ecn.form_modal.sec_child', 'Komponen Child (Anak / Komponen Baru)')}</span>
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.child_code', 'Child Code (Part Code)')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: 0401-006201"
-                  value={formData.child_code}
-                  onChange={(e) => setFormData({ ...formData, child_code: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>{t('ecn.table.child_name', 'Child Name (Part Description)')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: DIODE-SCHOTTKY"
-                  value={formData.child_name}
-                  onChange={(e) => setFormData({ ...formData, child_name: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.specification', 'Specification')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: 30V, 1A, SOD-323"
-                  value={formData.specification}
-                  onChange={(e) => setFormData({ ...formData, specification: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.quantity', 'Quantity')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: 1"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.detail.before_after', 'Before / After')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: Before / After"
-                  value={formData.before_after}
-                  onChange={(e) => setFormData({ ...formData, before_after: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.detail.dl', 'D/L (Distribution Level)')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: Level 1"
-                  value={formData.dl}
-                  onChange={(e) => setFormData({ ...formData, dl: e.target.value })}
-                />
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.detail.marking_point', 'Marking Point')}</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="Contoh: D201"
-                  value={formData.marking_point}
-                  onChange={(e) => setFormData({ ...formData, marking_point: e.target.value })}
-                />
-              </div>
-
-              {/* Section 4: Jadwal & Status Implementasi */}
-              <div className={styles.formSectionHeader}>
-                <Clock size={13} />
-                <span>4. {t('ecn.form_modal.sec_classification', 'Jadwal & Status Implementasi')}</span>
-              </div>
-
-              {/* Running Date BOM (Highlighted Critical Milestone - ponytail) */}
-              <div className={`${styles.formGroup} ${styles.colSpan1} ${styles.formGroupCritical}`}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label className={styles.formLabel} style={{ margin: 0, fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Calendar size={13} color="#f59e0b" />
-                    {t('ecn.table.running_bom', 'Running Date BOM')}
-                  </label>
-                  <span className={styles.criticalChip}>CRITICAL</span>
-                </div>
-                <input
-                  type="date"
-                  className={`${styles.formInput} ${styles.formInputCritical}`}
-                  value={normalizeToDateInput(formData.running_date_bom)}
-                  onChange={(e) => setFormData({ ...formData, running_date_bom: e.target.value })}
-                  onClick={(e) => {
-                    try {
-                      e.target.showPicker?.();
-                    } catch (_) {}
-                  }}
-                />
-                {editingItem?.running_date_bom && !normalizeToDateInput(editingItem.running_date_bom) && (
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                    Teks asli: <strong>{editingItem.running_date_bom}</strong>
-                  </span>
-                )}
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.dist_date', 'Distribution Date')}</label>
-                <input
-                  type="date"
-                  className={styles.formInput}
-                  value={normalizeToDateInput(formData.distribution_date)}
-                  onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
-                  onClick={(e) => {
-                    try {
-                      e.target.showPicker?.();
-                    } catch (_) {}
-                  }}
-                />
-                {editingItem?.distribution_date && !normalizeToDateInput(editingItem.distribution_date) && (
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                    Teks asli: <strong>{editingItem.distribution_date}</strong>
-                  </span>
-                )}
-              </div>
-
-              <div className={`${styles.formGroup} ${styles.colSpan2}`}>
-                <label className={styles.formLabel}>{t('ecn.table.status', 'Status')}</label>
-                <select
-                  className={styles.formSelect}
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                >
-                  <option value="Completed">Completed</option>
-                  <option value="Progress">Progress</option>
-                  <option value="Pending">Pending</option>
-                  <option value="ECO Cancel">ECO Cancel</option>
-                </select>
-              </div>
-
-              {/* Section 5: Remark Detail */}
-              <div className={`${styles.formGroup} ${styles.colSpan4}`}>
-                <label className={styles.formLabel}>{t('ecn.form_modal.sec_remark', 'Remark (Catatan Detail Teknis & Instruksi Khusus)')}</label>
-                <textarea
-                  className={styles.formTextarea}
-                  placeholder="Tuliskan catatan teknis, nomor dokumen pendukung, nama engineer PIC, instruksi verifikasi line..."
-                  value={formData.remark}
-                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
-                />
-              </div>
-
-              {/* Section 6: Log Riwayat & Breadcrumb Perubahan (Audit Trail) */}
-              {editingItem && (
-                <div className={styles.colSpan4} style={{ marginTop: '4px' }}>
-                  <div className={styles.formSectionHeader}>
-                    <History size={13} />
-                    <span>6. {t('ecn.form_modal.sec_history', 'Riwayat Perubahan & Audit Trail')} ({ecnChangeLogs.length})</span>
+                  <div className={styles.accordionHeaderLeft}>
+                    <span className={styles.accordionTitle}>
+                      <Layers size={13} />
+                      1. {t('ecn.form_modal.sec_general', 'Informasi Umum ECN')}
+                    </span>
+                    {!openSections[1] && (
+                      <span className={styles.accordionSummary}>
+                        {[formData.ecn_no, formData.model, formData.function_type, formData.process].filter(Boolean).join(' • ')}
+                      </span>
+                    )}
                   </div>
-                  {logsLoading ? (
-                    <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                      <Loader2 size={16} className={styles.spin} style={{ margin: '0 auto 6px', display: 'block' }} />
-                      Memuat log riwayat perubahan...
+                  <ChevronDown
+                    size={16}
+                    className={`${styles.accordionChevron} ${openSections[1] ? styles.accordionChevronRotated : ''}`}
+                  />
+                </button>
+
+                {openSections[1] && (
+                  <div className={styles.accordionBody}>
+                    <div className={styles.formGrid}>
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.ecn_no', 'ECN NO')} *</label>
+                        <input
+                          type="text"
+                          required
+                          className={styles.formInput}
+                          placeholder="Contoh: GHW260105001"
+                          value={formData.ecn_no}
+                          onChange={(e) => setFormData({ ...formData, ecn_no: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.model', 'Model')} *</label>
+                        <input
+                          type="text"
+                          required
+                          className={styles.formInput}
+                          placeholder="Contoh: SM-S947B"
+                          value={formData.model}
+                          onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.function', 'Function Type')}</label>
+                        <select
+                          className={styles.formSelect}
+                          value={formData.function_type}
+                          onChange={(e) => setFormData({ ...formData, function_type: e.target.value })}
+                        >
+                          <option value="Circuit">Circuit</option>
+                          <option value="Mechanism">Mechanism</option>
+                          <option value="Software">Software</option>
+                          <option value="Process">Process</option>
+                        </select>
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.process', 'Proses')}</label>
+                        <select
+                          className={styles.formSelect}
+                          value={formData.process}
+                          onChange={(e) => setFormData({ ...formData, process: e.target.value })}
+                        >
+                          <option value="SMD">SMD</option>
+                          <option value="Mainline">Mainline</option>
+                          <option value="Vendor">Vendor</option>
+                          <option value="PBA">PBA</option>
+                        </select>
+                      </div>
                     </div>
-                  ) : ecnChangeLogs.length === 0 ? (
-                    <div style={{ padding: '12px', fontSize: '11.5px', color: 'var(--color-text-muted)', background: 'var(--color-bg-tertiary)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
-                      Belum ada riwayat perubahan manual tercatat untuk ECN ini. Log akan otomatis bertambah setiap kali ada pembaruan status, tanggal Running BOM, proses, atau catatan remark.
+                  </div>
+                )}
+              </div>
+
+              {/* ================= SECTION 2 ACCORDION ================= */}
+              <div className={`${styles.accordionSection} ${openSections[2] ? styles.accordionSectionActive : ''}`}>
+                <button
+                  type="button"
+                  className={styles.accordionHeader}
+                  onClick={() => toggleSection(2)}
+                  aria-expanded={openSections[2]}
+                >
+                  <div className={styles.accordionHeaderLeft}>
+                    <span className={styles.accordionTitle}>
+                      <Boxes size={13} />
+                      2. {t('ecn.form_modal.sec_parent', 'Komponen Parent (Induk)')}
+                    </span>
+                    {!openSections[2] && (
+                      <span className={styles.accordionSummary}>
+                        {[formData.ec_title, formData.parent_name, formData.parent_code].filter(Boolean).join(' • ')}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    className={`${styles.accordionChevron} ${openSections[2] ? styles.accordionChevronRotated : ''}`}
+                  />
+                </button>
+
+                {openSections[2] && (
+                  <div className={styles.accordionBody}>
+                    <div className={styles.formGrid}>
+                      <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.ec_title', 'EC Title')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: [CIRCUIT] Change diode due to supplier issue"
+                          value={formData.ec_title}
+                          onChange={(e) => setFormData({ ...formData, ec_title: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.detail.parent_code', 'Parent Code')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: GH82-39201A"
+                          value={formData.parent_code}
+                          onChange={(e) => setFormData({ ...formData, parent_code: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.detail.parent_name', 'Parent Name')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: PBA MAIN-SM-S947B"
+                          value={formData.parent_name}
+                          onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.purpose', 'Purpose')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: Quality Improvement"
+                          value={formData.purpose}
+                          onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.inventory_mgmt', 'Inventory Management')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: Use up old stock"
+                          value={formData.inventory_mgmt}
+                          onChange={(e) => setFormData({ ...formData, inventory_mgmt: e.target.value })}
+                        />
+                      </div>
                     </div>
-                  ) : (
-                    <div className={styles.changeLogTimeline}>
-                      {ecnChangeLogs.map((log) => (
-                        <div key={log.id} className={styles.changeLogItem}>
-                          <div className={styles.changeLogIconWrap}>
-                            {log.action === 'STATUS_CHANGE' ? (
-                              <ShieldCheck size={12} color="#10b981" />
-                            ) : log.action === 'BOM_CHANGE' ? (
-                              <Calendar size={12} color="#f59e0b" />
-                            ) : log.action === 'CREATE' ? (
-                              <CheckCircle2 size={12} color="#2563eb" />
-                            ) : (
-                              <Edit3 size={12} color="#6366f1" />
-                            )}
-                          </div>
-                          <div className={styles.changeLogBody}>
-                            <div className={styles.changeLogHeader}>
-                              <span className={styles.changeLogUser}>{log.changed_by_name || 'System'}</span>
-                              <span className={styles.changeLogTime}>
-                                {new Date(log.created_at).toLocaleString('id-ID', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            </div>
-                            <div className={styles.changeLogNote}>{log.note || log.action}</div>
-                            {log.changes && Object.keys(log.changes).length > 0 && (
-                              <div className={styles.diffChipsWrap}>
-                                {Object.entries(log.changes).map(([k, val]) => (
-                                  <span key={k} className={styles.diffChip}>
-                                    <strong>{k}:</strong> {typeof val === 'object' && val !== null ? `${val.from || '-'} ➔ ${val.to || '-'}` : String(val)}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ================= SECTION 3 ACCORDION ================= */}
+              <div className={`${styles.accordionSection} ${openSections[3] ? styles.accordionSectionActive : ''}`}>
+                <button
+                  type="button"
+                  className={styles.accordionHeader}
+                  onClick={() => toggleSection(3)}
+                  aria-expanded={openSections[3]}
+                >
+                  <div className={styles.accordionHeaderLeft}>
+                    <span className={styles.accordionTitle}>
+                      <Cpu size={13} />
+                      3. {t('ecn.form_modal.sec_child', 'Komponen Child (Anak / Komponen Baru)')}
+                    </span>
+                    {!openSections[3] && (
+                      <span className={styles.accordionSummary}>
+                        {[formData.child_code, formData.child_name, formData.specification].filter(Boolean).join(' • ')}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    className={`${styles.accordionChevron} ${openSections[3] ? styles.accordionChevronRotated : ''}`}
+                  />
+                </button>
+
+                {openSections[3] && (
+                  <div className={styles.accordionBody}>
+                    <div className={styles.formGrid}>
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.child_code', 'Child Code (Part Code)')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: 0401-006201"
+                          value={formData.child_code}
+                          onChange={(e) => setFormData({ ...formData, child_code: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.child_name', 'Child Name (Part Description)')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: DIODE-SCHOTTKY"
+                          value={formData.child_name}
+                          onChange={(e) => setFormData({ ...formData, child_name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.specification', 'Specification')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: 30V, 1A, SOD-323"
+                          value={formData.specification}
+                          onChange={(e) => setFormData({ ...formData, specification: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.table.quantity', 'Quantity')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: 1"
+                          value={formData.quantity}
+                          onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.detail.before_after', 'Before / After')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: Before / After"
+                          value={formData.before_after}
+                          onChange={(e) => setFormData({ ...formData, before_after: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.detail.dl', 'D/L (Distribution Level)')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: Level 1"
+                          value={formData.dl}
+                          onChange={(e) => setFormData({ ...formData, dl: e.target.value })}
+                        />
+                      </div>
+
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <label className={styles.formLabel}>{t('ecn.detail.marking_point', 'Marking Point')}</label>
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          placeholder="Contoh: D201"
+                          value={formData.marking_point}
+                          onChange={(e) => setFormData({ ...formData, marking_point: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ================= SECTION 4 ACCORDION (EXPANDED BY DEFAULT) ================= */}
+              <div className={`${styles.accordionSection} ${openSections[4] ? styles.accordionSectionActive : ''}`}>
+                <button
+                  type="button"
+                  className={styles.accordionHeader}
+                  onClick={() => toggleSection(4)}
+                  aria-expanded={openSections[4]}
+                >
+                  <div className={styles.accordionHeaderLeft}>
+                    <span className={styles.accordionTitle}>
+                      <Clock size={13} />
+                      4. {t('ecn.form_modal.sec_classification', 'Jadwal & Status Implementasi')}
+                    </span>
+                    {!openSections[4] && (
+                      <span className={styles.accordionSummary}>
+                        {[formData.running_date_bom ? `BOM: ${formData.running_date_bom}` : null, formData.distribution_date ? `Dist: ${formData.distribution_date}` : null, formData.status ? `Status: ${formData.status}` : null].filter(Boolean).join(' • ')}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    className={`${styles.accordionChevron} ${openSections[4] ? styles.accordionChevronRotated : ''}`}
+                  />
+                </button>
+
+                {openSections[4] && (
+                  <div className={styles.accordionBody}>
+                    <div className={styles.formGrid}>
+                      {/* Running Date BOM (Highlighted Critical Milestone - ponytail equal height) */}
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <div className={styles.formLabelRow}>
+                          <label className={`${styles.formLabel} ${styles.formLabelCritical}`}>
+                            <Calendar size={13} color="#f59e0b" />
+                            <span>{t('ecn.table.running_bom', 'Running Date BOM')}</span>
+                          </label>
+                          <span className={styles.criticalChip}>CRITICAL</span>
                         </div>
-                      ))}
+                        <input
+                          type="date"
+                          className={`${styles.formInput} ${styles.formInputCritical}`}
+                          value={normalizeToDateInput(formData.running_date_bom)}
+                          onChange={(e) => setFormData({ ...formData, running_date_bom: e.target.value })}
+                          onClick={(e) => {
+                            try {
+                              e.target.showPicker?.();
+                            } catch (_) {}
+                          }}
+                        />
+                        {editingItem?.running_date_bom && !normalizeToDateInput(editingItem.running_date_bom) && (
+                          <span className={styles.formHint}>
+                            Teks asli: <strong>{editingItem.running_date_bom}</strong>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Distribution Date (Identical height & label alignment) */}
+                      <div className={`${styles.formGroup} ${styles.colSpan1}`}>
+                        <div className={styles.formLabelRow}>
+                          <label className={styles.formLabel}>
+                            <Calendar size={13} style={{ opacity: 0.6 }} />
+                            <span>{t('ecn.table.dist_date', 'Distribution Date')}</span>
+                          </label>
+                        </div>
+                        <input
+                          type="date"
+                          className={styles.formInput}
+                          value={normalizeToDateInput(formData.distribution_date)}
+                          onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
+                          onClick={(e) => {
+                            try {
+                              e.target.showPicker?.();
+                            } catch (_) {}
+                          }}
+                        />
+                        {editingItem?.distribution_date && !normalizeToDateInput(editingItem.distribution_date) && (
+                          <span className={styles.formHint}>
+                            Teks asli: <strong>{editingItem.distribution_date}</strong>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Status (Identical height & label alignment) */}
+                      <div className={`${styles.formGroup} ${styles.colSpan2}`}>
+                        <div className={styles.formLabelRow}>
+                          <label className={styles.formLabel}>
+                            <Clock size={13} style={{ opacity: 0.6 }} />
+                            <span>{t('ecn.table.status', 'Status')}</span>
+                          </label>
+                        </div>
+                        <select
+                          className={styles.formSelect}
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        >
+                          <option value="Completed">Completed</option>
+                          <option value="Progress">Progress</option>
+                          <option value="Pending">Pending</option>
+                          <option value="ECO Cancel">ECO Cancel</option>
+                        </select>
+                      </div>
+
+                      {/* Remark (Catatan Detail Teknis & Instruksi Khusus) */}
+                      <div className={`${styles.formGroup} ${styles.colSpan4}`}>
+                        <div className={styles.formLabelRow}>
+                          <label className={styles.formLabel}>{t('ecn.form_modal.sec_remark', 'Remark (Catatan Detail Teknis & Instruksi Khusus)')}</label>
+                        </div>
+                        <textarea
+                          className={styles.formTextarea}
+                          placeholder="Tuliskan catatan teknis, nomor dokumen pendukung, nama engineer PIC, instruksi verifikasi line..."
+                          value={formData.remark}
+                          onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ================= SECTION 6 ACCORDION (AUDIT TRAIL) ================= */}
+              {editingItem && (
+                <div className={`${styles.accordionSection} ${openSections[6] ? styles.accordionSectionActive : ''}`}>
+                  <button
+                    type="button"
+                    className={styles.accordionHeader}
+                    onClick={() => toggleSection(6)}
+                    aria-expanded={openSections[6]}
+                  >
+                    <div className={styles.accordionHeaderLeft}>
+                      <span className={styles.accordionTitle}>
+                        <History size={13} />
+                        6. {t('ecn.form_modal.sec_history', 'Riwayat Perubahan & Audit Trail')} ({ecnChangeLogs.length})
+                      </span>
+                      {!openSections[6] && ecnChangeLogs.length > 0 && (
+                        <span className={styles.accordionSummary}>
+                          Terakhir oleh {ecnChangeLogs[0].changed_by_name || 'System'} ({new Date(ecnChangeLogs[0].created_at).toLocaleDateString('id-ID')})
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      size={16}
+                      className={`${styles.accordionChevron} ${openSections[6] ? styles.accordionChevronRotated : ''}`}
+                    />
+                  </button>
+
+                  {openSections[6] && (
+                    <div className={styles.accordionBody}>
+                      {logsLoading ? (
+                        <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                          <Loader2 size={16} className={styles.spin} style={{ margin: '0 auto 6px', display: 'block' }} />
+                          Memuat log riwayat perubahan...
+                        </div>
+                      ) : ecnChangeLogs.length === 0 ? (
+                        <div style={{ padding: '12px', fontSize: '11.5px', color: 'var(--color-text-muted)', background: 'var(--color-bg-tertiary)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
+                          Belum ada riwayat perubahan manual tercatat untuk ECN ini. Log akan otomatis bertambah setiap kali ada pembaruan status, tanggal Running BOM, proses, atau catatan remark.
+                        </div>
+                      ) : (
+                        <div className={styles.changeLogTimeline}>
+                          {ecnChangeLogs.map((log) => (
+                            <div key={log.id} className={styles.changeLogItem}>
+                              <div className={styles.changeLogIconWrap}>
+                                {log.action === 'STATUS_CHANGE' ? (
+                                  <ShieldCheck size={12} color="#10b981" />
+                                ) : log.action === 'BOM_CHANGE' ? (
+                                  <Calendar size={12} color="#f59e0b" />
+                                ) : log.action === 'CREATE' ? (
+                                  <CheckCircle2 size={12} color="#2563eb" />
+                                ) : (
+                                  <Edit3 size={12} color="#6366f1" />
+                                )}
+                              </div>
+                              <div className={styles.changeLogBody}>
+                                <div className={styles.changeLogHeader}>
+                                  <span className={styles.changeLogUser}>{log.changed_by_name || 'System'}</span>
+                                  <span className={styles.changeLogTime}>
+                                    {new Date(log.created_at).toLocaleString('id-ID', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                </div>
+                                <div className={styles.changeLogNote}>{log.note || log.action}</div>
+                                {log.changes && Object.keys(log.changes).length > 0 && (
+                                  <div className={styles.diffChipsWrap}>
+                                    {Object.entries(log.changes).map(([k, val]) => (
+                                      <span key={k} className={styles.diffChip}>
+                                        <strong>{k}:</strong> {typeof val === 'object' && val !== null ? `${val.from || '-'} ➔ ${val.to || '-'}` : String(val)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
