@@ -385,7 +385,7 @@
 /* ========================================================================= */
 .bentoGrid {
   display: grid;
-  grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr); /* ponytail: 70:30 bento ratio */
   gap: 20px;
   align-items: start;
 }
