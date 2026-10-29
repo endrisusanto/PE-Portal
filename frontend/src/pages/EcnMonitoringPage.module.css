@@ -501,10 +501,14 @@
 .btnSecondary {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+  justify-content: center;
+  height: 36px;
+  box-sizing: border-box;
+  gap: 6px;
+  padding: 0 12px;
   font-size: var(--font-size-sm, 13px);
   font-weight: 500;
+  line-height: 1;
   border-radius: var(--radius-sm, 4px);
   border: 1px solid var(--color-border);
   background: var(--color-bg-secondary);
@@ -522,10 +526,14 @@
 .btnPrimary {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+  justify-content: center;
+  height: 36px;
+  box-sizing: border-box;
+  gap: 6px;
+  padding: 0 12px;
   font-size: var(--font-size-sm, 13px);
   font-weight: 600;
+  line-height: 1;
   border-radius: var(--radius-sm, 4px);
   border: 1px solid var(--color-accent);
   background: var(--color-accent);

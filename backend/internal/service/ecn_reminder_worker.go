@@ -13,6 +13,11 @@ import (
 	"pe-portal/internal/repository"
 )
 
+type ScheduleSlot struct {
+	Hour   int
+	Minute int
+}
+
 type ECNReminderWorker struct {
 	repo       *repository.ECNReminderRepository
 	reportRepo *repository.ReportRepository
@@ -21,10 +26,10 @@ type ECNReminderWorker struct {
 	stopCh     chan struct{}
 
 	// In-memory clock cache (ponytail: 0% CPU, 0 useless DB queries)
-	cachedHour         int
-	cachedMinute       int
+	cachedSlots        []ScheduleSlot
 	cachedEnabled      bool
 	cachedLastSentDate string
+	dispatchedSlots    map[string]bool // key: "YYYY-MM-DD@HH:MM"
 	wibLocation        *time.Location
 }
 
@@ -36,13 +41,13 @@ func NewECNReminderWorker(
 	// Fixed UTC+7 (WIB) timezone for SEIN Jakarta/Cikarang operation
 	wib := time.FixedZone("WIB", 7*3600)
 	return &ECNReminderWorker{
-		repo:         repo,
-		reportRepo:   reportRepo,
-		smtpSvc:      smtpSvc,
-		stopCh:       make(chan struct{}),
-		cachedHour:   8,
-		cachedMinute: 0,
-		wibLocation:  wib,
+		repo:            repo,
+		reportRepo:      reportRepo,
+		smtpSvc:         smtpSvc,
+		stopCh:          make(chan struct{}),
+		cachedSlots:     []ScheduleSlot{{Hour: 8, Minute: 0}},
+		dispatchedSlots: make(map[string]bool),
+		wibLocation:     wib,
 	}
 }
 
@@ -94,18 +99,32 @@ func (w *ECNReminderWorker) ReloadSettingsCache(ctx context.Context) error {
 	}
 
 	w.cachedEnabled = settings.IsEnabled
-	w.cachedLastSentDate = settings.LastSentDate
 
-	// Parse "HH:MM" e.g. "08:00"
-	timeParts := strings.Split(strings.TrimSpace(settings.SendTime), ":")
-	if len(timeParts) == 2 {
-		h, errH := strconv.Atoi(timeParts[0])
-		m, errM := strconv.Atoi(timeParts[1])
-		if errH == nil && errM == nil && h >= 0 && h < 24 && m >= 0 && m < 60 {
-			w.cachedHour = h
-			w.cachedMinute = m
+	// Parse comma-separated "HH:MM, HH:MM" e.g. "07:00, 08:00, 13:00, 16:00"
+	var slots []ScheduleSlot
+	rawTimes := strings.FieldsFunc(settings.SendTime, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\n'
+	})
+	seen := make(map[string]bool)
+	for _, raw := range rawTimes {
+		raw = strings.TrimSpace(raw)
+		if raw == "" || seen[raw] {
+			continue
+		}
+		parts := strings.Split(raw, ":")
+		if len(parts) == 2 {
+			h, errH := strconv.Atoi(parts[0])
+			m, errM := strconv.Atoi(parts[1])
+			if errH == nil && errM == nil && h >= 0 && h < 24 && m >= 0 && m < 60 {
+				seen[raw] = true
+				slots = append(slots, ScheduleSlot{Hour: h, Minute: m})
+			}
 		}
 	}
+	if len(slots) == 0 {
+		slots = []ScheduleSlot{{Hour: 8, Minute: 0}}
+	}
+	w.cachedSlots = slots
 	return nil
 }
 
@@ -113,27 +132,51 @@ func (w *ECNReminderWorker) ReloadSettingsCache(ctx context.Context) error {
 func (w *ECNReminderWorker) tickCheck(ctx context.Context) {
 	w.mu.Lock()
 	enabled := w.cachedEnabled
-	targetH := w.cachedHour
-	targetM := w.cachedMinute
-	lastSent := w.cachedLastSentDate
+	slots := append([]ScheduleSlot(nil), w.cachedSlots...)
 	w.mu.Unlock()
 
-	if !enabled {
+	if !enabled || len(slots) == 0 {
 		return
 	}
 
 	now := time.Now().In(w.wibLocation)
 	todayStr := now.Format("2006-01-02")
+	h := now.Hour()
+	m := now.Minute()
+	slotKey := fmt.Sprintf("%s@%02d:%02d", todayStr, h, m)
 
-	// If already dispatched today or clock does not match, return immediately
-	if lastSent == todayStr || now.Hour() != targetH || now.Minute() != targetM {
+	w.mu.Lock()
+	// Clean up previous days from dispatchedSlots
+	for k := range w.dispatchedSlots {
+		if !strings.HasPrefix(k, todayStr) {
+			delete(w.dispatchedSlots, k)
+		}
+	}
+
+	if w.dispatchedSlots[slotKey] {
+		w.mu.Unlock()
 		return
 	}
 
-	// Trigger execution when the exact minute arrives!
-	log.Printf("[ECN Reminder Worker] Target time %02d:%02d arrived. Triggering scheduled reminder...\n", targetH, targetM)
+	matched := false
+	for _, s := range slots {
+		if s.Hour == h && s.Minute == m {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		w.mu.Unlock()
+		return
+	}
+
+	// Mark dispatched in memory so we don't re-dispatch during the same minute
+	w.dispatchedSlots[slotKey] = true
+	w.mu.Unlock()
+
+	log.Printf("[ECN Reminder Worker] Scheduled slot %02d:%02d arrived. Triggering reminder...\n", h, m)
 	if _, err := w.ExecuteReminder(ctx, "SCHEDULE"); err != nil {
-		log.Printf("[ECN Reminder Worker] Scheduled execution failed: %v\n", err)
+		log.Printf("[ECN Reminder Worker] Scheduled execution failed for slot %s: %v\n", slotKey, err)
 	}
 }
 
@@ -169,6 +212,15 @@ func (w *ECNReminderWorker) ExecuteReminder(ctx context.Context, triggerType str
 	if len(dueRecords) == 0 && triggerType == "SCHEDULE" {
 		log.Printf("[ECN Reminder Worker] No active ECN records due for Running BOM on %s (H-%d). Skipping email.\n", targetDateStr, daysBefore)
 		_ = w.repo.UpdateLastSentDate(ctx, settings.ID, todayStr)
+		_ = w.repo.RecordLog(ctx, &model.ECNReminderLog{
+			Recipients:   settings.Recipients,
+			CCRecipients: settings.CCRecipients,
+			ItemCount:    0,
+			ECNNumbers:   "",
+			Status:       "SKIPPED",
+			ErrorMessage: "Semua jadwal ECN terpantau aman. Pengiriman dilewati.",
+			TriggeredBy:  triggerType,
+		})
 		w.mu.Lock()
 		w.cachedLastSentDate = todayStr
 		w.mu.Unlock()
@@ -299,7 +351,7 @@ func (w *ECNReminderWorker) RenderReminderEmailHTML(items []model.ECNRecord, tar
 			}
 
 			statusBadgeColor := "#f59e0b" // Pending (Amber)
-			if strings.EqualFold(it.Status, "In Progress") {
+			if strings.Contains(strings.ToLower(it.Status), "progress") {
 				statusBadgeColor = "#3b82f6" // Blue
 			}
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,16 +69,34 @@ func (h *ECNReminderHandler) SaveSettings(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
 	}
 
-	// Validate / normalize send_time (format HH:MM)
-	sendTime := strings.TrimSpace(req.SendTime)
-	if sendTime == "" {
-		sendTime = "08:00"
+	// Validate / normalize send_time (comma-separated HH:MM, e.g. "07:00, 08:00, 13:00")
+	rawTimes := strings.FieldsFunc(req.SendTime, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n'
+	})
+	var validTimes []string
+	seen := make(map[string]bool)
+	for _, raw := range rawTimes {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			continue
+		}
+		parts := strings.Split(trimmed, ":")
+		if len(parts) == 2 {
+			hNum, errH := strconv.Atoi(parts[0])
+			mNum, errM := strconv.Atoi(parts[1])
+			if errH == nil && errM == nil && hNum >= 0 && hNum < 24 && mNum >= 0 && mNum < 60 {
+				slotStr := fmt.Sprintf("%02d:%02d", hNum, mNum)
+				if !seen[slotStr] {
+					seen[slotStr] = true
+					validTimes = append(validTimes, slotStr)
+				}
+			}
+		}
 	}
-	parts := strings.Split(sendTime, ":")
-	if len(parts) != 2 {
-		return echo.NewHTTPError(http.StatusBadRequest, "Format jam harus HH:MM (contoh 08:00)")
+	if len(validTimes) == 0 {
+		validTimes = []string{"08:00"}
 	}
-	req.SendTime = sendTime
+	req.SendTime = strings.Join(validTimes, ", ")
 
 	if req.DaysBefore <= 0 {
 		req.DaysBefore = 1

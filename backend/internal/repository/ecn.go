@@ -58,9 +58,14 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	}
 
 	if q.Status != "" {
-		where = append(where, fmt.Sprintf("e.status = $%d", argIdx))
-		args = append(args, q.Status)
-		argIdx++
+		st := strings.ToLower(strings.TrimSpace(q.Status))
+		if st == "progress" || st == "in progress" {
+			where = append(where, fmt.Sprintf("(LOWER(e.status) = 'progress' OR LOWER(e.status) = 'in progress')"))
+		} else {
+			where = append(where, fmt.Sprintf("LOWER(e.status) = LOWER($%d)", argIdx))
+			args = append(args, q.Status)
+			argIdx++
+		}
 	}
 
 	if q.Process != "" {
@@ -101,9 +106,14 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	}
 
 	if q.ColStatus != "" {
-		where = append(where, fmt.Sprintf("LOWER(e.status) = LOWER($%d)", argIdx))
-		args = append(args, strings.TrimSpace(q.ColStatus))
-		argIdx++
+		st := strings.ToLower(strings.TrimSpace(q.ColStatus))
+		if st == "progress" || st == "in progress" {
+			where = append(where, fmt.Sprintf("(LOWER(e.status) = 'progress' OR LOWER(e.status) = 'in progress')"))
+		} else {
+			where = append(where, fmt.Sprintf("LOWER(e.status) = LOWER($%d)", argIdx))
+			args = append(args, strings.TrimSpace(q.ColStatus))
+			argIdx++
+		}
 	}
 
 	if q.ECTitle != "" {

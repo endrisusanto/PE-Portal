@@ -1070,10 +1070,10 @@ ${
             type="button"
             className={styles.btnSecondary}
             onClick={() => setIsReminderModalOpen(true)}
-            title="Pengaturan Pengingat Email Running BOM"
+            title={t('ecn.reminder.btn_title', 'Pengaturan Pengingat Email Running BOM')}
           >
             <Bell size={15} style={{ color: 'var(--color-accent, #0d7377)' }} />
-            <span>Pengingat Running BOM</span>
+            {t('ecn.reminder.btn_label', 'Pengingat Running BOM')}
           </button>
           <button
             type="button"
@@ -1232,11 +1232,11 @@ ${
                 className={styles.aiChipBtn}
                 onClick={() =>
                   handleSendAiMessage(
-                    t('ecn.ai.prompt_in_progress', 'Ringkas seluruh ECN yang berstatus In Progress beserta dampaknya.')
+                    t('ecn.ai.prompt_in_progress', 'Ringkas seluruh ECN yang berstatus Progress beserta dampaknya.')
                   )
                 }
               >
-                {t('ecn.ai.chip_in_progress', '💡 ECN In Progress')}
+                {t('ecn.ai.chip_in_progress', '💡 ECN Progress')}
               </button>
               <button
                 type="button"
@@ -1399,7 +1399,7 @@ ${
             >
               <option value="">{t('ecn.filter.all_status', 'Semua Status')}</option>
               <option value="Completed">Completed</option>
-              <option value="In Progress">In Progress</option>
+              <option value="Progress">Progress</option>
               <option value="Pending">Pending</option>
               <option value="ECO Cancel">ECO Cancel</option>
             </select>
@@ -1731,7 +1731,7 @@ ${
                   >
                     <option value="">{t('common.all', 'Semua')}</option>
                     <option value="Completed">Completed</option>
-                    <option value="In Progress">In Progress</option>
+                    <option value="Progress">Progress</option>
                     <option value="Pending">Pending</option>
                     <option value="ECO Cancel">ECO Cancel</option>
                   </select>
@@ -2628,7 +2628,7 @@ ${
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 >
                   <option value="Completed">Completed</option>
-                  <option value="In Progress">In Progress</option>
+                  <option value="Progress">Progress</option>
                   <option value="Pending">Pending</option>
                   <option value="ECO Cancel">ECO Cancel</option>
                 </select>

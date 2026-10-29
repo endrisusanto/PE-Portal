@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bell,
@@ -7,10 +7,10 @@ import {
   Check,
   AlertCircle,
   Calendar,
-  Sparkles,
-  RefreshCw,
   Mail,
   CheckCircle2,
+  Plus,
+  X,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
@@ -18,20 +18,32 @@ import { EmailChipInput } from '../common/EmailChipInput';
 import api from '../../api/client';
 import styles from './EcnReminderModal.module.css';
 
-const TIME_PRESETS = [
-  { label: '07:00 (Awal Shift 1)', time: '07:00' },
-  { label: '08:00 (Pagi Masuk Kerja)', time: '08:00' },
-  { label: '13:00 (Setelah Ishoma)', time: '13:00' },
-  { label: '16:00 (Awal Shift 2)', time: '16:00' },
-];
+const parseSendTimes = (str) => {
+  if (!str) return ['08:00'];
+  const matches = str.match(/\b\d{1,2}:\d{2}\b/g);
+  if (!matches || matches.length === 0) return ['08:00'];
+  const normalized = matches.map((m) => {
+    const [h, min] = m.split(':');
+    return `${h.padStart(2, '0')}:${min}`;
+  });
+  return Array.from(new Set(normalized)).sort();
+};
 
 export const EcnReminderModal = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
 
+  const timePresets = useMemo(() => [
+    { time: '07:00', label: t('ecn.reminder.preset_shift1', 'Shift 1') },
+    { time: '08:00', label: t('ecn.reminder.preset_morning', 'Pagi') },
+    { time: '13:00', label: t('ecn.reminder.preset_afternoon', 'Siang') },
+    { time: '16:00', label: t('ecn.reminder.preset_shift2', 'Shift 2') },
+  ], [t]);
+
   // Form State
   const [isEnabled, setIsEnabled] = useState(true);
   const [daysBefore, setDaysBefore] = useState(1);
-  const [sendTime, setSendTime] = useState('08:00');
+  const [selectedTimes, setSelectedTimes] = useState(['08:00']);
+  const [customTime, setCustomTime] = useState('09:00');
   const [recipients, setRecipients] = useState('');
   const [ccRecipients, setCcRecipients] = useState('');
   const [emailSubject, setEmailSubject] = useState('[REMINDER] ECN Running BOM Deadline Alert - SEIN PE');
@@ -61,7 +73,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
 
       setIsEnabled(Boolean(s.is_enabled));
       setDaysBefore(s.days_before || 1);
-      setSendTime(s.send_time || '08:00');
+      setSelectedTimes(parseSendTimes(s.send_time));
       setRecipients(s.recipients || '');
       setCcRecipients(s.cc_recipients || '');
       setEmailSubject(s.email_subject || '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE');
@@ -75,16 +87,47 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       console.error('Failed to load ECN reminder settings:', err);
       setFeedback({
         type: 'error',
-        message: err.response?.data?.message || 'Gagal memuat konfigurasi pengingat.',
+        message: err.response?.data?.message || t('ecn.reminder.load_error', 'Gagal memuat konfigurasi pengingat.'),
       });
     } finally {
       setLoading(false);
     }
-  }, [isOpen]);
+  }, [isOpen, t]);
 
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  // Toggle preset time in selectedTimes
+  const handleTogglePresetTime = (timeStr) => {
+    setSelectedTimes((prev) => {
+      if (prev.includes(timeStr)) {
+        const next = prev.filter((t) => t !== timeStr);
+        return next.length > 0 ? next : ['08:00'];
+      } else {
+        return [...prev, timeStr].sort();
+      }
+    });
+  };
+
+  // Add custom time into selectedTimes
+  const handleAddCustomTime = () => {
+    if (!customTime) return;
+    const [h, m] = customTime.split(':');
+    const formatted = `${h.padStart(2, '0')}:${m}`;
+    setSelectedTimes((prev) => {
+      if (prev.includes(formatted)) return prev;
+      return [...prev, formatted].sort();
+    });
+  };
+
+  // Remove specific time from selectedTimes
+  const handleRemoveTime = (timeStr) => {
+    setSelectedTimes((prev) => {
+      const next = prev.filter((t) => t !== timeStr);
+      return next.length > 0 ? next : ['08:00'];
+    });
+  };
 
   // Handle Save Settings
   const handleSave = async () => {
@@ -94,7 +137,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       const payload = {
         is_enabled: isEnabled,
         days_before: Number(daysBefore) || 1,
-        send_time: sendTime || '08:00',
+        send_time: selectedTimes.join(', ') || '08:00',
         recipients,
         cc_recipients: ccRecipients,
         email_subject: emailSubject,
@@ -104,7 +147,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       await api.put('/ecn/reminder/settings', payload);
       setFeedback({
         type: 'success',
-        message: 'Pengaturan pengingat email Running BOM berhasil disimpan!',
+        message: t('ecn.reminder.save_success', 'Pengaturan pengingat email Running BOM berhasil disimpan!'),
       });
       setTimeout(() => {
         onClose();
@@ -113,7 +156,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       console.error('Failed to save ECN reminder settings:', err);
       setFeedback({
         type: 'error',
-        message: err.response?.data?.message || 'Gagal menyimpan pengaturan.',
+        message: err.response?.data?.message || t('ecn.reminder.save_error', 'Gagal menyimpan pengaturan.'),
       });
     } finally {
       setSaving(false);
@@ -125,7 +168,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
     if (!recipients.trim()) {
       setFeedback({
         type: 'error',
-        message: 'Harap isi minimal 1 email penerima sebelum mengirim tes!',
+        message: t('ecn.reminder.require_recipient', 'Harap isi minimal 1 email penerima sebelum mengirim tes!'),
       });
       return;
     }
@@ -137,7 +180,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       await api.put('/ecn/reminder/settings', {
         is_enabled: isEnabled,
         days_before: Number(daysBefore) || 1,
-        send_time: sendTime || '08:00',
+        send_time: selectedTimes.join(', ') || '08:00',
         recipients,
         cc_recipients: ccRecipients,
         email_subject: emailSubject,
@@ -147,7 +190,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       const res = await api.post('/ecn/reminder/test');
       setFeedback({
         type: 'success',
-        message: res.data?.message || 'Email tes pengingat berhasil dikirim!',
+        message: res.data?.message || t('ecn.reminder.test_success', 'Email tes pengingat berhasil dikirim!'),
       });
       // Re-fetch to update lastLog
       fetchSettings();
@@ -155,7 +198,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       console.error('Failed to trigger test email:', err);
       setFeedback({
         type: 'error',
-        message: err.response?.data?.message || 'Gagal mengirim email tes.',
+        message: err.response?.data?.message || t('ecn.reminder.test_error', 'Gagal mengirim email tes.'),
       });
     } finally {
       setTesting(false);
@@ -171,9 +214,9 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
         onClick={handleTestSend}
         loading={testing}
         disabled={saving || loading}
-        title="Kirim email uji coba saat ini juga ke daftar penerima"
+        title={t('ecn.reminder.test_send_title', 'Kirim email uji coba saat ini juga ke daftar penerima')}
       >
-        Kirim Tes Email Sekarang
+        {t('ecn.reminder.test_send_btn', 'Kirim Tes Email Sekarang')}
       </Button>
 
       <div className={styles.footerRight}>
@@ -201,11 +244,11 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Bell size={18} style={{ color: 'var(--color-accent, #0d7377)' }} />
-          <span>Pengaturan Pengingat Running BOM (Email Reminder Worker)</span>
+          <span>{t('ecn.reminder.modal_title', 'Pengaturan Pengingat Running BOM')}</span>
         </div>
       }
       footer={modalFooter}
-      maxWidth="780px"
+      maxWidth="min(1080px, 94vw)"
     >
       <div className={styles.container}>
         {/* Feedback Alert */}
@@ -220,173 +263,294 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* Live Running BOM Status Card */}
-        <div className={`${styles.statusCard} ${dueCount > 0 ? styles.statusCardWarning : ''}`}>
-          <div className={styles.statusIconBadge}>
-            <Calendar size={18} />
-          </div>
-          <div className={styles.statusContent}>
-            <div className={styles.statusTitleRow}>
-              <h4 className={styles.statusTitle}>
-                {dueCount > 0
-                  ? `⚡ Terdeteksi ${dueCount} Dokumen ECN Jatuh Tempo`
-                  : '✓ Tidak Ada Dokumen ECN Jatuh Tempo'}
-              </h4>
-              <span className={styles.statusBadge}>Target: {targetDate || 'H-1'}</span>
+        {/* 1. Context Strip (Live Running BOM Status) */}
+        <div className={`${styles.statusBar} ${dueCount > 0 ? styles.statusBarWarning : ''}`}>
+          <div className={styles.statusLeft}>
+            <div className={`${styles.statusIconWrapper} ${dueCount > 0 ? styles.statusIconWarning : ''}`}>
+              <Calendar size={15} />
             </div>
-            <p className={styles.statusDesc}>
-              {dueCount > 0
-                ? `Terdapat ${dueCount} ECN aktif (Pending/In Progress) yang jatuh tempo Running BOM untuk target ${targetDate}. Seluruhnya akan dikirimkan otomatis ke PIC.`
-                : `Tidak ada ECN berstatus Pending yang jatuh tempo pada target tanggal ${targetDate}. Worker akan melewati pengiriman email kosong.`}
-            </p>
+            <div className={styles.statusDetails}>
+              <div className={styles.statusMainRow}>
+                <span className={styles.statusHeading}>
+                  {dueCount > 0
+                    ? t('ecn.reminder.status_due', '{{count}} Dokumen ECN Jatuh Tempo', { count: dueCount })
+                    : t('ecn.reminder.status_none_due', 'Tidak Ada Dokumen ECN Jatuh Tempo')}
+                </span>
+                <span className={styles.targetDatePill}>
+                  {t('ecn.reminder.target_pill', 'Target: {{target}}', { target: targetDate || 'H-1' })}
+                </span>
+              </div>
+              <span className={styles.statusSubText}>
+                {dueCount > 0
+                  ? t('ecn.reminder.desc_due', 'ECN aktif (Pending / Progress) yang mendekati Running BOM akan dikirim otomatis ke PIC.')
+                  : t('ecn.reminder.desc_none_due', 'Semua ECN terpantau aman. Worker akan melewati pengiriman jika tidak ada data jatuh tempo.')}
+              </span>
 
-            {/* List of ECN Chips preview */}
-            {dueRecords && dueRecords.length > 0 && (
-              <div className={styles.dueChipList}>
-                {dueRecords.slice(0, 8).map((r) => (
-                  <span key={r.id || r.ecn_no} className={styles.dueChip} title={`${r.model} - ${r.ec_title}`}>
-                    {r.ecn_no} ({r.model || 'Model'})
+              {/* Inline list of ECN Chips preview */}
+              {dueRecords && dueRecords.length > 0 && (
+                <div className={styles.dueInlineChips}>
+                  {dueRecords.slice(0, 8).map((r) => (
+                    <span
+                      key={r.id || r.ecn_no}
+                      className={styles.dueChipItem}
+                      title={`${r.model} - ${r.ec_title}`}
+                    >
+                      {r.ecn_no} ({r.model || 'Model'})
+                    </span>
+                  ))}
+                  {dueRecords.length > 8 && (
+                    <span className={styles.dueChipItem}>+{dueRecords.length - 8} lainnya</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right side audit trail */}
+          {lastLog && (
+            <div className={styles.statusRightAudit}>
+              <span>
+                {t('ecn.reminder.audit_label', 'Status Email Terakhir')}:{' '}
+                {new Date(lastLog.sent_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+              </span>
+              {lastLog.status === 'SUCCESS' && (
+                <span
+                  className={`${styles.auditStatusBadge} ${styles.auditSuccess}`}
+                  title={t('ecn.reminder.audit_success_tooltip', 'Email pengingat berhasil dikirim ke daftar penerima')}
+                >
+                  <Check size={11} />
+                  <span>{t('ecn.reminder.audit_success', 'Terkirim ({{count}} ECN)', { count: lastLog.item_count })}</span>
+                </span>
+              )}
+              {lastLog.status === 'SKIPPED' && (
+                <span
+                  className={`${styles.auditStatusBadge} ${styles.auditSkipped}`}
+                  title={t('ecn.reminder.audit_skipped_tooltip', 'Pengecekan selesai. Tidak ada ECN jatuh tempo, pengiriman dilewati secara aman.')}
+                >
+                  <CheckCircle2 size={11} />
+                  <span>{t('ecn.reminder.audit_skipped', 'Aman (0 ECN - Dilewati)')}</span>
+                </span>
+              )}
+              {lastLog.status === 'FAILED' && (
+                <span
+                  className={`${styles.auditStatusBadge} ${styles.auditFailed}`}
+                  title={`${t('ecn.reminder.audit_tooltip_prefix', 'Penyebab Gagal:')} ${lastLog.error_message || t('ecn.reminder.smtp_error_tooltip', 'Koneksi ke server gateway SMTP gagal')}`}
+                >
+                  <AlertCircle size={11} />
+                  <span>{t('ecn.reminder.audit_failed_smtp', 'Gagal Kirim (SMTP)')}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 2. Structured Two-Column Body */}
+        <div className={styles.bodyGrid}>
+          {/* Column 1: Penjadwalan & Waktu */}
+          <div className={styles.panelCard}>
+            <div className={styles.panelHeader}>
+              <h5 className={styles.panelTitle}>
+                <Clock size={13} />
+                <span>{t('ecn.reminder.panel_schedule', 'Jadwal & Waktu Pengecekan')}</span>
+              </h5>
+            </div>
+
+            {/* Master Switch Row */}
+            <div className={styles.masterSwitchRow}>
+              <div className={styles.masterSwitchInfo}>
+                <div className={styles.masterSwitchTitleRow}>
+                  <span className={styles.masterSwitchTitle}>
+                    {t('ecn.reminder.worker_toggle', 'Worker Otomatis')}
+                  </span>
+                  <span
+                    className={`${styles.masterStatusPill} ${
+                      isEnabled ? styles.masterActive : styles.masterInactive
+                    }`}
+                  >
+                    {isEnabled
+                      ? t('ecn.reminder.worker_active', 'Aktif')
+                      : t('ecn.reminder.worker_inactive', 'Nonaktif')}
+                  </span>
+                </div>
+                <span className={styles.masterSwitchSub}>
+                  {t('ecn.reminder.worker_sub', 'Scheduler Go mengecek target Running BOM setiap hari')}
+                </span>
+              </div>
+              <label className={styles.switch} title="Aktifkan atau nonaktifkan scheduler worker">
+                <input
+                  type="checkbox"
+                  checked={isEnabled}
+                  onChange={(e) => setIsEnabled(e.target.checked)}
+                />
+                <span className={styles.slider} />
+              </label>
+            </div>
+
+            <hr className={styles.panelDivider} />
+
+            {/* Multi-Schedule Slot Section */}
+            <div className={styles.scheduleSection}>
+              <div className={styles.scheduleHeaderRow}>
+                <label className={styles.scheduleLabel}>
+                  <span>{t('ecn.reminder.send_time_label', 'Jam Pengiriman Harian (WIB)')}</span>
+                </label>
+                <span className={styles.scheduleCountBadge}>
+                  {t('ecn.reminder.times_per_day', '{{count}}x sehari', { count: selectedTimes.length })}
+                </span>
+              </div>
+
+              {/* Quick Preset Segmented Buttons */}
+              <div className={styles.presetsGrid}>
+                {timePresets.map((p) => {
+                  const isSelected = selectedTimes.includes(p.time);
+                  return (
+                    <button
+                      key={p.time}
+                      type="button"
+                      className={`${styles.presetChipBtn} ${
+                        isSelected ? styles.presetChipActive : ''
+                      }`}
+                      onClick={() => handleTogglePresetTime(p.time)}
+                      title={`Klik untuk ${isSelected ? 'menonaktifkan' : 'mengaktifkan'} jadwal ${p.time}`}
+                    >
+                      <span className={styles.presetChipTime}>{p.time}</span>
+                      <span className={styles.presetChipSub}>{p.label}</span>
+                      <span className={styles.presetChipIcon}>
+                        {isSelected ? <Check size={12} /> : <Plus size={12} />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Time Adder */}
+              <div className={styles.customTimeAdderRow}>
+                <input
+                  type="time"
+                  className={styles.timeInput}
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                  title="Pilih jam kustom"
+                />
+                <button
+                  type="button"
+                  className={styles.addScheduleBtn}
+                  onClick={handleAddCustomTime}
+                  title={t('ecn.reminder.add_custom_title', 'Tambahkan jam kustom ke daftar jadwal aktif')}
+                >
+                  <Plus size={13} />
+                  <span>{t('ecn.reminder.add_schedule_btn', 'Tambah')}</span>
+                </button>
+              </div>
+
+              {/* Active Slots Bar */}
+              <div className={styles.activeSlotsBar}>
+                {selectedTimes.map((tVal) => (
+                  <span key={tVal} className={styles.activeSlotItem}>
+                    <Clock size={11} />
+                    <span>{t('ecn.reminder.active_wib', '{{time}} WIB', { time: tVal })}</span>
+                    <button
+                      type="button"
+                      className={styles.slotDeleteBtn}
+                      onClick={() => handleRemoveTime(tVal)}
+                      title={t('ecn.reminder.remove_time_title', 'Hapus jadwal {{time}}', { time: tVal })}
+                      disabled={selectedTimes.length === 1}
+                    >
+                      <X size={12} />
+                    </button>
                   </span>
                 ))}
-                {dueRecords.length > 8 && (
-                  <span className={styles.dueChip}>+{dueRecords.length - 8} lainnya</span>
-                )}
-              </div>
-            )}
-
-            {lastLog && (
-              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                Terakhir dikirim: {new Date(lastLog.sent_at).toLocaleString('id-ID')} ({lastLog.item_count} ECN) • Status:{' '}
-                <strong style={{ color: lastLog.status === 'SUCCESS' ? '#10b981' : '#ef4444' }}>
-                  {lastLog.status}
-                </strong>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Toggle Worker Active */}
-        <div className={styles.toggleRow}>
-          <div className={styles.toggleInfo}>
-            <span className={styles.toggleLabel}>Aktifkan Pengingat Otomatis Harian</span>
-            <span className={styles.toggleSub}>
-              Worker Go akan memantau waktu harian dan mengirim email alert secara otomatis
-            </span>
-          </div>
-          <label className={styles.switch}>
-            <input
-              type="checkbox"
-              checked={isEnabled}
-              onChange={(e) => setIsEnabled(e.target.checked)}
-            />
-            <span className={styles.slider} />
-          </label>
-        </div>
-
-        {/* Form Inputs Grid */}
-        <div className={styles.formGrid}>
-          {/* Custom Time Input (ponytail: native time picker + quick chips) */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              <Clock size={14} />
-              <span>Jam Pengiriman Harian (WIB)</span>
-            </label>
-            <div className={styles.timeWrapper}>
-              <input
-                type="time"
-                className={styles.timeInput}
-                value={sendTime}
-                onChange={(e) => setSendTime(e.target.value)}
-              />
-              <div className={styles.quickChipsRow}>
-                {TIME_PRESETS.map((p) => (
-                  <button
-                    key={p.time}
-                    type="button"
-                    className={`${styles.quickChipBtn} ${
-                      sendTime === p.time ? styles.quickChipActive : ''
-                    }`}
-                    onClick={() => setSendTime(p.time)}
-                  >
-                    {p.time}
-                  </button>
-                ))}
               </div>
             </div>
-            <span className={styles.helperText}>
-              Waktu di mana worker otomatis mengecek & mengirim email (Zona Waktu: WIB).
-            </span>
+
+            <hr className={styles.panelDivider} />
+
+            {/* Lead Time (Days Before) */}
+            <div className={styles.formGroup}>
+              <label className={styles.inputLabel}>
+                <Calendar size={13} />
+                <span>{t('ecn.reminder.lead_time_label', 'Ambang Batas Hari Sebelum Deadline (Lead Time)')}</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="30"
+                className={styles.inputField}
+                value={daysBefore}
+                onChange={(e) => setDaysBefore(Math.max(0, parseInt(e.target.value) || 0))}
+              />
+              <span className={styles.fieldHelper}>
+                {t('ecn.reminder.lead_time_helper', 'Contoh: 1 berarti pengingat dikirim 1 hari sebelum Running BOM date (H-1).')}
+              </span>
+            </div>
           </div>
 
-          {/* Lead Time (Days Before) */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              <Calendar size={14} />
-              <span>Ambang Hari Sebelum Deadline (Lead Time)</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="30"
-              className={styles.input}
-              value={daysBefore}
-              onChange={(e) => setDaysBefore(Math.max(0, parseInt(e.target.value) || 0))}
-            />
-            <span className={styles.helperText}>
-              Contoh: <strong>1</strong> berarti pengingat dikirim 1 hari sebelum Running BOM date (H-1).
-            </span>
-          </div>
+          {/* Column 2: Notifikasi & Penerima */}
+          <div className={styles.panelCard}>
+            <div className={styles.panelHeader}>
+              <h5 className={styles.panelTitle}>
+                <Mail size={13} />
+                <span>{t('ecn.reminder.panel_email', 'Notifikasi & Penerima Email')}</span>
+              </h5>
+            </div>
 
-          {/* Email Subject */}
-          <div className={styles.formGroupFull}>
-            <label className={styles.label}>
-              <Mail size={14} />
-              <span>Subjek Email Pengingat</span>
-            </label>
-            <input
-              type="text"
-              className={styles.input}
-              value={emailSubject}
-              onChange={(e) => setEmailSubject(e.target.value)}
-              placeholder="[REMINDER] ECN Running BOM Deadline Alert - SEIN PE"
-            />
-          </div>
+            {/* Email Subject */}
+            <div className={styles.formGroup}>
+              <label className={styles.inputLabel}>
+                <Mail size={13} />
+                <span>{t('ecn.reminder.subject_label', 'Subjek Email Pengingat')}</span>
+              </label>
+              <input
+                type="text"
+                className={styles.inputField}
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder={t('ecn.reminder.subject_placeholder', '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE')}
+              />
+            </div>
 
-          {/* Recipients (To) with EmailChipInput */}
-          <div className={styles.formGroupFull}>
-            <EmailChipInput
-              label="Daftar Email Penerima (To) - Wajib"
-              value={recipients}
-              onChange={setRecipients}
-              placeholder="Ketik email penerima (misal endri.s@samsung.com) lalu tekan Enter atau koma..."
-              required
-            />
-            <span className={styles.helperText}>
-              Bisa memasukkan banyak email sekaligus. Tekan <strong>Enter</strong> atau <strong>koma</strong> untuk menambah chip email.
-            </span>
-          </div>
+            {/* Recipients (To) */}
+            <div className={styles.formGroup}>
+              <EmailChipInput
+                label={t('ecn.reminder.recipients_label', 'Daftar Email Penerima (To) - Wajib')}
+                value={recipients}
+                onChange={setRecipients}
+                placeholder={t('ecn.reminder.recipients_placeholder', 'Ketik email (misal endri.s@samsung.com) lalu tekan Enter...')}
+                required
+              />
+              <span className={styles.fieldHelper}>
+                {t('ecn.reminder.recipients_helper', 'Tekan Enter atau koma untuk menambah chip email.')}
+              </span>
+            </div>
 
-          {/* CC Recipients */}
-          <div className={styles.formGroupFull}>
-            <EmailChipInput
-              label="Daftar Email Tembusan (CC) - Opsional"
-              value={ccRecipients}
-              onChange={setCcRecipients}
-              placeholder="Ketik email tembusan (CC) lalu tekan Enter..."
-            />
-          </div>
+            {/* CC Recipients */}
+            <div className={styles.formGroup}>
+              <EmailChipInput
+                label={t('ecn.reminder.cc_label', 'Daftar Email Tembusan (CC) - Opsional')}
+                value={ccRecipients}
+                onChange={setCcRecipients}
+                placeholder={t('ecn.reminder.cc_placeholder', 'Ketik email tembusan (CC) lalu tekan Enter...')}
+              />
+            </div>
 
-          {/* Checkbox include overdue */}
-          <div className={styles.formGroupFull}>
-            <label className={styles.checkboxRow}>
+            <hr className={styles.panelDivider} />
+
+            {/* Include Overdue Option */}
+            <label className={styles.checkboxContainer}>
               <input
                 type="checkbox"
+                className={styles.checkboxInput}
                 checked={includeOverdue}
                 onChange={(e) => setIncludeOverdue(e.target.checked)}
               />
-              <span>
-                <strong>Sertakan ECN Overdue:</strong> Tetap ingatkan ECN berstatus Pending yang tanggal Running BOM-nya telah lewat hari ini namun belum selesai.
-              </span>
+              <div className={styles.checkboxTextCol}>
+                <span className={styles.checkboxTitle}>
+                  {t('ecn.reminder.overdue_title', 'Sertakan ECN Overdue')}
+                </span>
+                <span className={styles.checkboxDesc}>
+                  {t('ecn.reminder.overdue_desc', 'Tetap kirimkan dokumen ECN jika tanggal Running BOM telah lewat hari ini namun status belum Completed / ECO Cancel.')}
+                </span>
+              </div>
             </label>
           </div>
         </div>
