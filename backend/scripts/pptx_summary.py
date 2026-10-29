@@ -61,10 +61,16 @@ def clean_and_format_text(text, is_action=False):
     unwanted_phrases = [
         "sein mx product engineering",
         "technical report",
+        "in process technical report",
         "drafter",
         "part leader",
         "group leader",
-        "problem information"
+        "problem information",
+        "detail report",
+        "sample cn",
+        "sample qty",
+        "defect location",
+        "defect date"
     ]
 
     lines = str(text).split("\n")
@@ -159,28 +165,142 @@ def extract_sections_from_full_text(full_slide_text, conclusions_list, actions_l
             actions_list.append(extracted_act)
 
 
+def clean_metadata_label(text):
+    """Membersihkan teks label tabel metadata (menghilangkan bullet, spasi ganda, titik dua)."""
+    if not text:
+        return ""
+    cleaned = re.sub(r'\s+', ' ', str(text)).strip()
+    return cleaned.strip("-•* :").lower()
+
+
+def clean_metadata_value(text):
+    """Membersihkan nilai isi metadata (menghilangkan bullet dan memformat baris bersih)."""
+    if not text:
+        return ""
+    s = clean_cell_str(text).strip()
+    lines = [re.sub(r'^[•\-\*–\s]+', '', line).strip() for line in s.split('\n')]
+    lines = [l for l in lines if l]
+    return ", ".join(lines) if len(lines) > 1 else (lines[0] if lines else "")
+
+
+def is_cn_label(label):
+    """Mendeteksi apakah label adalah identifier CN / Tracking / Serial Number."""
+    if not label:
+        return False
+    norm = re.sub(r'[^a-z0-9/]', ' ', label.lower())
+    words = norm.split()
+    if not words:
+        return False
+    if 'c/n' in norm or 's/n' in norm:
+        return True
+    if any(w in ('cn', 'sn', 'serial') for w in words):
+        return True
+    if 'samplecn' in norm or 'trackingcn' in norm or 'samplesn' in norm:
+        return True
+    if norm.endswith('cn') or norm.endswith('sn'):
+        return True
+    return False
+
+
+def is_qty_label(label):
+    """Mendeteksi apakah label adalah Defect Qty atau Sample Qty (bukan CN)."""
+    if not label or is_cn_label(label):
+        return False
+    if label[0].isdigit():
+        return False
+    norm = re.sub(r'[^a-z0-9]', ' ', label.lower())
+    words = norm.split()
+    if not words:
+        return False
+    if any(w in ('qty', 'quantity') for w in words):
+        return True
+    if 'sampleqty' in norm or 'defectqty' in norm:
+        return True
+    if "q'ty" in label.lower() or 'qty' in label.lower() or 'quantity' in label.lower():
+        return True
+    if words == ['sample']:
+        return True
+    if norm in ('sample ea', 'sample pcs', 'defect ea', 'qty ea'):
+        return True
+    return False
+
+
+def is_probable_cn_value(val):
+    """Mendeteksi apakah suatu teks kemungkinan besar adalah nomor CN/Serial (bukan quantity)."""
+    if not val:
+        return False
+    s = str(val).strip()
+    if ',' in s or ';' in s:
+        return True
+    if len(s) >= 10 and re.search(r'\d+[a-zA-Z]|[a-zA-Z]+\d+', s):
+        return True
+    return False
+
+
 def match_table_metadata(row_texts, data):
     """Mencocokkan baris tabel metadata standar Samsung OQC / PE (Model, Problem, CN, dll)."""
     for i, cell_text in enumerate(row_texts):
-        cell_clean = clean_and_format_text(cell_text).lstrip("- ").strip()
-        cell_lower = cell_clean.lower()
+        label = clean_metadata_label(cell_text)
+        if not label:
+            continue
         if i + 1 < len(row_texts):
-            next_val = clean_and_format_text(row_texts[i + 1]).lstrip("- ").strip()
+            raw_val = row_texts[i + 1]
+            next_val = clean_metadata_value(raw_val)
             if not next_val:
                 continue
 
-            if cell_lower == "model" and not data["Model"]:
+            if (label == 'model' or label.startswith('model')) and not data["Model"]:
                 data["Model"] = next_val
-            elif cell_lower == "problem" and not data["Problem"]:
+            elif (label == 'problem' or label.startswith('problem')) and not data["Problem"]:
                 data["Problem"] = next_val
-            elif (cell_lower == "cn" or "sample cn" in cell_lower or "tracking cn" in cell_lower or cell_lower.endswith(" cn")) and not data["CN"]:
-                data["CN"] = next_val
-            elif ("defect date" in cell_lower or "date" in cell_lower) and not data["Defect Date"]:
+            elif is_cn_label(label):
+                if not data["CN"] or is_probable_cn_value(next_val):
+                    data["CN"] = next_val
+                # Jika Defect Qty sebelumnya salah terisi nilai CN ini, bersihkan!
+                if data.get('Defect Qty') == next_val:
+                    data['Defect Qty'] = ''
+            elif ('defect date' in label or label == 'date' or label.endswith('date')) and not data["Defect Date"]:
                 data["Defect Date"] = next_val
-            elif ("defect location" in cell_lower or "location" in cell_lower) and not data["Defect Location"]:
+            elif ('defect location' in label or 'location' in label) and not data["Defect Location"]:
                 data["Defect Location"] = next_val
-            elif ("qty" in cell_lower or "quantity" in cell_lower or cell_lower in ("sample", "sample (ea)", "sample(ea)")) and "cn" not in cell_lower and not data["Defect Qty"]:
-                data["Defect Qty"] = next_val
+            elif is_qty_label(label):
+                if not is_probable_cn_value(next_val):
+                    data["Defect Qty"] = next_val
+                elif not data["CN"]:
+                    data["CN"] = next_val
+
+
+def extract_metadata_from_text(full_text, data):
+    """Ekstraksi metadata fallback dari format key-value baris teks (e.g. 'Sample CN: ...' atau 'Sample QTY: 7 ea')."""
+    if not full_text:
+        return
+    for line in full_text.split('\n'):
+        line_clean = line.strip()
+        if not line_clean or ':' not in line_clean:
+            continue
+        parts = line_clean.split(':', 1)
+        k = clean_metadata_label(parts[0])
+        v = clean_metadata_value(parts[1])
+        if not k or not v:
+            continue
+        if (k == 'model' or k.startswith('model')) and not data["Model"]:
+            data["Model"] = v
+        elif (k == 'problem' or k.startswith('problem')) and not data["Problem"]:
+            data["Problem"] = v
+        elif is_cn_label(k):
+            if not data["CN"] or is_probable_cn_value(v):
+                data["CN"] = v
+            if data.get("Defect Qty") == v:
+                data["Defect Qty"] = ""
+        elif ('defect date' in k or k == 'date' or k.endswith('date')) and not data["Defect Date"]:
+            data["Defect Date"] = v
+        elif ('defect location' in k or 'location' in k) and not data["Defect Location"]:
+            data["Defect Location"] = v
+        elif is_qty_label(k):
+            if not is_probable_cn_value(v):
+                data["Defect Qty"] = v
+            elif not data["CN"]:
+                data["CN"] = v
 
 
 def parse_with_python_pptx(file_path):
@@ -221,7 +341,14 @@ def parse_with_python_pptx(file_path):
                 if content:
                     full_slide_text += content + "\n"
 
+        extract_metadata_from_text(full_slide_text, data)
         extract_sections_from_full_text(full_slide_text, conclusions_list, actions_list)
+
+    # Sanity check: Defect Qty should not hold a CN string
+    if is_probable_cn_value(data.get("Defect Qty")):
+        if not data.get("CN"):
+            data["CN"] = data["Defect Qty"]
+        data["Defect Qty"] = "1 ea"
 
     data["Symptom/Analysis/Conclusion"] = "\n".join(conclusions_list).strip()
     data["Action & Countermeasure"] = "\n".join(actions_list).strip()
@@ -282,18 +409,30 @@ def parse_with_xml_fallback(file_path):
                     for tr in tbl.findall('.//a:tr', ns):
                         row_texts = []
                         for tc in tr.findall('.//a:tc', ns):
-                            tc_runs = tc.findall('.//a:t', ns)
-                            tc_text = "".join([t.text or "" for t in tc_runs]).strip()
+                            p_texts = []
+                            for p in tc.findall('.//a:p', ns):
+                                runs = p.findall('.//a:t', ns)
+                                p_text = "".join([t.text or "" for t in runs]).strip()
+                                if p_text:
+                                    p_texts.append(p_text)
+                            tc_text = "\n".join(p_texts).strip()
                             row_texts.append(tc_text)
 
                         match_table_metadata(row_texts, data)
                         if row_texts:
                             full_slide_text += "\n".join(row_texts) + "\n"
 
+                extract_metadata_from_text(full_slide_text, data)
                 extract_sections_from_full_text(full_slide_text, conclusions_list, actions_list)
 
             except Exception:
                 continue
+
+    # Sanity check: Defect Qty should not hold a CN string
+    if is_probable_cn_value(data.get("Defect Qty")):
+        if not data.get("CN"):
+            data["CN"] = data["Defect Qty"]
+        data["Defect Qty"] = "1 ea"
 
     data["Symptom/Analysis/Conclusion"] = "\n".join(conclusions_list).strip()
     data["Action & Countermeasure"] = "\n".join(actions_list).strip()
