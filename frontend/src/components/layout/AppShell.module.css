@@ -180,3 +180,94 @@
     padding: var(--space-4);
   }
 }
+
+/* Guest Body Restriction Guard - Ponytail */
+.contentRestricted {
+  position: relative;
+}
+
+.bodyContentDisabled {
+  pointer-events: none !important;
+  user-select: none !important;
+  filter: blur(1px) grayscale(15%);
+  opacity: 0.72;
+  transition: filter var(--transition-normal, 200ms ease), opacity var(--transition-normal, 200ms ease);
+}
+
+.guestGuardOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.03);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20px;
+}
+
+.guestFloatingBanner {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.18), 0 2px 6px -1px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-full, 9999px);
+  padding: 8px 16px 8px 14px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs, 12px);
+  animation: slideDown 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+
+.guestBannerIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-warning-subtle, rgba(234, 134, 0, 0.15));
+  color: var(--color-warning, #ea8600);
+  flex-shrink: 0;
+}
+
+.guestBannerText {
+  line-height: 1.4;
+}
+
+.guestBannerText strong {
+  color: var(--color-accent);
+}
+
+.guestBannerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast, 120ms ease);
+  box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
+}
+
+.guestBannerBtn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+

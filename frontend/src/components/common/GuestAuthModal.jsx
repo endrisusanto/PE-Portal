@@ -45,31 +45,31 @@ export const GuestAuthModal = ({
         <div className={styles.content}>
           <div className={styles.badge}>
             <Eye size={13} />
-            <span>Mode Tamu (View Only)</span>
+            <span>Mode Tamu (Sidebar Only)</span>
           </div>
 
           <h2 id="guest-modal-title" className={styles.title}>
-            Wajib Login dengan ADCorp
+            Wajib Login dengan Akun ADCorp
           </h2>
 
           <p className={styles.description}>
-            Anda saat ini mengakses <strong>PE-Portal</strong> dengan akses <strong>Guest (Hanya Lihat)</strong>.
-            Untuk melakukan aksi penambahan, perubahan, atau penghapusan data
+            Akun <strong>Guest (Tamu)</strong> hanya diizinkan untuk melihat menu pada <strong>Sidebar</strong>.
+            Untuk mengakses, melihat detail penuh, atau berinteraksi dengan konten portal
             {actionName ? (
               <span className={styles.actionHighlight}> ({actionName})</span>
             ) : (
-              ' (Write / Update)'
+              ''
             )}
             , Anda diwajibkan login menggunakan akun <strong>ADCorp SEIN</strong>.
           </p>
 
           <div className={styles.featureBox}>
             <div className={styles.featureRow}>
-              <span className={styles.featureLabel}>Status Sesi</span>
-              <span className={styles.featureValueGuest}>Guest (View Only)</span>
+              <span className={styles.featureLabel}>Akses Saat Ini</span>
+              <span className={styles.featureValueGuest}>Guest (Sidebar Only)</span>
             </div>
             <div className={styles.featureRow}>
-              <span className={styles.featureLabel}>Otentikasi</span>
+              <span className={styles.featureLabel}>Otentikasi Diperlukan</span>
               <span className={styles.featureValueAuth}>ADCorp LDAP / SSO</span>
             </div>
           </div>
@@ -92,7 +92,7 @@ export const GuestAuthModal = ({
             className={styles.secondaryBtn}
             onClick={onClose}
           >
-            Tetap Sebagai Guest (Hanya Lihat)
+            Tetap Sebagai Guest (Hanya Lihat Menu)
           </button>
         </div>
       </div>
