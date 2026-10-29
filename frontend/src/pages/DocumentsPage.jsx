@@ -26,6 +26,7 @@ import {
   CheckSquare,
   Loader2,
   FileCode,
+  Sparkles,
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/common/Button';
@@ -47,6 +48,87 @@ const CATEGORY_MAP = {
   report: 'Quality & Failure Analysis',
   other: 'General Archive',
 };
+
+// ponytail: lightweight animated status fallback & document skeleton while parsing markdown
+const MarkdownSkeletonFallback = ({ t }) => (
+  <div className={styles.markdownLoadingContainer}>
+    {/* Processing Status Banner */}
+    <div className={styles.processingHeader}>
+      <div className={styles.processingHeaderLeft}>
+        <div className={styles.processingIconWrap}>
+          <Loader2 size={18} className={styles.spin} />
+        </div>
+        <div className={styles.processingInfo}>
+          <div className={styles.processingTitle}>
+            <span>{t('documents.processing_md_title', 'Sedang Memproses Dokumen')}</span>
+            <span className={styles.processingBadge}>
+              <Sparkles size={11} />
+              AI Parser
+            </span>
+          </div>
+          <span className={styles.processingSubtitle}>
+            {t('documents.processing_md_sub', 'Mengekstrak teks, tabel, & struktur format Markdown...')}
+          </span>
+        </div>
+      </div>
+      <div className={styles.processingBadge}>
+        <RefreshCw size={11} className={styles.spin} />
+        <span>{t('common.processing', 'Memproses...')}</span>
+      </div>
+    </div>
+
+    {/* Document Skeleton View */}
+    <div className={styles.skeletonDocument}>
+      {/* Title skeleton */}
+      <div className={styles.skeletonBar} style={{ height: '24px', width: '48%', marginBottom: '4px' }} />
+
+      {/* Metadata pills skeleton */}
+      <div className={styles.skeletonRow}>
+        <div className={styles.skeletonBar} style={{ height: '16px', width: '85px', borderRadius: '10px' }} />
+        <div className={styles.skeletonBar} style={{ height: '16px', width: '115px', borderRadius: '10px' }} />
+        <div className={styles.skeletonBar} style={{ height: '16px', width: '75px', borderRadius: '10px' }} />
+      </div>
+
+      <div style={{ height: '8px' }} />
+
+      {/* Paragraph 1 skeleton */}
+      <div className={styles.skeletonBar} style={{ height: '13px', width: '100%' }} />
+      <div className={styles.skeletonBar} style={{ height: '13px', width: '94%' }} />
+      <div className={styles.skeletonBar} style={{ height: '13px', width: '76%' }} />
+
+      <div style={{ height: '6px' }} />
+
+      {/* Subheading skeleton */}
+      <div className={styles.skeletonBar} style={{ height: '18px', width: '30%', marginTop: '6px', marginBottom: '2px' }} />
+
+      {/* Table skeleton */}
+      <div className={styles.skeletonTable}>
+        <div className={styles.skeletonTableHeader}>
+          <div className={styles.skeletonBar} style={{ height: '12px', width: '75%' }} />
+          <div className={styles.skeletonBar} style={{ height: '12px', width: '55%' }} />
+          <div className={styles.skeletonBar} style={{ height: '12px', width: '65%' }} />
+        </div>
+        <div className={styles.skeletonTableRow}>
+          <div className={styles.skeletonBar} style={{ height: '11px', width: '88%' }} />
+          <div className={styles.skeletonBar} style={{ height: '11px', width: '80%' }} />
+          <div className={styles.skeletonBar} style={{ height: '11px', width: '45%' }} />
+        </div>
+        <div className={styles.skeletonTableRow} style={{ borderBottom: 'none' }}>
+          <div className={styles.skeletonBar} style={{ height: '11px', width: '60%' }} />
+          <div className={styles.skeletonBar} style={{ height: '11px', width: '92%' }} />
+          <div className={styles.skeletonBar} style={{ height: '11px', width: '50%' }} />
+        </div>
+      </div>
+
+      <div style={{ height: '6px' }} />
+
+      {/* Paragraph 2 skeleton */}
+      <div className={styles.skeletonBar} style={{ height: '13px', width: '98%' }} />
+      <div className={styles.skeletonBar} style={{ height: '13px', width: '88%' }} />
+      <div className={styles.skeletonBar} style={{ height: '13px', width: '62%' }} />
+    </div>
+  </div>
+);
 
 export const DocumentsPage = () => {
   const { t } = useTranslation();
@@ -1543,12 +1625,7 @@ export const DocumentsPage = () => {
                   padding: '20px',
                 }}>
                   {markdownLoading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '320px', gap: '12px' }}>
-                      <Loader2 size={32} className={styles.spin} color="var(--color-accent)" />
-                      <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {t('documents.extracting_md', 'Mengekstrak konten dokumen ke Markdown...')}
-                      </span>
-                    </div>
+                    <MarkdownSkeletonFallback t={t} />
                   ) : markdownError ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#ef4444' }}>
                       <AlertCircle size={36} style={{ margin: '0 auto 10px' }} />
