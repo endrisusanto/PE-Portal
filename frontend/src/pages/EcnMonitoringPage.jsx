@@ -38,6 +38,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
 import { EcnReminderModal } from '../components/ecn/EcnReminderModal';
 import { RichMessageContent } from '../components/chat/AiChatWindow';
+import { AiThinkingProgress } from '../components/common/AiThinkingProgress';
 import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import styles from './EcnMonitoringPage.module.css';
 
@@ -1293,30 +1294,9 @@ ${
 
               {isAiThinking && (
                 <div className={`${styles.aiMessageBubble} ${styles.aiMessageAssistant}`}>
-                  <div className={styles.aiThinkingBox}>
-                    <svg
-                      className={styles.aiCircleProgress}
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <circle
-                        className={styles.aiCircleTrack}
-                        cx="12"
-                        cy="12"
-                        r="9.5"
-                      />
-                      <circle
-                        className={styles.aiCircleIndicator}
-                        cx="12"
-                        cy="12"
-                        r="9.5"
-                      />
-                    </svg>
-                    <span className={styles.aiShimmerText}>
-                      {t('ecn.ai.thinking', 'AI sedang menganalisis database ECN...')}
-                    </span>
-                    <span className={styles.aiThinkingPulseDot} />
-                  </div>
+                  <AiThinkingProgress
+                    text={t('ecn.ai.thinking', 'AI sedang menganalisis database ECN...')}
+                  />
                 </div>
               )}
             </div>

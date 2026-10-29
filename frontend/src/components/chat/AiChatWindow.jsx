@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { portalConfirm } from '../../contexts/ConfirmContext';
+import { AiThinkingProgress } from '../common/AiThinkingProgress';
 import styles from './AiChatWindow.module.css';
 
 // Universal download blob helper
@@ -1160,10 +1161,10 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
           <div className={`${styles.messageRow} ${styles.assistantRow}`}>
             <span className={styles.messageSender}>PE Assistant</span>
             <div className={`${styles.messageBubble} ${styles.assistantBubble}`}>
-              <em style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={14} color="#3b82f6" />
-                {t('ai_chat.thinking', 'Sedang memproses...')} ({activeModel})
-              </em>
+              <AiThinkingProgress
+                text={t('ai_chat.thinking', 'Sedang memproses respon...')}
+                subtext={activeModel}
+              />
             </div>
           </div>
         )}

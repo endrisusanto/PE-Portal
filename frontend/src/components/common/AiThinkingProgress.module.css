@@ -1,0 +1,101 @@
+/* Ponytail: Zero-dependency, lightweight, GPU-accelerated circle progress & shimmer text */
+@keyframes circleSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes textShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 6px;
+  user-select: none;
+}
+
+.circleProgress {
+  width: 17px;
+  height: 17px;
+  animation: circleSpin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  flex-shrink: 0;
+  display: block;
+}
+
+.circleTrack {
+  fill: none;
+  stroke: var(--color-border, rgba(0, 0, 0, 0.12));
+  stroke-width: 2.75;
+}
+
+:global([data-theme="dark"]) .circleTrack {
+  stroke: rgba(255, 255, 255, 0.15);
+}
+
+.circleIndicator {
+  fill: none;
+  stroke: var(--color-accent, #1a73e8);
+  stroke-width: 2.75;
+  stroke-linecap: round;
+  stroke-dasharray: 38 60;
+  stroke-dashoffset: 0;
+}
+
+.shimmerText {
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 600;
+  letter-spacing: 0.15px;
+  background: linear-gradient(
+    90deg,
+    var(--color-text-secondary, #64748b) 0%,
+    var(--color-accent, #2563eb) 25%,
+    #38bdf8 50%,
+    var(--color-accent, #2563eb) 75%,
+    var(--color-text-secondary, #64748b) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 2.2s linear infinite;
+  display: inline-block;
+}
+
+.subtext {
+  font-size: 11.5px;
+  color: var(--color-text-muted, #94a3b8);
+  font-weight: 500;
+  margin-left: 2px;
+}
+
+.pulseDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--color-accent, #2563eb);
+  animation: pulseDot 1.4s ease-in-out infinite;
+  margin-left: 2px;
+  flex-shrink: 0;
+}

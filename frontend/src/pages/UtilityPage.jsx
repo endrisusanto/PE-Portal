@@ -50,6 +50,7 @@ import api from '../api/client';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { RichMessageContent, formatInline } from '../components/chat/AiChatWindow';
+import { AiThinkingProgress } from '../components/common/AiThinkingProgress';
 import styles from './UtilityPage.module.css';
 import { WITranslatorTab } from '../components/tools/WITranslatorTab';
 
@@ -4666,9 +4667,34 @@ Instruksi Analisis:
           })}
 
           {isAiThinking && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', color: 'var(--color-text-secondary)', fontSize: '12.5px' }}>
-              <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
-              <span>AI sedang menganalisis data markdown laporan PPTX...</span>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: '4px',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                color: 'var(--color-text-muted)',
+                padding: '0 4px',
+              }}>
+                <Bot size={12} color="#38bdf8" />
+                <span>PE AI Assistant</span>
+              </div>
+              <div style={{
+                maxWidth: '88%',
+                padding: '10px 14px',
+                borderRadius: '4px 14px 14px 14px',
+                backgroundColor: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)',
+              }}>
+                <AiThinkingProgress
+                  text={t('tools.pptx_ai_thinking', 'AI sedang menganalisis data markdown laporan PPTX...')}
+                />
+              </div>
             </div>
           )}
           <div ref={chatMessagesEndRef} />
