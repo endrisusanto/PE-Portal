@@ -51,6 +51,26 @@ def clean_cell_str(val):
     return ILLEGAL_XML_CHARS_RE.sub('', s)
 
 
+# ponytail: normalize dates (datetime objects, M/D/YYYY, etc.) to YYYY-MM-DD
+def clean_date_str(val):
+    if val is None:
+        return ""
+    if hasattr(val, 'strftime'):
+        return val.strftime('%Y-%m-%d')
+    s = clean_cell_str(val)
+    if not s or s == '-' or s.lower() == 'eco cancel':
+        return s
+    m = re.match(r'^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$', s)
+    if m:
+        p1, p2, y = int(m.group(1)), int(m.group(2)), m.group(3)
+        month = p2 if p1 > 12 else p1
+        day = p1 if p1 > 12 else p2
+        return f"{y}-{month:02d}-{day:02d}"
+    if re.match(r'^\d{4}-\d{2}-\d{2}', s):
+        return s[:10]
+    return s
+
+
 def is_drm_protected(file_path):
     """Check if the file has corporate DRM signatures or is encrypted."""
     try:
@@ -171,10 +191,11 @@ def parse_xlsx(file_path):
             has_any_content = False
             for c_idx, val in enumerate(r):
                 if c_idx in col_mapping:
-                    clean_val = clean_cell_str(val)
+                    k = col_mapping[c_idx]
+                    clean_val = clean_date_str(val) if k in ('running_date_bom', 'distribution_date') else clean_cell_str(val)
                     if clean_val:
                         has_any_content = True
-                    record[col_mapping[c_idx]] = clean_val
+                    record[k] = clean_val
 
             if not has_any_content:
                 return

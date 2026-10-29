@@ -653,8 +653,8 @@ export const EcnMonitoringPage = () => {
         specification: cols[13] || '',
         quantity: cols[14] || '',
         marking_point: cols[15] || '',
-        running_date_bom: cols[16] || '',
-        distribution_date: cols[17] || '',
+        running_date_bom: normalizeToDateInput(cols[16]) || cols[16] || '',
+        distribution_date: normalizeToDateInput(cols[17]) || cols[17] || '',
         status: cols[18] || '',
         remark: cols[19] || (cols.length > 20 ? cols.slice(19).join(' ') : ''),
       };
@@ -825,8 +825,8 @@ export const EcnMonitoringPage = () => {
       specification: item.specification || '',
       quantity: item.quantity || '',
       marking_point: item.marking_point || '',
-      running_date_bom: item.running_date_bom || '',
-      distribution_date: item.distribution_date || '',
+      running_date_bom: normalizeToDateInput(item.running_date_bom),
+      distribution_date: normalizeToDateInput(item.distribution_date),
       status: item.status || 'Pending',
       remark: item.remark || '',
     });
@@ -1066,6 +1066,31 @@ ${
   };
 
   // Status Badge Class Helper
+  // ponytail: Normalize multi-format date strings (M/D/YYYY, YYYY.MM.DD, etc.) into HTML5 input date 'YYYY-MM-DD'
+  const normalizeToDateInput = (val) => {
+    if (!val || typeof val !== 'string') return '';
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === '-' || trimmed.toLowerCase() === 'eco cancel') return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    const parts = trimmed.split(/[/.-]/);
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      }
+      if (parts[2].length === 4) {
+        const p1 = parseInt(parts[0], 10);
+        const p2 = parseInt(parts[1], 10);
+        const y = parts[2];
+        const m = p1 > 12 ? String(p2).padStart(2, '0') : String(p1).padStart(2, '0');
+        const d = p1 > 12 ? String(p1).padStart(2, '0') : String(p2).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+    }
+    const d = new Date(trimmed);
+    return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
+  };
+
   const getStatusBadgeClass = (status) => {
     const s = (status || '').toLowerCase();
     if (s === 'completed') return `${styles.statusBadge} ${styles.statusCompleted}`;
@@ -2644,7 +2669,7 @@ ${
                 <input
                   type="date"
                   className={styles.formInput}
-                  value={formData.running_date_bom}
+                  value={normalizeToDateInput(formData.running_date_bom)}
                   onChange={(e) => setFormData({ ...formData, running_date_bom: e.target.value })}
                   onClick={(e) => {
                     try {
@@ -2652,6 +2677,11 @@ ${
                     } catch (_) {}
                   }}
                 />
+                {editingItem?.running_date_bom && !normalizeToDateInput(editingItem.running_date_bom) && (
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                    Teks asli: <strong>{editingItem.running_date_bom}</strong>
+                  </span>
+                )}
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan1}`}>
@@ -2659,7 +2689,7 @@ ${
                 <input
                   type="date"
                   className={styles.formInput}
-                  value={formData.distribution_date}
+                  value={normalizeToDateInput(formData.distribution_date)}
                   onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
                   onClick={(e) => {
                     try {
@@ -2667,6 +2697,11 @@ ${
                     } catch (_) {}
                   }}
                 />
+                {editingItem?.distribution_date && !normalizeToDateInput(editingItem.distribution_date) && (
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                    Teks asli: <strong>{editingItem.distribution_date}</strong>
+                  </span>
+                )}
               </div>
 
               <div className={`${styles.formGroup} ${styles.colSpan2}`}>
