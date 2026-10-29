@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
 	"pe-portal/internal/util"
 )
@@ -38,17 +40,21 @@ type WITranslateJob struct {
 }
 
 type UtilityHandler struct {
-	llmRepo *repository.LLMRepository
-	wiJobs  sync.Map
+	llmRepo   *repository.LLMRepository
+	wiRepo    *repository.WITranslatorRepository
+	wiJobs    sync.Map
+	workerSem chan struct{}
 }
 
-func NewUtilityHandler(llmRepo ...*repository.LLMRepository) *UtilityHandler {
-	var repo *repository.LLMRepository
-	if len(llmRepo) > 0 {
-		repo = llmRepo[0]
+func NewUtilityHandler(llmRepo *repository.LLMRepository, wiRepo ...*repository.WITranslatorRepository) *UtilityHandler {
+	var wr *repository.WITranslatorRepository
+	if len(wiRepo) > 0 {
+		wr = wiRepo[0]
 	}
 	return &UtilityHandler{
-		llmRepo: repo,
+		llmRepo:   llmRepo,
+		wiRepo:    wr,
+		workerSem: make(chan struct{}, 2), // max 2 concurrent document translations
 	}
 }
 
@@ -956,6 +962,13 @@ func (h *UtilityHandler) DownloadTranslatedWIPDF(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Filename required"})
 	}
 
+	// ponytail: unescape URL encoded characters (e.g. %5BID%5D -> [ID], %20 -> space)
+	if decoded, err := url.PathUnescape(filename); err == nil && decoded != "" {
+		filename = decoded
+	} else if decoded, err := url.QueryUnescape(filename); err == nil && decoded != "" {
+		filename = decoded
+	}
+
 	cleanName := filepath.Base(filename)
 	storageDir := os.Getenv("FILE_STORAGE_PATH")
 	if storageDir == "" {
@@ -975,6 +988,389 @@ func (h *UtilityHandler) DownloadTranslatedWIPDF(c echo.Context) error {
 
 	return c.Attachment(filePath, cleanName)
 }
+
+// processWIJob runs pdf_wi_translator.py for a specific persistent job in background
+func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
+	if h.wiRepo == nil {
+		return
+	}
+
+	h.workerSem <- struct{}{}
+	defer func() { <-h.workerSem }()
+
+	ctx := context.Background()
+	_ = h.wiRepo.MarkProcessing(ctx, job.ID)
+
+	storageDir := os.Getenv("FILE_STORAGE_PATH")
+	if storageDir == "" {
+		storageDir = "/data/files"
+	}
+	_ = os.MkdirAll(storageDir, 0755)
+
+	timestamp := time.Now().Format("20060102_150405")
+	cleanBase := strings.TrimSuffix(filepath.Base(job.FileName), filepath.Ext(job.FileName))
+	outFilename := fmt.Sprintf("[%s]_WI_%s_%s.pdf", strings.ToUpper(job.TargetLang), cleanBase, timestamp)
+	outPath := filepath.Join(storageDir, outFilename)
+
+	scriptPath := filepath.Join("scripts", "pdf_wi_translator.py")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		scriptPath = filepath.Join("backend", "scripts", "pdf_wi_translator.py")
+		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+			scriptPath = "/app/scripts/pdf_wi_translator.py"
+		}
+	}
+
+	pythonBin := util.FindPythonExecutable()
+
+	cmdArgs := []string{
+		scriptPath,
+		"--input-file", job.FilePath,
+		"--output-pdf", outPath,
+		"--target-lang", job.TargetLang,
+		"--mode", job.Mode,
+		"--batch-size", "1",
+	}
+
+	if h.llmRepo != nil {
+		if cfg, _, err := h.llmRepo.GetActiveLLM(ctx, nil); err == nil && cfg != nil && cfg.IsActive {
+			if cfg.BaseURL != "" {
+				cmdArgs = append(cmdArgs, "--llm-url", cfg.BaseURL)
+			}
+			if cfg.ModelName != "" {
+				cmdArgs = append(cmdArgs, "--llm-model", cfg.ModelName)
+			}
+			if cfg.APIKey != "" {
+				cmdArgs = append(cmdArgs, "--llm-api-key", cfg.APIKey)
+			}
+		}
+	}
+
+	cmd := exec.Command(pythonBin, cmdArgs...)
+	cmd.Env = append(os.Environ(),
+		"PYTHONIOENCODING=utf-8",
+		"PYTHONUTF8=1",
+	)
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		_ = h.wiRepo.MarkFailed(ctx, job.ID, "Failed to create stdout pipe: "+err.Error())
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		_ = h.wiRepo.MarkFailed(ctx, job.ID, "Failed to start python translator: "+err.Error())
+		return
+	}
+
+	scanner := bufio.NewScanner(stdoutPipe)
+	var finalSuccess bool
+	var translatedBlocks int
+	var durationSec float64
+	var lastErr string
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var progressData map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &progressData); err == nil {
+			var currPage, totalPages int
+			var pct float64
+			var msg string
+
+			if curr, ok := progressData["current"].(float64); ok {
+				currPage = int(curr)
+			}
+			if tot, ok := progressData["total"].(float64); ok {
+				totalPages = int(tot)
+			}
+			if p, ok := progressData["percent"].(float64); ok {
+				pct = p
+			}
+			if m, ok := progressData["message"].(string); ok {
+				msg = m
+			}
+
+			if succ, ok := progressData["success"].(bool); ok && succ {
+				finalSuccess = true
+				if count, ok := progressData["translated_blocks"].(float64); ok {
+					translatedBlocks = int(count)
+				}
+				if dur, ok := progressData["duration_sec"].(float64); ok {
+					durationSec = dur
+				}
+			} else if errVal, ok := progressData["error"].(string); ok && errVal != "" {
+				lastErr = errVal
+			}
+
+			if currPage > 0 || totalPages > 0 || pct > 0 {
+				_ = h.wiRepo.UpdateProgress(ctx, job.ID, currPage, totalPages, pct, msg)
+			}
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		if !finalSuccess {
+			if lastErr == "" {
+				lastErr = "Process exit error: " + err.Error()
+			}
+			_ = h.wiRepo.MarkFailed(ctx, job.ID, lastErr)
+			return
+		}
+	}
+
+	if finalSuccess {
+		dlURL := fmt.Sprintf("/api/v1/utility/translate-wi-pdf/download/%s", outFilename)
+		_ = h.wiRepo.MarkCompleted(ctx, job.ID, outFilename, dlURL, translatedBlocks, durationSec)
+	} else if lastErr != "" {
+		_ = h.wiRepo.MarkFailed(ctx, job.ID, lastErr)
+	} else {
+		dlURL := fmt.Sprintf("/api/v1/utility/translate-wi-pdf/download/%s", outFilename)
+		_ = h.wiRepo.MarkCompleted(ctx, job.ID, outFilename, dlURL, translatedBlocks, durationSec)
+	}
+}
+
+// UploadWIJobs accepts multiple PDF uploads and creates persistent pending jobs
+func (h *UtilityHandler) UploadWIJobs(c echo.Context) error {
+	if h.wiRepo == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "WI repository not initialized")
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid multipart form: "+err.Error())
+	}
+
+	files := form.File["files"]
+	if len(files) == 0 {
+		files = form.File["file"]
+	}
+	if len(files) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "No files uploaded")
+	}
+
+	targetLang := c.FormValue("target_lang")
+	if targetLang == "" {
+		targetLang = "id"
+	}
+	mode := c.FormValue("mode")
+	if mode == "" {
+		mode = "replace"
+	}
+
+	storageDir := os.Getenv("FILE_STORAGE_PATH")
+	if storageDir == "" {
+		storageDir = "/data/files"
+	}
+	uploadDir := filepath.Join(storageDir, "wi_uploads")
+	_ = os.MkdirAll(uploadDir, 0755)
+
+	var createdJobs []*model.WITranslationJob
+
+	for _, file := range files {
+		if !strings.HasSuffix(strings.ToLower(file.Filename), ".pdf") {
+			continue // only PDFs allowed
+		}
+
+		src, err := file.Open()
+		if err != nil {
+			continue
+		}
+
+		jobID := uuid.New()
+		savedName := fmt.Sprintf("%s_%s", jobID.String(), file.Filename)
+		savedPath := filepath.Join(uploadDir, savedName)
+
+		dst, err := os.Create(savedPath)
+		if err != nil {
+			src.Close()
+			continue
+		}
+		_, err = io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+		if err != nil {
+			continue
+		}
+
+		job := &model.WITranslationJob{
+			ID:              jobID,
+			FileName:        file.Filename,
+			FilePath:        savedPath,
+			FileSize:        file.Size,
+			TargetLang:      targetLang,
+			Mode:            mode,
+			Status:          "pending",
+			CurrentPage:     0,
+			TotalPages:      0,
+			ProgressPercent: 0,
+			Message:         "Menunggu antrean untuk dieksekusi",
+		}
+
+		if err := h.wiRepo.Create(c.Request().Context(), job); err == nil {
+			createdJobs = append(createdJobs, job)
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"count":   len(createdJobs),
+		"jobs":    createdJobs,
+	})
+}
+
+// ListWIJobs returns all WI translation jobs from the database
+func (h *UtilityHandler) ListWIJobs(c echo.Context) error {
+	if h.wiRepo == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "WI repository not initialized")
+	}
+
+	jobs, err := h.wiRepo.List(c.Request().Context(), 100)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch jobs: "+err.Error())
+	}
+	if jobs == nil {
+		jobs = []*model.WITranslationJob{}
+	}
+	return c.JSON(http.StatusOK, jobs)
+}
+
+type ExecuteJobsReq struct {
+	JobIDs []string `json:"job_ids"`
+}
+
+// ExecuteWIJobs triggers processing for selected or pending jobs
+func (h *UtilityHandler) ExecuteWIJobs(c echo.Context) error {
+	if h.wiRepo == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "WI repository not initialized")
+	}
+
+	var req ExecuteJobsReq
+	_ = c.Bind(&req)
+
+	var uuids []uuid.UUID
+	for _, idStr := range req.JobIDs {
+		if u, err := uuid.Parse(idStr); err == nil {
+			uuids = append(uuids, u)
+		}
+	}
+
+	jobs, err := h.wiRepo.GetPendingJobs(c.Request().Context(), uuids)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get pending jobs: "+err.Error())
+	}
+
+	for _, job := range jobs {
+		j := job
+		go h.processWIJob(j)
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"queued":  len(jobs),
+		"message": fmt.Sprintf("%d berkas dimasukkan ke antrean terjemahan server", len(jobs)),
+	})
+}
+
+// DeleteWIJob deletes a single job and its associated files
+func (h *UtilityHandler) DeleteWIJob(c echo.Context) error {
+	if h.wiRepo == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "WI repository not initialized")
+	}
+
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid job id")
+	}
+
+	job, err := h.wiRepo.Delete(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete job: "+err.Error())
+	}
+
+	if job != nil {
+		_ = os.Remove(job.FilePath)
+		if job.TranslatedFile != "" {
+			storageDir := os.Getenv("FILE_STORAGE_PATH")
+			if storageDir == "" {
+				storageDir = "/data/files"
+			}
+			_ = os.Remove(filepath.Join(storageDir, job.TranslatedFile))
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Pekerjaan terjemahan berhasil dihapus",
+	})
+}
+
+type DeleteBatchReq struct {
+	JobIDs []string `json:"job_ids"`
+}
+
+// DeleteBatchWIJobs deletes multiple jobs and their associated files
+func (h *UtilityHandler) DeleteBatchWIJobs(c echo.Context) error {
+	if h.wiRepo == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "WI repository not initialized")
+	}
+
+	var req DeleteBatchReq
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	var uuids []uuid.UUID
+	for _, idStr := range req.JobIDs {
+		if u, err := uuid.Parse(idStr); err == nil {
+			uuids = append(uuids, u)
+		}
+	}
+
+	jobs, err := h.wiRepo.DeleteBatch(c.Request().Context(), uuids)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete jobs: "+err.Error())
+	}
+
+	storageDir := os.Getenv("FILE_STORAGE_PATH")
+	if storageDir == "" {
+		storageDir = "/data/files"
+	}
+	for _, job := range jobs {
+		_ = os.Remove(job.FilePath)
+		if job.TranslatedFile != "" {
+			_ = os.Remove(filepath.Join(storageDir, job.TranslatedFile))
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"deleted": len(jobs),
+		"message": fmt.Sprintf("%d pekerjaan berhasil dihapus", len(jobs)),
+	})
+}
+
+// DownloadWISourceFile serves the original uploaded PDF artifact
+func (h *UtilityHandler) DownloadWISourceFile(c echo.Context) error {
+	if h.wiRepo == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "WI repository not initialized")
+	}
+	jobID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid job ID")
+	}
+	job, err := h.wiRepo.GetByID(c.Request().Context(), jobID)
+	if err != nil || job == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Job not found")
+	}
+	if _, err := os.Stat(job.FilePath); os.IsNotExist(err) {
+		return c.JSON(http.StatusNotFound, map[string]string{"message": "Source file not found on server"})
+	}
+	return c.Attachment(job.FilePath, job.FileName)
+}
+
 
 
 

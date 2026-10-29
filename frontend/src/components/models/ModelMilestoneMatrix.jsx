@@ -150,6 +150,7 @@ export const MODERN_CATEGORIES = [
       { key: 'lqv_assembly', label: 'Assembly Line', hint: 'Main assembly trial run' },
       { key: 'lqv_inspection', label: 'Inspection & Test', hint: 'Quality control & testing' },
       { key: 'lqva', label: 'LQVA Full Audit', hint: 'Line Quality Verification Audit' },
+      { key: 'progress_prep_lqv', label: 'Progress Preparation LQV', hint: 'Persiapan LQV line readiness (%)' },
     ],
   },
   {
@@ -343,11 +344,10 @@ export const parseDateRangeFromText = (rawTarget, val) => {
   return { startDate: s, endDate: e };
 };
 
-// ponytail: format milestone table date value without week part (e.g. "3-Dec (W49)" -> "3-Dec")
+// ponytail: format milestone table date value
 export const formatTableCellValue = (val) => {
   if (!val || val === '-') return '-';
-  const clean = val.replace(/\s*\([wW]\d+\)/g, '').trim();
-  return clean || val;
+  return String(val).trim();
 };
 
 // Check if milestone value indicates deadline is approaching or passed
@@ -856,6 +856,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     if (combined.includes('subline')) return 'lqv_subline';
     if (combined.includes('smd sec') || combined.includes('smd secondary')) return 'lqv_smd_sec';
     if (combined.includes('smd main')) return 'lqv_smd_main';
+    if (combined.includes('disassembly')) return 'sample_disassembly';
     if (combined.includes('assembly')) return 'lqv_assembly';
     if (combined.includes('inspection') && !combined.includes('final')) return 'lqv_inspection';
 
@@ -871,7 +872,6 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     if (combined.includes('tkdn') && combined.includes('bom')) return 'sample_tkdn_bom';
     if (combined.includes('std oqc') || combined.includes('oqc')) return 'sample_std_oqc';
     if (combined.includes('std main')) return 'sample_std_main';
-    if (combined.includes('disassembly')) return 'sample_disassembly';
 
     if (combined.includes('working spec')) return 'working_spec_register';
     if (combined.includes('s/w') || combined.includes('sw confirm')) return 'sw_confirm_verify';
@@ -904,6 +904,8 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     if (combined.includes('postel')) return 'postel_approved';
     if (combined.includes('mkg') || combined.includes('kartu garansi') || combined.includes('manual')) return 'mkg_approved';
 
+    if (combined.includes('progress preparation') || combined.includes('preparation lqv')) return 'progress_prep_lqv';
+
     if (combined.includes('wpt')) return 'sp_wpt_bonding';
     if (combined.includes('bonding')) return 'sp_bonding';
     if (combined.includes('octa')) return 'sp_octa_pad';
@@ -914,15 +916,11 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     return null;
   };
 
-  // ponytail: robust zero-dependency parser for Excel TSV and CSV
-  const parseBulkMatrixData = (rawText) => {
-    if (!rawText || !rawText.trim()) return null;
+  // ponytail: robust quote-aware TSV/CSV table parser that handles embedded newlines in cells
+  const parseDelimitedTable = (rawText) => {
+    if (!rawText || !rawText.trim()) return [];
 
-    const lines = rawText.trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length < 2) return null;
-
-    // Detect delimiter: tab (Excel copy/paste) or comma (CSV) or semicolon
-    const firstLine = lines[0];
+    const firstLine = rawText.trim().split(/\r?\n/)[0] || '';
     let delimiter = '\t';
     if (firstLine.includes('\t')) {
       delimiter = '\t';
@@ -932,30 +930,56 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
       delimiter = ',';
     }
 
-    // Split line with delimiter handling quotes
-    const splitLine = (line) => {
-      if (delimiter === '\t') {
-        return line.split('\t').map((c) => c.trim().replace(/^"|"$/g, ''));
-      }
-      const cells = [];
-      let cur = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          inQuotes = !inQuotes;
-        } else if (ch === delimiter && !inQuotes) {
-          cells.push(cur.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
-          cur = '';
-        } else {
-          cur += ch;
-        }
-      }
-      cells.push(cur.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
-      return cells;
-    };
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let inQuotes = false;
 
-    const parsedRows = lines.map(splitLine);
+    for (let i = 0; i < rawText.length; i++) {
+      const char = rawText[i];
+      const nextChar = rawText[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          currentCell += '"';
+          i++; // skip escaped quote
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === delimiter && !inQuotes) {
+        currentRow.push(currentCell.trim());
+        currentCell = '';
+      } else if ((char === '\r' || char === '\n') && !inQuotes) {
+        if (char === '\r' && nextChar === '\n') {
+          i++;
+        }
+        currentRow.push(currentCell.trim());
+        if (currentRow.some((c) => c.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentCell = '';
+      } else {
+        currentCell += char;
+      }
+    }
+
+    if (currentCell.length > 0 || currentRow.length > 0) {
+      currentRow.push(currentCell.trim());
+      if (currentRow.some((c) => c.length > 0)) {
+        rows.push(currentRow);
+      }
+    }
+
+    return rows;
+  };
+
+  // ponytail: robust parser for Excel TSV and CSV with multiline quotes and merged row carryover
+  const parseBulkMatrixData = (rawText) => {
+    if (!rawText || !rawText.trim()) return null;
+
+    const parsedRows = parseDelimitedTable(rawText);
+    if (parsedRows.length < 2) return null;
 
     // Find header row with model names
     let modelRowIndex = -1;
@@ -983,11 +1007,14 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     const detectedModels = [];
 
     for (let c = modelColStartIndex; c < modelRow.length; c++) {
-      const rawName = (modelRow[c] || '').trim();
+      let rawName = (modelRow[c] || '').trim();
       if (rawName && rawName !== '-' && !rawName.toLowerCase().startsWith('doc') && !rawName.toLowerCase().startsWith('status')) {
+        // Strip line breaks and comments like "(Luxshare)"
+        const cleanName = rawName.split(/[\r\n]+/)[0].replace(/\s*\([^)]*\)/g, '').trim();
         detectedModels.push({
           colIndex: c,
-          modelName: rawName,
+          modelName: cleanName || rawName,
+          rawModelName: rawName,
           marketingName: '',
           basicModels: [],
           milestones: [],
@@ -997,11 +1024,21 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
 
     if (detectedModels.length === 0) return null;
 
+    let lastCategory = '';
+
     // Process rows after modelRowIndex
     for (let r = modelRowIndex + 1; r < parsedRows.length; r++) {
       const row = parsedRows[r];
-      const col0 = (row[0] || '').trim();
+      let col0 = (row[0] || '').trim();
       const col1 = (row[1] || '').trim();
+
+      // Carry over category if col0 is empty but col1 has subcategory (e.g. BOM -> SEIN, Sample -> STD OQC)
+      if (col0) {
+        lastCategory = col0;
+      } else if (col1 && lastCategory) {
+        col0 = lastCategory;
+      }
+
       const rowLabel = `${col0} ${col1}`.trim().toLowerCase();
 
       // Check if Marketing name row
@@ -1018,7 +1055,10 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         detectedModels.forEach((dm) => {
           const val = (row[dm.colIndex] || '').trim();
           if (val && val !== '-') {
-            const bsm = val.split(/[\r\n;]+/).map((s) => s.trim()).filter(Boolean);
+            const bsm = val
+              .split(/[\r\n,;]+/)
+              .map((s) => s.trim().replace(/^"|"$/g, ''))
+              .filter((s) => s.length > 0 && s !== '-');
             dm.basicModels = bsm;
           }
         });
@@ -1045,7 +1085,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         const rawVal = (row[dm.colIndex] || '').trim();
         if (!rawVal || rawVal === '') return;
 
-        const { startDate, endDate } = parseDateRangeFromText(rawVal, rawVal);
+        const { startDate } = parseDateRangeFromText(rawVal, rawVal);
         let status = 'pending';
         const u = rawVal.toUpperCase();
         if (u.includes('PASS') || u.includes('OK') || u.includes('DONE')) {
@@ -1064,7 +1104,7 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
           category: catDef.id,
           sub_category: catDef.title,
           plan_value: rawVal,
-          target_date: startDate && endDate && startDate !== endDate ? `${startDate} ~ ${endDate}` : (startDate || rawVal),
+          target_date: startDate || null,
           status,
           variant_code: '',
         });
@@ -1299,9 +1339,15 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
         }
 
         if (item.milestones.length > 0) {
-          await api.post(`/models/${targetModel.id}/milestones/batch`, {
-            milestones: item.milestones,
-          });
+          try {
+            await api.put(`/models/${targetModel.id}/milestones`, {
+              milestones: item.milestones,
+            });
+          } catch (_) {
+            await api.post(`/models/${targetModel.id}/milestones/batch`, {
+              milestones: item.milestones,
+            });
+          }
           savedCount += item.milestones.length;
         }
       }

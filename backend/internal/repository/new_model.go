@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -295,6 +296,7 @@ var DefaultMilestoneDefs = []MilestoneDef{
 	{Category: "lqv", SubCategory: "LQV", MilestoneKey: "lqv_smd_main", Label: "SMD Main", SortOrder: 60},
 	{Category: "lqv", SubCategory: "LQV", MilestoneKey: "lqv_assembly", Label: "Assembly", SortOrder: 70},
 	{Category: "lqv", SubCategory: "LQV", MilestoneKey: "lqv_inspection", Label: "Inspection", SortOrder: 80},
+	{Category: "lqv", SubCategory: "LQV", MilestoneKey: "progress_prep_lqv", Label: "Progress Preparation LQV", SortOrder: 85},
 
 	{Category: "lqva_mp", SubCategory: "LQVA", MilestoneKey: "lqva", Label: "LQVA", SortOrder: 90},
 	{Category: "lqva_mp", SubCategory: "MP Plan", MilestoneKey: "mp_sop", Label: "MP (Base on SOP Plan)", SortOrder: 100},
@@ -437,6 +439,32 @@ func (r *NewModelRepository) ListMilestones(ctx context.Context, modelID uuid.UU
 	return items, nil
 }
 
+func sanitizeMilestoneDate(d string) string {
+	d = strings.TrimSpace(d)
+	if d == "" {
+		return ""
+	}
+	// Try YYYY-MM-DD
+	if t, err := time.Parse("2006-01-02", d); err == nil {
+		return t.Format("2006-01-02")
+	}
+	// Try DD-Mon-YYYY or DD-Mon
+	if t, err := time.Parse("02-Jan-2006", d); err == nil {
+		return t.Format("2006-01-02")
+	}
+	if t, err := time.Parse("2-Jan-2006", d); err == nil {
+		return t.Format("2006-01-02")
+	}
+	nowYear := time.Now().Year()
+	if t, err := time.Parse("02-Jan", d); err == nil {
+		return fmt.Sprintf("%04d-%02d-%02d", nowYear, t.Month(), t.Day())
+	}
+	if t, err := time.Parse("2-Jan", d); err == nil {
+		return fmt.Sprintf("%04d-%02d-%02d", nowYear, t.Month(), t.Day())
+	}
+	return ""
+}
+
 // UpsertMilestone updates or inserts a single milestone cell
 func (r *NewModelRepository) UpsertMilestone(ctx context.Context, item *model.NewModelMilestone) error {
 	query := `
@@ -460,10 +488,10 @@ func (r *NewModelRepository) UpsertMilestone(ctx context.Context, item *model.Ne
 	`
 	var targetDate, actualDate string
 	if item.TargetDate != nil {
-		targetDate = *item.TargetDate
+		targetDate = sanitizeMilestoneDate(*item.TargetDate)
 	}
 	if item.ActualDate != nil {
-		actualDate = *item.ActualDate
+		actualDate = sanitizeMilestoneDate(*item.ActualDate)
 	}
 
 	attachments := item.Attachments

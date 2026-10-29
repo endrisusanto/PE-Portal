@@ -50,10 +50,111 @@ const normalizeDateStr = (str) => {
   return s.replace(/[\.\/]/g, '-').toLowerCase();
 };
 
+const DEFAULT_COLUMN_WIDTHS = {
+  ecn_no: 135,
+  model: 115,
+  function_type: 95,
+  process: 90,
+  ec_title: 220,
+  child_code: 125,
+  child_name: 180,
+  specification: 180,
+  quantity: 70,
+  running_date_bom: 125,
+  distribution_date: 125,
+  status: 115,
+  author_name: 150,
+};
+
+const MIN_COLUMN_WIDTHS = {
+  ecn_no: 90,
+  model: 70,
+  function_type: 65,
+  process: 65,
+  ec_title: 110,
+  child_code: 80,
+  child_name: 90,
+  specification: 90,
+  quantity: 50,
+  running_date_bom: 90,
+  distribution_date: 90,
+  status: 80,
+  author_name: 90,
+};
+
 export const EcnMonitoringPage = () => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+
+  // --- Column Widths & Drag Resize State (ponytail) ---
+  const [colWidths, setColWidths] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ecn_col_widths');
+      if (saved) return { ...DEFAULT_COLUMN_WIDTHS, ...JSON.parse(saved) };
+    } catch (_) {}
+    return DEFAULT_COLUMN_WIDTHS;
+  });
+  const [resizingCol, setResizingCol] = useState(null);
+
+  const handleStartResize = (e, columnKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startWidth = colWidths[columnKey] || DEFAULT_COLUMN_WIDTHS[columnKey] || 120;
+    const minWidth = MIN_COLUMN_WIDTHS[columnKey] || 60;
+
+    setResizingCol(columnKey);
+    document.body.style.cursor = 'col-resize';
+    const handlePointerMove = (moveEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const newWidth = Math.max(minWidth, Math.round(startWidth + delta));
+      setColWidths((prev) => ({ ...prev, [columnKey]: newWidth }));
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setResizingCol(null);
+
+      setColWidths((latest) => {
+        try {
+          localStorage.setItem('ecn_col_widths', JSON.stringify(latest));
+        } catch (_) {}
+        return latest;
+      });
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+  };
+
+  const handleResetColWidth = (e, columnKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const defaultW = DEFAULT_COLUMN_WIDTHS[columnKey] || 120;
+    setColWidths((prev) => {
+      const updated = { ...prev, [columnKey]: defaultW };
+      try {
+        localStorage.setItem('ecn_col_widths', JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
+  };
+
+  const handleResetAllColWidths = () => {
+    setColWidths(DEFAULT_COLUMN_WIDTHS);
+    try {
+      localStorage.removeItem('ecn_col_widths');
+    } catch (_) {}
+  };
 
   // --- Data State ---
   const [records, setRecords] = useState([]);
@@ -1387,6 +1488,19 @@ ${
               </button>
             )}
 
+            {JSON.stringify(colWidths) !== JSON.stringify(DEFAULT_COLUMN_WIDTHS) && (
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={handleResetAllColWidths}
+                title="Kembalikan semua lebar kolom ke ukuran standar"
+                style={{ fontSize: '11px', padding: '0 8px', gap: '4px' }}
+              >
+                <RotateCcw size={11} />
+                <span>Reset Kolom</span>
+              </button>
+            )}
+
             <button
               type="button"
               className={styles.btnSecondary}
@@ -1409,7 +1523,10 @@ ${
               {/* Row 1: Sortable Column Headers */}
               <tr>
                 {isAdmin && (
-                  <th style={{ width: '38px', textAlign: 'center' }}>
+                  <th
+                    className={styles.stickyColCheckbox}
+                    style={{ width: '38px', minWidth: '38px', maxWidth: '38px', textAlign: 'center' }}
+                  >
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -1422,61 +1539,98 @@ ${
                     />
                   </th>
                 )}
-                <th style={{ width: '40px', textAlign: 'center' }}>#</th>
+                <th
+                  className={isAdmin ? styles.stickyColHashAdmin : styles.stickyColHashUser}
+                  style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center' }}
+                >
+                  #
+                </th>
                 {[
-                  { key: 'ecn_no', label: t('ecn.table.ecn_no', 'ECN NO'), width: '135px' },
-                  { key: 'model', label: t('ecn.table.model', 'Model'), width: '115px' },
-                  { key: 'function_type', label: t('ecn.table.function', 'Function'), width: '95px' },
-                  { key: 'process', label: t('ecn.table.process', 'Process'), width: '90px' },
-                  { key: 'ec_title', label: t('ecn.table.ec_title', 'EC Title'), minWidth: '180px' },
-                  { key: 'child_code', label: t('ecn.table.child_code', 'Item Code'), width: '125px' },
-                  { key: 'child_name', label: t('ecn.table.child_name', 'Part Description'), minWidth: '160px' },
-                  { key: 'specification', label: t('ecn.table.specification', 'Specification'), minWidth: '160px' },
-                  { key: 'quantity', label: t('ecn.table.quantity', 'Qty'), width: '70px' },
-                  { key: 'running_date_bom', label: t('ecn.table.running_bom', 'Running BOM'), width: '125px', minWidth: '120px' },
-                  { key: 'distribution_date', label: t('ecn.table.dist_date', 'Dist Date'), width: '125px', minWidth: '120px' },
-                  { key: 'status', label: t('ecn.table.status', 'Status'), width: '115px' },
-                  { key: 'author_name', label: t('ecn.table.author', 'Uploader & Waktu'), width: '150px', minWidth: '140px' },
-                ].map((col) => (
-                  <th
-                    key={col.key}
-                    className={styles.thSortable}
-                    onClick={() => handleSort(col.key)}
-                    style={{ width: col.width, minWidth: col.minWidth }}
-                    title={`Sort: ${col.label}`}
-                  >
-                    <div className={styles.thSortContent}>
-                      <span>{col.label}</span>
-                      {sortKey === col.key ? (
-                        sortDirection === 'asc' ? (
-                          <ArrowUp size={12} className={styles.sortIconActive} />
+                  { key: 'ecn_no', label: t('ecn.table.ecn_no', 'ECN NO') },
+                  { key: 'model', label: t('ecn.table.model', 'Model') },
+                  { key: 'function_type', label: t('ecn.table.function', 'Function') },
+                  { key: 'process', label: t('ecn.table.process', 'Process') },
+                  { key: 'ec_title', label: t('ecn.table.ec_title', 'EC Title') },
+                  { key: 'child_code', label: t('ecn.table.child_code', 'Item Code') },
+                  { key: 'child_name', label: t('ecn.table.child_name', 'Part Description') },
+                  { key: 'specification', label: t('ecn.table.specification', 'Specification') },
+                  { key: 'quantity', label: t('ecn.table.quantity', 'Qty') },
+                  { key: 'running_date_bom', label: t('ecn.table.running_bom', 'Running BOM') },
+                  { key: 'distribution_date', label: t('ecn.table.dist_date', 'Dist Date') },
+                  { key: 'status', label: t('ecn.table.status', 'Status') },
+                  { key: 'author_name', label: t('ecn.table.author', 'Uploader & Waktu') },
+                ].map((col) => {
+                  const width = colWidths[col.key] || DEFAULT_COLUMN_WIDTHS[col.key] || 120;
+                  const minWidth = MIN_COLUMN_WIDTHS[col.key] || 60;
+                  const isStickyEcn = col.key === 'ecn_no';
+                  return (
+                    <th
+                      key={col.key}
+                      className={`${styles.thSortable} ${
+                        isStickyEcn ? (isAdmin ? styles.stickyColEcnAdmin : styles.stickyColEcnUser) : ''
+                      }`}
+                      onClick={() => handleSort(col.key)}
+                      style={{
+                        width: `${width}px`,
+                        minWidth: `${minWidth}px`,
+                        maxWidth: `${width}px`,
+                      }}
+                      title={`Sort: ${col.label}`}
+                    >
+                      <div className={styles.thSortContent}>
+                        <span>{col.label}</span>
+                        {sortKey === col.key ? (
+                          sortDirection === 'asc' ? (
+                            <ArrowUp size={12} className={styles.sortIconActive} />
+                          ) : (
+                            <ArrowDown size={12} className={styles.sortIconActive} />
+                          )
                         ) : (
-                          <ArrowDown size={12} className={styles.sortIconActive} />
-                        )
-                      ) : (
-                        <ArrowUpDown size={11} className={styles.sortIconInactive} />
-                      )}
-                    </div>
-                  </th>
-                ))}
-                <th style={{ width: '85px', textAlign: 'center' }}>{t('ecn.table.actions', 'Aksi')}</th>
+                          <ArrowUpDown size={11} className={styles.sortIconInactive} />
+                        )}
+                      </div>
+                      <div
+                        className={`${styles.colResizer} ${resizingCol === col.key ? styles.colResizerActive : ''}`}
+                        onMouseDown={(e) => handleStartResize(e, col.key)}
+                        onPointerDown={(e) => handleStartResize(e, col.key)}
+                        onDoubleClick={(e) => handleResetColWidth(e, col.key)}
+                        title="Tarik untuk ubah lebar kolom (Klik 2x untuk reset)"
+                      />
+                    </th>
+                  );
+                })}
+                <th
+                  className={styles.stickyColAction}
+                  style={{ width: '85px', minWidth: '85px', maxWidth: '85px', textAlign: 'center' }}
+                >
+                  {t('ecn.table.actions', 'Aksi')}
+                </th>
               </tr>
 
               {/* Row 2: Individual Column Filter Inputs */}
               <tr className={styles.columnFilterRow}>
                 {isAdmin && (
-                  <th style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                  <th
+                    className={styles.stickyColCheckbox}
+                    style={{ width: '38px', minWidth: '38px', maxWidth: '38px', textAlign: 'center', verticalAlign: 'middle' }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '28px' }}>
                       <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>-</span>
                     </div>
                   </th>
                 )}
-                <th style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                <th
+                  className={isAdmin ? styles.stickyColHashAdmin : styles.stickyColHashUser}
+                  style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', verticalAlign: 'middle' }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '28px' }}>
                     <Filter size={12} style={{ opacity: 0.5 }} />
                   </div>
                 </th>
-                <th>
+                <th
+                  className={isAdmin ? styles.stickyColEcnAdmin : styles.stickyColEcnUser}
+                  style={{ width: `${colWidths.ecn_no}px`, minWidth: `${MIN_COLUMN_WIDTHS.ecn_no}px`, maxWidth: `${colWidths.ecn_no}px` }}
+                >
                   <input
                     type="text"
                     className={styles.colFilterInput}
@@ -1615,7 +1769,10 @@ ${
                     onChange={(e) => setColFilters({ ...colFilters, author_name: e.target.value })}
                   />
                 </th>
-                <th style={{ textAlign: 'center' }}>
+                <th
+                  className={styles.stickyColAction}
+                  style={{ width: '85px', minWidth: '85px', maxWidth: '85px', textAlign: 'center' }}
+                >
                   {hasActiveColFilters && (
                     <button
                       type="button"
@@ -1668,10 +1825,14 @@ ${
                   const isExpanded = expandedRowIds.has(item.id);
                   return (
                     <React.Fragment key={item.id}>
-                      <tr className={isExpanded ? styles.rowExpanded : ''}>
+                      <tr className={`${isExpanded ? styles.rowExpanded : ''} ${selectedIds.has(item.id) ? styles.rowSelected : ''}`}>
                         {/* Checkbox for Admin */}
                         {isAdmin && (
-                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <td
+                            className={styles.stickyColCheckbox}
+                            style={{ width: '38px', minWidth: '38px', maxWidth: '38px', textAlign: 'center' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <input
                               type="checkbox"
                               checked={selectedIds.has(item.id)}
@@ -1683,7 +1844,10 @@ ${
                         )}
 
                         {/* Expand Trigger */}
-                        <td style={{ textAlign: 'center' }}>
+                        <td
+                          className={isAdmin ? styles.stickyColHashAdmin : styles.stickyColHashUser}
+                          style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center' }}
+                        >
                           <button
                             type="button"
                             className={styles.expandBtn}
@@ -1695,8 +1859,13 @@ ${
                         </td>
 
                         {/* ECN No */}
-                        <td>
-                          <span className={styles.ecnBadge}>{item.ecn_no}</span>
+                        <td
+                          className={isAdmin ? styles.stickyColEcnAdmin : styles.stickyColEcnUser}
+                          style={{ width: `${colWidths.ecn_no}px`, minWidth: `${MIN_COLUMN_WIDTHS.ecn_no}px`, maxWidth: `${colWidths.ecn_no}px` }}
+                        >
+                          <span className={styles.ecnBadge} title={item.ecn_no}>
+                            {item.ecn_no}
+                          </span>
                         </td>
 
                         {/* Model */}
@@ -1779,7 +1948,10 @@ ${
                         </td>
 
                         {/* Actions */}
-                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <td
+                          className={styles.stickyColAction}
+                          style={{ width: '85px', minWidth: '85px', maxWidth: '85px', textAlign: 'center', whiteSpace: 'nowrap' }}
+                        >
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <button
                               type="button"

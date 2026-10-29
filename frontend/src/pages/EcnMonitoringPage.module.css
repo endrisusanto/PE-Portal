@@ -550,12 +550,52 @@
 }
 
 .table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--font-size-sm, 13px);
   text-align: left;
 }
+
+/* Column Drag-to-Resize Handle - Ponytail */
+.colResizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.colResizer::after {
+  content: '';
+  width: 2px;
+  height: 50%;
+  border-radius: 1px;
+  background-color: var(--color-border);
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+.colResizer:hover::after,
+.colResizerActive::after {
+  background-color: var(--color-accent);
+  height: 100%;
+  width: 3px;
+}
+
+.colResizer:hover,
+.colResizerActive {
+  background-color: var(--color-accent-subtle, rgba(26, 115, 232, 0.15));
+}
+
 
 /* Primary Header Row */
 .table thead tr:first-child th {
@@ -712,6 +752,124 @@
   background: var(--color-bg-hover) !important;
 }
 
+.rowSelected td {
+  background-color: var(--color-accent-subtle, rgba(26, 115, 232, 0.08)) !important;
+}
+
+/* ============================================================================
+   STICKY LEFT (CHECKBOX TO ECN NO) & STICKY RIGHT (ACTIONS) - PONYTAIL
+   ============================================================================ */
+.stickyColCheckbox {
+  position: sticky !important;
+  left: 0;
+  z-index: 5;
+  background-color: var(--color-bg-primary);
+}
+
+.stickyColHashAdmin {
+  position: sticky !important;
+  left: 38px;
+  z-index: 5;
+  background-color: var(--color-bg-primary);
+}
+
+.stickyColHashUser {
+  position: sticky !important;
+  left: 0;
+  z-index: 5;
+  background-color: var(--color-bg-primary);
+}
+
+.stickyColEcnAdmin {
+  position: sticky !important;
+  left: 78px;
+  z-index: 5;
+  background-color: var(--color-bg-primary);
+  border-right: 1.5px solid var(--color-border) !important;
+  box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.12);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.stickyColEcnUser {
+  position: sticky !important;
+  left: 40px;
+  z-index: 5;
+  background-color: var(--color-bg-primary);
+  border-right: 1.5px solid var(--color-border) !important;
+  box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.12);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.stickyColAction {
+  position: sticky !important;
+  right: 0;
+  z-index: 5;
+  background-color: var(--color-bg-primary);
+  border-left: 1.5px solid var(--color-border) !important;
+  box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.12);
+}
+
+/* Higher z-index & solid background for primary header row (Row 1) */
+.table thead tr:first-child th.stickyColCheckbox,
+.table thead tr:first-child th.stickyColHashAdmin,
+.table thead tr:first-child th.stickyColHashUser,
+.table thead tr:first-child th.stickyColEcnAdmin,
+.table thead tr:first-child th.stickyColEcnUser,
+.table thead tr:first-child th.stickyColAction {
+  z-index: 25;
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+/* Secondary column filter row (Row 2) */
+.columnFilterRow th.stickyColCheckbox,
+.columnFilterRow th.stickyColHashAdmin,
+.columnFilterRow th.stickyColHashUser,
+.columnFilterRow th.stickyColEcnAdmin,
+.columnFilterRow th.stickyColEcnUser,
+.columnFilterRow th.stickyColAction {
+  z-index: 24;
+  background-color: var(--color-bg-primary) !important;
+}
+
+/* Hover & expanded synchronization for sticky cells */
+.table tbody tr:hover td.stickyColCheckbox,
+.table tbody tr:hover td.stickyColHashAdmin,
+.table tbody tr:hover td.stickyColHashUser,
+.table tbody tr:hover td.stickyColEcnAdmin,
+.table tbody tr:hover td.stickyColEcnUser,
+.table tbody tr:hover td.stickyColAction {
+  background-color: var(--color-bg-hover) !important;
+}
+
+.table tbody tr.rowExpanded td.stickyColCheckbox,
+.table tbody tr.rowExpanded td.stickyColHashAdmin,
+.table tbody tr.rowExpanded td.stickyColHashUser,
+.table tbody tr.rowExpanded td.stickyColEcnAdmin,
+.table tbody tr.rowExpanded td.stickyColEcnUser,
+.table tbody tr.rowExpanded td.stickyColAction {
+  background-color: var(--color-bg-hover) !important;
+}
+
+.table tbody tr.rowSelected td.stickyColCheckbox,
+.table tbody tr.rowSelected td.stickyColHashAdmin,
+.table tbody tr.rowSelected td.stickyColHashUser,
+.table tbody tr.rowSelected td.stickyColEcnAdmin,
+.table tbody tr.rowSelected td.stickyColEcnUser,
+.table tbody tr.rowSelected td.stickyColAction {
+  background-color: var(--color-accent-subtle, rgba(26, 115, 232, 0.08)) !important;
+}
+
+.table tbody tr.rowSelected:hover td.stickyColCheckbox,
+.table tbody tr.rowSelected:hover td.stickyColHashAdmin,
+.table tbody tr.rowSelected:hover td.stickyColHashUser,
+.table tbody tr.rowSelected:hover td.stickyColEcnAdmin,
+.table tbody tr.rowSelected:hover td.stickyColEcnUser,
+.table tbody tr.rowSelected:hover td.stickyColAction {
+  background-color: var(--color-bg-hover) !important;
+}
+
 .expandBtn {
   background: transparent;
   border: none;
@@ -738,10 +896,15 @@
   color: var(--color-info, #1a73e8);
   background: var(--color-info-subtle, rgba(26, 115, 232, 0.1));
   border: 1px solid rgba(26, 115, 232, 0.25);
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: var(--radius-sm, 4px);
   display: inline-block;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+  text-align: left;
 }
 
 .modelBadge {

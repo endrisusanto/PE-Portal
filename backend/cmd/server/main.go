@@ -104,7 +104,8 @@ func main() {
 	emailListHandler := handler.NewEmailListHandler(emailListRepo)
 	sampleHandler := handler.NewSampleHandler(sampleRepo)
 	softwareMRHandler := handler.NewSoftwareMRHandler(softwareMRRepo)
-	utilityHandler := handler.NewUtilityHandler(llmRepo)
+	wiRepo := repository.NewWITranslatorRepository(pgPool.Pool)
+	utilityHandler := handler.NewUtilityHandler(llmRepo, wiRepo)
 	dhlRepo := repository.NewDHLRepository(pgPool.Pool)
 	dhlHandler := handler.NewDHLHandler(dhlRepo, userRepo, reportRepo, smtpService)
 	dhlHandler.StartAutoUpdateWorker(context.Background(), 1*time.Hour)
@@ -252,6 +253,7 @@ func main() {
 	api.PUT("/models/:id/stages/:stageId", modelHandler.UpdateStage)
 	api.GET("/models/:id/milestones", modelHandler.ListMilestones)
 	api.PUT("/models/:id/milestones", modelHandler.BatchUpsertMilestones)
+	api.POST("/models/:id/milestones/batch", modelHandler.BatchUpsertMilestones)
 	api.PATCH("/models/:id/milestones", modelHandler.UpsertMilestone)
 
 	// Sample Management
@@ -385,6 +387,12 @@ func main() {
 	api.POST("/utility/translate-wi-pdf", utilityHandler.TranslateWIPDF)
 	api.GET("/utility/translate-wi-pdf/status/:jobId", utilityHandler.GetTranslateWIStatus)
 	api.GET("/utility/translate-wi-pdf/download/:filename", utilityHandler.DownloadTranslatedWIPDF)
+	api.POST("/utility/wi-translator/upload", utilityHandler.UploadWIJobs)
+	api.GET("/utility/wi-translator/jobs", utilityHandler.ListWIJobs)
+	api.POST("/utility/wi-translator/jobs/execute", utilityHandler.ExecuteWIJobs)
+	api.DELETE("/utility/wi-translator/jobs/:id", utilityHandler.DeleteWIJob)
+	api.POST("/utility/wi-translator/jobs/delete-batch", utilityHandler.DeleteBatchWIJobs)
+	api.GET("/utility/wi-translator/jobs/:id/source", utilityHandler.DownloadWISourceFile)
 
 	// ECN Monitoring Routes
 	api.GET("/ecn", ecnHandler.List)
