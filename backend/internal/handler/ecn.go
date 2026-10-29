@@ -80,17 +80,32 @@ func (h *ECNHandler) Create(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "ECN NO is required")
 	}
 
-	item.CreatedBy = getUserIDFromContext(c)
+	userID := getUserIDFromContext(c)
+	item.CreatedBy = userID
+	item.UpdatedBy = userID
 
 	created, err := h.repo.Create(c.Request().Context(), &item)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
+	// ponytail: record initial creation breadcrumb log
+	_ = h.repo.RecordChangeLog(c.Request().Context(), &model.ECNChangeLog{
+		ECNID:     created.ID,
+		Action:    "CREATE",
+		ChangedBy: userID,
+		Changes: map[string]interface{}{
+			"status":           item.Status,
+			"running_date_bom": item.RunningDateBOM,
+		},
+		Note:      "Pembuatan data ECN baru",
+		CreatedAt: time.Now(),
+	})
+
 	return c.JSON(http.StatusCreated, created)
 }
 
-// Update modifies an existing ECN record
+// Update modifies an existing ECN record and logs delta changes
 func (h *ECNHandler) Update(c echo.Context) error {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -103,12 +118,81 @@ func (h *ECNHandler) Update(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
 	}
 
+	userID := getUserIDFromContext(c)
+	item.UpdatedBy = userID
+
+	// Fetch existing record to calculate delta / changes
+	oldRec, _ := h.repo.GetByID(c.Request().Context(), id)
+
 	updated, err := h.repo.Update(c.Request().Context(), id, &item)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
+	// Calculate changes and record audit breadcrumb log
+	changes := make(map[string]interface{})
+	action := "UPDATE"
+	noteParts := []string{}
+
+	if oldRec != nil {
+		if oldRec.Status != item.Status && item.Status != "" {
+			changes["status"] = map[string]string{"from": oldRec.Status, "to": item.Status}
+			action = "STATUS_CHANGE"
+			noteParts = append(noteParts, fmt.Sprintf("Status: %s ➔ %s", oldRec.Status, item.Status))
+		}
+		if oldRec.RunningDateBOM != item.RunningDateBOM && item.RunningDateBOM != "" {
+			changes["running_date_bom"] = map[string]string{"from": oldRec.RunningDateBOM, "to": item.RunningDateBOM}
+			action = "BOM_CHANGE"
+			noteParts = append(noteParts, fmt.Sprintf("Running BOM: %s ➔ %s", oldRec.RunningDateBOM, item.RunningDateBOM))
+		}
+		if oldRec.DistributionDate != item.DistributionDate && item.DistributionDate != "" {
+			changes["distribution_date"] = map[string]string{"from": oldRec.DistributionDate, "to": item.DistributionDate}
+			noteParts = append(noteParts, fmt.Sprintf("Dist Date: %s ➔ %s", oldRec.DistributionDate, item.DistributionDate))
+		}
+		if oldRec.Remark != item.Remark && item.Remark != "" {
+			changes["remark"] = map[string]string{"from": oldRec.Remark, "to": item.Remark}
+			noteParts = append(noteParts, "Remark diperbarui")
+		}
+		if oldRec.Process != item.Process && item.Process != "" {
+			changes["process"] = map[string]string{"from": oldRec.Process, "to": item.Process}
+			noteParts = append(noteParts, fmt.Sprintf("Proses: %s ➔ %s", oldRec.Process, item.Process))
+		}
+		if oldRec.ECNNo != item.ECNNo && item.ECNNo != "" {
+			changes["ecn_no"] = map[string]string{"from": oldRec.ECNNo, "to": item.ECNNo}
+		}
+	}
+
+	note := "Pembaruan data ECN"
+	if len(noteParts) > 0 {
+		note = strings.Join(noteParts, " • ")
+	}
+
+	_ = h.repo.RecordChangeLog(c.Request().Context(), &model.ECNChangeLog{
+		ECNID:     id,
+		Action:    action,
+		ChangedBy: userID,
+		Changes:   changes,
+		Note:      note,
+		CreatedAt: time.Now(),
+	})
+
 	return c.JSON(http.StatusOK, updated)
+}
+
+// GetLogs returns change audit trail logs for a specific ECN
+func (h *ECNHandler) GetLogs(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
+	}
+
+	logs, err := h.repo.GetChangeLogs(c.Request().Context(), id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, logs)
 }
 
 // Delete removes an ECN record

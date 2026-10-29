@@ -30,9 +30,24 @@ type ECNRecord struct {
 	Status           string     `json:"status"`
 	Remark           string     `json:"remark"`
 	CreatedBy        *uuid.UUID `json:"created_by,omitempty"`
+	UpdatedBy        *uuid.UUID `json:"updated_by,omitempty"`
 	AuthorName       string     `json:"author_name,omitempty"`
+	CreatedByName    string     `json:"created_by_name,omitempty"`
+	UpdaterName      string     `json:"updater_name,omitempty"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+// ECNChangeLog represents an audit log entry for changes made to an ECN record
+type ECNChangeLog struct {
+	ID            uuid.UUID              `json:"id"`
+	ECNID         uuid.UUID              `json:"ecn_id"`
+	Action        string                 `json:"action"`
+	ChangedBy     *uuid.UUID             `json:"changed_by,omitempty"`
+	ChangedByName string                 `json:"changed_by_name,omitempty"`
+	Changes       map[string]interface{} `json:"changes,omitempty"`
+	Note          string                 `json:"note,omitempty"`
+	CreatedAt     time.Time              `json:"created_at"`
 }
 
 // ECNListQuery parameters for filtering, searching, and pagination.

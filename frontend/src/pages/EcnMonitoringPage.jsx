@@ -31,7 +31,11 @@ import {
   ArrowDown,
   RotateCcw,
   Copy,
-  Bell
+  Bell,
+  Calendar,
+  History,
+  Edit3,
+  ShieldCheck,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -255,6 +259,8 @@ export const EcnMonitoringPage = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [ecnChangeLogs, setEcnChangeLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
   const [formData, setFormData] = useState({
     ecn_no: '',
     model: '',
@@ -808,6 +814,14 @@ export const EcnMonitoringPage = () => {
 
   const handleEditClick = (item) => {
     setEditingItem(item);
+    setEcnChangeLogs([]);
+    if (item?.id) {
+      setLogsLoading(true);
+      api.get(`/ecn/${item.id}/logs`)
+        .then((res) => setEcnChangeLogs(res.data || []))
+        .catch(() => setEcnChangeLogs([]))
+        .finally(() => setLogsLoading(false));
+    }
     setFormData({
       ecn_no: item.ecn_no || '',
       model: item.model || '',
@@ -1182,6 +1196,7 @@ ${
             className={styles.btnPrimary}
             onClick={() => {
               setEditingItem(null);
+              setEcnChangeLogs([]);
               setFormData({
                 ecn_no: '',
                 model: '',
@@ -1962,9 +1977,16 @@ ${
                         {/* Quantity */}
                         <td style={{ textAlign: 'center' }}>{item.quantity || '-'}</td>
 
-                        {/* Running Date BOM */}
+                        {/* Running Date BOM (Highlighted Critical Milestone - ponytail) */}
                         <td style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                          {item.running_date_bom || '-'}
+                          {item.running_date_bom ? (
+                            <span className={styles.runningBomBadge} title={`Running BOM Target: ${item.running_date_bom}`}>
+                              <Calendar size={12} className={styles.runningBomIcon} />
+                              {item.running_date_bom}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                          )}
                         </td>
 
                         {/* Distribution Date */}
@@ -1977,15 +1999,20 @@ ${
                           <span className={getStatusBadgeClass(item.status)}>{item.status || 'Pending'}</span>
                         </td>
 
-                        {/* Author & Timestamp */}
+                        {/* Author & Timestamp (Latest Update - ponytail) */}
                         <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', fontSize: '11.5px' }}>
-                              {item.author_name || 'System'}
-                            </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', fontSize: '11.5px' }}>
+                                {item.updater_name || item.author_name || 'System'}
+                              </span>
+                              <span className={`${styles.logBadge} ${item.updater_name ? styles.logBadgeUpdated : styles.logBadgeCreated}`}>
+                                {item.updater_name ? 'Updated' : 'Created'}
+                              </span>
+                            </div>
                             <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
-                              {item.created_at
-                                ? new Date(item.created_at).toLocaleString('id-ID', {
+                              {(item.updated_at || item.created_at)
+                                ? new Date(item.updated_at || item.created_at).toLocaleString('id-ID', {
                                     day: '2-digit',
                                     month: '2-digit',
                                     year: 'numeric',
@@ -2450,11 +2477,40 @@ ${
           isOpen={isFormModalOpen}
           onClose={handleRequestCloseForm}
           title={editingItem ? `${t('ecn.form_modal.edit_title', 'Edit Data ECN')} (${editingItem.ecn_no})` : t('ecn.form_modal.add_title', 'Tambah Data ECN Baru')}
-          maxWidth="min(1240px, 96vw)"
+          maxWidth="min(1380px, 98vw)"
+          height="94vh"
+          maxHeight="96vh"
           closeOnOverlayClick={false}
           closeOnEsc={false}
         >
-          <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {/* ponytail: Breadcrumb Log of Changes & Creation info */}
+            {editingItem && (
+              <div className={styles.breadcrumbLogStrip}>
+                <div className={styles.breadcrumbLeft}>
+                  <span className={styles.breadcrumbItem}>
+                    <span className={`${styles.logBadge} ${styles.logBadgeCreated}`}>Dibuat</span>
+                    <strong>{editingItem.created_by_name || editingItem.author_name || 'System'}</strong>
+                    <span>({editingItem.created_at ? new Date(editingItem.created_at).toLocaleDateString('id-ID') : '-'})</span>
+                  </span>
+                  {editingItem.updater_name && (
+                    <>
+                      <span className={styles.breadcrumbArrow}>➔</span>
+                      <span className={styles.breadcrumbItem}>
+                        <span className={`${styles.logBadge} ${styles.logBadgeUpdated}`}>Diperbarui Terakhir</span>
+                        <strong>{editingItem.updater_name}</strong>
+                        <span>({editingItem.updated_at ? new Date(editingItem.updated_at).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'})</span>
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <History size={13} color="var(--color-accent)" />
+                  <span>{ecnChangeLogs.length} Log Riwayat Tercatat</span>
+                </div>
+              </div>
+            )}
+
             <div className={styles.formGrid}>
               {/* Section 1: Identifikasi ECN & Model */}
               <div className={styles.formSectionHeader}>
@@ -2664,11 +2720,18 @@ ${
                 <span>4. {t('ecn.form_modal.sec_classification', 'Jadwal & Status Implementasi')}</span>
               </div>
 
-              <div className={`${styles.formGroup} ${styles.colSpan1}`}>
-                <label className={styles.formLabel}>{t('ecn.table.running_bom', 'Running Date BOM')}</label>
+              {/* Running Date BOM (Highlighted Critical Milestone - ponytail) */}
+              <div className={`${styles.formGroup} ${styles.colSpan1} ${styles.formGroupCritical}`}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label className={styles.formLabel} style={{ margin: 0, fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Calendar size={13} color="#f59e0b" />
+                    {t('ecn.table.running_bom', 'Running Date BOM')}
+                  </label>
+                  <span className={styles.criticalChip}>CRITICAL</span>
+                </div>
                 <input
                   type="date"
-                  className={styles.formInput}
+                  className={`${styles.formInput} ${styles.formInputCritical}`}
                   value={normalizeToDateInput(formData.running_date_bom)}
                   onChange={(e) => setFormData({ ...formData, running_date_bom: e.target.value })}
                   onClick={(e) => {
@@ -2728,6 +2791,68 @@ ${
                   onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
                 />
               </div>
+
+              {/* Section 6: Log Riwayat & Breadcrumb Perubahan (Audit Trail) */}
+              {editingItem && (
+                <div className={styles.colSpan4} style={{ marginTop: '4px' }}>
+                  <div className={styles.formSectionHeader}>
+                    <History size={13} />
+                    <span>6. {t('ecn.form_modal.sec_history', 'Riwayat Perubahan & Audit Trail')} ({ecnChangeLogs.length})</span>
+                  </div>
+                  {logsLoading ? (
+                    <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                      <Loader2 size={16} className={styles.spin} style={{ margin: '0 auto 6px', display: 'block' }} />
+                      Memuat log riwayat perubahan...
+                    </div>
+                  ) : ecnChangeLogs.length === 0 ? (
+                    <div style={{ padding: '12px', fontSize: '11.5px', color: 'var(--color-text-muted)', background: 'var(--color-bg-tertiary)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
+                      Belum ada riwayat perubahan manual tercatat untuk ECN ini. Log akan otomatis bertambah setiap kali ada pembaruan status, tanggal Running BOM, proses, atau catatan remark.
+                    </div>
+                  ) : (
+                    <div className={styles.changeLogTimeline}>
+                      {ecnChangeLogs.map((log) => (
+                        <div key={log.id} className={styles.changeLogItem}>
+                          <div className={styles.changeLogIconWrap}>
+                            {log.action === 'STATUS_CHANGE' ? (
+                              <ShieldCheck size={12} color="#10b981" />
+                            ) : log.action === 'BOM_CHANGE' ? (
+                              <Calendar size={12} color="#f59e0b" />
+                            ) : log.action === 'CREATE' ? (
+                              <CheckCircle2 size={12} color="#2563eb" />
+                            ) : (
+                              <Edit3 size={12} color="#6366f1" />
+                            )}
+                          </div>
+                          <div className={styles.changeLogBody}>
+                            <div className={styles.changeLogHeader}>
+                              <span className={styles.changeLogUser}>{log.changed_by_name || 'System'}</span>
+                              <span className={styles.changeLogTime}>
+                                {new Date(log.created_at).toLocaleString('id-ID', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <div className={styles.changeLogNote}>{log.note || log.action}</div>
+                            {log.changes && Object.keys(log.changes).length > 0 && (
+                              <div className={styles.diffChipsWrap}>
+                                {Object.entries(log.changes).map(([k, val]) => (
+                                  <span key={k} className={styles.diffChip}>
+                                    <strong>{k}:</strong> {typeof val === 'object' && val !== null ? `${val.from || '-'} ➔ ${val.to || '-'}` : String(val)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border-subtle)' }}>

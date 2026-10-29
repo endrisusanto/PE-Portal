@@ -9,6 +9,9 @@ export const Modal = ({
   children,
   footer,
   maxWidth = 'min(1080px, 94vw)', // ponytail: generous full-width modal for comfortable input & navigation
+  height,
+  maxHeight,
+  style,
   zIndex = 1000,
   closeOnOverlayClick = true,
   closeOnEsc = true,
@@ -54,7 +57,12 @@ export const Modal = ({
     >
       <div
         className={styles.modal}
-        style={{ maxWidth }}
+        style={{
+          maxWidth,
+          ...(height ? { height } : {}),
+          ...(maxHeight ? { maxHeight } : {}),
+          ...style,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>

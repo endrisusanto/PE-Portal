@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 			LOWER(e.remark) LIKE $%d OR 
 			LOWER(e.parent_code) LIKE $%d OR 
 			LOWER(e.child_code) LIKE $%d OR
-			LOWER(COALESCE(u.full_name, u.username, '')) LIKE $%d
+			LOWER(COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, '')) LIKE $%d
 		)`, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx, argIdx))
 		args = append(args, s)
 		argIdx++
@@ -199,7 +200,7 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	}
 
 	if q.AuthorName != "" {
-		where = append(where, fmt.Sprintf("LOWER(COALESCE(u.full_name, u.username, '')) LIKE $%d", argIdx))
+		where = append(where, fmt.Sprintf("(LOWER(COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, '')) LIKE $%d)", argIdx))
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(q.AuthorName))+"%")
 		argIdx++
 	}
@@ -208,7 +209,13 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 
 	// Count total
 	var total int
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM ecn_records e LEFT JOIN users u ON e.created_by = u.id WHERE %s", whereClause)
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM ecn_records e 
+		LEFT JOIN users u_cr ON e.created_by = u_cr.id 
+		LEFT JOIN users u_up ON e.updated_by = u_up.id 
+		WHERE %s
+	`, whereClause)
 	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to count ecn records: %w", err)
 	}
@@ -247,7 +254,7 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	case "updated_at":
 		sortCol = "e.updated_at"
 	case "author_name":
-		sortCol = "COALESCE(u.full_name, u.username, 'System')"
+		sortCol = "COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, 'System')"
 	}
 
 	sortDir := "DESC"
@@ -259,10 +266,13 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		SELECT e.id, e.ecn_no, e.model, e.function_type, e.purpose, e.inventory_mgmt, e.process,
 		       e.ec_title, e.parent_code, e.parent_name, e.before_after, e.dl, e.child_code,
 		       e.child_name, e.specification, e.quantity, e.marking_point, e.running_date_bom,
-		       e.distribution_date, e.status, e.remark, e.created_by, e.created_at, e.updated_at,
-		       COALESCE(u.full_name, u.username, 'System') AS author_name
+		       e.distribution_date, e.status, e.remark, e.created_by, e.updated_by, e.created_at, e.updated_at,
+		       COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, 'System') AS author_name,
+		       COALESCE(u_cr.full_name, u_cr.username, 'System') AS created_by_name,
+		       COALESCE(u_up.full_name, u_up.username, '') AS updater_name
 		FROM ecn_records e
-		LEFT JOIN users u ON e.created_by = u.id
+		LEFT JOIN users u_cr ON e.created_by = u_cr.id
+		LEFT JOIN users u_up ON e.updated_by = u_up.id
 		WHERE %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d
@@ -283,8 +293,8 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 			&rec.ID, &rec.ECNNo, &rec.Model, &rec.FunctionType, &rec.Purpose, &rec.InventoryMgmt, &rec.Process,
 			&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
 			&rec.ChildName, &rec.Specification, &rec.Quantity, &rec.MarkingPoint, &rec.RunningDateBOM,
-			&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.CreatedAt, &rec.UpdatedAt,
-			&rec.AuthorName,
+			&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.UpdatedBy, &rec.CreatedAt, &rec.UpdatedAt,
+			&rec.AuthorName, &rec.CreatedByName, &rec.UpdaterName,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan ecn record: %w", err)
 		}
@@ -395,7 +405,36 @@ func (r *ECNRepository) Create(ctx context.Context, item *model.ECNRecord) (*mod
 	return item, nil
 }
 
-// Update updates an existing ECN record
+// GetByID retrieves a single ECN record by ID with author and updater names
+func (r *ECNRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.ECNRecord, error) {
+	query := `
+		SELECT e.id, e.ecn_no, e.model, e.function_type, e.purpose, e.inventory_mgmt, e.process,
+		       e.ec_title, e.parent_code, e.parent_name, e.before_after, e.dl, e.child_code,
+		       e.child_name, e.specification, e.quantity, e.marking_point, e.running_date_bom,
+		       e.distribution_date, e.status, e.remark, e.created_by, e.updated_by, e.created_at, e.updated_at,
+		       COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, 'System') AS author_name,
+		       COALESCE(u_cr.full_name, u_cr.username, 'System') AS created_by_name,
+		       COALESCE(u_up.full_name, u_up.username, '') AS updater_name
+		FROM ecn_records e
+		LEFT JOIN users u_cr ON e.created_by = u_cr.id
+		LEFT JOIN users u_up ON e.updated_by = u_up.id
+		WHERE e.id = $1
+	`
+	var rec model.ECNRecord
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&rec.ID, &rec.ECNNo, &rec.Model, &rec.FunctionType, &rec.Purpose, &rec.InventoryMgmt, &rec.Process,
+		&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
+		&rec.ChildName, &rec.Specification, &rec.Quantity, &rec.MarkingPoint, &rec.RunningDateBOM,
+		&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.UpdatedBy, &rec.CreatedAt, &rec.UpdatedAt,
+		&rec.AuthorName, &rec.CreatedByName, &rec.UpdaterName,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("ecn record not found: %w", err)
+	}
+	return &rec, nil
+}
+
+// Update updates an existing ECN record and sets updated_by and updated_at
 func (r *ECNRepository) Update(ctx context.Context, id uuid.UUID, item *model.ECNRecord) (*model.ECNRecord, error) {
 	item.ID = id
 	item.UpdatedAt = time.Now()
@@ -406,15 +445,15 @@ func (r *ECNRepository) Update(ctx context.Context, id uuid.UUID, item *model.EC
 			process = $6, ec_title = $7, parent_code = $8, parent_name = $9, before_after = $10,
 			dl = $11, child_code = $12, child_name = $13, specification = $14, quantity = $15,
 			marking_point = $16, running_date_bom = $17, distribution_date = $18, status = $19,
-			remark = $20, updated_at = $21
-		WHERE id = $22
+			remark = $20, updated_by = $21, updated_at = $22
+		WHERE id = $23
 	`
 	tag, err := r.pool.Exec(ctx, query,
 		item.ECNNo, item.Model, item.FunctionType, item.Purpose, item.InventoryMgmt,
 		item.Process, item.ECTitle, item.ParentCode, item.ParentName, item.BeforeAfter,
 		item.DL, item.ChildCode, item.ChildName, item.Specification, item.Quantity,
 		item.MarkingPoint, item.RunningDateBOM, item.DistributionDate, item.Status,
-		item.Remark, item.UpdatedAt, id,
+		item.Remark, item.UpdatedBy, item.UpdatedAt, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update ecn record: %w", err)
@@ -423,6 +462,52 @@ func (r *ECNRepository) Update(ctx context.Context, id uuid.UUID, item *model.EC
 		return nil, fmt.Errorf("ecn record not found")
 	}
 	return item, nil
+}
+
+// RecordChangeLog logs an audit breadcrumb entry for changes to an ECN record
+func (r *ECNRepository) RecordChangeLog(ctx context.Context, log *model.ECNChangeLog) error {
+	query := `
+		INSERT INTO ecn_change_logs (ecn_id, action, changed_by, changes, note, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
+	`
+	changesJSON, _ := json.Marshal(log.Changes)
+	if log.CreatedAt.IsZero() {
+		log.CreatedAt = time.Now()
+	}
+	return r.pool.QueryRow(ctx, query, log.ECNID, log.Action, log.ChangedBy, changesJSON, log.Note, log.CreatedAt).Scan(&log.ID)
+}
+
+// GetChangeLogs retrieves all historical audit logs for a specific ECN
+func (r *ECNRepository) GetChangeLogs(ctx context.Context, ecnID uuid.UUID) ([]model.ECNChangeLog, error) {
+	query := `
+		SELECT l.id, l.ecn_id, l.action, l.changed_by,
+		       COALESCE(u.full_name, u.username, 'System') AS changed_by_name,
+		       l.changes, l.note, l.created_at
+		FROM ecn_change_logs l
+		LEFT JOIN users u ON l.changed_by = u.id
+		WHERE l.ecn_id = $1
+		ORDER BY l.created_at DESC
+	`
+	rows, err := r.pool.Query(ctx, query, ecnID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ecn change logs: %w", err)
+	}
+	defer rows.Close()
+
+	logs := make([]model.ECNChangeLog, 0)
+	for rows.Next() {
+		var item model.ECNChangeLog
+		var changesJSON []byte
+		if err := rows.Scan(&item.ID, &item.ECNID, &item.Action, &item.ChangedBy, &item.ChangedByName, &changesJSON, &item.Note, &item.CreatedAt); err != nil {
+			continue
+		}
+		if len(changesJSON) > 0 {
+			_ = json.Unmarshal(changesJSON, &item.Changes)
+		}
+		logs = append(logs, item)
+	}
+	return logs, nil
 }
 
 // Delete removes an ECN record by ID

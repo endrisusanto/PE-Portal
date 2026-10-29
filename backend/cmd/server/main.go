@@ -407,6 +407,7 @@ func main() {
 	api.GET("/ecn/stats", ecnHandler.GetStats)
 	api.POST("/ecn", ecnHandler.Create)
 	api.PUT("/ecn/:id", ecnHandler.Update)
+	api.GET("/ecn/:id/logs", ecnHandler.GetLogs)
 	api.DELETE("/ecn/:id", ecnHandler.Delete)
 	api.POST("/ecn/bulk", ecnHandler.BulkImport)
 	api.POST("/ecn/bulk-delete", ecnHandler.BulkDelete, middleware.RequireRole("admin", "manager"))

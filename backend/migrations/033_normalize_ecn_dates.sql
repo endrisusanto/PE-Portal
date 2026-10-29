@@ -6,3 +6,4 @@ WHERE running_date_bom ~ '^\d{1,2}/\d{1,2}/\d{4}$';
 UPDATE ecn_records 
 SET distribution_date = to_char(to_date(distribution_date, 'MM/DD/YYYY'), 'YYYY-MM-DD')
 WHERE distribution_date ~ '^\d{1,2}/\d{1,2}/\d{4}$';
+
