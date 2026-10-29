@@ -30,11 +30,13 @@ import {
   ArrowUp,
   ArrowDown,
   RotateCcw,
-  Copy
+  Copy,
+  Bell
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
+import { EcnReminderModal } from '../components/ecn/EcnReminderModal';
 import { RichMessageContent } from '../components/chat/AiChatWindow';
 import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import styles from './EcnMonitoringPage.module.css';
@@ -212,6 +214,7 @@ export const EcnMonitoringPage = () => {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // --- Modals State ---
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [pasteRawText, setPasteRawText] = useState('');
   const [parsedPasteRows, setParsedPasteRows] = useState([]);
@@ -1063,6 +1066,15 @@ ${
         </div>
 
         <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={() => setIsReminderModalOpen(true)}
+            title="Pengaturan Pengingat Email Running BOM"
+          >
+            <Bell size={15} style={{ color: 'var(--color-accent, #0d7377)' }} />
+            <span>Pengingat Running BOM</span>
+          </button>
           <button
             type="button"
             className={styles.btnSecondary}
@@ -2711,6 +2723,12 @@ ${
           </div>
         </Modal>
       )}
+
+      {/* ECN Running BOM Deadline Email Reminder Modal (ponytail) */}
+      <EcnReminderModal
+        isOpen={isReminderModalOpen}
+        onClose={() => setIsReminderModalOpen(false)}
+      />
     </div>
   );
 };

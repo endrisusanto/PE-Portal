@@ -118,6 +118,12 @@ func main() {
 	ecnRepo := repository.NewECNRepository(pgPool.Pool)
 	ecnHandler := handler.NewECNHandler(ecnRepo)
 
+	// ECN Running BOM Deadline Reminder Worker & Handler (ponytail)
+	ecnReminderRepo := repository.NewECNReminderRepository(pgPool.Pool)
+	ecnReminderWorker := service.NewECNReminderWorker(ecnReminderRepo, reportRepo, smtpService)
+	ecnReminderWorker.Start(context.Background())
+	ecnReminderHandler := handler.NewECNReminderHandler(ecnReminderRepo, ecnReminderWorker)
+
 	// Echo App
 	e := echo.New()
 	e.HideBanner = true
@@ -406,6 +412,12 @@ func main() {
 	api.POST("/ecn/bulk-delete", ecnHandler.BulkDelete, middleware.RequireRole("admin", "manager"))
 	api.POST("/ecn/parse-excel", ecnHandler.ParseExcel)
 
+	// ECN Running BOM Deadline Reminder settings, test send, and logs
+	api.GET("/ecn/reminder/settings", ecnReminderHandler.GetSettings)
+	api.PUT("/ecn/reminder/settings", ecnReminderHandler.SaveSettings)
+	api.POST("/ecn/reminder/test", ecnReminderHandler.TestSend)
+	api.GET("/ecn/reminder/logs", ecnReminderHandler.GetLogs)
+
 	// DHL Express Tracking Routes
 	api.GET("/dhl/status", dhlHandler.CheckAPIStatus)
 	api.GET("/dhl/track", dhlHandler.TrackDirect)
@@ -469,6 +481,7 @@ func main() {
 	log.Println("[Server] Gracefully shutting down...")
 	reportScheduler.Stop()
 	dhlHandler.StopAutoUpdateWorker()
+	ecnReminderWorker.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
