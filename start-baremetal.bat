@@ -39,10 +39,7 @@ if %errorlevel% equ 0 net start redis >nul 2>&1
 
 :: Check & install required Python dependencies for PDF & PPTX translators
 python -c "import pypdf, reportlab, openpyxl" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [i] Installing required Python tools (pypdf, reportlab, openpyxl)...
-    python -m pip install --quiet pypdf reportlab openpyxl >nul 2>&1
-)
+if %errorlevel% neq 0 python -m pip install --quiet pypdf reportlab openpyxl >nul 2>&1
 
 if not exist "bin\pe-portal-backend.exe" (
     echo Compiling backend binary...

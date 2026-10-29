@@ -34,7 +34,7 @@ echo [1/5] Repository ready: %cd%
 :: 3. Check Go runtime
 where go >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Go (1.22+) is not installed or not in PATH!
+    echo [ERROR] Go 1.22+ is not installed or not in PATH!
     echo Please install Go from: https://go.dev/dl/
     pause
     exit /b 1
@@ -44,7 +44,7 @@ echo [2/5] Go runtime detected.
 :: 4. Check Node.js & npm
 where node >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Node.js (20+ LTS) is not installed or not in PATH!
+    echo [ERROR] Node.js 20+ LTS is not installed or not in PATH!
     echo Please install Node.js from: https://nodejs.org/
     pause
     exit /b 1
