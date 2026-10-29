@@ -64,7 +64,7 @@ export const AppShell = () => {
                   <Lock size={15} />
                 </div>
                 <div className={styles.guestBannerText}>
-                  <strong>Akses Konten Terkunci:</strong> Mode Tamu hanya dapat melihat menu sidebar. Silakan login dengan akun ADCorp SEIN untuk berinteraksi.
+                  <strong>Akses Konten Terkunci:</strong> Mode Tamu dapat mengakses menu sidebar &amp; navbar atas (View Only). Silakan login dengan akun ADCorp SEIN untuk berinteraksi dengan konten.
                 </div>
                 <button
                   type="button"

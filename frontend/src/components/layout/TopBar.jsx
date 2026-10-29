@@ -18,7 +18,7 @@ export const TopBar = () => {
         {isGuest && (
           <div className={styles.guestNotice}>
             <span className={styles.guestNoticeDot} />
-            <span>Mode Tamu: Akses View Only aktif. Wajib login ADCorp untuk write/update data.</span>
+            <span>Mode Tamu: Navigasi Navbar &amp; Sidebar aktif (View Only). Wajib login ADCorp untuk interaksi data.</span>
           </div>
         )}
       </div>
