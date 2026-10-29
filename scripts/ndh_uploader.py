@@ -43,12 +43,71 @@ def main():
             "Accept": "application/json",
         }
         try:
-            resp = requests.get(get_url, headers=headers, timeout=20)
+            # ponytail: Use proxies=None to avoid proxy interception on internal intranet
+            resp = requests.get(get_url, headers=headers, proxies={"http": None, "https": None}, timeout=20)
             if resp.status_code == 200:
                 try:
                     obj_data = resp.json()
                 except Exception:
                     obj_data = {"raw_text": resp.text}
+
+                # Probe for parsed content if not directly present in object metadata
+                has_content = bool(obj_data.get("content") or obj_data.get("parsed_content") or obj_data.get("text") or obj_data.get("extracted_text"))
+                if not has_content:
+                    content_endpoints = [
+                        f"{base_api}/v3/objects/{object_id}/content",
+                        f"{base_api}/v3/objects/{object_id}/parsed",
+                        f"{base_api}/v3/objects/{object_id}?include_content=true",
+                    ]
+                    for ep in content_endpoints:
+                        try:
+                            c_resp = requests.get(ep, headers=headers, proxies={"http": None, "https": None}, timeout=15)
+                            if c_resp.status_code == 200:
+                                try:
+                                    c_json = c_resp.json()
+                                    if isinstance(c_json, dict):
+                                        c_text = c_json.get("content") or c_json.get("parsed_content") or c_json.get("text") or c_json.get("extracted_text") or c_json.get("data")
+                                        if c_text:
+                                            obj_data["content"] = c_text
+                                            has_content = True
+                                            break
+                                        # If JSON has nested data
+                                        for k, v in c_json.items():
+                                            if k not in obj_data:
+                                                obj_data[k] = v
+                                except Exception:
+                                    if c_resp.text.strip():
+                                        obj_data["content"] = c_resp.text
+                                        has_content = True
+                                        break
+                        except Exception:
+                            continue
+
+                # Normalize parse_status across N-DH API variants
+                dh_nested = obj_data.get("datahub") if isinstance(obj_data.get("datahub"), dict) else {}
+                raw_status = str(
+                    obj_data.get("parse_status") or
+                    obj_data.get("parsing_status") or
+                    obj_data.get("parsing_state") or
+                    obj_data.get("process_status") or
+                    dh_nested.get("parse_status") or
+                    obj_data.get("status") or
+                    ""
+                ).strip().upper()
+
+                if has_content:
+                    obj_data["parse_status"] = "COMPLETED"
+                elif raw_status in ("COMPLETED", "SUCCESS", "DONE", "FINISHED", "OK"):
+                    obj_data["parse_status"] = "COMPLETED"
+                elif raw_status in ("PARSING", "IN_PROGRESS", "RUNNING", "PROCESSING", "QUEUED", "QUEUE"):
+                    obj_data["parse_status"] = "PARSING"
+                elif raw_status in ("SKIPPED", "SKIPPED_DRM", "BYPASS"):
+                    obj_data["parse_status"] = "SKIPPED_DRM"
+                elif raw_status in ("FAILED", "ERROR"):
+                    obj_data["parse_status"] = "FAILED"
+                else:
+                    obj_data["parse_status"] = raw_status if raw_status else "PENDING"
+
                 print(json.dumps({
                     "success": True,
                     "status_code": resp.status_code,

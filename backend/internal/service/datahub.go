@@ -592,7 +592,103 @@ func (s *DataHubService) GetObjectDetails(ctx context.Context, objectID string, 
 
 	var resObj map[string]interface{}
 	if err := json.Unmarshal(body, &resObj); err != nil {
-		return map[string]interface{}{"raw_text": string(body)}, nil
+		resObj = map[string]interface{}{"raw_text": string(body)}
+	}
+
+	// Probe for parsed content if not present in object metadata
+	hasContent := false
+	for _, key := range []string{"content", "parsed_content", "text", "extracted_text"} {
+		if v, ok := resObj[key]; ok && v != nil && strings.TrimSpace(fmt.Sprintf("%v", v)) != "" {
+			hasContent = true
+			break
+		}
+	}
+
+	if !hasContent {
+		contentEndpoints := []string{
+			strings.TrimRight(baseURL, "/") + "/v3/objects/" + objectID + "/content",
+			strings.TrimRight(baseURL, "/") + "/v3/objects/" + objectID + "/parsed",
+			strings.TrimRight(baseURL, "/") + "/v3/objects/" + objectID + "?include_content=true",
+		}
+		for _, ep := range contentEndpoints {
+			cCtx, cCancel := context.WithTimeout(ctx, 12*time.Second)
+			cReq, cErr := http.NewRequestWithContext(cCtx, http.MethodGet, ep, nil)
+			if cErr != nil {
+				cCancel()
+				continue
+			}
+			if token != "" {
+				cReq.Header.Set("Authorization", "Bearer "+token)
+				cReq.Header.Set("X-API-KEY", token)
+			}
+			cReq.Header.Set("Accept", "application/json")
+			cResp, cErr := s.httpClient.Do(cReq)
+			if cErr == nil && cResp.StatusCode == http.StatusOK {
+				cBody, _ := io.ReadAll(cResp.Body)
+				cResp.Body.Close()
+				var cMap map[string]interface{}
+				if err := json.Unmarshal(cBody, &cMap); err == nil {
+					for _, k := range []string{"content", "parsed_content", "text", "extracted_text", "data"} {
+						if val, ok := cMap[k]; ok && val != nil && strings.TrimSpace(fmt.Sprintf("%v", val)) != "" {
+							resObj["content"] = val
+							hasContent = true
+							break
+						}
+					}
+					for k, v := range cMap {
+						if _, exists := resObj[k]; !exists {
+							resObj[k] = v
+						}
+					}
+				} else if len(bytes.TrimSpace(cBody)) > 0 {
+					resObj["content"] = string(cBody)
+					hasContent = true
+				}
+				cCancel()
+				if hasContent {
+					break
+				}
+			} else {
+				if cResp != nil {
+					cResp.Body.Close()
+				}
+				cCancel()
+			}
+		}
+	}
+
+	// Normalize parse_status across N-DH API variants
+	rawStatus := ""
+	for _, k := range []string{"parse_status", "parsing_status", "parsing_state", "process_status", "status"} {
+		if v, ok := resObj[k]; ok && v != nil {
+			rawStatus = strings.ToUpper(strings.TrimSpace(fmt.Sprintf("%v", v)))
+			if rawStatus != "" {
+				break
+			}
+		}
+	}
+	if rawStatus == "" {
+		if dhNested, ok := resObj["datahub"].(map[string]interface{}); ok {
+			if v, ok := dhNested["parse_status"]; ok && v != nil {
+				rawStatus = strings.ToUpper(strings.TrimSpace(fmt.Sprintf("%v", v)))
+			}
+		}
+	}
+
+	if hasContent {
+		resObj["parse_status"] = "COMPLETED"
+	} else if rawStatus == "COMPLETED" || rawStatus == "SUCCESS" || rawStatus == "DONE" || rawStatus == "FINISHED" || rawStatus == "OK" {
+		resObj["parse_status"] = "COMPLETED"
+	} else if rawStatus == "PARSING" || rawStatus == "IN_PROGRESS" || rawStatus == "RUNNING" || rawStatus == "PROCESSING" || rawStatus == "QUEUED" || rawStatus == "QUEUE" {
+		resObj["parse_status"] = "PARSING"
+	} else if rawStatus == "SKIPPED" || rawStatus == "SKIPPED_DRM" || rawStatus == "BYPASS" {
+		resObj["parse_status"] = "SKIPPED_DRM"
+	} else if rawStatus == "FAILED" || rawStatus == "ERROR" {
+		resObj["parse_status"] = "FAILED"
+	} else if rawStatus != "" {
+		resObj["parse_status"] = rawStatus
+	} else {
+		resObj["parse_status"] = "PENDING"
 	}
 
 	return resObj, nil

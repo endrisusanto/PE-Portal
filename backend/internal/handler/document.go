@@ -477,6 +477,16 @@ func (h *DocumentHandler) GetDataHubView(c echo.Context) error {
 		})
 	}
 
+	// If document was previously auto-retried with parsing_yn=false due to DRM encryption
+	if doc.DataHubError != nil && strings.Contains(*doc.DataHubError, "DRM_ENCRYPTED_FILE") {
+		pStatus, _ := objData["parse_status"].(string)
+		if pStatus == "" || pStatus == "PENDING" {
+			objData["parse_status"] = "SKIPPED_DRM"
+			objData["drm_protected"] = true
+			objData["drm_message"] = "Dokumen dilindungi enkripsi DRM / NASCA internal Samsung. Ekstraksi teks AI otomatis dilewati agar berkas tetap berhasil disimpan di storage DataHub."
+		}
+	}
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":    true,
 		"object_id":  *doc.DataHubObjectID,

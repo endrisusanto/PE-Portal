@@ -170,6 +170,110 @@ export const DocumentsPage = () => {
   const [markdownError, setMarkdownError] = useState(null);
   const [markdownViewType, setMarkdownViewType] = useState('rendered'); // 'rendered' | 'raw'
   const [copiedMd, setCopiedMd] = useState(false);
+  const [copiedDhText, setCopiedDhText] = useState(false);
+
+  const handleCopyDhText = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedDhText(true);
+    setTimeout(() => setCopiedDhText(false), 2000);
+  };
+
+  const renderDataHubStatusBadge = (parseStatus, objectStatus) => {
+    const raw = String(parseStatus || objectStatus || 'PENDING').toUpperCase();
+    if (raw === 'COMPLETED' || raw === 'SUCCESS' || raw === 'DONE') {
+      return (
+        <span style={{
+          padding: '2px 8px',
+          borderRadius: '10px',
+          fontSize: '11px',
+          fontWeight: 600,
+          backgroundColor: 'rgba(16, 185, 129, 0.12)',
+          color: '#10b981',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}>
+          <CheckCircle2 size={12} />
+          {t('documents.datahub_status_completed', 'COMPLETED')}
+        </span>
+      );
+    }
+    if (raw === 'SKIPPED_DRM') {
+      return (
+        <span style={{
+          padding: '2px 8px',
+          borderRadius: '10px',
+          fontSize: '11px',
+          fontWeight: 600,
+          backgroundColor: 'rgba(139, 92, 246, 0.12)',
+          color: '#8b5cf6',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}>
+          <Lock size={12} />
+          {t('documents.datahub_status_drm_bypass', 'DRM BYPASS (RAW STORAGE)')}
+        </span>
+      );
+    }
+    if (raw === 'PARSING' || raw === 'IN_PROGRESS' || raw === 'PROCESSING' || raw === 'QUEUED') {
+      return (
+        <span style={{
+          padding: '2px 8px',
+          borderRadius: '10px',
+          fontSize: '11px',
+          fontWeight: 600,
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          color: '#f59e0b',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}>
+          <Loader2 size={12} className={styles.spin} />
+          {t('documents.datahub_status_parsing', 'PARSING IN PROGRESS')}
+        </span>
+      );
+    }
+    if (raw === 'FAILED' || raw === 'ERROR') {
+      return (
+        <span style={{
+          padding: '2px 8px',
+          borderRadius: '10px',
+          fontSize: '11px',
+          fontWeight: 600,
+          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+          color: '#ef4444',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}>
+          <AlertCircle size={12} />
+          {t('documents.datahub_status_failed', 'FAILED')}
+        </span>
+      );
+    }
+    return (
+      <span style={{
+        padding: '2px 8px',
+        borderRadius: '10px',
+        fontSize: '11px',
+        fontWeight: 600,
+        backgroundColor: 'rgba(100, 116, 139, 0.12)',
+        color: '#64748b',
+        border: '1px solid rgba(100, 116, 139, 0.3)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+      }}>
+        {raw}
+      </span>
+    );
+  };
 
   const fetchDataHubView = async (docId) => {
     setDatahubViewLoading(true);
@@ -1384,13 +1488,14 @@ export const DocumentsPage = () => {
                     {/* Status & Object Header */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: '10px',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: '12px',
                       backgroundColor: 'var(--color-bg-secondary)',
                       padding: '14px',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--color-border)',
                       fontSize: '12px',
+                      alignItems: 'center',
                     }}>
                       <div>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>{t('documents.datahub_object_id', 'Object ID DataHub')}</div>
@@ -1400,25 +1505,27 @@ export const DocumentsPage = () => {
                       </div>
                       <div>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>{t('documents.datahub_ingest_status', 'Status Ingest / Parsing')}</div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{
-                            padding: '2px 8px',
-                            borderRadius: '10px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                            color: '#10b981',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                          }}>
-                            {String(datahubViewData.object?.status || datahubViewData.object?.parse_status || 'CREATED')}
-                          </span>
+                        <div>
+                          {renderDataHubStatusBadge(datahubViewData.object?.parse_status, datahubViewData.object?.status)}
                         </div>
                       </div>
                       <div>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: '11px', marginBottom: '2px' }}>{t('documents.datahub_remote_name', 'Nama File Remote')}</div>
-                        <div style={{ fontWeight: 600 }}>
+                        <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(datahubViewData.object?.name || datahubViewData.object?.title || previewDoc.file_name)}>
                           {String(datahubViewData.object?.name || datahubViewData.object?.title || previewDoc.file_name)}
                         </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={RefreshCw}
+                          loading={datahubViewLoading}
+                          onClick={() => fetchDataHubView(previewDoc.id)}
+                          style={{ height: '30px', fontSize: '12px' }}
+                        >
+                          {t('documents.datahub_refresh_btn', 'Segarkan')}
+                        </Button>
                       </div>
                     </div>
 
@@ -1436,9 +1543,22 @@ export const DocumentsPage = () => {
                           <FileText size={14} color="#2563eb" />
                           {t('documents.datahub_extracted_content', 'Konten Teks & Ekstraksi DataHub AI')}
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                          {t('documents.datahub_bypass_desc', 'Bypass enkripsi NASCA client-side')}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {(datahubViewData.object?.content || datahubViewData.object?.parsed_content || datahubViewData.object?.text || datahubViewData.object?.raw_text) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon={copiedDhText ? Check : Copy}
+                              onClick={() => handleCopyDhText(String(datahubViewData.object.content || datahubViewData.object.parsed_content || datahubViewData.object.text || datahubViewData.object.raw_text))}
+                              style={{ height: '24px', fontSize: '11px', padding: '0 8px' }}
+                            >
+                              {copiedDhText ? t('common.copied', 'Tersalin!') : t('common.copy_text', 'Salin Teks')}
+                            </Button>
+                          )}
+                          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                            {t('documents.datahub_bypass_desc', 'Bypass enkripsi NASCA client-side')}
+                          </span>
+                        </div>
                       </div>
 
                       {datahubViewData.object?.content || datahubViewData.object?.parsed_content || datahubViewData.object?.text ? (
@@ -1461,6 +1581,83 @@ export const DocumentsPage = () => {
                         }}>
                           {datahubViewData.object.raw_text}
                         </div>
+                      ) : String(datahubViewData.object?.parse_status).toUpperCase() === 'SKIPPED_DRM' ? (
+                        <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                          <Lock size={38} style={{ margin: '0 auto 10px', color: '#8b5cf6' }} />
+                          <p style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            {t('documents.datahub_drm_protected_title', 'Dokumen Terproteksi Enkripsi NASCA / DRM Samsung')}
+                          </p>
+                          <p style={{ margin: '0 auto 14px', maxWidth: '520px', fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
+                            {t('documents.datahub_drm_protected_desc', 'Dokumen ini memiliki proteksi keamanan DRM NASCA sehingga ekstraksi teks otomatis dilewati untuk mencegah penolakan API. Berkas fisik tersimpan aman di storage DataHub dan dapat dilihat langsung melalui Portal Resmi Samsung DataHub dengan otentikasi intranet Anda.')}
+                          </p>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              icon={RefreshCw}
+                              loading={datahubViewLoading}
+                              onClick={() => fetchDataHubView(previewDoc.id)}
+                            >
+                              {t('documents.datahub_refresh_btn', 'Segarkan Status')}
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              icon={ExternalLink}
+                              onClick={() => window.open(datahubViewData.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
+                            >
+                              {t('documents.open_datahub_portal', 'Buka di Web DataHub Samsung')}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : ['PARSING', 'IN_PROGRESS', 'PROCESSING', 'QUEUED'].includes(String(datahubViewData.object?.parse_status).toUpperCase()) ? (
+                        <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                          <Loader2 size={38} className={styles.spin} style={{ margin: '0 auto 10px', color: '#f59e0b' }} />
+                          <p style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            {t('documents.datahub_parsing_title', 'Proses Ekstraksi AI Sedang Berlangsung di DataHub')}
+                          </p>
+                          <p style={{ margin: '0 auto 14px', maxWidth: '520px', fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
+                            {t('documents.datahub_parsing_desc', 'Server DataHub AI sedang memproses ekstraksi teks dokumen di antrean latar belakang. Proses memakan waktu 1–3 menit tergantung jumlah halaman. Silakan segarkan status secara berkala.')}
+                          </p>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            icon={RefreshCw}
+                            loading={datahubViewLoading}
+                            onClick={() => fetchDataHubView(previewDoc.id)}
+                          >
+                            {t('documents.datahub_refresh_btn', 'Segarkan Status Sekarang')}
+                          </Button>
+                        </div>
+                      ) : ['FAILED', 'ERROR'].includes(String(datahubViewData.object?.parse_status).toUpperCase()) ? (
+                        <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                          <AlertCircle size={38} style={{ margin: '0 auto 10px', color: '#ef4444' }} />
+                          <p style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            {t('documents.datahub_failed_title', 'Ekstraksi Teks Gagal di Server DataHub')}
+                          </p>
+                          <p style={{ margin: '0 auto 14px', maxWidth: '520px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                            {String(datahubViewData.object?.error || datahubViewData.object?.message || 'Server DataHub tidak dapat mem-parsing format dokumen ini.')}
+                          </p>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              icon={RefreshCw}
+                              loading={datahubViewLoading}
+                              onClick={() => fetchDataHubView(previewDoc.id)}
+                            >
+                              {t('documents.datahub_refresh_btn', 'Coba Segarkan')}
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              icon={ExternalLink}
+                              onClick={() => window.open(datahubViewData.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
+                            >
+                              {t('documents.open_datahub_portal', 'Buka di Web DataHub Samsung')}
+                            </Button>
+                          </div>
+                        </div>
                       ) : (
                         <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                           <Database size={36} style={{ margin: '0 auto 8px', color: 'var(--color-accent)' }} />
@@ -1468,16 +1665,27 @@ export const DocumentsPage = () => {
                             {t('documents.datahub_stored_notice', 'Dokumen Tersimpan di Samsung DataHub')}
                           </p>
                           <p style={{ margin: '0 auto 14px', maxWidth: '480px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                            {t('documents.datahub_stored_desc', { objectId: datahubViewData.object_id, status: String(datahubViewData.object?.parse_status || 'PENDING'), defaultValue: `Berkas telah terdaftar di DataHub dengan ID ${datahubViewData.object_id}. Status parsing: ${String(datahubViewData.object?.parse_status || 'PENDING')}. Anda dapat melihat pratinjau penuh langsung di platform DataHub resmi.` })}
+                            {t('documents.datahub_stored_desc', { objectId: datahubViewData.object_id, status: String(datahubViewData.object?.parse_status || datahubViewData.object?.status || 'SYNCHRONIZED'), defaultValue: `Berkas telah terdaftar di DataHub dengan ID ${datahubViewData.object_id}. Status parsing: ${String(datahubViewData.object?.parse_status || datahubViewData.object?.status || 'SYNCHRONIZED')}. Anda dapat melihat pratinjau penuh langsung di platform DataHub resmi.` })}
                           </p>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={ExternalLink}
-                            onClick={() => window.open(datahubViewData.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
-                          >
-                            {t('documents.open_datahub_portal', 'Buka di Web DataHub Samsung')}
-                          </Button>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              icon={RefreshCw}
+                              loading={datahubViewLoading}
+                              onClick={() => fetchDataHubView(previewDoc.id)}
+                            >
+                              {t('documents.datahub_refresh_btn', 'Segarkan Status')}
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              icon={ExternalLink}
+                              onClick={() => window.open(datahubViewData.portal_url || 'https://datahub.bigdata.samsung.com/', '_blank')}
+                            >
+                              {t('documents.open_datahub_portal', 'Buka di Web DataHub Samsung')}
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
