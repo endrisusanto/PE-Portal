@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -56,16 +58,35 @@ func (h *PEMCPHandler) Handle(c echo.Context) error {
 func (h *PEMCPHandler) handleGet(c echo.Context) error {
 	path := c.Request().URL.Path
 
-	// SSE support
-	if path == "/api/v1/mcp/sse" || path == "/mcp/sse" {
+	// SSE support: check path or Accept header
+	isSSE := path == "/api/v1/mcp/sse" || path == "/mcp/sse" || strings.Contains(c.Request().Header.Get("Accept"), "text/event-stream")
+	if isSSE {
 		c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
 		c.Response().Header().Set(echo.HeaderCacheControl, "no-cache")
 		c.Response().Header().Set(echo.HeaderConnection, "keep-alive")
 
-		// Emit endpoint event
-		fmt.Fprintf(c.Response(), "event: endpoint\ndata: %s\n\n", "/api/v1/mcp")
+		// Emit endpoint event for POST messages
+		endpoint := "/api/v1/mcp"
+		if strings.HasPrefix(path, "/mcp") && !strings.HasPrefix(path, "/api/v1/mcp") {
+			endpoint = "/mcp"
+		}
+		fmt.Fprintf(c.Response(), "event: endpoint\ndata: %s\n\n", endpoint)
 		c.Response().Flush()
-		return nil
+
+		// Keep SSE connection open until client disconnects
+		notify := c.Request().Context().Done()
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-notify:
+				return nil
+			case <-ticker.C:
+				fmt.Fprintf(c.Response(), ": keepalive\n\n")
+				c.Response().Flush()
+			}
+		}
 	}
 
 	tools := h.mcpService.GetTools()
@@ -189,6 +210,27 @@ func (h *PEMCPHandler) handleJSONRPC(c echo.Context, req *jsonRPCRequest) error 
 			},
 		})
 
+	case "notifications/initialized", "initialized", "notifications/cancelled":
+		return c.NoContent(http.StatusOK)
+
+	case "resources/list", "resources/templates/list":
+		return c.JSON(http.StatusOK, jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result: map[string]interface{}{
+				"resources": []interface{}{},
+			},
+		})
+
+	case "prompts/list":
+		return c.JSON(http.StatusOK, jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result: map[string]interface{}{
+				"prompts": []interface{}{},
+			},
+		})
+
 	case "ping":
 		return c.JSON(http.StatusOK, jsonRPCResponse{
 			JSONRPC: "2.0",
@@ -197,6 +239,10 @@ func (h *PEMCPHandler) handleJSONRPC(c echo.Context, req *jsonRPCRequest) error 
 		})
 
 	default:
+		// If request is a notification (no ID), do not send an error response
+		if req.ID == nil {
+			return c.NoContent(http.StatusOK)
+		}
 		return c.JSON(http.StatusOK, jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
