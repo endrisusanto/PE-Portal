@@ -46,7 +46,7 @@ func (r *WITranslatorRepository) GetByID(ctx context.Context, id uuid.UUID) (*mo
 		SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
 		       status, current_page, total_pages, progress_percent, message,
 		       translated_count, duration_sec, translated_file, download_url,
-		       error_message, created_at, updated_at
+		       error_message, started_at, completed_at, created_at, updated_at
 		FROM wi_translation_jobs
 		WHERE id = $1
 	`
@@ -56,7 +56,7 @@ func (r *WITranslatorRepository) GetByID(ctx context.Context, id uuid.UUID) (*mo
 		&job.TargetLang, &job.Mode, &job.Status, &job.CurrentPage, &job.TotalPages,
 		&job.ProgressPercent, &job.Message, &job.TranslatedCount, &job.DurationSec,
 		&job.TranslatedFile, &job.DownloadURL, &job.ErrorMessage,
-		&job.CreatedAt, &job.UpdatedAt,
+		&job.StartedAt, &job.CompletedAt, &job.CreatedAt, &job.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (r *WITranslatorRepository) List(ctx context.Context, limit int) ([]*model.
 		SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
 		       status, current_page, total_pages, progress_percent, message,
 		       translated_count, duration_sec, translated_file, download_url,
-		       error_message, created_at, updated_at
+		       error_message, started_at, completed_at, created_at, updated_at
 		FROM wi_translation_jobs
 		ORDER BY created_at DESC
 		LIMIT $1
@@ -91,7 +91,7 @@ func (r *WITranslatorRepository) List(ctx context.Context, limit int) ([]*model.
 			&job.TargetLang, &job.Mode, &job.Status, &job.CurrentPage, &job.TotalPages,
 			&job.ProgressPercent, &job.Message, &job.TranslatedCount, &job.DurationSec,
 			&job.TranslatedFile, &job.DownloadURL, &job.ErrorMessage,
-			&job.CreatedAt, &job.UpdatedAt,
+			&job.StartedAt, &job.CompletedAt, &job.CreatedAt, &job.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -103,7 +103,8 @@ func (r *WITranslatorRepository) List(ctx context.Context, limit int) ([]*model.
 func (r *WITranslatorRepository) MarkProcessing(ctx context.Context, id uuid.UUID) error {
 	query := `
 		UPDATE wi_translation_jobs
-		SET status = 'processing', message = 'Sedang diproses oleh server...', updated_at = NOW()
+		SET status = 'processing', message = 'Sedang diproses oleh server...',
+		    started_at = COALESCE(started_at, NOW()), updated_at = NOW()
 		WHERE id = $1
 	`
 	_, err := r.db.Exec(ctx, query, id)
@@ -126,6 +127,7 @@ func (r *WITranslatorRepository) MarkCompleted(ctx context.Context, id uuid.UUID
 		UPDATE wi_translation_jobs
 		SET status = 'completed', progress_percent = 100.0, translated_file = $2,
 		    download_url = $3, translated_count = $4, duration_sec = $5,
+		    completed_at = NOW(),
 		    error_message = NULL,
 		    message = 'Penerjemahan dokumen selesai', updated_at = NOW()
 		WHERE id = $1
@@ -134,14 +136,16 @@ func (r *WITranslatorRepository) MarkCompleted(ctx context.Context, id uuid.UUID
 	return err
 }
 
-func (r *WITranslatorRepository) MarkFailed(ctx context.Context, id uuid.UUID, errMsg string) error {
+func (r *WITranslatorRepository) MarkFailed(ctx context.Context, id uuid.UUID, errMsg string, dur float64) error {
 	query := `
 		UPDATE wi_translation_jobs
 		SET status = 'failed', error_message = $2,
+		    duration_sec = CASE WHEN $3 > 0 THEN $3 ELSE duration_sec END,
+		    completed_at = NOW(),
 		    message = 'Gagal: ' || $2, updated_at = NOW()
 		WHERE id = $1
 	`
-	_, err := r.db.Exec(ctx, query, id, errMsg)
+	_, err := r.db.Exec(ctx, query, id, errMsg, dur)
 	return err
 }
 
@@ -186,7 +190,7 @@ func (r *WITranslatorRepository) GetPendingJobs(ctx context.Context, specificIDs
 			SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
 			       status, current_page, total_pages, progress_percent, message,
 			       translated_count, duration_sec, translated_file, download_url,
-			       error_message, created_at, updated_at
+			       error_message, started_at, completed_at, created_at, updated_at
 			FROM wi_translation_jobs
 			WHERE id = ANY($1) AND status != 'processing'
 			ORDER BY created_at ASC
@@ -197,7 +201,7 @@ func (r *WITranslatorRepository) GetPendingJobs(ctx context.Context, specificIDs
 			SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
 			       status, current_page, total_pages, progress_percent, message,
 			       translated_count, duration_sec, translated_file, download_url,
-			       error_message, created_at, updated_at
+			       error_message, started_at, completed_at, created_at, updated_at
 			FROM wi_translation_jobs
 			WHERE status = 'pending'
 			ORDER BY created_at ASC
@@ -219,7 +223,7 @@ func (r *WITranslatorRepository) GetPendingJobs(ctx context.Context, specificIDs
 			&job.TargetLang, &job.Mode, &job.Status, &job.CurrentPage, &job.TotalPages,
 			&job.ProgressPercent, &job.Message, &job.TranslatedCount, &job.DurationSec,
 			&job.TranslatedFile, &job.DownloadURL, &job.ErrorMessage,
-			&job.CreatedAt, &job.UpdatedAt,
+			&job.StartedAt, &job.CompletedAt, &job.CreatedAt, &job.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

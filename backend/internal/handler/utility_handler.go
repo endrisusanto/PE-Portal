@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -1016,6 +1017,10 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 
 	ctx := context.Background()
 	_ = h.wiRepo.MarkProcessing(ctx, job.ID)
+	startTime := time.Now()
+	if job.StartedAt != nil {
+		startTime = *job.StartedAt
+	}
 
 	storageDir := os.Getenv("FILE_STORAGE_PATH")
 	if storageDir == "" {
@@ -1093,12 +1098,12 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		_ = h.wiRepo.MarkFailed(ctx, job.ID, "Failed to create stdout pipe: "+err.Error())
+		_ = h.wiRepo.MarkFailed(ctx, job.ID, "Failed to create stdout pipe: "+err.Error(), 0)
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		_ = h.wiRepo.MarkFailed(ctx, job.ID, "Failed to start python translator: "+err.Error())
+		_ = h.wiRepo.MarkFailed(ctx, job.ID, "Failed to start python translator: "+err.Error(), 0)
 		return
 	}
 
@@ -1157,6 +1162,10 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 		lastErr = "Scanner error: " + scanErr.Error()
 	}
 
+	if durationSec <= 0 {
+		durationSec = math.Round(time.Since(startTime).Seconds()*100) / 100
+	}
+
 	if err := cmd.Wait(); err != nil {
 		if !finalSuccess {
 			if lastErr == "" {
@@ -1171,7 +1180,7 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 					lastErr = "Process exit error: " + err.Error()
 				}
 			}
-			_ = h.wiRepo.MarkFailed(ctx, job.ID, lastErr)
+			_ = h.wiRepo.MarkFailed(ctx, job.ID, lastErr, durationSec)
 			return
 		}
 	}
@@ -1180,7 +1189,7 @@ func (h *UtilityHandler) processWIJob(job *model.WITranslationJob) {
 		dlURL := fmt.Sprintf("/api/v1/utility/translate-wi-pdf/download/%s", outFilename)
 		_ = h.wiRepo.MarkCompleted(ctx, job.ID, outFilename, dlURL, translatedBlocks, durationSec)
 	} else if lastErr != "" {
-		_ = h.wiRepo.MarkFailed(ctx, job.ID, lastErr)
+		_ = h.wiRepo.MarkFailed(ctx, job.ID, lastErr, durationSec)
 	} else {
 		dlURL := fmt.Sprintf("/api/v1/utility/translate-wi-pdf/download/%s", outFilename)
 		_ = h.wiRepo.MarkCompleted(ctx, job.ID, outFilename, dlURL, translatedBlocks, durationSec)

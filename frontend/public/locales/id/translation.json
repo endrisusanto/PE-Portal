@@ -1435,6 +1435,7 @@
     "wi_col_file": "Berkas PDF",
     "wi_col_config": "Pengaturan",
     "wi_col_status": "Status & Progres Aktual",
+    "wi_col_elapsed_time": "Elapsed Time",
     "wi_col_time": "Waktu",
     "wi_col_action": "Aksi",
     "wi_no_jobs_title": "Belum ada berkas dalam antrean",

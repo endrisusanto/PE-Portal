@@ -1435,6 +1435,7 @@
     "wi_col_file": "PDF File",
     "wi_col_config": "Configuration",
     "wi_col_status": "Status & Actual Progress",
+    "wi_col_elapsed_time": "Elapsed Time",
     "wi_col_time": "Time",
     "wi_col_action": "Action",
     "wi_no_jobs_title": "No files in the queue",

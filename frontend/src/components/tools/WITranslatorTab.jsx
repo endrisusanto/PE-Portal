@@ -307,6 +307,39 @@ export const WITranslatorTab = () => {
     }
   };
 
+  // ponytail: 1-second ticker for live elapsed time updates on active processing jobs
+  const [tickerNow, setTickerNow] = useState(Date.now());
+  useEffect(() => {
+    const hasProcessing = jobs.some((j) => j.status === 'processing');
+    if (!hasProcessing) return;
+    const interval = setInterval(() => setTickerNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [jobs]);
+
+  // ponytail: Format duration seconds into human-readable elapsed time (e.g. 17.1s, 1m 24s)
+  const formatDuration = (sec) => {
+    if (sec === null || sec === undefined || isNaN(sec) || sec <= 0) return '—';
+    if (sec < 60) {
+      return `${sec.toFixed(1)}s`;
+    }
+    const mins = Math.floor(sec / 60);
+    const remSec = Math.round(sec % 60);
+    return `${mins}m ${remSec < 10 ? '0' : ''}${remSec}s`;
+  };
+
+  // ponytail: Calculate elapsed time from trigger start until completed or live
+  const getJobElapsed = (job) => {
+    if (job.status === 'completed' || (job.status === 'failed' && job.duration_sec > 0)) {
+      return formatDuration(job.duration_sec);
+    }
+    if (job.status === 'processing') {
+      const startRef = job.started_at ? new Date(job.started_at).getTime() : new Date(job.updated_at).getTime();
+      const elapsedSec = Math.max(0, (tickerNow - startRef) / 1000);
+      return formatDuration(elapsedSec);
+    }
+    return '—';
+  };
+
   // Status counters
   const counts = useMemo(() => {
     return {
@@ -680,6 +713,7 @@ export const WITranslatorTab = () => {
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_file', 'Berkas PDF')}</th>
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_config', 'Pengaturan')}</th>
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_status', 'Status & Progres Aktual')}</th>
+                <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_elapsed_time', 'Elapsed Time')}</th>
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_time', 'Waktu')}</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>{t('tools.wi_col_action', 'Aksi')}</th>
               </tr>
@@ -687,14 +721,14 @@ export const WITranslatorTab = () => {
             <tbody>
               {loadingJobs ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                     <RefreshCw size={24} style={{ animation: 'spin 1.5s linear infinite', margin: '0 auto 8px' }} />
                     <div>{t('common.loading', 'Memuat daftar antrean pekerjaan...')}</div>
                   </td>
                 </tr>
               ) : filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                     <FileText size={40} style={{ opacity: 0.3, margin: '0 auto 10px' }} />
                     <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--color-text-primary)' }}>
                       {t('tools.wi_no_jobs_title', 'Belum ada berkas dalam antrean')}
@@ -853,7 +887,7 @@ export const WITranslatorTab = () => {
                               Selesai ({j.total_pages} Hal)
                             </span>
                             <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                              {j.translated_count} Blok • {j.duration_sec}s
+                              {j.translated_count} Blok
                             </span>
                           </div>
                         )}
@@ -899,6 +933,53 @@ export const WITranslatorTab = () => {
                               </span>
                             )}
                           </div>
+                        )}
+                      </td>
+
+                      {/* Elapsed Time */}
+                      <td style={{ padding: '14px', whiteSpace: 'nowrap' }}>
+                        {isProcessing ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: 'var(--color-accent)',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            <Clock size={13} style={{ animation: 'spin 2s linear infinite' }} />
+                            {getJobElapsed(j)}
+                          </span>
+                        ) : isCompleted ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: 'var(--color-text-primary)',
+                            fontVariantNumeric: 'tabular-nums',
+                          }} title={`Total durasi pengerjaan: ${j.duration_sec}s`}>
+                            <Clock size={13} style={{ color: '#10b981' }} />
+                            {getJobElapsed(j)}
+                          </span>
+                        ) : isFailed && j.duration_sec > 0 ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '12px',
+                            color: 'var(--color-text-secondary)',
+                            fontVariantNumeric: 'tabular-nums',
+                          }} title={`Berhenti pada: ${j.duration_sec}s`}>
+                            <Clock size={13} style={{ opacity: 0.6 }} />
+                            {getJobElapsed(j)}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>
+                            —
+                          </span>
                         )}
                       </td>
 
