@@ -38,7 +38,6 @@ import { Input } from '../common/Input';
 import { Modal } from '../common/Modal';
 import { FormattingTextarea } from '../common/FormattingTextarea';
 import { CommentTimelineSection } from '../common/CommentTimelineSection';
-import * as XLSX from 'xlsx';
 import api from '../../api/client';
 import styles from './ModelMilestoneMatrix.module.css';
 
@@ -1138,78 +1137,287 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     }, 15000);
   };
 
-  // ponytail: Export genuine binary OpenXML spreadsheet (.xlsx) with proper sheets, merges, and column widths
+  // ponytail: Zero-dependency OpenXML (.xlsx) builder using native typed arrays & uncompressed ZIP (STORE method)
   const handleExportExcel = () => {
     try {
-      const data = [];
+      // 1. Build CRC32 lookup table
+      const crcTable = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let k = 0; k < 8; k++) {
+          c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        crcTable[i] = c >>> 0;
+      }
+      const calcCrc32 = (buf) => {
+        let crc = 0 ^ (-1);
+        for (let i = 0; i < buf.length; i++) {
+          crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xff];
+        }
+        return (crc ^ (-1)) >>> 0;
+      };
+
+      const getColLetter = (colIdx) => {
+        let letter = '';
+        let temp = colIdx + 1;
+        while (temp > 0) {
+          const rem = (temp - 1) % 26;
+          letter = String.fromCharCode(65 + rem) + letter;
+          temp = Math.floor((temp - 1) / 26);
+        }
+        return letter;
+      };
+
+      const escapeXml = (str) => {
+        if (str === null || str === undefined) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&apos;');
+      };
+
+      // 2. Prepare Worksheet XML content
+      const totalCols = filteredModels.length + 2;
+      const colDefs = [
+        '<col min="1" max="1" width="22" customWidth="1"/>',
+        '<col min="2" max="2" width="34" customWidth="1"/>',
+        ...filteredModels.map((m, i) => {
+          const width = Math.max(16, (m.model_name || '').length + 4);
+          return `<col min="${i + 3}" max="${i + 3}" width="${width}" customWidth="1"/>`;
+        }),
+      ];
+
+      const rowXmls = [];
       const merges = [];
+      let rowIdx = 1;
 
       // Row 1: Header Row with Model names
-      const r1 = ['Category', 'Milestone Task', ...filteredModels.map((m) => m.model_name || '-')];
-      data.push(r1);
+      const r1Cells = [
+        '<c r="A1" t="inlineStr" s="1"><is><t>Category</t></is></c>',
+        '<c r="B1" t="inlineStr" s="1"><is><t>Milestone Task</t></is></c>',
+        ...filteredModels.map(
+          (m, i) => `<c r="${getColLetter(i + 2)}1" t="inlineStr" s="1"><is><t>${escapeXml(m.model_name || '-')}</t></is></c>`
+        ),
+      ];
+      rowXmls.push(`<row r="1">${r1Cells.join('')}</row>`);
+      rowIdx++;
 
       // Row 2: Marketing / Project Name
-      const r2 = ['', 'Marketing/Project Name', ...filteredModels.map((m) => m.marketing_name || m.codename || '-')];
-      data.push(r2);
+      const r2Cells = [
+        '<c r="A2" t="inlineStr"><is><t></t></is></c>',
+        '<c r="B2" t="inlineStr" s="1"><is><t>Marketing/Project Name</t></is></c>',
+        ...filteredModels.map(
+          (m, i) =>
+            `<c r="${getColLetter(i + 2)}2" t="inlineStr"><is><t>${escapeXml(m.marketing_name || m.codename || '-')}</t></is></c>`
+        ),
+      ];
+      rowXmls.push(`<row r="2">${r2Cells.join('')}</row>`);
+      rowIdx++;
 
       // Row 3: Basic Model / Variant
-      const r3 = ['', 'Basic Model', ...filteredModels.map((m) => getModelVariants(m).join(' / ') || '-')];
-      data.push(r3);
+      const r3Cells = [
+        '<c r="A3" t="inlineStr"><is><t></t></is></c>',
+        '<c r="B3" t="inlineStr" s="1"><is><t>Basic Model</t></is></c>',
+        ...filteredModels.map(
+          (m, i) =>
+            `<c r="${getColLetter(i + 2)}3" t="inlineStr"><is><t>${escapeXml(getModelVariants(m).join(' / ') || '-')}</t></is></c>`
+        ),
+      ];
+      rowXmls.push(`<row r="3">${r3Cells.join('')}</row>`);
+      rowIdx++;
 
-      let currentRow = 3;
-
-      // Category Groups & Milestone Rows
+      // Categories and Tasks
       MODERN_CATEGORIES.forEach((cat) => {
-        // Category Header Row
-        const catRow = [cat.title.toUpperCase(), '', ...filteredModels.map(() => '')];
-        data.push(catRow);
+        const catRow = rowIdx;
+        rowXmls.push(
+          `<row r="${catRow}"><c r="A${catRow}" t="inlineStr" s="1"><is><t>${escapeXml(cat.title.toUpperCase())}</t></is></c></row>`
+        );
+        merges.push(`A${catRow}:${getColLetter(totalCols - 1)}${catRow}`);
+        rowIdx++;
 
-        // Merge across all columns for category banner
-        merges.push({
-          s: { r: currentRow, c: 0 },
-          e: { r: currentRow, c: filteredModels.length + 1 },
-        });
-        currentRow++;
-
-        // Category Items
         cat.items.forEach((item) => {
-          const row = [
-            cat.title,
-            item.label,
-            ...filteredModels.map((m) => {
+          const curRow = rowIdx;
+          const cells = [
+            `<c r="A${curRow}" t="inlineStr"><is><t>${escapeXml(cat.title)}</t></is></c>`,
+            `<c r="B${curRow}" t="inlineStr"><is><t>${escapeXml(item.label)}</t></is></c>`,
+            ...filteredModels.map((m, i) => {
               const resolved = resolveMilestoneValue(m.id, item.key);
-              return resolved.display || '-';
+              return `<c r="${getColLetter(i + 2)}${curRow}" t="inlineStr"><is><t>${escapeXml(resolved.display || '-')}</t></is></c>`;
             }),
           ];
-          data.push(row);
-          currentRow++;
+          rowXmls.push(`<row r="${curRow}">${cells.join('')}</row>`);
+          rowIdx++;
         });
       });
 
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      ws['!merges'] = merges;
+      const mergeXml = merges.length > 0
+        ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>`
+        : '';
 
-      // Auto-fit column widths
-      const colWidths = [
-        { wch: 22 }, // Category
-        { wch: 32 }, // Milestone Task
-        ...filteredModels.map((m) => ({
-          wch: Math.max(16, (m.model_name || '').length + 4),
-        })),
+      const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <cols>${colDefs.join('')}</cols>
+  <sheetData>${rowXmls.join('')}</sheetData>
+  ${mergeXml}
+</worksheet>`;
+
+      // 3. Assemble OpenXML Package (.xlsx)
+      const files = [
+        {
+          name: '[Content_Types].xml',
+          content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`,
+        },
+        {
+          name: '_rels/.rels',
+          content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`,
+        },
+        {
+          name: 'xl/_rels/workbook.xml.rels',
+          content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+        },
+        {
+          name: 'xl/workbook.xml',
+          content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="SEIN Milestone Matrix" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`,
+        },
+        {
+          name: 'xl/styles.xml',
+          content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><name val="Calibri"/><sz val="11"/></font>
+    <font><b/><name val="Calibri"/><sz val="11"/></font>
+  </fonts>
+  <fills count="2">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+  </fills>
+  <borders count="1">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="2">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`,
+        },
+        {
+          name: 'xl/worksheets/sheet1.xml',
+          content: sheetXml,
+        },
       ];
-      ws['!cols'] = colWidths;
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'SEIN Milestone Matrix');
+      // 4. Pack into standard uncompressed ZIP (STORE method)
+      const encoder = new TextEncoder();
+      const entries = files.map((f) => {
+        const data = encoder.encode(f.content);
+        return {
+          name: f.name,
+          nameBytes: encoder.encode(f.name),
+          data,
+          crc: calcCrc32(data),
+          offset: 0,
+        };
+      });
 
-      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([excelBuffer], {
+      let localHeadersSize = 0;
+      let cdSize = 0;
+      for (const e of entries) {
+        localHeadersSize += 30 + e.nameBytes.length + e.data.length;
+        cdSize += 46 + e.nameBytes.length;
+      }
+
+      const totalSize = localHeadersSize + cdSize + 22;
+      const zipBuffer = new Uint8Array(totalSize);
+      const view = new DataView(zipBuffer.buffer);
+
+      let offset = 0;
+      for (const e of entries) {
+        e.offset = offset;
+        // Local file header
+        view.setUint32(offset, 0x04034b50, true);
+        view.setUint16(offset + 4, 20, true); // min version
+        view.setUint16(offset + 6, 0x0800, true); // UTF-8 filename flag
+        view.setUint16(offset + 8, 0, true); // STORE (uncompressed)
+        view.setUint16(offset + 10, 0, true);
+        view.setUint16(offset + 12, 0, true);
+        view.setUint32(offset + 14, e.crc, true);
+        view.setUint32(offset + 18, e.data.length, true);
+        view.setUint32(offset + 22, e.data.length, true);
+        view.setUint16(offset + 26, e.nameBytes.length, true);
+        view.setUint16(offset + 28, 0, true);
+        zipBuffer.set(e.nameBytes, offset + 30);
+        zipBuffer.set(e.data, offset + 30 + e.nameBytes.length);
+        offset += 30 + e.nameBytes.length + e.data.length;
+      }
+
+      const cdOffset = offset;
+      for (const e of entries) {
+        // Central directory file header
+        view.setUint32(offset, 0x02014b50, true);
+        view.setUint16(offset + 4, 20, true); // version made by
+        view.setUint16(offset + 6, 20, true); // version needed
+        view.setUint16(offset + 8, 0x0800, true); // UTF-8 filename flag
+        view.setUint16(offset + 10, 0, true); // STORE
+        view.setUint16(offset + 12, 0, true);
+        view.setUint16(offset + 14, 0, true);
+        view.setUint32(offset + 16, e.crc, true);
+        view.setUint32(offset + 20, e.data.length, true);
+        view.setUint32(offset + 24, e.data.length, true);
+        view.setUint16(offset + 28, e.nameBytes.length, true);
+        view.setUint16(offset + 30, 0, true);
+        view.setUint16(offset + 32, 0, true);
+        view.setUint16(offset + 34, 0, true);
+        view.setUint16(offset + 36, 0, true);
+        view.setUint32(offset + 38, 0, true);
+        view.setUint32(offset + 42, e.offset, true);
+        zipBuffer.set(e.nameBytes, offset + 46);
+        offset += 46 + e.nameBytes.length;
+      }
+
+      // End of central directory record (EOCD)
+      view.setUint32(offset, 0x06054b50, true);
+      view.setUint16(offset + 4, 0, true);
+      view.setUint16(offset + 6, 0, true);
+      view.setUint16(offset + 8, entries.length, true);
+      view.setUint16(offset + 10, entries.length, true);
+      view.setUint32(offset + 12, cdSize, true);
+      view.setUint32(offset + 16, cdOffset, true);
+      view.setUint16(offset + 20, 0, true);
+
+      const blob = new Blob([zipBuffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
       triggerDownload(blob, `SEIN_Milestone_Matrix_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (err) {
       console.error('Failed to export Excel matrix (.xlsx):', err);
-      // Fallback to CSV if any error occurs
+      // Fallback to CSV if any unexpected error occurs
       handleExportCSV();
     }
   };
