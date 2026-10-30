@@ -757,12 +757,29 @@ def process_pdf(
                 import shutil
                 shutil.copy2(chunk_files[0], output_pdf)
             else:
-                merger = pypdf.PdfMerger(strict=False)
-                for cf in chunk_files:
-                    merger.append(cf)
-                with open(output_pdf, "wb") as f_final:
-                    merger.write(f_final)
-                merger.close()
+                # ponytail: Use pypdf.PdfWriter for assembling chunks (PdfMerger was removed in pypdf >= 5.0)
+                final_writer = pypdf.PdfWriter()
+                if hasattr(final_writer, "append"):
+                    for cf in chunk_files:
+                        final_writer.append(cf)
+                elif hasattr(pypdf, "PdfMerger"):
+                    merger = pypdf.PdfMerger(strict=False)
+                    for cf in chunk_files:
+                        merger.append(cf)
+                    with open(output_pdf, "wb") as f_final:
+                        merger.write(f_final)
+                    merger.close()
+                    final_writer = None
+                else:
+                    for cf in chunk_files:
+                        cf_reader = pypdf.PdfReader(cf)
+                        for page in cf_reader.pages:
+                            final_writer.add_page(page)
+
+                if final_writer is not None:
+                    with open(output_pdf, "wb") as f_final:
+                        final_writer.write(f_final)
+                    final_writer.close()
 
         finally:
             # Clean up temporary chunk files
