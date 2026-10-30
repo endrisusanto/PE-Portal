@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Lock, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sidebar } from './Sidebar';
@@ -8,6 +9,7 @@ import { AiChatWindow } from '../chat/AiChatWindow';
 import styles from './AppShell.module.css';
 
 export const AppShell = () => {
+  const { t } = useTranslation();
   const { isGuest, showGuestModal } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -16,7 +18,7 @@ export const AppShell = () => {
     if (!isGuest) return;
     e.preventDefault();
     e.stopPropagation();
-    showGuestModal('Akses Konten Halaman');
+    showGuestModal(t('auth.page_content_access', 'Akses Konten Halaman'));
   };
 
   return (
@@ -57,14 +59,15 @@ export const AppShell = () => {
                   handleBodyInteractionAttempt(e);
                 }
               }}
-              title="Akses konten terkunci untuk Guest. Klik untuk Login ADCorp."
+              title={t('auth.guest_banner_tooltip', 'Akses konten terkunci untuk Guest. Klik untuk Login ADCorp.')}
             >
               <div className={styles.guestFloatingBanner}>
                 <div className={styles.guestBannerIcon}>
                   <Lock size={15} />
                 </div>
                 <div className={styles.guestBannerText}>
-                  <strong>Akses Konten Terkunci:</strong> Mode Tamu dapat mengakses menu sidebar &amp; navbar atas (View Only). Silakan login dengan akun ADCorp SEIN untuk berinteraksi dengan konten.
+                  <strong>{t('auth.guest_banner_title', 'Akses Konten Terkunci:')}</strong>{' '}
+                  {t('auth.guest_banner_desc', 'Mode Tamu dapat mengakses menu sidebar & navbar atas (View Only). Silakan login dengan akun ADCorp SEIN untuk berinteraksi dengan konten.')}
                 </div>
                 <button
                   type="button"
@@ -72,7 +75,7 @@ export const AppShell = () => {
                   onClick={handleBodyInteractionAttempt}
                 >
                   <LogIn size={13} />
-                  <span>Login ADCorp</span>
+                  <span>{t('auth.login_with_adcorp', 'Login ADCorp')}</span>
                 </button>
               </div>
             </div>

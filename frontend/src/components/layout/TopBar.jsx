@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Sun, Moon, LogOut, Eye, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -9,6 +10,7 @@ import { Avatar } from '../common/Avatar';
 import styles from './TopBar.module.css';
 
 export const TopBar = () => {
+  const { t } = useTranslation();
   const { user, isGuest, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -18,7 +20,7 @@ export const TopBar = () => {
         {isGuest && (
           <div className={styles.guestNotice}>
             <span className={styles.guestNoticeDot} />
-            <span>Mode Tamu: Navigasi Navbar &amp; Sidebar aktif (View Only). Wajib login ADCorp untuk interaksi data.</span>
+            <span>{t('auth.guest_topbar_notice', 'Mode Tamu: Navigasi Navbar & Sidebar aktif (View Only). Wajib login ADCorp untuk interaksi data.')}</span>
           </div>
         )}
       </div>
@@ -45,15 +47,15 @@ export const TopBar = () => {
           <div className={styles.guestSection}>
             <div className={styles.guestBadge}>
               <Eye size={13} />
-              <span>View Only</span>
+              <span>{t('auth.view_only', 'View Only')}</span>
             </div>
             <Link
               to="/login"
               className={styles.guestLoginBtn}
-              title="Login menggunakan Akun ADCorp"
+              title={t('auth.login_with_adcorp', 'Login menggunakan Akun ADCorp')}
             >
               <LogIn size={14} />
-              <span>Login ADCorp</span>
+              <span>{t('auth.login_with_adcorp', 'Login ADCorp')}</span>
             </Link>
           </div>
         ) : (
