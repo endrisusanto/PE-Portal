@@ -58,6 +58,25 @@ except ImportError:
 FONT_REGULAR = "Helvetica"
 FONT_BOLD = "Helvetica-Bold"
 
+# ponytail: Monkey-patch pypdf reader to tolerate truncated streams when reading lines backwards
+try:
+    import pypdf
+    import pypdf._utils as _pypdf_utils
+    import pypdf._reader as _pypdf_reader
+
+    _orig_read_prev = _pypdf_utils.read_previous_line
+
+    def _tolerant_read_previous_line(stream):
+        try:
+            return _orig_read_prev(stream)
+        except Exception:
+            return b""
+
+    _pypdf_utils.read_previous_line = _tolerant_read_previous_line
+    _pypdf_reader.read_previous_line = _tolerant_read_previous_line
+except Exception:
+    pass
+
 DEJAVU_PATHS = [
     "/usr/share/fonts/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/TTF/DejaVuSans.ttf",
@@ -338,70 +357,194 @@ def group_page_text_elements(page, page_width, page_height):
 
     return blocks
 
-def repair_pdf_if_needed(input_path):
+def verify_pdf_readable(source):
     """
-    ponytail: multi-tier pre-flight stream healer for truncated or corrupted PDFs.
-    Returns (usable_pdf_path, temp_file_to_clean_or_None).
+    ponytail: test if a PDF file path or raw bytes can be opened AND its pages accessed.
+    Crucial: touches first page mediabox to ensure stream decompression doesn't raise PdfStreamError.
     """
     try:
-        probe = pypdf.PdfReader(input_path, strict=False)
-        if probe.is_encrypted:
+        if isinstance(source, (bytes, bytearray)):
+            r = pypdf.PdfReader(io.BytesIO(source), strict=False)
+        else:
+            r = pypdf.PdfReader(source, strict=False)
+        if r.is_encrypted:
             try:
-                probe.decrypt("")
+                r.decrypt("")
             except Exception:
                 pass
-        if len(probe.pages) > 0:
-            return input_path, None
-    except Exception as probe_err:
-        sys.stderr.write(f"[INFO] Initial PDF probe failed ({probe_err}). Initiating multi-tier repair...\n")
+        count = len(r.pages)
+        if count > 0:
+            p0 = r.pages[0]
+            _ = p0.mediabox
+            return True, count
+    except Exception:
+        pass
+    return False, 0
 
-    # Tier 1: Ghostscript CLI if installed (Linux / Docker / Windows)
+def heal_pdf_bytes(raw_bytes):
+    """
+    ponytail: multi-strategy pure-Python byte stream healer for truncated or corrupted PDFs.
+    Zero external dependencies. Works across all OS platforms without Ghostscript.
+    """
+    if not raw_bytes or len(raw_bytes) < 32:
+        return None
+
+    # Strategy 1: Iterate backwards through all %%EOF occurrences (handles aborted saves & revision history)
+    eof_positions = [m.start() for m in re.finditer(rb"%%EOF", raw_bytes)]
+    for pos in reversed(eof_positions):
+        candidate = raw_bytes[: pos + 5] + b"\n"
+        ok, _ = verify_pdf_readable(candidate)
+        if ok:
+            return candidate
+
+    # Strategy 2: If startxref exists without clean %%EOF
+    sx_matches = list(re.finditer(rb"startxref\s*(\d+)", raw_bytes))
+    if sx_matches:
+        last_sx = sx_matches[-1]
+        candidate = raw_bytes[: last_sx.end()] + b"\n%%EOF\n"
+        ok, _ = verify_pdf_readable(candidate)
+        if ok:
+            return candidate
+
+    # Strategy 3: Find last xref table and synthesize missing trailer & %%EOF
+    xref_pos = raw_bytes.rfind(b"xref\n")
+    if xref_pos != -1:
+        cat_m = re.search(rb"/Root\s+(\d+\s+\d+\s+R)", raw_bytes)
+        root_part = b" /Root " + cat_m.group(1) if cat_m else b""
+        synth = (
+            raw_bytes[:xref_pos]
+            + b"xref\n"
+            + raw_bytes[xref_pos + 5 :]
+            + b"\ntrailer\n<<"
+            + root_part
+            + b" >>\nstartxref\n"
+            + str(xref_pos).encode()
+            + b"\n%%EOF\n"
+        )
+        ok, _ = verify_pdf_readable(synth)
+        if ok:
+            return synth
+
+    # Strategy 4: Fallback trailer with startxref 0
+    candidate = raw_bytes + b"\ntrailer\n<< >>\nstartxref\n0\n%%EOF\n"
+    ok, _ = verify_pdf_readable(candidate)
+    if ok:
+        return candidate
+
+    return None
+
+def repair_pdf_if_needed(input_path):
+    """
+    ponytail: robust multi-tier pre-flight stream healer for truncated or corrupted PDFs.
+    Tier 0: Check if source is already 100% readable without repair.
+    Tier 1: Ghostscript CLI (prepress repair, full Windows path autodiscovery, 180s timeout for large files).
+    Tier 2: Pure Python byte stream healer (handles missing/corrupted %%EOF and cut-off streams).
+    Tier 3: In-memory page salvager (recovers all readable pages into a clean PDF).
+    Returns (usable_pdf_path, temp_file_to_clean_or_None).
+    """
+    # Tier 0: Direct verification
+    ok, num_pages = verify_pdf_readable(input_path)
+    if ok:
+        return input_path, None
+
+    sys.stderr.write(f"[INFO] Source PDF '{os.path.basename(input_path)}' has truncated or corrupted stream. Initiating multi-tier repair...\n")
+
+    # Tier 1: Ghostscript CLI
     try:
         import shutil
         import subprocess
+
         gs_bin = shutil.which("gs") or shutil.which("gswin64c") or shutil.which("gswin32c")
+        # On Windows, check standard Program Files installation paths
+        if not gs_bin and os.name == "nt":
+            import glob
+            candidates = (
+                glob.glob(r"C:\Program Files\gs\gs*\bin\gswin64c.exe")
+                + glob.glob(r"C:\Program Files (x86)\gs\gs*\bin\gswin32c.exe")
+            )
+            if candidates:
+                gs_bin = candidates[-1]
+
         if gs_bin:
-            tmp_gs = tempfile.NamedTemporaryFile(suffix="_repaired.pdf", delete=False)
+            tmp_gs = tempfile.NamedTemporaryFile(suffix="_gs_repaired.pdf", delete=False)
             tmp_gs.close()
-            cmd = [gs_bin, "-o", tmp_gs.name, "-sDEVICE=pdfwrite", "-dPDFSETTINGS=/default", input_path]
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
-            if res.returncode == 0 and os.path.exists(tmp_gs.name) and os.path.getsize(tmp_gs.name) > 0:
-                r = pypdf.PdfReader(tmp_gs.name, strict=False)
-                if len(r.pages) > 0:
-                    sys.stderr.write(f"[INFO] Ghostscript successfully repaired PDF ({len(r.pages)} pages).\n")
+            cmd = [
+                gs_bin,
+                "-dBATCH",
+                "-dNOPAUSE",
+                "-dQUIET",
+                "-sDEVICE=pdfwrite",
+                "-dPDFSETTINGS=/prepress",
+                "-dCompatibilityLevel=1.4",
+                "-dAutoRotatePages=/None",
+                f"-sOutputFile={tmp_gs.name}",
+                input_path,
+            ]
+            # 180 second timeout for large 15MB+ documents
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
+            if os.path.exists(tmp_gs.name) and os.path.getsize(tmp_gs.name) > 1024:
+                gs_ok, gs_pages = verify_pdf_readable(tmp_gs.name)
+                if gs_ok:
+                    sys.stderr.write(f"[INFO] Ghostscript successfully repaired PDF ({gs_pages} pages recovered).\n")
                     return tmp_gs.name, tmp_gs.name
             if os.path.exists(tmp_gs.name):
-                os.remove(tmp_gs.name)
+                try:
+                    os.remove(tmp_gs.name)
+                except Exception:
+                    pass
     except Exception as gs_err:
-        sys.stderr.write(f"[WARN] Ghostscript repair skipped: {gs_err}\n")
+        sys.stderr.write(f"[WARN] Ghostscript repair skipped or failed: {gs_err}\n")
 
-    # Tier 2: Pure Python EOF & startxref patch
+    # Tier 2: Pure Python byte stream healer
     try:
         with open(input_path, "rb") as f:
             raw_bytes = f.read()
 
-        eof_pos = raw_bytes.rfind(b"%%EOF")
-        if eof_pos != -1:
-            fixed_bytes = raw_bytes[: eof_pos + 5] + b"\n"
-        else:
-            sx_pos = raw_bytes.rfind(b"startxref")
-            if sx_pos != -1:
-                fixed_bytes = raw_bytes + b"\n%%EOF\n"
-            else:
-                fixed_bytes = raw_bytes + b"\ntrailer\n<< >>\nstartxref\n0\n%%EOF\n"
-
-        tmp_py = tempfile.NamedTemporaryFile(suffix="_pyrepair.pdf", delete=False)
-        tmp_py.write(fixed_bytes)
-        tmp_py.close()
-
-        r = pypdf.PdfReader(tmp_py.name, strict=False)
-        if len(r.pages) > 0:
-            sys.stderr.write(f"[INFO] Pure Python stream healer repaired PDF ({len(r.pages)} pages).\n")
-            return tmp_py.name, tmp_py.name
-        if os.path.exists(tmp_py.name):
-            os.remove(tmp_py.name)
+        healed_bytes = heal_pdf_bytes(raw_bytes)
+        if healed_bytes:
+            tmp_py = tempfile.NamedTemporaryFile(suffix="_py_repaired.pdf", delete=False)
+            tmp_py.write(healed_bytes)
+            tmp_py.close()
+            py_ok, py_pages = verify_pdf_readable(tmp_py.name)
+            if py_ok:
+                sys.stderr.write(f"[INFO] Pure Python stream healer successfully repaired PDF ({py_pages} pages recovered).\n")
+                return tmp_py.name, tmp_py.name
+            if os.path.exists(tmp_py.name):
+                try:
+                    os.remove(tmp_py.name)
+                except Exception:
+                    pass
     except Exception as py_err:
         sys.stderr.write(f"[WARN] Pure Python repair failed: {py_err}\n")
+
+    # Tier 3: In-memory page salvager
+    try:
+        r = pypdf.PdfReader(input_path, strict=False)
+        salvage_writer = pypdf.PdfWriter()
+        salvaged_count = 0
+        for p in r.pages:
+            try:
+                _ = p.mediabox
+                salvage_writer.add_page(p)
+                salvaged_count += 1
+            except Exception:
+                salvage_writer.add_blank_page(width=595.0, height=842.0)
+        if salvaged_count > 0:
+            tmp_salvage = tempfile.NamedTemporaryFile(suffix="_salvaged.pdf", delete=False)
+            with open(tmp_salvage.name, "wb") as f_salvage:
+                salvage_writer.write(f_salvage)
+            tmp_salvage.close()
+            s_ok, s_pages = verify_pdf_readable(tmp_salvage.name)
+            if s_ok:
+                sys.stderr.write(f"[INFO] In-memory page salvager recovered {s_pages} pages.\n")
+                return tmp_salvage.name, tmp_salvage.name
+            if os.path.exists(tmp_salvage.name):
+                try:
+                    os.remove(tmp_salvage.name)
+                except Exception:
+                    pass
+    except Exception as s_err:
+        sys.stderr.write(f"[WARN] In-memory salvage failed: {s_err}\n")
 
     return input_path, None
 
@@ -428,16 +571,43 @@ def process_pdf(
     usable_path, temp_repair_file = repair_pdf_if_needed(input_file)
 
     try:
-        reader = pypdf.PdfReader(usable_path, strict=False)
-        if reader.is_encrypted:
-            try:
-                reader.decrypt("")
-            except Exception:
-                pass
+        try:
+            reader = pypdf.PdfReader(usable_path, strict=False)
+            if reader.is_encrypted:
+                try:
+                    reader.decrypt("")
+                except Exception:
+                    pass
 
-        total_pages = len(reader.pages)
-        if total_pages == 0:
-            raise ValueError("PDF file has 0 pages")
+            total_pages = len(reader.pages)
+            if total_pages == 0:
+                raise ValueError("PDF file has 0 pages")
+            _ = reader.pages[0].mediabox
+        except Exception as open_err:
+            sys.stderr.write(f"[WARN] Initial reader failed ({open_err}). Forcing deep pure-Python heal...\n")
+            with open(usable_path, "rb") as f_raw:
+                raw_bytes = f_raw.read()
+            healed = heal_pdf_bytes(raw_bytes)
+            if healed:
+                tmp_forced = tempfile.NamedTemporaryFile(suffix="_forced_healed.pdf", delete=False)
+                tmp_forced.write(healed)
+                tmp_forced.close()
+                usable_path = tmp_forced.name
+                if temp_repair_file and os.path.exists(temp_repair_file):
+                    try:
+                        os.remove(temp_repair_file)
+                    except Exception:
+                        pass
+                temp_repair_file = tmp_forced.name
+                reader = pypdf.PdfReader(usable_path, strict=False)
+                if reader.is_encrypted:
+                    try:
+                        reader.decrypt("")
+                    except Exception:
+                        pass
+                total_pages = len(reader.pages)
+            else:
+                raise open_err
 
         chunk_size = batch_size if batch_size and batch_size > 0 else 5
         total_chunks = (total_pages + chunk_size - 1) // chunk_size

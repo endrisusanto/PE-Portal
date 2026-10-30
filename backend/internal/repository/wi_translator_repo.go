@@ -126,6 +126,7 @@ func (r *WITranslatorRepository) MarkCompleted(ctx context.Context, id uuid.UUID
 		UPDATE wi_translation_jobs
 		SET status = 'completed', progress_percent = 100.0, translated_file = $2,
 		    download_url = $3, translated_count = $4, duration_sec = $5,
+		    error_message = NULL,
 		    message = 'Penerjemahan dokumen selesai', updated_at = NOW()
 		WHERE id = $1
 	`
