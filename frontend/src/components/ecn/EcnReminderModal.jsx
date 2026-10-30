@@ -50,11 +50,14 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
   const [emailSubject, setEmailSubject] = useState('[REMINDER] ECN Running BOM Deadline Alert - SEIN PE');
   const [includeOverdue, setIncludeOverdue] = useState(true);
 
-  // Form State: Realtime Running BOM Change Notification (ponytail)
+  // Form State: Batch Running BOM Change Notification (ponytail)
   const [bomChangeNotifyEnabled, setBomChangeNotifyEnabled] = useState(true);
+  const [bomChangeSelectedTimes, setBomChangeSelectedTimes] = useState(['08:00', '13:00', '16:00']);
+  const [bomChangeCustomTime, setBomChangeCustomTime] = useState('11:00');
   const [bomChangeRecipients, setBomChangeRecipients] = useState('');
   const [bomChangeCcRecipients, setBomChangeCcRecipients] = useState('');
-  const [bomChangeEmailSubject, setBomChangeEmailSubject] = useState('[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})');
+  const [bomChangeEmailSubject, setBomChangeEmailSubject] = useState('[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)');
+  const [bomChangePendingCount, setBomChangePendingCount] = useState(0);
   const [testingBomChange, setTestingBomChange] = useState(false);
 
   // Status & Info from Backend
@@ -87,11 +90,13 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       setEmailSubject(s.email_subject || '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE');
       setIncludeOverdue(s.include_overdue !== false);
 
-      // Realtime BOM change settings
+      // Batch BOM change settings
       setBomChangeNotifyEnabled(s.bom_change_notify_enabled !== false);
+      setBomChangeSelectedTimes(parseSendTimes(s.bom_change_send_time || '08:00, 13:00, 16:00'));
       setBomChangeRecipients(s.bom_change_recipients || '');
       setBomChangeCcRecipients(s.bom_change_cc_recipients || '');
-      setBomChangeEmailSubject(s.bom_change_email_subject || '[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})');
+      setBomChangeEmailSubject(s.bom_change_email_subject || '[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)');
+      setBomChangePendingCount(data.bom_change_pending_count || 0);
 
       setDueCount(data.due_count || 0);
       setDueRecords(data.due_records || []);
@@ -143,6 +148,37 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
     });
   };
 
+  // Toggle preset time in bomChangeSelectedTimes (ponytail: batch at scheduled hours)
+  const handleToggleBOMPresetTime = (timeStr) => {
+    setBomChangeSelectedTimes((prev) => {
+      if (prev.includes(timeStr)) {
+        const next = prev.filter((t) => t !== timeStr);
+        return next.length > 0 ? next : ['08:00'];
+      } else {
+        return [...prev, timeStr].sort();
+      }
+    });
+  };
+
+  // Add custom time into bomChangeSelectedTimes
+  const handleAddBOMCustomTime = () => {
+    if (!bomChangeCustomTime) return;
+    const [h, m] = bomChangeCustomTime.split(':');
+    const formatted = `${h.padStart(2, '0')}:${m}`;
+    setBomChangeSelectedTimes((prev) => {
+      if (prev.includes(formatted)) return prev;
+      return [...prev, formatted].sort();
+    });
+  };
+
+  // Remove specific time from bomChangeSelectedTimes
+  const handleRemoveBOMTime = (timeStr) => {
+    setBomChangeSelectedTimes((prev) => {
+      const next = prev.filter((t) => t !== timeStr);
+      return next.length > 0 ? next : ['08:00'];
+    });
+  };
+
   // Handle Save Settings
   const handleSave = async () => {
     setSaving(true);
@@ -157,6 +193,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
         email_subject: emailSubject,
         include_overdue: includeOverdue,
         bom_change_notify_enabled: bomChangeNotifyEnabled,
+        bom_change_send_time: bomChangeSelectedTimes.join(', ') || '08:00, 13:00, 16:00',
         bom_change_recipients: bomChangeRecipients,
         bom_change_cc_recipients: bomChangeCcRecipients,
         bom_change_email_subject: bomChangeEmailSubject,
@@ -204,6 +241,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
         email_subject: emailSubject,
         include_overdue: includeOverdue,
         bom_change_notify_enabled: bomChangeNotifyEnabled,
+        bom_change_send_time: bomChangeSelectedTimes.join(', ') || '08:00, 13:00, 16:00',
         bom_change_recipients: bomChangeRecipients,
         bom_change_cc_recipients: bomChangeCcRecipients,
         bom_change_email_subject: bomChangeEmailSubject,
@@ -226,7 +264,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
     }
   };
 
-  // Handle Test Dispatch for BOM Date Change Alert
+  // Handle Test Dispatch for BOM Date Change Batch
   const handleTestBomChange = async () => {
     const targetTo = bomChangeRecipients.trim() || recipients.trim();
     if (!targetTo) {
@@ -249,6 +287,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
         email_subject: emailSubject,
         include_overdue: includeOverdue,
         bom_change_notify_enabled: bomChangeNotifyEnabled,
+        bom_change_send_time: bomChangeSelectedTimes.join(', ') || '08:00, 13:00, 16:00',
         bom_change_recipients: bomChangeRecipients,
         bom_change_cc_recipients: bomChangeCcRecipients,
         bom_change_email_subject: bomChangeEmailSubject,
@@ -257,7 +296,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       const res = await api.post('/ecn/reminder/test-bom-change');
       setFeedback({
         type: 'success',
-        message: res.data?.message || t('ecn.reminder.test_bom_success', 'Email tes notifikasi perubahan Running BOM berhasil dikirim!'),
+        message: res.data?.message || t('ecn.reminder.test_bom_success', 'Email tes notifikasi batch perubahan Running BOM berhasil dikirim!'),
       });
       fetchSettings();
     } catch (err) {
@@ -361,6 +400,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
           >
             <Bell size={14} />
             <span>{t('ecn.reminder.tab_bom_change', 'Notifikasi Perubahan Jadwal BOM')}</span>
+            {bomChangePendingCount > 0 && <span className={styles.tabBadge}>{bomChangePendingCount}</span>}
           </button>
         </div>
 
@@ -664,20 +704,29 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
             </div>
           </>
         ) : (
-          /* Tab 2: Perubahan Jadwal BOM Notification Settings */
+          /* Tab 2: Perubahan Jadwal BOM Batch Notification Settings (ponytail) */
           <div className={styles.fullPanelCard}>
             <div className={styles.panelHeader}>
               <h5 className={styles.panelTitle}>
                 <Bell size={14} />
-                <span>{t('ecn.reminder.bom_change_title', 'Notifikasi Perubahan Jadwal Running BOM')}</span>
+                <span>{t('ecn.reminder.bom_change_title', 'Notifikasi Batch Perubahan Jadwal Running BOM')}</span>
               </h5>
             </div>
 
             <div className={styles.infoBanner}>
-              {t(
-                'ecn.reminder.bom_change_info_banner',
-                'Sistem akan otomatis mengirimkan email notifikasi ke daftar penerima di bawah ini setiap kali ada perubahan tanggal Running BOM pada form Edit ECN, lengkap dengan perbandingan jadwal lama vs baru serta rincian part number.'
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <span>
+                  {t(
+                    'ecn.reminder.bom_change_info_banner',
+                    'Sistem secara otomatis mengumpulkan (batch) seluruh riwayat perubahan tanggal Running BOM dan mengirimkannya dalam 1 email ringkasan pada jam-jam batch terjadwal di bawah ini.'
+                  )}
+                </span>
+                <span className={styles.tabBadge} style={{ fontSize: '11.5px', padding: '3px 9px' }}>
+                  {bomChangePendingCount > 0
+                    ? t('ecn.reminder.pending_batch_count', '{{count}} Perubahan Menunggu Batch', { count: bomChangePendingCount })
+                    : t('ecn.reminder.no_pending_batch', '0 Perubahan Menunggu')}
+                </span>
+              </div>
             </div>
 
             {/* Master Switch Row */}
@@ -685,7 +734,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
               <div className={styles.masterSwitchInfo}>
                 <div className={styles.masterSwitchTitleRow}>
                   <span className={styles.masterSwitchTitle}>
-                    {t('ecn.reminder.bom_change_toggle', 'Notifikasi Perubahan Jadwal')}
+                    {t('ecn.reminder.bom_change_toggle', 'Worker Batch Perubahan')}
                   </span>
                   <span
                     className={`${styles.masterStatusPill} ${
@@ -698,10 +747,10 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
                   </span>
                 </div>
                 <span className={styles.masterSwitchSub}>
-                  {t('ecn.reminder.bom_change_sub', 'Kirim email otomatis ke PIC setiap kali tanggal Running BOM diubah pada sistem ECN')}
+                  {t('ecn.reminder.bom_change_sub', 'Kirim email ringkasan batch secara otomatis pada jam-jam tertentu yang ditentukan')}
                 </span>
               </div>
-              <label className={styles.switch} title="Aktifkan atau nonaktifkan notifikasi perubahan Running BOM">
+              <label className={styles.switch} title="Aktifkan atau nonaktifkan notifikasi batch perubahan Running BOM">
                 <input
                   type="checkbox"
                   checked={bomChangeNotifyEnabled}
@@ -713,21 +762,98 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
 
             <hr className={styles.panelDivider} />
 
+            {/* Multi-Schedule Slot Section for BOM Change Batch (ponytail) */}
+            <div className={styles.scheduleSection}>
+              <div className={styles.scheduleHeaderRow}>
+                <label className={styles.scheduleLabel}>
+                  <span>{t('ecn.reminder.bom_change_send_time_label', 'Jam Pengiriman Batch Perubahan (WIB)')}</span>
+                </label>
+                <span className={styles.scheduleCountBadge}>
+                  {t('ecn.reminder.times_per_day', '{{count}}x sehari', { count: bomChangeSelectedTimes.length })}
+                </span>
+              </div>
+
+              {/* Quick Preset Segmented Buttons */}
+              <div className={styles.presetsGrid}>
+                {timePresets.map((p) => {
+                  const isSelected = bomChangeSelectedTimes.includes(p.time);
+                  return (
+                    <button
+                      key={p.time}
+                      type="button"
+                      className={`${styles.presetChipBtn} ${
+                        isSelected ? styles.presetChipActive : ''
+                      }`}
+                      onClick={() => handleToggleBOMPresetTime(p.time)}
+                      title={`Klik untuk ${isSelected ? 'menonaktifkan' : 'mengaktifkan'} jadwal batch ${p.time}`}
+                    >
+                      <span className={styles.presetChipTime}>{p.time}</span>
+                      <span className={styles.presetChipSub}>{p.label}</span>
+                      <span className={styles.presetChipIcon}>
+                        {isSelected ? <Check size={12} /> : <Plus size={12} />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Time Adder */}
+              <div className={styles.customTimeAdderRow}>
+                <input
+                  type="time"
+                  className={styles.timeInput}
+                  value={bomChangeCustomTime}
+                  onChange={(e) => setBomChangeCustomTime(e.target.value)}
+                  title="Pilih jam kustom"
+                />
+                <button
+                  type="button"
+                  className={styles.addScheduleBtn}
+                  onClick={handleAddBOMCustomTime}
+                  title={t('ecn.reminder.add_custom_title', 'Tambahkan jam kustom ke daftar jadwal batch')}
+                >
+                  <Plus size={13} />
+                  <span>{t('ecn.reminder.add_schedule_btn', 'Tambah')}</span>
+                </button>
+              </div>
+
+              {/* Active Slots Bar */}
+              <div className={styles.activeSlotsBar}>
+                {bomChangeSelectedTimes.map((tVal) => (
+                  <span key={tVal} className={styles.activeSlotItem}>
+                    <Clock size={11} />
+                    <span>{t('ecn.reminder.active_wib', '{{time}} WIB', { time: tVal })}</span>
+                    <button
+                      type="button"
+                      className={styles.slotDeleteBtn}
+                      onClick={() => handleRemoveBOMTime(tVal)}
+                      title={t('ecn.reminder.remove_time_title', 'Hapus jadwal {{time}}', { time: tVal })}
+                      disabled={bomChangeSelectedTimes.length === 1}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <hr className={styles.panelDivider} />
+
             {/* Email Subject Template */}
             <div className={styles.formGroup}>
               <label className={styles.inputLabel}>
                 <Mail size={13} />
-                <span>{t('ecn.reminder.bom_change_subject_label', 'Subjek Email Notifikasi Perubahan')}</span>
+                <span>{t('ecn.reminder.bom_change_subject_label', 'Subjek Email Notifikasi Batch')}</span>
               </label>
               <input
                 type="text"
                 className={styles.inputField}
                 value={bomChangeEmailSubject}
                 onChange={(e) => setBomChangeEmailSubject(e.target.value)}
-                placeholder="[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})"
+                placeholder="[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)"
               />
               <span className={styles.fieldHelper}>
-                {t('ecn.reminder.bom_change_subject_helper', 'Placeholder otomatis: {ecn_no}, {model}, {old_date}, {new_date}')}
+                {t('ecn.reminder.bom_change_subject_helper', 'Placeholder otomatis: {count}, {ecn_no}, {model}')}
               </span>
             </div>
 

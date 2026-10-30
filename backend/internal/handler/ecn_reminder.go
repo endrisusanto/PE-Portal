@@ -49,28 +49,23 @@ func (h *ECNReminderHandler) GetSettings(c echo.Context) error {
 	}
 
 	lastLog, _ := h.repo.GetLastLog(ctx)
+	pendingBOMCount, _ := h.repo.GetPendingBOMChangeCount(ctx)
 
 	resp := model.ECNReminderStatusResponse{
-		Settings:   *settings,
-		DueCount:   len(dueRecords),
-		DueRecords: dueRecords,
-		TargetDate: targetDateStr,
-		LastLog:    lastLog,
+		Settings:              *settings,
+		DueCount:              len(dueRecords),
+		DueRecords:            dueRecords,
+		TargetDate:            targetDateStr,
+		BOMChangePendingCount: pendingBOMCount,
+		LastLog:               lastLog,
 	}
 
 	return c.JSON(http.StatusOK, resp)
 }
 
-// SaveSettings updates recipient list, custom hour, lead time, and options
-func (h *ECNReminderHandler) SaveSettings(c echo.Context) error {
-	ctx := c.Request().Context()
-	var req model.ECNReminderSettings
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
-	}
-
-	// Validate / normalize send_time (comma-separated HH:MM, e.g. "07:00, 08:00, 13:00")
-	rawTimes := strings.FieldsFunc(req.SendTime, func(r rune) bool {
+// normalizeTimeSlots cleans and normalizes comma-separated HH:MM slots
+func normalizeTimeSlots(raw string, defaultVal string) string {
+	rawTimes := strings.FieldsFunc(raw, func(r rune) bool {
 		return r == ',' || r == ';' || r == '\n'
 	})
 	var validTimes []string
@@ -94,9 +89,22 @@ func (h *ECNReminderHandler) SaveSettings(c echo.Context) error {
 		}
 	}
 	if len(validTimes) == 0 {
-		validTimes = []string{"08:00"}
+		return defaultVal
 	}
-	req.SendTime = strings.Join(validTimes, ", ")
+	return strings.Join(validTimes, ", ")
+}
+
+// SaveSettings updates recipient list, custom hour, lead time, and options
+func (h *ECNReminderHandler) SaveSettings(c echo.Context) error {
+	ctx := c.Request().Context()
+	var req model.ECNReminderSettings
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	// Validate / normalize send_time and bom_change_send_time
+	req.SendTime = normalizeTimeSlots(req.SendTime, "08:00")
+	req.BOMChangeSendTime = normalizeTimeSlots(req.BOMChangeSendTime, "08:00, 13:00, 16:00")
 
 	if req.DaysBefore <= 0 {
 		req.DaysBefore = 1
@@ -131,13 +139,15 @@ func (h *ECNReminderHandler) TestSend(c echo.Context) error {
 // TestBOMChange immediately sends a test BOM date change notification email
 func (h *ECNReminderHandler) TestBOMChange(c echo.Context) error {
 	ctx := c.Request().Context()
-	if err := h.worker.SendTestBOMChangeEmail(ctx); err != nil {
+	itemCount, err := h.worker.ExecuteBOMChangeBatch(ctx, "MANUAL_TEST")
+	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Gagal mengirim email tes perubahan BOM: %v", err))
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"success": true,
-		"message": "Email tes notifikasi perubahan jadwal Running BOM berhasil dikirim ke penerima.",
+		"success":    true,
+		"message":    fmt.Sprintf("Email tes notifikasi batch perubahan jadwal Running BOM berhasil dikirim (%d perubahan).", itemCount),
+		"item_count": itemCount,
 	})
 }
 

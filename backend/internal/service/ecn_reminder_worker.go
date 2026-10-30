@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
 )
@@ -30,6 +32,10 @@ type ECNReminderWorker struct {
 	cachedEnabled      bool
 	cachedLastSentDate string
 	dispatchedSlots    map[string]bool // key: "YYYY-MM-DD@HH:MM"
+
+	cachedBOMSlots     []ScheduleSlot
+	cachedBOMEnabled   bool
+	dispatchedBOMSlots map[string]bool // key: "YYYY-MM-DD@HH:MM"
 	wibLocation        *time.Location
 }
 
@@ -41,19 +47,21 @@ func NewECNReminderWorker(
 	// Fixed UTC+7 (WIB) timezone for SEIN Jakarta/Cikarang operation
 	wib := time.FixedZone("WIB", 7*3600)
 	return &ECNReminderWorker{
-		repo:            repo,
-		reportRepo:      reportRepo,
-		smtpSvc:         smtpSvc,
-		stopCh:          make(chan struct{}),
-		cachedSlots:     []ScheduleSlot{{Hour: 8, Minute: 0}},
-		dispatchedSlots: make(map[string]bool),
-		wibLocation:     wib,
+		repo:               repo,
+		reportRepo:         reportRepo,
+		smtpSvc:            smtpSvc,
+		stopCh:             make(chan struct{}),
+		cachedSlots:        []ScheduleSlot{{Hour: 8, Minute: 0}},
+		dispatchedSlots:    make(map[string]bool),
+		cachedBOMSlots:     []ScheduleSlot{{Hour: 8, Minute: 0}, {Hour: 13, Minute: 0}, {Hour: 16, Minute: 0}},
+		dispatchedBOMSlots: make(map[string]bool),
+		wibLocation:        wib,
 	}
 }
 
 // Start initiates the background scheduler loop
 func (w *ECNReminderWorker) Start(ctx context.Context) {
-	log.Println("[ECN Reminder Worker] Starting background worker for Running BOM deadline...")
+	log.Println("[ECN Reminder Worker] Starting background worker for Running BOM deadline & batch schedule changes...")
 	ticker := time.NewTicker(1 * time.Minute)
 
 	go func() {
@@ -88,21 +96,10 @@ func (w *ECNReminderWorker) Stop() {
 	}
 }
 
-// ReloadSettingsCache refreshes in-memory schedule clock from DB
-func (w *ECNReminderWorker) ReloadSettingsCache(ctx context.Context) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	settings, err := w.repo.GetSettings(ctx)
-	if err != nil {
-		return err
-	}
-
-	w.cachedEnabled = settings.IsEnabled
-
-	// Parse comma-separated "HH:MM, HH:MM" e.g. "07:00, 08:00, 13:00, 16:00"
+// parseScheduleSlots extracts valid Hour & Minute slots from a raw string
+func parseScheduleSlots(rawTime string, defaultSlots []ScheduleSlot) []ScheduleSlot {
 	var slots []ScheduleSlot
-	rawTimes := strings.FieldsFunc(settings.SendTime, func(r rune) bool {
+	rawTimes := strings.FieldsFunc(rawTime, func(r rune) bool {
 		return r == ',' || r == ';' || r == ' ' || r == '\n'
 	})
 	seen := make(map[string]bool)
@@ -122,9 +119,27 @@ func (w *ECNReminderWorker) ReloadSettingsCache(ctx context.Context) error {
 		}
 	}
 	if len(slots) == 0 {
-		slots = []ScheduleSlot{{Hour: 8, Minute: 0}}
+		return defaultSlots
 	}
-	w.cachedSlots = slots
+	return slots
+}
+
+// ReloadSettingsCache refreshes in-memory schedule clock from DB
+func (w *ECNReminderWorker) ReloadSettingsCache(ctx context.Context) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	settings, err := w.repo.GetSettings(ctx)
+	if err != nil {
+		return err
+	}
+
+	w.cachedEnabled = settings.IsEnabled
+	w.cachedSlots = parseScheduleSlots(settings.SendTime, []ScheduleSlot{{Hour: 8, Minute: 0}})
+
+	w.cachedBOMEnabled = settings.BOMChangeNotifyEnabled
+	w.cachedBOMSlots = parseScheduleSlots(settings.BOMChangeSendTime, []ScheduleSlot{{Hour: 8, Minute: 0}, {Hour: 13, Minute: 0}, {Hour: 16, Minute: 0}})
+
 	return nil
 }
 
@@ -133,11 +148,10 @@ func (w *ECNReminderWorker) tickCheck(ctx context.Context) {
 	w.mu.Lock()
 	enabled := w.cachedEnabled
 	slots := append([]ScheduleSlot(nil), w.cachedSlots...)
-	w.mu.Unlock()
 
-	if !enabled || len(slots) == 0 {
-		return
-	}
+	bomEnabled := w.cachedBOMEnabled
+	bomSlots := append([]ScheduleSlot(nil), w.cachedBOMSlots...)
+	w.mu.Unlock()
 
 	now := time.Now().In(w.wibLocation)
 	todayStr := now.Format("2006-01-02")
@@ -145,38 +159,70 @@ func (w *ECNReminderWorker) tickCheck(ctx context.Context) {
 	m := now.Minute()
 	slotKey := fmt.Sprintf("%s@%02d:%02d", todayStr, h, m)
 
-	w.mu.Lock()
-	// Clean up previous days from dispatchedSlots
-	for k := range w.dispatchedSlots {
-		if !strings.HasPrefix(k, todayStr) {
-			delete(w.dispatchedSlots, k)
+	// 1. Check Deadline Reminder slots
+	if enabled && len(slots) > 0 {
+		w.mu.Lock()
+		for k := range w.dispatchedSlots {
+			if !strings.HasPrefix(k, todayStr) {
+				delete(w.dispatchedSlots, k)
+			}
+		}
+		alreadySent := w.dispatchedSlots[slotKey]
+		matched := false
+		if !alreadySent {
+			for _, s := range slots {
+				if s.Hour == h && s.Minute == m {
+					matched = true
+					break
+				}
+			}
+		}
+		if matched {
+			w.dispatchedSlots[slotKey] = true
+		}
+		w.mu.Unlock()
+
+		if matched {
+			log.Printf("[ECN Reminder Worker] Scheduled deadline reminder slot %02d:%02d arrived. Triggering...\n", h, m)
+			go func() {
+				if _, err := w.ExecuteReminder(ctx, "SCHEDULE"); err != nil {
+					log.Printf("[ECN Reminder Worker] Scheduled execution failed for slot %s: %v\n", slotKey, err)
+				}
+			}()
 		}
 	}
 
-	if w.dispatchedSlots[slotKey] {
-		w.mu.Unlock()
-		return
-	}
-
-	matched := false
-	for _, s := range slots {
-		if s.Hour == h && s.Minute == m {
-			matched = true
-			break
+	// 2. Check BOM Change Batch Notification slots (ponytail: batch at scheduled hours)
+	if bomEnabled && len(bomSlots) > 0 {
+		w.mu.Lock()
+		for k := range w.dispatchedBOMSlots {
+			if !strings.HasPrefix(k, todayStr) {
+				delete(w.dispatchedBOMSlots, k)
+			}
 		}
-	}
-	if !matched {
+		alreadySentBOM := w.dispatchedBOMSlots[slotKey]
+		matchedBOM := false
+		if !alreadySentBOM {
+			for _, s := range bomSlots {
+				if s.Hour == h && s.Minute == m {
+					matchedBOM = true
+					break
+				}
+			}
+		}
+		if matchedBOM {
+			w.dispatchedBOMSlots[slotKey] = true
+		}
 		w.mu.Unlock()
-		return
-	}
 
-	// Mark dispatched in memory so we don't re-dispatch during the same minute
-	w.dispatchedSlots[slotKey] = true
-	w.mu.Unlock()
-
-	log.Printf("[ECN Reminder Worker] Scheduled slot %02d:%02d arrived. Triggering reminder...\n", h, m)
-	if _, err := w.ExecuteReminder(ctx, "SCHEDULE"); err != nil {
-		log.Printf("[ECN Reminder Worker] Scheduled execution failed for slot %s: %v\n", slotKey, err)
+		if matchedBOM {
+			log.Printf("[ECN Reminder Worker] Scheduled BOM change batch slot %02d:%02d arrived. Triggering...\n", h, m)
+			go func() {
+				if _, err := w.ExecuteBOMChangeBatch(ctx, "SCHEDULE"); err != nil {
+					log.Printf("[ECN Reminder Worker] Scheduled BOM batch failed for slot %s: %v\n", slotKey, err)
+				}
+			}()
+		}
 	}
 }
 
@@ -502,35 +548,78 @@ func (w *ECNReminderWorker) RenderReminderEmailHTML(items []model.ECNRecord, tar
 }
 
 // RenderBOMChangeNotificationHTML generates an alert email when an ECN's Running BOM date is updated
-func (w *ECNReminderWorker) RenderBOMChangeNotificationHTML(oldRec, newRec *model.ECNRecord, updaterName string) string {
+// RenderBOMChangeBatchHTML produces a responsive amber-themed batch report of Running BOM schedule changes
+func (w *ECNReminderWorker) RenderBOMChangeBatchHTML(items []model.ECNBOMChangeItem, triggerType string) string {
 	nowStr := time.Now().In(w.wibLocation).Format("02/01/2006 15:04") + " WIB"
 
-	oldDate := oldRec.RunningDateBOM
-	if strings.TrimSpace(oldDate) == "" {
-		oldDate = "(Belum Ditentukan)"
-	}
-	newDate := newRec.RunningDateBOM
-	if strings.TrimSpace(newDate) == "" {
-		newDate = "(Dikosongkan)"
-	}
+	var rowsHTML strings.Builder
+	for idx, it := range items {
+		bg := "#ffffff"
+		if idx%2 == 1 {
+			bg = "#fafafa"
+		}
 
-	partChangeHTML := ""
-	if newRec.PartBefore != "" || newRec.PartAfter != "" {
-		partChangeHTML = fmt.Sprintf(`
-			<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 18px;">
-				<div style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Detail Perubahan Part Number (BOM Change)</div>
-				<div style="font-size: 13px;">
-					<span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: 700;">OLD: %s</span>
-					<span style="color: #64748b; margin: 0 8px;">➔</span>
-					<span style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: 700;">NEW: %s</span>
+		oldDate := it.OldDate
+		if strings.TrimSpace(oldDate) == "" {
+			oldDate = "-"
+		}
+		newDate := it.NewDate
+		if strings.TrimSpace(newDate) == "" {
+			newDate = "-"
+		}
+
+		partHTML := `<span style="color: #94a3b8; font-size: 11.5px;">-</span>`
+		if it.PartBefore != "" || it.PartAfter != "" {
+			partHTML = fmt.Sprintf(`
+				<div style="font-size: 11.5px; font-family: monospace;">
+					<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 3px;">%s</span>
+					<span style="color: #64748b;">➔</span>
+					<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 3px; font-weight: 700;">%s</span>
 				</div>
-			</div>
-		`, newRec.PartBefore, newRec.PartAfter)
+			`, it.PartBefore, it.PartAfter)
+		}
+
+		timeStr := it.CreatedAt.In(w.wibLocation).Format("15:04") + " WIB"
+		remark := it.Remark
+		if strings.TrimSpace(remark) == "" {
+			remark = "-"
+		}
+		if len(remark) > 140 {
+			remark = remark[:140] + "..."
+		}
+
+		rowsHTML.WriteString(fmt.Sprintf(`
+			<tr style="background-color: %s; border-bottom: 1px solid #e2e8f0;">
+				<td style="padding: 10px 12px; font-size: 12.5px; vertical-align: top;">
+					<div style="font-weight: 700; color: #0d7377;">%s</div>
+					<div style="font-size: 11.5px; color: #475569;">%s • %s</div>
+				</td>
+				<td style="padding: 10px 12px; font-size: 12.5px; vertical-align: top; white-space: nowrap;">
+					<span style="color: #64748b; text-decoration: line-through;">%s</span>
+					<span style="color: #b45309; font-weight: bold; margin: 0 4px;">➔</span>
+					<span style="color: #dc2626; background: #fee2e2; border: 1px solid #fca5a5; padding: 2px 7px; border-radius: 4px; font-weight: 700;">%s</span>
+				</td>
+				<td style="padding: 10px 12px; vertical-align: top;">
+					%s
+				</td>
+				<td style="padding: 10px 12px; font-size: 11.5px; color: #475569; vertical-align: top; white-space: nowrap;">
+					<div style="font-weight: 600; color: #0f172a;">%s</div>
+					<div style="color: #64748b;">%s</div>
+				</td>
+				<td style="padding: 10px 12px; font-size: 11.5px; color: #334155; vertical-align: top;">
+					%s
+				</td>
+			</tr>
+		`, bg, it.ECNNo, it.Model, it.Process, oldDate, newDate, partHTML, it.ChangedByName, timeStr, remark))
 	}
 
-	remarkHTML := newRec.Remark
-	if strings.TrimSpace(remarkHTML) == "" {
-		remarkHTML = "-"
+	testBanner := ""
+	if triggerType == "MANUAL_TEST" {
+		testBanner = `
+			<div style="background-color: #fef08a; color: #854d0e; padding: 8px 16px; font-size: 12px; font-weight: 700; text-align: center; border-bottom: 1px solid #facc15;">
+				🧪 INI ADALAH EMAIL UJI COBA (TEST SEND) DARI MODAL PENGINGAT RUNNING BOM
+			</div>
+		`
 	}
 
 	return fmt.Sprintf(`
@@ -539,69 +628,58 @@ func (w *ECNReminderWorker) RenderBOMChangeNotificationHTML(oldRec, newRec *mode
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Update Jadwal Running BOM - %s</title>
+	<title>Ringkasan Batch Perubahan Jadwal Running BOM</title>
 </head>
 <body style="margin: 0; padding: 20px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5;">
-	<div style="max-width: 720px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;">
+	<div style="max-width: 840px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;">
 		
-		<!-- Header Banner (Amber tone for schedule change) -->
+		%s
+
+		<!-- Header Banner -->
 		<div style="background: linear-gradient(135deg, #d97706 0%%, #b45309 100%%); padding: 22px 26px; color: #ffffff;">
 			<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #fef3c7; margin-bottom: 4px;">
 				PT Samsung Electronics Indonesia • Production Engineering
 			</div>
 			<h1 style="margin: 0; font-size: 19px; font-weight: 800; color: #ffffff;">
-				Pemberitahuan Perubahan Jadwal Running BOM
+				Ringkasan Batch Perubahan Jadwal Running BOM
 			</h1>
 			<p style="margin: 4px 0 0; font-size: 12.5px; color: #fffbeb; opacity: 0.95;">
-				Terdeteksi pembaruan tanggal Running Date BOM pada dokumen ECN di bawah ini.
+				Terdapat <strong>%d pembaruan jadwal</strong> yang tercatat pada batch pengiriman ini.
 			</p>
 		</div>
 
 		<!-- Body -->
 		<div style="padding: 24px 26px;">
-			<!-- Running BOM Delta Box -->
-			<div style="background-color: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; padding: 16px 18px; margin-bottom: 20px; text-align: center;">
-				<div style="font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-					Perubahan Jadwal Running BOM
+			<!-- Summary Bar -->
+			<div style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+				<div style="font-size: 12.5px; color: #78350f;">
+					Waktu Batch: <strong>%s</strong>
 				</div>
-				<div style="font-size: 18px; font-weight: 800;">
-					<span style="color: #64748b; text-decoration: line-through; margin-right: 12px;">%s</span>
-					<span style="color: #b45309; margin-right: 12px;">➔</span>
-					<span style="color: #dc2626; background: #fee2e2; border: 1px solid #fca5a5; padding: 3px 10px; border-radius: 6px;">%s</span>
-				</div>
-				<div style="font-size: 11.5px; color: #78350f; margin-top: 8px;">
-					Diperbarui oleh: <strong>%s</strong> • Waktu: %s
+				<div style="font-size: 12.5px; color: #78350f; font-weight: 700;">
+					Total ECN Diperbarui: %d Dokumen
 				</div>
 			</div>
 
-			<!-- ECN Details Table -->
-			<table style="width: 100%%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
-				<tr style="border-bottom: 1px solid #f1f5f9;">
-					<td style="padding: 8px 0; color: #64748b; width: 140px; font-weight: 600;">Nomor ECN:</td>
-					<td style="padding: 8px 0; font-weight: 700; color: #0d7377;">%s</td>
-				</tr>
-				<tr style="border-bottom: 1px solid #f1f5f9;">
-					<td style="padding: 8px 0; color: #64748b; font-weight: 600;">Model:</td>
-					<td style="padding: 8px 0; font-weight: 600; color: #0f172a;">%s</td>
-				</tr>
-				<tr style="border-bottom: 1px solid #f1f5f9;">
-					<td style="padding: 8px 0; color: #64748b; font-weight: 600;">Proses & Status:</td>
-					<td style="padding: 8px 0; color: #0f172a;">%s • <span style="font-weight: 600; color: #d97706;">%s</span></td>
-				</tr>
-				<tr style="border-bottom: 1px solid #f1f5f9;">
-					<td style="padding: 8px 0; color: #64748b; font-weight: 600;">Judul ECN:</td>
-					<td style="padding: 8px 0; color: #334155;">%s</td>
-				</tr>
-				<tr>
-					<td style="padding: 8px 0; color: #64748b; font-weight: 600; vertical-align: top;">Catatan / Remark:</td>
-					<td style="padding: 8px 0; color: #334155; white-space: pre-wrap; font-size: 12.5px;">%s</td>
-				</tr>
-			</table>
+			<!-- Table -->
+			<div style="overflow-x: auto;">
+				<table style="width: 100%%; border-collapse: collapse; font-size: 12.5px;">
+					<thead>
+						<tr style="background-color: #f8fafc; border-bottom: 2px solid #cbd5e1; text-align: left; font-size: 11.5px; color: #475569; text-transform: uppercase;">
+							<th style="padding: 10px 12px;">ECN / Model</th>
+							<th style="padding: 10px 12px;">Perubahan Jadwal</th>
+							<th style="padding: 10px 12px;">Part Change</th>
+							<th style="padding: 10px 12px;">Diubah Oleh</th>
+							<th style="padding: 10px 12px;">Remark / Catatan</th>
+						</tr>
+					</thead>
+					<tbody>
+						%s
+					</tbody>
+				</table>
+			</div>
 
-			%s
-
-			<!-- Action CTA -->
-			<div style="text-align: center; margin: 24px 0 12px;">
+			<!-- CTA Button -->
+			<div style="text-align: center; margin: 26px 0 10px;">
 				<a href="http://localhost:3025/ecn-monitoring" target="_blank" style="display: inline-block; background-color: #0d7377; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 24px; border-radius: 6px;">
 					Buka Data ECN di Portal PE &rarr;
 				</a>
@@ -610,108 +688,61 @@ func (w *ECNReminderWorker) RenderBOMChangeNotificationHTML(oldRec, newRec *mode
 
 		<!-- Footer -->
 		<div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px 26px; text-align: center; font-size: 11px; color: #64748b;">
-			Email notifikasi realtime ini dihasilkan otomatis saat ada pembaruan tanggal Running BOM pada <strong>SEIN PE-Portal</strong>.
+			Email notifikasi batch ini dikirim otomatis sesuai jadwal batch yang ditentukan pada <strong>SEIN PE-Portal</strong>.
 		</div>
 	</div>
 </body>
 </html>
-	`, newRec.ECNNo, oldDate, newDate, updaterName, nowStr, newRec.ECNNo, newRec.Model, newRec.Process, newRec.Status, newRec.ECTitle, remarkHTML, partChangeHTML)
+	`, testBanner, len(items), nowStr, len(items), rowsHTML.String())
 }
 
-// NotifyBOMDateChange sends immediate email notification when an ECN's Running BOM date is changed
-func (w *ECNReminderWorker) NotifyBOMDateChange(ctx context.Context, oldRec, newRec *model.ECNRecord, updaterName string) {
-	if oldRec == nil || newRec == nil {
-		return
-	}
-	// Only notify if running_date_bom actually changed
-	if strings.TrimSpace(oldRec.RunningDateBOM) == strings.TrimSpace(newRec.RunningDateBOM) {
-		return
-	}
-
-	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		settings, err := w.repo.GetSettings(bgCtx)
-		if err != nil {
-			log.Printf("[ECN Reminder Worker] Failed to fetch settings for BOM change alert: %v\n", err)
-			return
-		}
-
-		if !settings.BOMChangeNotifyEnabled {
-			return
-		}
-
-		rawRecipients := settings.BOMChangeRecipients
-		if strings.TrimSpace(rawRecipients) == "" {
-			rawRecipients = settings.Recipients
-		}
-		recipients := parseEmailList(rawRecipients)
-		if len(recipients) == 0 {
-			log.Println("[ECN Reminder Worker] No recipients configured for BOM change alert. Skipping.")
-			return
-		}
-
-		rawCC := settings.BOMChangeCCRecipients
-		if strings.TrimSpace(rawCC) == "" {
-			rawCC = settings.CCRecipients
-		}
-		ccRecipients := parseEmailList(rawCC)
-
-		subject := settings.BOMChangeEmailSubject
-		if strings.TrimSpace(subject) == "" {
-			subject = "[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})"
-		}
-		subject = strings.ReplaceAll(subject, "{ecn_no}", newRec.ECNNo)
-		subject = strings.ReplaceAll(subject, "{model}", newRec.Model)
-		subject = strings.ReplaceAll(subject, "{old_date}", oldRec.RunningDateBOM)
-		subject = strings.ReplaceAll(subject, "{new_date}", newRec.RunningDateBOM)
-
-		smtpCfg, err := w.reportRepo.GetDefaultSMTP(bgCtx)
-		if err != nil {
-			log.Printf("[ECN Reminder Worker] Failed to get default SMTP gateway: %v\n", err)
-			_ = w.repo.RecordLog(bgCtx, &model.ECNReminderLog{
-				Recipients:   strings.Join(recipients, ", "),
-				CCRecipients: strings.Join(ccRecipients, ", "),
-				ItemCount:    1,
-				ECNNumbers:   newRec.ECNNo,
-				Status:       "FAILED",
-				ErrorMessage: fmt.Sprintf("SMTP gateway error: %v", err),
-				TriggeredBy:  "BOM_DATE_CHANGE",
-			})
-			return
-		}
-
-		htmlBody := w.RenderBOMChangeNotificationHTML(oldRec, newRec, updaterName)
-		sendErr := w.smtpSvc.SendEmail(smtpCfg, recipients, ccRecipients, subject, htmlBody)
-
-		status := "SUCCESS"
-		var errText string
-		if sendErr != nil {
-			status = "FAILED"
-			errText = sendErr.Error()
-			log.Printf("[ECN Reminder Worker] Failed to send BOM date change email: %v\n", sendErr)
-		} else {
-			log.Printf("[ECN Reminder Worker] Dispatched BOM date change email for %s to %v\n", newRec.ECNNo, recipients)
-		}
-
-		_ = w.repo.RecordLog(bgCtx, &model.ECNReminderLog{
-			Recipients:   strings.Join(recipients, ", "),
-			CCRecipients: strings.Join(ccRecipients, ", "),
-			ItemCount:    1,
-			ECNNumbers:   newRec.ECNNo,
-			Status:       status,
-			ErrorMessage: errText,
-			TriggeredBy:  "BOM_DATE_CHANGE",
-		})
-	}()
-}
-
-// SendTestBOMChangeEmail dispatches a test notification for BOM date change
-func (w *ECNReminderWorker) SendTestBOMChangeEmail(ctx context.Context) error {
+// ExecuteBOMChangeBatch collects all unnotified Running BOM changes and dispatches them in a single batch email
+func (w *ECNReminderWorker) ExecuteBOMChangeBatch(ctx context.Context, triggerType string) (int, error) {
 	settings, err := w.repo.GetSettings(ctx)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("failed to fetch reminder settings: %w", err)
+	}
+
+	if triggerType == "SCHEDULE" && !settings.BOMChangeNotifyEnabled {
+		return 0, nil
+	}
+
+	records, err := w.repo.GetPendingBOMChangeRecords(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get pending bom change records: %w", err)
+	}
+
+	// If no records and this is a schedule trigger, skip silently without spamming
+	if len(records) == 0 {
+		if triggerType == "SCHEDULE" {
+			log.Println("[ECN Reminder Worker] No pending Running BOM changes for batch. Skipping email.")
+			_ = w.repo.RecordLog(ctx, &model.ECNReminderLog{
+				Recipients:   settings.BOMChangeRecipients,
+				CCRecipients: settings.BOMChangeCCRecipients,
+				ItemCount:    0,
+				ECNNumbers:   "",
+				Status:       "SKIPPED",
+				TriggeredBy:  "SCHEDULE_BOM_CHANGE",
+			})
+			return 0, nil
+		}
+		// In MANUAL_TEST mode, generate a mock record so user can inspect the layout
+		records = []model.ECNBOMChangeItem{
+			{
+				ECNNo:         "GHW202626A8",
+				Model:         "SM-F976B",
+				Process:       "Mainline",
+				Status:        "Pending",
+				ECTitle:       "[ECN-BOM] [Q8] SM-F976B Main win paper change in all regions",
+				OldDate:       "2026-06-20",
+				NewDate:       "2026-06-25",
+				ChangedByName: "System Administrator (Test)",
+				PartBefore:    "GH63-23138A",
+				PartAfter:     "GH63-23137A",
+				Remark:        "Test sample batch schedule change for preview",
+				CreatedAt:     time.Now(),
+			},
+		}
 	}
 
 	rawRecipients := settings.BOMChangeRecipients
@@ -720,7 +751,7 @@ func (w *ECNReminderWorker) SendTestBOMChangeEmail(ctx context.Context) error {
 	}
 	recipients := parseEmailList(rawRecipients)
 	if len(recipients) == 0 {
-		return fmt.Errorf("daftar penerima email perubahan Running BOM masih kosong")
+		return 0, fmt.Errorf("daftar penerima email perubahan Running BOM masih kosong")
 	}
 
 	rawCC := settings.BOMChangeCCRecipients
@@ -731,65 +762,64 @@ func (w *ECNReminderWorker) SendTestBOMChangeEmail(ctx context.Context) error {
 
 	subject := settings.BOMChangeEmailSubject
 	if strings.TrimSpace(subject) == "" {
-		subject = "[TEST] Perubahan Jadwal Running BOM - GHW202626A8 (SM-F976B)"
-	} else {
+		subject = "[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)"
+	}
+	subject = strings.ReplaceAll(subject, "{count}", strconv.Itoa(len(records)))
+	if len(records) > 0 {
+		subject = strings.ReplaceAll(subject, "{ecn_no}", records[0].ECNNo)
+		subject = strings.ReplaceAll(subject, "{model}", records[0].Model)
+		subject = strings.ReplaceAll(subject, "{old_date}", records[0].OldDate)
+		subject = strings.ReplaceAll(subject, "{new_date}", records[0].NewDate)
+	}
+	if triggerType == "MANUAL_TEST" && !strings.HasPrefix(subject, "[TEST]") {
 		subject = "[TEST] " + subject
-		subject = strings.ReplaceAll(subject, "{ecn_no}", "GHW202626A8")
-		subject = strings.ReplaceAll(subject, "{model}", "SM-F976B")
-		subject = strings.ReplaceAll(subject, "{old_date}", "2026-06-20")
-		subject = strings.ReplaceAll(subject, "{new_date}", "2026-06-25")
 	}
 
 	smtpCfg, err := w.reportRepo.GetDefaultSMTP(ctx)
 	if err != nil {
-		return fmt.Errorf("gagal mendapatkan gateway SMTP: %w", err)
+		return 0, fmt.Errorf("gagal mendapatkan gateway SMTP: %w", err)
 	}
 
-	mockOld := &model.ECNRecord{
-		ECNNo:          "GHW202626A8",
-		Model:          "SM-F976B",
-		Process:        "Mainline",
-		Status:         "Progress",
-		ECTitle:        "[ECN-BOM] [Q8] SM-F976B Main win paper change in all regions",
-		RunningDateBOM: "2026-06-20",
-		PartBefore:     "GH63-23138A",
-		PartAfter:      "GH63-23137A",
-		Remark:         "Sample test notification for Running BOM date change",
-	}
-	mockNew := &model.ECNRecord{
-		ECNNo:          "GHW202626A8",
-		Model:          "SM-F976B",
-		Process:        "Mainline",
-		Status:         "Progress",
-		ECTitle:        "[ECN-BOM] [Q8] SM-F976B Main win paper change in all regions",
-		RunningDateBOM: "2026-06-25",
-		PartBefore:     "GH63-23138A",
-		PartAfter:      "GH63-23137A",
-		Remark:         "Sample test notification for Running BOM date change",
-	}
-
-	htmlBody := w.RenderBOMChangeNotificationHTML(mockOld, mockNew, "System Administrator (Test)")
+	htmlBody := w.RenderBOMChangeBatchHTML(records, triggerType)
 	sendErr := w.smtpSvc.SendEmail(smtpCfg, recipients, ccRecipients, subject, htmlBody)
+
+	var logIDs []uuid.UUID
+	var ecnNumbers []string
+	for _, it := range records {
+		if it.LogID != uuid.Nil {
+			logIDs = append(logIDs, it.LogID)
+		}
+		if it.ECNNo != "" {
+			ecnNumbers = append(ecnNumbers, it.ECNNo)
+		}
+	}
 
 	status := "SUCCESS"
 	var errText string
 	if sendErr != nil {
 		status = "FAILED"
 		errText = sendErr.Error()
+		log.Printf("[ECN Reminder Worker] Failed to send BOM change batch email: %v\n", sendErr)
+	} else {
+		log.Printf("[ECN Reminder Worker] Dispatched BOM change batch email (%d items) to %v\n", len(records), recipients)
+		if len(logIDs) > 0 {
+			// Mark notified so they are not included in subsequent batches
+			_ = w.repo.MarkBOMChangesNotified(ctx, logIDs)
+		}
 	}
 
 	_ = w.repo.RecordLog(ctx, &model.ECNReminderLog{
 		Recipients:   strings.Join(recipients, ", "),
 		CCRecipients: strings.Join(ccRecipients, ", "),
-		ItemCount:    1,
-		ECNNumbers:   "GHW202626A8 (TEST)",
+		ItemCount:    len(records),
+		ECNNumbers:   strings.Join(ecnNumbers, ", "),
 		Status:       status,
 		ErrorMessage: errText,
-		TriggeredBy:  "MANUAL_TEST_BOM_CHANGE",
+		TriggeredBy:  triggerType + "_BOM_CHANGE",
 	})
 
 	if sendErr != nil {
-		return fmt.Errorf("gagal mengirim email melalui SMTP: %w", sendErr)
+		return len(records), fmt.Errorf("gagal mengirim email melalui SMTP: %w", sendErr)
 	}
-	return nil
+	return len(records), nil
 }

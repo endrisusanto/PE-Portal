@@ -171,16 +171,7 @@ func (h *ECNHandler) Update(c echo.Context) error {
 				action = "BOM_CHANGE"
 				noteParts = append(noteParts, fmt.Sprintf("Running BOM: %s ➔ %s", oldRec.RunningDateBOM, item.RunningDateBOM))
 			}
-			// ponytail: Dispatch realtime BOM date change email notification
-			if h.reminderWorker != nil {
-				updaterName := "System"
-				if claims, ok := c.Get(middleware.ContextKeyUserClaims).(*model.UserClaims); ok && claims != nil {
-					if claims.Username != "" {
-						updaterName = claims.Username
-					}
-				}
-				h.reminderWorker.NotifyBOMDateChange(c.Request().Context(), oldRec, updated, updaterName)
-			}
+			// ponytail: Running BOM date changes are stored in ecn_change_logs and batched at scheduled hours by ECNReminderWorker
 		}
 		if oldRec.DistributionDate != item.DistributionDate && item.DistributionDate != "" {
 			changes["distribution_date"] = map[string]string{"from": oldRec.DistributionDate, "to": item.DistributionDate}

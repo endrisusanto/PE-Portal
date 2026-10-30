@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -25,9 +26,10 @@ func (r *ECNReminderRepository) GetSettings(ctx context.Context) (*model.ECNRemi
 		SELECT id, is_enabled, days_before, send_time, recipients, cc_recipients,
 		       email_subject, include_overdue, last_sent_date, created_at, updated_at,
 		       COALESCE(bom_change_notify_enabled, TRUE),
+		       COALESCE(bom_change_send_time, '08:00, 13:00, 16:00'),
 		       COALESCE(bom_change_recipients, ''),
 		       COALESCE(bom_change_cc_recipients, ''),
-		       COALESCE(bom_change_email_subject, '[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})')
+		       COALESCE(bom_change_email_subject, '[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)')
 		FROM ecn_reminder_settings
 		ORDER BY created_at ASC
 		LIMIT 1
@@ -36,23 +38,23 @@ func (r *ECNReminderRepository) GetSettings(ctx context.Context) (*model.ECNRemi
 	err := r.pool.QueryRow(ctx, query).Scan(
 		&s.ID, &s.IsEnabled, &s.DaysBefore, &s.SendTime, &s.Recipients, &s.CCRecipients,
 		&s.EmailSubject, &s.IncludeOverdue, &s.LastSentDate, &s.CreatedAt, &s.UpdatedAt,
-		&s.BOMChangeNotifyEnabled, &s.BOMChangeRecipients, &s.BOMChangeCCRecipients, &s.BOMChangeEmailSubject,
+		&s.BOMChangeNotifyEnabled, &s.BOMChangeSendTime, &s.BOMChangeRecipients, &s.BOMChangeCCRecipients, &s.BOMChangeEmailSubject,
 	)
 	if err != nil {
 		// Insert default row
 		insertQ := `
 			INSERT INTO ecn_reminder_settings (is_enabled, days_before, send_time, recipients, email_subject, include_overdue,
-			                                  bom_change_notify_enabled, bom_change_recipients, bom_change_email_subject)
+			                                  bom_change_notify_enabled, bom_change_send_time, bom_change_recipients, bom_change_email_subject)
 			VALUES (TRUE, 1, '08:00', 'endri.s@samsung.com', '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE', TRUE,
-			        TRUE, 'endri.s@samsung.com', '[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})')
+			        TRUE, '08:00, 13:00, 16:00', 'endri.s@samsung.com', '[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)')
 			RETURNING id, is_enabled, days_before, send_time, recipients, cc_recipients,
 			          email_subject, include_overdue, last_sent_date, created_at, updated_at,
-			          bom_change_notify_enabled, bom_change_recipients, bom_change_cc_recipients, bom_change_email_subject
+			          bom_change_notify_enabled, bom_change_send_time, bom_change_recipients, bom_change_cc_recipients, bom_change_email_subject
 		`
 		if insertErr := r.pool.QueryRow(ctx, insertQ).Scan(
 			&s.ID, &s.IsEnabled, &s.DaysBefore, &s.SendTime, &s.Recipients, &s.CCRecipients,
 			&s.EmailSubject, &s.IncludeOverdue, &s.LastSentDate, &s.CreatedAt, &s.UpdatedAt,
-			&s.BOMChangeNotifyEnabled, &s.BOMChangeRecipients, &s.BOMChangeCCRecipients, &s.BOMChangeEmailSubject,
+			&s.BOMChangeNotifyEnabled, &s.BOMChangeSendTime, &s.BOMChangeRecipients, &s.BOMChangeCCRecipients, &s.BOMChangeEmailSubject,
 		); insertErr != nil {
 			return nil, fmt.Errorf("failed to create default reminder settings: %w", insertErr)
 		}
@@ -77,28 +79,30 @@ func (r *ECNReminderRepository) SaveSettings(ctx context.Context, s *model.ECNRe
 		    email_subject = $6,
 		    include_overdue = $7,
 		    bom_change_notify_enabled = $8,
-		    bom_change_recipients = $9,
-		    bom_change_cc_recipients = $10,
-		    bom_change_email_subject = $11,
+		    bom_change_send_time = $9,
+		    bom_change_recipients = $10,
+		    bom_change_cc_recipients = $11,
+		    bom_change_email_subject = $12,
 		    updated_at = NOW()
-		WHERE id = $12
+		WHERE id = $13
 		RETURNING id, is_enabled, days_before, send_time, recipients, cc_recipients,
 		          email_subject, include_overdue, last_sent_date, created_at, updated_at,
-		          bom_change_notify_enabled, bom_change_recipients, bom_change_cc_recipients, bom_change_email_subject
+		          bom_change_notify_enabled, bom_change_send_time, bom_change_recipients, bom_change_cc_recipients, bom_change_email_subject
 	`
 	var updated model.ECNReminderSettings
 	err = r.pool.QueryRow(ctx, query,
 		s.IsEnabled, s.DaysBefore, strings.TrimSpace(s.SendTime),
 		strings.TrimSpace(s.Recipients), strings.TrimSpace(s.CCRecipients),
 		strings.TrimSpace(s.EmailSubject), s.IncludeOverdue,
-		s.BOMChangeNotifyEnabled, strings.TrimSpace(s.BOMChangeRecipients),
+		s.BOMChangeNotifyEnabled, strings.TrimSpace(s.BOMChangeSendTime),
+		strings.TrimSpace(s.BOMChangeRecipients),
 		strings.TrimSpace(s.BOMChangeCCRecipients), strings.TrimSpace(s.BOMChangeEmailSubject),
 		current.ID,
 	).Scan(
 		&updated.ID, &updated.IsEnabled, &updated.DaysBefore, &updated.SendTime,
 		&updated.Recipients, &updated.CCRecipients, &updated.EmailSubject,
 		&updated.IncludeOverdue, &updated.LastSentDate, &updated.CreatedAt, &updated.UpdatedAt,
-		&updated.BOMChangeNotifyEnabled, &updated.BOMChangeRecipients, &updated.BOMChangeCCRecipients, &updated.BOMChangeEmailSubject,
+		&updated.BOMChangeNotifyEnabled, &updated.BOMChangeSendTime, &updated.BOMChangeRecipients, &updated.BOMChangeCCRecipients, &updated.BOMChangeEmailSubject,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update reminder settings: %w", err)
@@ -259,4 +263,71 @@ func (r *ECNReminderRepository) GetLastLog(ctx context.Context) (*model.ECNRemin
 		return nil, err
 	}
 	return &logs[0], nil
+}
+
+// GetPendingBOMChangeRecords retrieves all unnotified Running BOM changes for batch dispatch (ponytail: O(1) partial index)
+func (r *ECNReminderRepository) GetPendingBOMChangeRecords(ctx context.Context) ([]model.ECNBOMChangeItem, error) {
+	query := `
+		SELECT l.id, l.ecn_id, l.changes, l.created_at,
+		       COALESCE(u.full_name, u.username, 'System') as changed_by_name,
+		       e.ecn_no, e.model, e.process, e.status, e.ec_title,
+		       COALESCE(e.part_before, '') as part_before,
+		       COALESCE(e.part_after, '') as part_after,
+		       COALESCE(e.remark, '') as remark
+		FROM ecn_change_logs l
+		JOIN ecn_records e ON e.id = l.ecn_id
+		LEFT JOIN users u ON u.id = l.changed_by
+		WHERE (l.changes ? 'running_date_bom')
+		  AND l.notified_at IS NULL
+		ORDER BY l.created_at ASC
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []model.ECNBOMChangeItem
+	for rows.Next() {
+		var it model.ECNBOMChangeItem
+		var rawChanges []byte
+		if err := rows.Scan(
+			&it.LogID, &it.ECNID, &rawChanges, &it.CreatedAt,
+			&it.ChangedByName, &it.ECNNo, &it.Model, &it.Process, &it.Status, &it.ECTitle,
+			&it.PartBefore, &it.PartAfter, &it.Remark,
+		); err != nil {
+			return nil, err
+		}
+		var ch map[string]interface{}
+		if err := json.Unmarshal(rawChanges, &ch); err == nil {
+			if rdb, ok := ch["running_date_bom"].(map[string]interface{}); ok {
+				if fromVal, ok := rdb["from"].(string); ok {
+					it.OldDate = fromVal
+				}
+				if toVal, ok := rdb["to"].(string); ok {
+					it.NewDate = toVal
+				}
+			}
+		}
+		items = append(items, it)
+	}
+	return items, nil
+}
+
+// MarkBOMChangesNotified marks change log entries as sent in batch
+func (r *ECNReminderRepository) MarkBOMChangesNotified(ctx context.Context, logIDs []uuid.UUID) error {
+	if len(logIDs) == 0 {
+		return nil
+	}
+	query := `UPDATE ecn_change_logs SET notified_at = NOW() WHERE id = ANY($1)`
+	_, err := r.pool.Exec(ctx, query, logIDs)
+	return err
+}
+
+// GetPendingBOMChangeCount returns the count of unnotified BOM changes
+func (r *ECNReminderRepository) GetPendingBOMChangeCount(ctx context.Context) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM ecn_change_logs WHERE (changes ? 'running_date_bom') AND notified_at IS NULL`
+	err := r.pool.QueryRow(ctx, query).Scan(&count)
+	return count, err
 }
