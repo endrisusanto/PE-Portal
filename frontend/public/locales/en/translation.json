@@ -501,7 +501,7 @@
     "matrix_search_placeholder": "Filter model / project name...",
     "matrix_refresh": "Refresh",
     "matrix_export": "Export Matrix",
-    "matrix_export_excel": "Excel (.xls)",
+    "matrix_export_excel": "Excel (.xlsx)",
     "matrix_export_csv": "CSV",
     "matrix_bulk_import": "Bulk Import",
     "bulk_import_title": "Bulk Import / Update Milestone Matrix (Excel & CSV)",

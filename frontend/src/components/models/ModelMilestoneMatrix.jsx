@@ -38,6 +38,7 @@ import { Input } from '../common/Input';
 import { Modal } from '../common/Modal';
 import { FormattingTextarea } from '../common/FormattingTextarea';
 import { CommentTimelineSection } from '../common/CommentTimelineSection';
+import * as XLSX from 'xlsx';
 import api from '../../api/client';
 import styles from './ModelMilestoneMatrix.module.css';
 
@@ -1135,86 +1136,80 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
     }, 15000);
   };
 
-  // ponytail: Export directly to native Excel document (.xls) with full formatting, styling & gridlines
+  // ponytail: Export genuine binary OpenXML spreadsheet (.xlsx) with proper sheets, merges, and column widths
   const handleExportExcel = () => {
-    const html = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8"/>
-        <!--[if gte mso 9]>
-        <xml>
-          <x:ExcelWorkbook>
-            <x:ExcelWorksheets>
-              <x:ExcelWorksheet>
-                <x:Name>SEIN Milestone Matrix</x:Name>
-                <x:WorksheetOptions>
-                  <x:DisplayGridlines/>
-                </x:WorksheetOptions>
-              </x:ExcelWorksheet>
-            </x:ExcelWorksheets>
-          </x:ExcelWorkbook>
-        </xml>
-        <![endif]-->
-        <style>
-          th, td { font-family: Calibri, Arial, sans-serif; font-size: 11pt; border: 1px solid #cbd5e1; padding: 6px 10px; }
-          .header-main { background-color: #dbeafe; font-weight: bold; text-align: center; color: #1e3a8a; }
-          .header-sub { background-color: #f1f5f9; font-weight: bold; }
-          .cat-title { background-color: #f8fafc; font-weight: bold; color: #0f172a; }
-          .val-tbd { background-color: #fef3c7; color: #92400e; font-weight: 600; text-align: center; }
-          .val-ok { background-color: #d1fae5; color: #065f46; font-weight: 600; text-align: center; }
-          .val-mp { background-color: #fef08a; font-weight: bold; text-align: center; color: #854d0e; }
-        </style>
-      </head>
-      <body>
-        <table>
-          <thead>
-            <tr>
-              <th class="header-main" style="min-width: 140px;">Category</th>
-              <th class="header-main" style="min-width: 220px;">Milestone Task</th>
-              ${filteredModels.map((m) => `<th class="header-main" style="min-width: 160px;">${m.model_name}</th>`).join('')}
-            </tr>
-            <tr>
-              <td class="header-sub"></td>
-              <td class="header-sub">Marketing/Project Name</td>
-              ${filteredModels.map((m) => `<td class="header-sub" style="text-align: center;">${m.marketing_name || m.codename || '-'}</td>`).join('')}
-            </tr>
-            <tr>
-              <td class="header-sub"></td>
-              <td class="header-sub">Basic Model</td>
-              ${filteredModels.map((m) => `<td style="font-size: 10pt; text-align: center;">${getModelVariants(m).join(' / ') || '-'}</td>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${MODERN_CATEGORIES.map((cat) => `
-              <tr>
-                <td colspan="${filteredModels.length + 2}" style="background-color: #e2e8f0; font-weight: bold; padding: 8px;">
-                  ${cat.title}
-                </td>
-              </tr>
-              ${cat.items.map((item) => `
-                <tr>
-                  <td style="color: #64748b; font-size: 10pt;">${cat.title}</td>
-                  <td style="font-weight: 600;">${item.label}</td>
-                  ${filteredModels.map((m) => {
-                    const resolved = resolveMilestoneValue(m.id, item.key);
-                    const val = resolved.display || '-';
-                    let cls = '';
-                    if (item.key === 'mp_sop') cls = 'val-mp';
-                    else if (val.toUpperCase() === 'TBD') cls = 'val-tbd';
-                    else if (val.toUpperCase().includes('PASS') || val.toUpperCase().includes('OK') || val.toUpperCase().includes('DONE')) cls = 'val-ok';
-                    return `<td class="${cls}" style="text-align: center;">${val}</td>`;
-                  }).join('')}
-                </tr>
-              `).join('')}
-            `).join('')}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+    try {
+      const data = [];
+      const merges = [];
 
-    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    triggerDownload(blob, `SEIN_Milestone_Matrix_${new Date().toISOString().slice(0, 10)}.xls`);
+      // Row 1: Header Row with Model names
+      const r1 = ['Category', 'Milestone Task', ...filteredModels.map((m) => m.model_name || '-')];
+      data.push(r1);
+
+      // Row 2: Marketing / Project Name
+      const r2 = ['', 'Marketing/Project Name', ...filteredModels.map((m) => m.marketing_name || m.codename || '-')];
+      data.push(r2);
+
+      // Row 3: Basic Model / Variant
+      const r3 = ['', 'Basic Model', ...filteredModels.map((m) => getModelVariants(m).join(' / ') || '-')];
+      data.push(r3);
+
+      let currentRow = 3;
+
+      // Category Groups & Milestone Rows
+      MODERN_CATEGORIES.forEach((cat) => {
+        // Category Header Row
+        const catRow = [cat.title.toUpperCase(), '', ...filteredModels.map(() => '')];
+        data.push(catRow);
+
+        // Merge across all columns for category banner
+        merges.push({
+          s: { r: currentRow, c: 0 },
+          e: { r: currentRow, c: filteredModels.length + 1 },
+        });
+        currentRow++;
+
+        // Category Items
+        cat.items.forEach((item) => {
+          const row = [
+            cat.title,
+            item.label,
+            ...filteredModels.map((m) => {
+              const resolved = resolveMilestoneValue(m.id, item.key);
+              return resolved.display || '-';
+            }),
+          ];
+          data.push(row);
+          currentRow++;
+        });
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws['!merges'] = merges;
+
+      // Auto-fit column widths
+      const colWidths = [
+        { wch: 22 }, // Category
+        { wch: 32 }, // Milestone Task
+        ...filteredModels.map((m) => ({
+          wch: Math.max(16, (m.model_name || '').length + 4),
+        })),
+      ];
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'SEIN Milestone Matrix');
+
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      triggerDownload(blob, `SEIN_Milestone_Matrix_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error('Failed to export Excel matrix (.xlsx):', err);
+      // Fallback to CSV if any error occurs
+      handleExportCSV();
+    }
   };
 
   // ponytail: Native zero-dependency CSV download with UTF-8 BOM so Excel opens with proper matrix layout
@@ -1492,10 +1487,10 @@ export const ModelMilestoneMatrix = ({ models = [], onRefresh, onEditModel }) =>
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                title="Unduh matriks dalam format spreadsheet Microsoft Excel (.xls) lengkap dengan format tabel & warna"
+                title="Unduh matriks dalam format spreadsheet Microsoft Excel (.xlsx) standar OpenXML"
               >
                 <FileSpreadsheet size={14} style={{ color: 'var(--color-success, #10b981)' }} />
-                <span>{t('models.matrix_export_excel', 'Excel (.xls)')}</span>
+                <span>{t('models.matrix_export_excel', 'Excel (.xlsx)')}</span>
               </button>
 
               {/* Ekspor CSV */}

@@ -501,7 +501,7 @@
     "matrix_search_placeholder": "모델명 또는 프로젝트명 검색...",
     "matrix_refresh": "새로고침",
     "matrix_export": "매트릭스 내보내기",
-    "matrix_export_excel": "Excel (.xls)",
+    "matrix_export_excel": "Excel (.xlsx)",
     "matrix_export_csv": "CSV",
     "matrix_bulk_import": "일괄 가져오기",
     "bulk_import_title": "마일스톤 매트릭스 일괄 등록/수정 (Excel & CSV)",
