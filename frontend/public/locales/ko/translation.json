@@ -179,6 +179,12 @@
     "loading": "SEIN PE-Portal 메트릭 및 벤토 허브 로딩 중...",
     "view_records": "상세 보기",
     "shift_schedule": "생산 교대 일정",
+    "stats_section_title": "운영 지표 및 성과 요약",
+    "stats_section_sub": "생산기술(PE) 부서 통합 운영 통계",
+    "badge_best_practice": "우수 사례 (Best Practice)",
+    "badge_line_parameter": "라인 파라미터",
+    "badge_in_out_track": "입출고 트래킹",
+    "badge_competence": "직무 역량",
     "stats": {
       "task_analyst": "업무 분석",
       "completed_running": "{{completed}} 완료 • {{running}} 진행 중",

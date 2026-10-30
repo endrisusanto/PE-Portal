@@ -179,6 +179,12 @@
     "loading": "Loading metrics and Bento Hub SEIN PE-Portal...",
     "view_records": "View records",
     "shift_schedule": "Shift Schedule",
+    "stats_section_title": "Operational Metrics & Performance Summary",
+    "stats_section_sub": "Integrated statistics of Production Engineering division",
+    "badge_best_practice": "Best Practice",
+    "badge_line_parameter": "Line Parameter",
+    "badge_in_out_track": "In/Out Track",
+    "badge_competence": "Competence",
     "stats": {
       "task_analyst": "Task Analyst",
       "completed_running": "{{completed}} Completed • {{running}} In Progress",

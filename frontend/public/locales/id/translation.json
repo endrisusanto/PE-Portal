@@ -179,6 +179,12 @@
     "loading": "Memuat metrik dan Bento Hub SEIN PE-Portal...",
     "view_records": "Lihat data",
     "shift_schedule": "Jadwal Produksi",
+    "stats_section_title": "Ringkasan Metrik & Kinerja Operasional",
+    "stats_section_sub": "Statistik terintegrasi divisi Production Engineering",
+    "badge_best_practice": "Best Practice",
+    "badge_line_parameter": "Line Parameter",
+    "badge_in_out_track": "In/Out Track",
+    "badge_competence": "Kompetensi",
     "stats": {
       "task_analyst": "Task Analyst",
       "completed_running": "{{completed}} Selesai • {{running}} Berjalan",

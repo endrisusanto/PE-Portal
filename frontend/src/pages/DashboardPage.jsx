@@ -537,9 +537,9 @@ export const DashboardPage = () => {
         <div className={styles.statsHeader}>
           <div className={styles.sectionTitleGroup}>
             <Target size={16} style={{ color: 'var(--color-accent)' }} />
-            <h2 className={styles.sectionTitle}>Ringkasan Metrik & Kinerja Operasional</h2>
+            <h2 className={styles.sectionTitle}>{t('dashboard.stats_section_title', 'Ringkasan Metrik & Kinerja Operasional')}</h2>
           </div>
-          <span className={styles.sectionSub}>Statistik terintegrasi divisi Production Engineering</span>
+          <span className={styles.sectionSub}>{t('dashboard.stats_section_sub', 'Statistik terintegrasi divisi Production Engineering')}</span>
         </div>
 
         <div className={styles.richStatsGrid}>
@@ -574,7 +574,7 @@ export const DashboardPage = () => {
               <div className={`${styles.richStatIcon} ${styles.iconAmber}`}>
                 <Lightbulb size={17} />
               </div>
-              <span className={styles.statBadgeAmber}>Best Practice</span>
+              <span className={styles.statBadgeAmber}>{t('dashboard.badge_best_practice', 'Best Practice')}</span>
             </div>
             <div className={styles.richStatMain}>
               <span className={styles.richStatValue}>{stats?.innovations_count ?? 0}</span>
@@ -594,7 +594,7 @@ export const DashboardPage = () => {
               <div className={`${styles.richStatIcon} ${styles.iconCyan}`}>
                 <Cpu size={17} />
               </div>
-              <span className={styles.statBadgeCyan}>Line Parameter</span>
+              <span className={styles.statBadgeCyan}>{t('dashboard.badge_line_parameter', 'Line Parameter')}</span>
             </div>
             <div className={styles.richStatMain}>
               <span className={styles.richStatValue}>{stats?.models_count ?? 0}</span>
@@ -614,7 +614,7 @@ export const DashboardPage = () => {
               <div className={`${styles.richStatIcon} ${styles.iconGreen}`}>
                 <PackageCheck size={17} />
               </div>
-              <span className={styles.statBadgeGreen}>In/Out Track</span>
+              <span className={styles.statBadgeGreen}>{t('dashboard.badge_in_out_track', 'In/Out Track')}</span>
             </div>
             <div className={styles.richStatMain}>
               <span className={styles.richStatValue}>{stats?.samples_count ?? 14}</span>
@@ -634,7 +634,7 @@ export const DashboardPage = () => {
               <div className={`${styles.richStatIcon} ${styles.iconTeal}`}>
                 <GraduationCap size={17} />
               </div>
-              <span className={styles.statBadgeTeal}>Kompetensi</span>
+              <span className={styles.statBadgeTeal}>{t('dashboard.badge_competence', 'Kompetensi')}</span>
             </div>
             <div className={styles.richStatMain}>
               <span className={styles.richStatValue}>{stats?.trainings_count ?? 0}</span>
