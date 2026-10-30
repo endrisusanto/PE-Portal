@@ -39,7 +39,8 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
     { time: '16:00', label: t('ecn.reminder.preset_shift2', 'Shift 2') },
   ], [t]);
 
-  // Form State
+  // Form State: Tab & Deadline Reminder
+  const [activeTab, setActiveTab] = useState('deadline'); // 'deadline' | 'bom_change'
   const [isEnabled, setIsEnabled] = useState(true);
   const [daysBefore, setDaysBefore] = useState(1);
   const [selectedTimes, setSelectedTimes] = useState(['08:00']);
@@ -48,6 +49,13 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
   const [ccRecipients, setCcRecipients] = useState('');
   const [emailSubject, setEmailSubject] = useState('[REMINDER] ECN Running BOM Deadline Alert - SEIN PE');
   const [includeOverdue, setIncludeOverdue] = useState(true);
+
+  // Form State: Realtime Running BOM Change Notification (ponytail)
+  const [bomChangeNotifyEnabled, setBomChangeNotifyEnabled] = useState(true);
+  const [bomChangeRecipients, setBomChangeRecipients] = useState('');
+  const [bomChangeCcRecipients, setBomChangeCcRecipients] = useState('');
+  const [bomChangeEmailSubject, setBomChangeEmailSubject] = useState('[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})');
+  const [testingBomChange, setTestingBomChange] = useState(false);
 
   // Status & Info from Backend
   const [loading, setLoading] = useState(false);
@@ -78,6 +86,12 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       setCcRecipients(s.cc_recipients || '');
       setEmailSubject(s.email_subject || '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE');
       setIncludeOverdue(s.include_overdue !== false);
+
+      // Realtime BOM change settings
+      setBomChangeNotifyEnabled(s.bom_change_notify_enabled !== false);
+      setBomChangeRecipients(s.bom_change_recipients || '');
+      setBomChangeCcRecipients(s.bom_change_cc_recipients || '');
+      setBomChangeEmailSubject(s.bom_change_email_subject || '[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})');
 
       setDueCount(data.due_count || 0);
       setDueRecords(data.due_records || []);
@@ -142,6 +156,10 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
         cc_recipients: ccRecipients,
         email_subject: emailSubject,
         include_overdue: includeOverdue,
+        bom_change_notify_enabled: bomChangeNotifyEnabled,
+        bom_change_recipients: bomChangeRecipients,
+        bom_change_cc_recipients: bomChangeCcRecipients,
+        bom_change_email_subject: bomChangeEmailSubject,
       };
 
       await api.put('/ecn/reminder/settings', payload);
@@ -163,7 +181,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
     }
   };
 
-  // Handle Immediate Test Dispatch
+  // Handle Immediate Test Dispatch (Deadline Reminder)
   const handleTestSend = async () => {
     if (!recipients.trim()) {
       setFeedback({
@@ -185,14 +203,17 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
         cc_recipients: ccRecipients,
         email_subject: emailSubject,
         include_overdue: includeOverdue,
+        bom_change_notify_enabled: bomChangeNotifyEnabled,
+        bom_change_recipients: bomChangeRecipients,
+        bom_change_cc_recipients: bomChangeCcRecipients,
+        bom_change_email_subject: bomChangeEmailSubject,
       });
 
       const res = await api.post('/ecn/reminder/test');
       setFeedback({
         type: 'success',
-        message: res.data?.message || t('ecn.reminder.test_success', 'Email tes pengingat berhasil dikirim!'),
+        message: res.data?.message || t('ecn.reminder.test_success', 'Email tes pengingat deadline berhasil dikirim!'),
       });
-      // Re-fetch to update lastLog
       fetchSettings();
     } catch (err) {
       console.error('Failed to trigger test email:', err);
@@ -205,22 +226,81 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handle Test Dispatch for BOM Date Change Alert
+  const handleTestBomChange = async () => {
+    const targetTo = bomChangeRecipients.trim() || recipients.trim();
+    if (!targetTo) {
+      setFeedback({
+        type: 'error',
+        message: t('ecn.reminder.require_recipient', 'Harap isi minimal 1 email penerima sebelum mengirim tes!'),
+      });
+      return;
+    }
+
+    setTestingBomChange(true);
+    setFeedback(null);
+    try {
+      await api.put('/ecn/reminder/settings', {
+        is_enabled: isEnabled,
+        days_before: Number(daysBefore) || 1,
+        send_time: selectedTimes.join(', ') || '08:00',
+        recipients,
+        cc_recipients: ccRecipients,
+        email_subject: emailSubject,
+        include_overdue: includeOverdue,
+        bom_change_notify_enabled: bomChangeNotifyEnabled,
+        bom_change_recipients: bomChangeRecipients,
+        bom_change_cc_recipients: bomChangeCcRecipients,
+        bom_change_email_subject: bomChangeEmailSubject,
+      });
+
+      const res = await api.post('/ecn/reminder/test-bom-change');
+      setFeedback({
+        type: 'success',
+        message: res.data?.message || t('ecn.reminder.test_bom_success', 'Email tes notifikasi perubahan Running BOM berhasil dikirim!'),
+      });
+      fetchSettings();
+    } catch (err) {
+      console.error('Failed to trigger test BOM change email:', err);
+      setFeedback({
+        type: 'error',
+        message: err.response?.data?.message || t('ecn.reminder.test_bom_error', 'Gagal mengirim email tes perubahan Running BOM.'),
+      });
+    } finally {
+      setTestingBomChange(false);
+    }
+  };
+
   const modalFooter = (
     <div className={styles.footerActions}>
-      <Button
-        variant="secondary"
-        size="md"
-        icon={Send}
-        onClick={handleTestSend}
-        loading={testing}
-        disabled={saving || loading}
-        title={t('ecn.reminder.test_send_title', 'Kirim email uji coba saat ini juga ke daftar penerima')}
-      >
-        {t('ecn.reminder.test_send_btn', 'Kirim Tes Email Sekarang')}
-      </Button>
+      {activeTab === 'deadline' ? (
+        <Button
+          variant="secondary"
+          size="md"
+          icon={Send}
+          onClick={handleTestSend}
+          loading={testing}
+          disabled={saving || loading || testingBomChange}
+          title={t('ecn.reminder.test_send_title', 'Kirim email uji coba saat ini juga ke daftar penerima')}
+        >
+          {t('ecn.reminder.test_deadline_btn', 'Kirim Tes Pengingat Deadline')}
+        </Button>
+      ) : (
+        <Button
+          variant="secondary"
+          size="md"
+          icon={Send}
+          onClick={handleTestBomChange}
+          loading={testingBomChange}
+          disabled={saving || loading || testing}
+          title="Kirim email uji coba perubahan jadwal Running BOM"
+        >
+          {t('ecn.reminder.test_bom_btn', 'Kirim Tes Notifikasi Perubahan')}
+        </Button>
+      )}
 
       <div className={styles.footerRight}>
-        <Button variant="ghost" size="md" onClick={onClose} disabled={saving || testing}>
+        <Button variant="ghost" size="md" onClick={onClose} disabled={saving || testing || testingBomChange}>
           {t('common.cancel', 'Batal')}
         </Button>
         <Button
@@ -229,7 +309,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
           icon={Check}
           onClick={handleSave}
           loading={saving}
-          disabled={testing || loading}
+          disabled={testing || testingBomChange || loading}
         >
           {t('common.save', 'Simpan Pengaturan')}
         </Button>
@@ -263,96 +343,341 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* 1. Context Strip (Live Running BOM Status) */}
-        <div className={`${styles.statusBar} ${dueCount > 0 ? styles.statusBarWarning : ''}`}>
-          <div className={styles.statusLeft}>
-            <div className={`${styles.statusIconWrapper} ${dueCount > 0 ? styles.statusIconWarning : ''}`}>
-              <Calendar size={15} />
-            </div>
-            <div className={styles.statusDetails}>
-              <div className={styles.statusMainRow}>
-                <span className={styles.statusHeading}>
-                  {dueCount > 0
-                    ? t('ecn.reminder.status_due', '{{count}} Dokumen ECN Jatuh Tempo', { count: dueCount })
-                    : t('ecn.reminder.status_none_due', 'Tidak Ada Dokumen ECN Jatuh Tempo')}
-                </span>
-                <span className={styles.targetDatePill}>
-                  {t('ecn.reminder.target_pill', 'Target: {{target}}', { target: targetDate || 'H-1' })}
-                </span>
-              </div>
-              <span className={styles.statusSubText}>
-                {dueCount > 0
-                  ? t('ecn.reminder.desc_due', 'ECN aktif (Pending / Progress) yang mendekati Running BOM akan dikirim otomatis ke PIC.')
-                  : t('ecn.reminder.desc_none_due', 'Semua ECN terpantau aman. Worker akan melewati pengiriman jika tidak ada data jatuh tempo.')}
-              </span>
+        {/* Tab Navigation (ponytail) */}
+        <div className={styles.tabNav}>
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'deadline' ? styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('deadline')}
+          >
+            <Clock size={14} />
+            <span>{t('ecn.reminder.tab_deadline', 'Pengingat Deadline Running BOM')}</span>
+            {dueCount > 0 && <span className={styles.tabBadge}>{dueCount}</span>}
+          </button>
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'bom_change' ? styles.tabBtnActive : ''}`}
+            onClick={() => setActiveTab('bom_change')}
+          >
+            <Bell size={14} />
+            <span>{t('ecn.reminder.tab_bom_change', 'Notifikasi Perubahan Jadwal BOM')}</span>
+          </button>
+        </div>
 
-              {/* Inline list of ECN Chips preview */}
-              {dueRecords && dueRecords.length > 0 && (
-                <div className={styles.dueInlineChips}>
-                  {dueRecords.slice(0, 8).map((r) => (
-                    <span
-                      key={r.id || r.ecn_no}
-                      className={styles.dueChipItem}
-                      title={`${r.model} - ${r.ec_title}`}
-                    >
-                      {r.ecn_no} ({r.model || 'Model'})
+        {activeTab === 'deadline' ? (
+          <>
+            {/* 1. Context Strip (Live Running BOM Status) */}
+            <div className={`${styles.statusBar} ${dueCount > 0 ? styles.statusBarWarning : ''}`}>
+              <div className={styles.statusLeft}>
+                <div className={`${styles.statusIconWrapper} ${dueCount > 0 ? styles.statusIconWarning : ''}`}>
+                  <Calendar size={15} />
+                </div>
+                <div className={styles.statusDetails}>
+                  <div className={styles.statusMainRow}>
+                    <span className={styles.statusHeading}>
+                      {dueCount > 0
+                        ? t('ecn.reminder.status_due', '{{count}} Dokumen ECN Jatuh Tempo', { count: dueCount })
+                        : t('ecn.reminder.status_none_due', 'Tidak Ada Dokumen ECN Jatuh Tempo')}
                     </span>
-                  ))}
-                  {dueRecords.length > 8 && (
-                    <span className={styles.dueChipItem}>+{dueRecords.length - 8} lainnya</span>
+                    <span className={styles.targetDatePill}>
+                      {t('ecn.reminder.target_pill', 'Target: {{target}}', { target: targetDate || 'H-1' })}
+                    </span>
+                  </div>
+                  <span className={styles.statusSubText}>
+                    {dueCount > 0
+                      ? t('ecn.reminder.desc_due', 'ECN aktif (Pending / Progress) yang mendekati Running BOM akan dikirim otomatis ke PIC.')
+                      : t('ecn.reminder.desc_none_due', 'Semua ECN terpantau aman. Worker akan melewati pengiriman jika tidak ada data jatuh tempo.')}
+                  </span>
+
+                  {/* Part filter highlight pill */}
+                  <div className={styles.partFilterPill}>
+                    ⚡ {t('ecn.reminder.filter_part_only_pill', 'Filter Aktif: Khusus ECN Part Change BOM (Verifikasi Berubah/Tetap)')}
+                  </div>
+
+                  {/* Inline list of ECN Chips preview */}
+                  {dueRecords && dueRecords.length > 0 && (
+                    <div className={styles.dueInlineChips}>
+                      {dueRecords.slice(0, 8).map((r) => (
+                        <span
+                          key={r.id || r.ecn_no}
+                          className={styles.dueChipItem}
+                          title={`${r.model} - ${r.ec_title}`}
+                        >
+                          {r.ecn_no} ({r.model || 'Model'})
+                        </span>
+                      ))}
+                      {dueRecords.length > 8 && (
+                        <span className={styles.dueChipItem}>+{dueRecords.length - 8} lainnya</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right side audit trail */}
+              {lastLog && (
+                <div className={styles.statusRightAudit}>
+                  <span>
+                    {t('ecn.reminder.audit_label', 'Status Email Terakhir')}:{' '}
+                    {new Date(lastLog.sent_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                  </span>
+                  {lastLog.status === 'SUCCESS' && (
+                    <span
+                      className={`${styles.auditStatusBadge} ${styles.auditSuccess}`}
+                      title={t('ecn.reminder.audit_success_tooltip', 'Email pengingat berhasil dikirim ke daftar penerima')}
+                    >
+                      <Check size={11} />
+                      <span>{t('ecn.reminder.audit_success', 'Terkirim ({{count}} ECN)', { count: lastLog.item_count })}</span>
+                    </span>
+                  )}
+                  {lastLog.status === 'SKIPPED' && (
+                    <span
+                      className={`${styles.auditStatusBadge} ${styles.auditSkipped}`}
+                      title={t('ecn.reminder.audit_skipped_tooltip', 'Pengecekan selesai. Tidak ada ECN jatuh tempo, pengiriman dilewati secara aman.')}
+                    >
+                      <CheckCircle2 size={11} />
+                      <span>{t('ecn.reminder.audit_skipped', 'Aman (0 ECN - Dilewati)')}</span>
+                    </span>
+                  )}
+                  {lastLog.status === 'FAILED' && (
+                    <span
+                      className={`${styles.auditStatusBadge} ${styles.auditFailed}`}
+                      title={`${t('ecn.reminder.audit_tooltip_prefix', 'Penyebab Gagal:')} ${lastLog.error_message || t('ecn.reminder.smtp_error_tooltip', 'Koneksi ke server gateway SMTP gagal')}`}
+                    >
+                      <AlertCircle size={11} />
+                      <span>{t('ecn.reminder.audit_failed_smtp', 'Gagal Kirim (SMTP)')}</span>
+                    </span>
                   )}
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Right side audit trail */}
-          {lastLog && (
-            <div className={styles.statusRightAudit}>
-              <span>
-                {t('ecn.reminder.audit_label', 'Status Email Terakhir')}:{' '}
-                {new Date(lastLog.sent_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-              </span>
-              {lastLog.status === 'SUCCESS' && (
-                <span
-                  className={`${styles.auditStatusBadge} ${styles.auditSuccess}`}
-                  title={t('ecn.reminder.audit_success_tooltip', 'Email pengingat berhasil dikirim ke daftar penerima')}
-                >
-                  <Check size={11} />
-                  <span>{t('ecn.reminder.audit_success', 'Terkirim ({{count}} ECN)', { count: lastLog.item_count })}</span>
-                </span>
-              )}
-              {lastLog.status === 'SKIPPED' && (
-                <span
-                  className={`${styles.auditStatusBadge} ${styles.auditSkipped}`}
-                  title={t('ecn.reminder.audit_skipped_tooltip', 'Pengecekan selesai. Tidak ada ECN jatuh tempo, pengiriman dilewati secara aman.')}
-                >
-                  <CheckCircle2 size={11} />
-                  <span>{t('ecn.reminder.audit_skipped', 'Aman (0 ECN - Dilewati)')}</span>
-                </span>
-              )}
-              {lastLog.status === 'FAILED' && (
-                <span
-                  className={`${styles.auditStatusBadge} ${styles.auditFailed}`}
-                  title={`${t('ecn.reminder.audit_tooltip_prefix', 'Penyebab Gagal:')} ${lastLog.error_message || t('ecn.reminder.smtp_error_tooltip', 'Koneksi ke server gateway SMTP gagal')}`}
-                >
-                  <AlertCircle size={11} />
-                  <span>{t('ecn.reminder.audit_failed_smtp', 'Gagal Kirim (SMTP)')}</span>
-                </span>
-              )}
+            {/* 2. Structured Two-Column Body */}
+            <div className={styles.bodyGrid}>
+              {/* Column 1: Penjadwalan & Waktu */}
+              <div className={styles.panelCard}>
+                <div className={styles.panelHeader}>
+                  <h5 className={styles.panelTitle}>
+                    <Clock size={13} />
+                    <span>{t('ecn.reminder.panel_schedule', 'Jadwal & Waktu Pengecekan')}</span>
+                  </h5>
+                </div>
+
+                {/* Master Switch Row */}
+                <div className={styles.masterSwitchRow}>
+                  <div className={styles.masterSwitchInfo}>
+                    <div className={styles.masterSwitchTitleRow}>
+                      <span className={styles.masterSwitchTitle}>
+                        {t('ecn.reminder.worker_toggle', 'Worker Otomatis')}
+                      </span>
+                      <span
+                        className={`${styles.masterStatusPill} ${
+                          isEnabled ? styles.masterActive : styles.masterInactive
+                        }`}
+                      >
+                        {isEnabled
+                          ? t('ecn.reminder.worker_active', 'Aktif')
+                          : t('ecn.reminder.worker_inactive', 'Nonaktif')}
+                      </span>
+                    </div>
+                    <span className={styles.masterSwitchSub}>
+                      {t('ecn.reminder.worker_sub', 'Scheduler Go mengecek target Running BOM setiap hari')}
+                    </span>
+                  </div>
+                  <label className={styles.switch} title="Aktifkan atau nonaktifkan scheduler worker">
+                    <input
+                      type="checkbox"
+                      checked={isEnabled}
+                      onChange={(e) => setIsEnabled(e.target.checked)}
+                    />
+                    <span className={styles.slider} />
+                  </label>
+                </div>
+
+                <hr className={styles.panelDivider} />
+
+                {/* Multi-Schedule Slot Section */}
+                <div className={styles.scheduleSection}>
+                  <div className={styles.scheduleHeaderRow}>
+                    <label className={styles.scheduleLabel}>
+                      <span>{t('ecn.reminder.send_time_label', 'Jam Pengiriman Harian (WIB)')}</span>
+                    </label>
+                    <span className={styles.scheduleCountBadge}>
+                      {t('ecn.reminder.times_per_day', '{{count}}x sehari', { count: selectedTimes.length })}
+                    </span>
+                  </div>
+
+                  {/* Quick Preset Segmented Buttons */}
+                  <div className={styles.presetsGrid}>
+                    {timePresets.map((p) => {
+                      const isSelected = selectedTimes.includes(p.time);
+                      return (
+                        <button
+                          key={p.time}
+                          type="button"
+                          className={`${styles.presetChipBtn} ${
+                            isSelected ? styles.presetChipActive : ''
+                          }`}
+                          onClick={() => handleTogglePresetTime(p.time)}
+                          title={`Klik untuk ${isSelected ? 'menonaktifkan' : 'mengaktifkan'} jadwal ${p.time}`}
+                        >
+                          <span className={styles.presetChipTime}>{p.time}</span>
+                          <span className={styles.presetChipSub}>{p.label}</span>
+                          <span className={styles.presetChipIcon}>
+                            {isSelected ? <Check size={12} /> : <Plus size={12} />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Time Adder */}
+                  <div className={styles.customTimeAdderRow}>
+                    <input
+                      type="time"
+                      className={styles.timeInput}
+                      value={customTime}
+                      onChange={(e) => setCustomTime(e.target.value)}
+                      title="Pilih jam kustom"
+                    />
+                    <button
+                      type="button"
+                      className={styles.addScheduleBtn}
+                      onClick={handleAddCustomTime}
+                      title={t('ecn.reminder.add_custom_title', 'Tambahkan jam kustom ke daftar jadwal aktif')}
+                    >
+                      <Plus size={13} />
+                      <span>{t('ecn.reminder.add_schedule_btn', 'Tambah')}</span>
+                    </button>
+                  </div>
+
+                  {/* Active Slots Bar */}
+                  <div className={styles.activeSlotsBar}>
+                    {selectedTimes.map((tVal) => (
+                      <span key={tVal} className={styles.activeSlotItem}>
+                        <Clock size={11} />
+                        <span>{t('ecn.reminder.active_wib', '{{time}} WIB', { time: tVal })}</span>
+                        <button
+                          type="button"
+                          className={styles.slotDeleteBtn}
+                          onClick={() => handleRemoveTime(tVal)}
+                          title={t('ecn.reminder.remove_time_title', 'Hapus jadwal {{time}}', { time: tVal })}
+                          disabled={selectedTimes.length === 1}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <hr className={styles.panelDivider} />
+
+                {/* Lead Time (Days Before) */}
+                <div className={styles.formGroup}>
+                  <label className={styles.inputLabel}>
+                    <Calendar size={13} />
+                    <span>{t('ecn.reminder.lead_time_label', 'Ambang Batas Hari Sebelum Deadline (Lead Time)')}</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    className={styles.inputField}
+                    value={daysBefore}
+                    onChange={(e) => setDaysBefore(Math.max(0, parseInt(e.target.value) || 0))}
+                  />
+                  <span className={styles.fieldHelper}>
+                    {t('ecn.reminder.lead_time_helper', 'Contoh: 1 berarti pengingat dikirim 1 hari sebelum Running BOM date (H-1).')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Column 2: Notifikasi & Penerima */}
+              <div className={styles.panelCard}>
+                <div className={styles.panelHeader}>
+                  <h5 className={styles.panelTitle}>
+                    <Mail size={13} />
+                    <span>{t('ecn.reminder.panel_email', 'Notifikasi & Penerima Email')}</span>
+                  </h5>
+                </div>
+
+                {/* Email Subject */}
+                <div className={styles.formGroup}>
+                  <label className={styles.inputLabel}>
+                    <Mail size={13} />
+                    <span>{t('ecn.reminder.subject_label', 'Subjek Email Pengingat')}</span>
+                  </label>
+                  <input
+                    type="text"
+                    className={styles.inputField}
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    placeholder={t('ecn.reminder.subject_placeholder', '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE')}
+                  />
+                </div>
+
+                {/* Recipients (To) */}
+                <div className={styles.formGroup}>
+                  <EmailChipInput
+                    label={t('ecn.reminder.recipients_label', 'Daftar Email Penerima (To) - Wajib')}
+                    value={recipients}
+                    onChange={setRecipients}
+                    placeholder={t('ecn.reminder.recipients_placeholder', 'Ketik email (misal endri.s@samsung.com) lalu tekan Enter...')}
+                    required
+                  />
+                  <span className={styles.fieldHelper}>
+                    {t('ecn.reminder.recipients_helper', 'Tekan Enter atau koma untuk menambah chip email.')}
+                  </span>
+                </div>
+
+                {/* CC Recipients */}
+                <div className={styles.formGroup}>
+                  <EmailChipInput
+                    label={t('ecn.reminder.cc_label', 'Daftar Email Tembusan (CC) - Opsional')}
+                    value={ccRecipients}
+                    onChange={setCcRecipients}
+                    placeholder={t('ecn.reminder.cc_placeholder', 'Ketik email tembusan (CC) lalu tekan Enter...')}
+                  />
+                </div>
+
+                <hr className={styles.panelDivider} />
+
+                {/* Include Overdue Option */}
+                <label className={styles.checkboxContainer}>
+                  <input
+                    type="checkbox"
+                    className={styles.checkboxInput}
+                    checked={includeOverdue}
+                    onChange={(e) => setIncludeOverdue(e.target.checked)}
+                  />
+                  <div className={styles.checkboxTextCol}>
+                    <span className={styles.checkboxTitle}>
+                      {t('ecn.reminder.overdue_title', 'Sertakan ECN Overdue')}
+                    </span>
+                    <span className={styles.checkboxDesc}>
+                      {t('ecn.reminder.overdue_desc', 'Tetap kirimkan dokumen ECN jika tanggal Running BOM telah lewat hari ini namun status belum Completed / ECO Cancel.')}
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* 2. Structured Two-Column Body */}
-        <div className={styles.bodyGrid}>
-          {/* Column 1: Penjadwalan & Waktu */}
-          <div className={styles.panelCard}>
+          </>
+        ) : (
+          /* Tab 2: Perubahan Jadwal BOM Notification Settings */
+          <div className={styles.fullPanelCard}>
             <div className={styles.panelHeader}>
               <h5 className={styles.panelTitle}>
-                <Clock size={13} />
-                <span>{t('ecn.reminder.panel_schedule', 'Jadwal & Waktu Pengecekan')}</span>
+                <Bell size={14} />
+                <span>{t('ecn.reminder.bom_change_title', 'Notifikasi Perubahan Jadwal Running BOM')}</span>
               </h5>
+            </div>
+
+            <div className={styles.infoBanner}>
+              {t(
+                'ecn.reminder.bom_change_info_banner',
+                'Sistem akan otomatis mengirimkan email notifikasi ke daftar penerima di bawah ini setiap kali ada perubahan tanggal Running BOM pada form Edit ECN, lengkap dengan perbandingan jadwal lama vs baru serta rincian part number.'
+              )}
             </div>
 
             {/* Master Switch Row */}
@@ -360,27 +685,27 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
               <div className={styles.masterSwitchInfo}>
                 <div className={styles.masterSwitchTitleRow}>
                   <span className={styles.masterSwitchTitle}>
-                    {t('ecn.reminder.worker_toggle', 'Worker Otomatis')}
+                    {t('ecn.reminder.bom_change_toggle', 'Notifikasi Perubahan Jadwal')}
                   </span>
                   <span
                     className={`${styles.masterStatusPill} ${
-                      isEnabled ? styles.masterActive : styles.masterInactive
+                      bomChangeNotifyEnabled ? styles.masterActive : styles.masterInactive
                     }`}
                   >
-                    {isEnabled
-                      ? t('ecn.reminder.worker_active', 'Aktif')
-                      : t('ecn.reminder.worker_inactive', 'Nonaktif')}
+                    {bomChangeNotifyEnabled
+                      ? t('ecn.reminder.bom_change_active', 'Aktif')
+                      : t('ecn.reminder.bom_change_inactive', 'Nonaktif')}
                   </span>
                 </div>
                 <span className={styles.masterSwitchSub}>
-                  {t('ecn.reminder.worker_sub', 'Scheduler Go mengecek target Running BOM setiap hari')}
+                  {t('ecn.reminder.bom_change_sub', 'Kirim email otomatis ke PIC setiap kali tanggal Running BOM diubah pada sistem ECN')}
                 </span>
               </div>
-              <label className={styles.switch} title="Aktifkan atau nonaktifkan scheduler worker">
+              <label className={styles.switch} title="Aktifkan atau nonaktifkan notifikasi perubahan Running BOM">
                 <input
                   type="checkbox"
-                  checked={isEnabled}
-                  onChange={(e) => setIsEnabled(e.target.checked)}
+                  checked={bomChangeNotifyEnabled}
+                  onChange={(e) => setBomChangeNotifyEnabled(e.target.checked)}
                 />
                 <span className={styles.slider} />
               </label>
@@ -388,172 +713,51 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
 
             <hr className={styles.panelDivider} />
 
-            {/* Multi-Schedule Slot Section */}
-            <div className={styles.scheduleSection}>
-              <div className={styles.scheduleHeaderRow}>
-                <label className={styles.scheduleLabel}>
-                  <span>{t('ecn.reminder.send_time_label', 'Jam Pengiriman Harian (WIB)')}</span>
-                </label>
-                <span className={styles.scheduleCountBadge}>
-                  {t('ecn.reminder.times_per_day', '{{count}}x sehari', { count: selectedTimes.length })}
-                </span>
-              </div>
-
-              {/* Quick Preset Segmented Buttons */}
-              <div className={styles.presetsGrid}>
-                {timePresets.map((p) => {
-                  const isSelected = selectedTimes.includes(p.time);
-                  return (
-                    <button
-                      key={p.time}
-                      type="button"
-                      className={`${styles.presetChipBtn} ${
-                        isSelected ? styles.presetChipActive : ''
-                      }`}
-                      onClick={() => handleTogglePresetTime(p.time)}
-                      title={`Klik untuk ${isSelected ? 'menonaktifkan' : 'mengaktifkan'} jadwal ${p.time}`}
-                    >
-                      <span className={styles.presetChipTime}>{p.time}</span>
-                      <span className={styles.presetChipSub}>{p.label}</span>
-                      <span className={styles.presetChipIcon}>
-                        {isSelected ? <Check size={12} /> : <Plus size={12} />}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Time Adder */}
-              <div className={styles.customTimeAdderRow}>
-                <input
-                  type="time"
-                  className={styles.timeInput}
-                  value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
-                  title="Pilih jam kustom"
-                />
-                <button
-                  type="button"
-                  className={styles.addScheduleBtn}
-                  onClick={handleAddCustomTime}
-                  title={t('ecn.reminder.add_custom_title', 'Tambahkan jam kustom ke daftar jadwal aktif')}
-                >
-                  <Plus size={13} />
-                  <span>{t('ecn.reminder.add_schedule_btn', 'Tambah')}</span>
-                </button>
-              </div>
-
-              {/* Active Slots Bar */}
-              <div className={styles.activeSlotsBar}>
-                {selectedTimes.map((tVal) => (
-                  <span key={tVal} className={styles.activeSlotItem}>
-                    <Clock size={11} />
-                    <span>{t('ecn.reminder.active_wib', '{{time}} WIB', { time: tVal })}</span>
-                    <button
-                      type="button"
-                      className={styles.slotDeleteBtn}
-                      onClick={() => handleRemoveTime(tVal)}
-                      title={t('ecn.reminder.remove_time_title', 'Hapus jadwal {{time}}', { time: tVal })}
-                      disabled={selectedTimes.length === 1}
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <hr className={styles.panelDivider} />
-
-            {/* Lead Time (Days Before) */}
-            <div className={styles.formGroup}>
-              <label className={styles.inputLabel}>
-                <Calendar size={13} />
-                <span>{t('ecn.reminder.lead_time_label', 'Ambang Batas Hari Sebelum Deadline (Lead Time)')}</span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="30"
-                className={styles.inputField}
-                value={daysBefore}
-                onChange={(e) => setDaysBefore(Math.max(0, parseInt(e.target.value) || 0))}
-              />
-              <span className={styles.fieldHelper}>
-                {t('ecn.reminder.lead_time_helper', 'Contoh: 1 berarti pengingat dikirim 1 hari sebelum Running BOM date (H-1).')}
-              </span>
-            </div>
-          </div>
-
-          {/* Column 2: Notifikasi & Penerima */}
-          <div className={styles.panelCard}>
-            <div className={styles.panelHeader}>
-              <h5 className={styles.panelTitle}>
-                <Mail size={13} />
-                <span>{t('ecn.reminder.panel_email', 'Notifikasi & Penerima Email')}</span>
-              </h5>
-            </div>
-
-            {/* Email Subject */}
+            {/* Email Subject Template */}
             <div className={styles.formGroup}>
               <label className={styles.inputLabel}>
                 <Mail size={13} />
-                <span>{t('ecn.reminder.subject_label', 'Subjek Email Pengingat')}</span>
+                <span>{t('ecn.reminder.bom_change_subject_label', 'Subjek Email Notifikasi Perubahan')}</span>
               </label>
               <input
                 type="text"
                 className={styles.inputField}
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-                placeholder={t('ecn.reminder.subject_placeholder', '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE')}
+                value={bomChangeEmailSubject}
+                onChange={(e) => setBomChangeEmailSubject(e.target.value)}
+                placeholder="[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})"
               />
+              <span className={styles.fieldHelper}>
+                {t('ecn.reminder.bom_change_subject_helper', 'Placeholder otomatis: {ecn_no}, {model}, {old_date}, {new_date}')}
+              </span>
             </div>
 
             {/* Recipients (To) */}
             <div className={styles.formGroup}>
               <EmailChipInput
-                label={t('ecn.reminder.recipients_label', 'Daftar Email Penerima (To) - Wajib')}
-                value={recipients}
-                onChange={setRecipients}
-                placeholder={t('ecn.reminder.recipients_placeholder', 'Ketik email (misal endri.s@samsung.com) lalu tekan Enter...')}
-                required
+                label={t('ecn.reminder.bom_change_recipients_label', 'Daftar Email Penerima Khusus Perubahan (To) - Opsional')}
+                value={bomChangeRecipients}
+                onChange={setBomChangeRecipients}
+                placeholder={t('ecn.reminder.bom_change_recipients_placeholder', 'Ketik email (misal manager@samsung.com) lalu tekan Enter...')}
               />
               <span className={styles.fieldHelper}>
-                {t('ecn.reminder.recipients_helper', 'Tekan Enter atau koma untuk menambah chip email.')}
+                {t(
+                  'ecn.reminder.bom_change_recipients_helper',
+                  'Kosongkan jika ingin otomatis menggunakan daftar penerima default dari tab Pengingat Deadline.'
+                )}
               </span>
             </div>
 
             {/* CC Recipients */}
             <div className={styles.formGroup}>
               <EmailChipInput
-                label={t('ecn.reminder.cc_label', 'Daftar Email Tembusan (CC) - Opsional')}
-                value={ccRecipients}
-                onChange={setCcRecipients}
+                label={t('ecn.reminder.bom_change_cc_label', 'Daftar Email Tembusan Khusus Perubahan (CC) - Opsional')}
+                value={bomChangeCcRecipients}
+                onChange={setBomChangeCcRecipients}
                 placeholder={t('ecn.reminder.cc_placeholder', 'Ketik email tembusan (CC) lalu tekan Enter...')}
               />
             </div>
-
-            <hr className={styles.panelDivider} />
-
-            {/* Include Overdue Option */}
-            <label className={styles.checkboxContainer}>
-              <input
-                type="checkbox"
-                className={styles.checkboxInput}
-                checked={includeOverdue}
-                onChange={(e) => setIncludeOverdue(e.target.checked)}
-              />
-              <div className={styles.checkboxTextCol}>
-                <span className={styles.checkboxTitle}>
-                  {t('ecn.reminder.overdue_title', 'Sertakan ECN Overdue')}
-                </span>
-                <span className={styles.checkboxDesc}>
-                  {t('ecn.reminder.overdue_desc', 'Tetap kirimkan dokumen ECN jika tanggal Running BOM telah lewat hari ini namun status belum Completed / ECO Cancel.')}
-                </span>
-              </div>
-            </label>
           </div>
-        </div>
+        )}
       </div>
     </Modal>
   );

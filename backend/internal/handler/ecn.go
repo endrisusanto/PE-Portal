@@ -16,15 +16,20 @@ import (
 	"pe-portal/internal/middleware"
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
+	"pe-portal/internal/service"
 	"pe-portal/internal/util"
 )
 
 type ECNHandler struct {
-	repo *repository.ECNRepository
+	repo           *repository.ECNRepository
+	reminderWorker *service.ECNReminderWorker
 }
 
-func NewECNHandler(repo *repository.ECNRepository) *ECNHandler {
-	return &ECNHandler{repo: repo}
+func NewECNHandler(repo *repository.ECNRepository, reminderWorker *service.ECNReminderWorker) *ECNHandler {
+	return &ECNHandler{
+		repo:           repo,
+		reminderWorker: reminderWorker,
+	}
 }
 
 // List returns filtered and paginated ECN records
@@ -160,10 +165,22 @@ func (h *ECNHandler) Update(c echo.Context) error {
 			action = "STATUS_CHANGE"
 			noteParts = append(noteParts, fmt.Sprintf("Status: %s ➔ %s", oldRec.Status, item.Status))
 		}
-		if oldRec.RunningDateBOM != item.RunningDateBOM && item.RunningDateBOM != "" {
-			changes["running_date_bom"] = map[string]string{"from": oldRec.RunningDateBOM, "to": item.RunningDateBOM}
-			action = "BOM_CHANGE"
-			noteParts = append(noteParts, fmt.Sprintf("Running BOM: %s ➔ %s", oldRec.RunningDateBOM, item.RunningDateBOM))
+		if oldRec.RunningDateBOM != item.RunningDateBOM {
+			if item.RunningDateBOM != "" {
+				changes["running_date_bom"] = map[string]string{"from": oldRec.RunningDateBOM, "to": item.RunningDateBOM}
+				action = "BOM_CHANGE"
+				noteParts = append(noteParts, fmt.Sprintf("Running BOM: %s ➔ %s", oldRec.RunningDateBOM, item.RunningDateBOM))
+			}
+			// ponytail: Dispatch realtime BOM date change email notification
+			if h.reminderWorker != nil {
+				updaterName := "System"
+				if claims, ok := c.Get(middleware.ContextKeyUserClaims).(*model.UserClaims); ok && claims != nil {
+					if claims.Username != "" {
+						updaterName = claims.Username
+					}
+				}
+				h.reminderWorker.NotifyBOMDateChange(c.Request().Context(), oldRec, updated, updaterName)
+			}
 		}
 		if oldRec.DistributionDate != item.DistributionDate && item.DistributionDate != "" {
 			changes["distribution_date"] = map[string]string{"from": oldRec.DistributionDate, "to": item.DistributionDate}

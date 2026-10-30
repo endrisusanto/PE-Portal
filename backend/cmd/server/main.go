@@ -115,14 +115,15 @@ func main() {
 	navHandler := handler.NewNavigationHandler(navRepo)
 	trainingRepo := repository.NewTrainingRepository(pgPool.Pool)
 	trainingHandler := handler.NewTrainingHandler(trainingRepo, navRepo, cfg.FileStoragePath)
-	ecnRepo := repository.NewECNRepository(pgPool.Pool)
-	ecnHandler := handler.NewECNHandler(ecnRepo)
 
 	// ECN Running BOM Deadline Reminder Worker & Handler (ponytail)
 	ecnReminderRepo := repository.NewECNReminderRepository(pgPool.Pool)
 	ecnReminderWorker := service.NewECNReminderWorker(ecnReminderRepo, reportRepo, smtpService)
 	ecnReminderWorker.Start(context.Background())
 	ecnReminderHandler := handler.NewECNReminderHandler(ecnReminderRepo, ecnReminderWorker)
+
+	ecnRepo := repository.NewECNRepository(pgPool.Pool)
+	ecnHandler := handler.NewECNHandler(ecnRepo, ecnReminderWorker)
 
 	// Echo App
 	e := echo.New()
@@ -417,6 +418,7 @@ func main() {
 	api.GET("/ecn/reminder/settings", ecnReminderHandler.GetSettings)
 	api.PUT("/ecn/reminder/settings", ecnReminderHandler.SaveSettings)
 	api.POST("/ecn/reminder/test", ecnReminderHandler.TestSend)
+	api.POST("/ecn/reminder/test-bom-change", ecnReminderHandler.TestBOMChange)
 	api.GET("/ecn/reminder/logs", ecnReminderHandler.GetLogs)
 
 	// DHL Express Tracking Routes

@@ -1805,7 +1805,26 @@
       "audit_skipped_tooltip": "Schedule check completed. No ECNs due today, delivery safely skipped.",
       "audit_failed_smtp": "Delivery Failed (SMTP)",
       "audit_tooltip_prefix": "Failure Cause:",
-      "smtp_error_tooltip": "Connection to SMTP server gateway failed"
+      "smtp_error_tooltip": "Connection to SMTP server gateway failed",
+      "tab_deadline": "Running BOM Deadline Reminder",
+      "tab_bom_change": "BOM Schedule Change Notification",
+      "filter_part_only_pill": "Active Filter: BOM Part Change ECNs Only (Verify Change vs Keep)",
+      "bom_change_title": "Running BOM Schedule Change Notification",
+      "bom_change_info_banner": "The system will automatically send an email notification to the recipients below whenever the Running BOM date is updated in the ECN Edit form, complete with old vs new date comparison and part number details.",
+      "bom_change_toggle": "Schedule Change Notification",
+      "bom_change_active": "Active",
+      "bom_change_inactive": "Inactive",
+      "bom_change_sub": "Automatically email PIC whenever Running BOM date is changed in the ECN system",
+      "bom_change_subject_label": "Change Notification Email Subject",
+      "bom_change_subject_helper": "Supported placeholders: {ecn_no}, {model}, {old_date}, {new_date}",
+      "bom_change_recipients_label": "Change Notification Recipient Email List (To) - Optional",
+      "bom_change_recipients_placeholder": "Type email (e.g. manager@samsung.com) then press Enter...",
+      "bom_change_recipients_helper": "Leave empty to automatically use default recipients from the Deadline Reminder tab.",
+      "bom_change_cc_label": "Change Notification CC Email List - Optional",
+      "test_deadline_btn": "Send Test Deadline Reminder",
+      "test_bom_btn": "Send Test Change Notification",
+      "test_bom_success": "Running BOM change notification test email sent successfully!",
+      "test_bom_error": "Failed to send test Running BOM change notification."
     }
   }
 }

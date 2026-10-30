@@ -128,6 +128,19 @@ func (h *ECNReminderHandler) TestSend(c echo.Context) error {
 	})
 }
 
+// TestBOMChange immediately sends a test BOM date change notification email
+func (h *ECNReminderHandler) TestBOMChange(c echo.Context) error {
+	ctx := c.Request().Context()
+	if err := h.worker.SendTestBOMChangeEmail(ctx); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Gagal mengirim email tes perubahan BOM: %v", err))
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Email tes notifikasi perubahan jadwal Running BOM berhasil dikirim ke penerima.",
+	})
+}
+
 // GetLogs returns recent reminder dispatch history
 func (h *ECNReminderHandler) GetLogs(c echo.Context) error {
 	ctx := c.Request().Context()

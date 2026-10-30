@@ -19,6 +19,12 @@ type ECNReminderSettings struct {
 	LastSentDate   string    `json:"last_sent_date"` // "YYYY-MM-DD"
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+
+	// ponytail: Realtime BOM date change notification settings
+	BOMChangeNotifyEnabled bool   `json:"bom_change_notify_enabled"`
+	BOMChangeRecipients    string `json:"bom_change_recipients"`
+	BOMChangeCCRecipients  string `json:"bom_change_cc_recipients"`
+	BOMChangeEmailSubject  string `json:"bom_change_email_subject"`
 }
 
 // ECNReminderLog tracks email delivery history for reminders.

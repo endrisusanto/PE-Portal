@@ -363,26 +363,38 @@ func (w *ECNReminderWorker) RenderReminderEmailHTML(items []model.ECNRecord, tar
 				cleanRemark = "-"
 			}
 
+			partBeforeDisplay := it.PartBefore
+			if strings.TrimSpace(partBeforeDisplay) == "" {
+				partBeforeDisplay = "-"
+			}
+			partAfterDisplay := it.PartAfter
+			if strings.TrimSpace(partAfterDisplay) == "" {
+				partAfterDisplay = "-"
+			}
+
 			rowsHTML.WriteString(fmt.Sprintf(`
 				<tr style="background-color: %s; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
 					<td style="padding: 10px 8px; text-align: center; color: #64748b;">%d</td>
 					<td style="padding: 10px 8px; font-weight: 700; color: #0d7377; white-space: nowrap;">%s</td>
 					<td style="padding: 10px 8px; font-weight: 600; color: #1e293b;">%s</td>
-					<td style="padding: 10px 8px; color: #475569;">%s</td>
-					<td style="padding: 10px 8px; color: #0f172a;">
-						<div style="font-weight: 600;">%s</div>
-						<div style="color: #64748b; font-size: 11px;">%s</div>
+					<td style="padding: 10px 8px;">
+						<span style="display: inline-block; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; font-weight: 700;">%s</span>
 					</td>
-					<td style="padding: 10px 8px; color: #475569; font-size: 11.5px;">%s</td>
+					<td style="padding: 10px 8px;">
+						<span style="display: inline-block; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; font-weight: 700;">%s</span>
+					</td>
 					<td style="padding: 10px 8px; font-weight: 700; color: #dc2626; white-space: nowrap;">%s</td>
 					<td style="padding: 10px 8px; text-align: center;">
 						<span style="display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 10.5px; font-weight: 700; color: #ffffff; background-color: %s;">
 							%s
 						</span>
 					</td>
-					<td style="padding: 10px 8px; color: #64748b; font-size: 11px;">%s</td>
+					<td style="padding: 10px 8px; color: #475569; font-size: 11px;">
+						<div>%s</div>
+						<div style="margin-top: 4px; font-weight: 600; color: #0284c7;">Konfirmasi: Berubah / Tetap?</div>
+					</td>
 				</tr>
-			`, bg, i+1, it.ECNNo, it.Model, it.Process, it.ChildCode, it.ChildName, it.Specification, it.RunningDateBOM, statusBadgeColor, it.Status, cleanRemark))
+			`, bg, i+1, it.ECNNo, it.Model, partBeforeDisplay, partAfterDisplay, it.RunningDateBOM, statusBadgeColor, it.Status, cleanRemark))
 		}
 	}
 
@@ -447,7 +459,7 @@ func (w *ECNReminderWorker) RenderReminderEmailHTML(items []model.ECNRecord, tar
 
 			<!-- Notice Banner -->
 			<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; font-size: 12.5px; color: #1e3a8a;">
-				<strong>Instruksi PIC:</strong> Mohon segera lakukan pengecekan kesiapan komponen, running BOM lini produksi, dan validasi status ECN sebelum tanggal Running BOM tercapai.
+				<strong>Instruksi Verifikasi BOM:</strong> Dokumen ECN di atas memiliki jadwal Running BOM yang mendekati deadline. Mohon konfirmasi PIC terkait: <em>Apakah part ini akan berubah sesuai jadwal atau tetap menggunakan part lama?</em>
 			</div>
 
 			<!-- ECN Table -->
@@ -458,12 +470,11 @@ func (w *ECNReminderWorker) RenderReminderEmailHTML(items []model.ECNRecord, tar
 							<th style="padding: 10px 8px; width: 32px; text-align: center;">#</th>
 							<th style="padding: 10px 8px;">ECN NO</th>
 							<th style="padding: 10px 8px;">Model</th>
-							<th style="padding: 10px 8px;">Process</th>
-							<th style="padding: 10px 8px;">Part Item</th>
-							<th style="padding: 10px 8px;">Specification</th>
+							<th style="padding: 10px 8px;">Part Lama (Before)</th>
+							<th style="padding: 10px 8px;">Part Baru (After)</th>
 							<th style="padding: 10px 8px;">Running BOM</th>
 							<th style="padding: 10px 8px; text-align: center;">Status</th>
-							<th style="padding: 10px 8px;">Remark</th>
+							<th style="padding: 10px 8px;">Remark & Konfirmasi</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -488,4 +499,297 @@ func (w *ECNReminderWorker) RenderReminderEmailHTML(items []model.ECNRecord, tar
 </body>
 </html>
 	`, testBanner, len(items), targetDateStr, daysBefore, rowsHTML.String())
+}
+
+// RenderBOMChangeNotificationHTML generates an alert email when an ECN's Running BOM date is updated
+func (w *ECNReminderWorker) RenderBOMChangeNotificationHTML(oldRec, newRec *model.ECNRecord, updaterName string) string {
+	nowStr := time.Now().In(w.wibLocation).Format("02/01/2006 15:04") + " WIB"
+
+	oldDate := oldRec.RunningDateBOM
+	if strings.TrimSpace(oldDate) == "" {
+		oldDate = "(Belum Ditentukan)"
+	}
+	newDate := newRec.RunningDateBOM
+	if strings.TrimSpace(newDate) == "" {
+		newDate = "(Dikosongkan)"
+	}
+
+	partChangeHTML := ""
+	if newRec.PartBefore != "" || newRec.PartAfter != "" {
+		partChangeHTML = fmt.Sprintf(`
+			<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 18px;">
+				<div style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Detail Perubahan Part Number (BOM Change)</div>
+				<div style="font-size: 13px;">
+					<span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: 700;">OLD: %s</span>
+					<span style="color: #64748b; margin: 0 8px;">➔</span>
+					<span style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: 700;">NEW: %s</span>
+				</div>
+			</div>
+		`, newRec.PartBefore, newRec.PartAfter)
+	}
+
+	remarkHTML := newRec.Remark
+	if strings.TrimSpace(remarkHTML) == "" {
+		remarkHTML = "-"
+	}
+
+	return fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Update Jadwal Running BOM - %s</title>
+</head>
+<body style="margin: 0; padding: 20px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5;">
+	<div style="max-width: 720px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;">
+		
+		<!-- Header Banner (Amber tone for schedule change) -->
+		<div style="background: linear-gradient(135deg, #d97706 0%%, #b45309 100%%); padding: 22px 26px; color: #ffffff;">
+			<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #fef3c7; margin-bottom: 4px;">
+				PT Samsung Electronics Indonesia • Production Engineering
+			</div>
+			<h1 style="margin: 0; font-size: 19px; font-weight: 800; color: #ffffff;">
+				Pemberitahuan Perubahan Jadwal Running BOM
+			</h1>
+			<p style="margin: 4px 0 0; font-size: 12.5px; color: #fffbeb; opacity: 0.95;">
+				Terdeteksi pembaruan tanggal Running Date BOM pada dokumen ECN di bawah ini.
+			</p>
+		</div>
+
+		<!-- Body -->
+		<div style="padding: 24px 26px;">
+			<!-- Running BOM Delta Box -->
+			<div style="background-color: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; padding: 16px 18px; margin-bottom: 20px; text-align: center;">
+				<div style="font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+					Perubahan Jadwal Running BOM
+				</div>
+				<div style="font-size: 18px; font-weight: 800;">
+					<span style="color: #64748b; text-decoration: line-through; margin-right: 12px;">%s</span>
+					<span style="color: #b45309; margin-right: 12px;">➔</span>
+					<span style="color: #dc2626; background: #fee2e2; border: 1px solid #fca5a5; padding: 3px 10px; border-radius: 6px;">%s</span>
+				</div>
+				<div style="font-size: 11.5px; color: #78350f; margin-top: 8px;">
+					Diperbarui oleh: <strong>%s</strong> • Waktu: %s
+				</div>
+			</div>
+
+			<!-- ECN Details Table -->
+			<table style="width: 100%%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+				<tr style="border-bottom: 1px solid #f1f5f9;">
+					<td style="padding: 8px 0; color: #64748b; width: 140px; font-weight: 600;">Nomor ECN:</td>
+					<td style="padding: 8px 0; font-weight: 700; color: #0d7377;">%s</td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f1f5f9;">
+					<td style="padding: 8px 0; color: #64748b; font-weight: 600;">Model:</td>
+					<td style="padding: 8px 0; font-weight: 600; color: #0f172a;">%s</td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f1f5f9;">
+					<td style="padding: 8px 0; color: #64748b; font-weight: 600;">Proses & Status:</td>
+					<td style="padding: 8px 0; color: #0f172a;">%s • <span style="font-weight: 600; color: #d97706;">%s</span></td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f1f5f9;">
+					<td style="padding: 8px 0; color: #64748b; font-weight: 600;">Judul ECN:</td>
+					<td style="padding: 8px 0; color: #334155;">%s</td>
+				</tr>
+				<tr>
+					<td style="padding: 8px 0; color: #64748b; font-weight: 600; vertical-align: top;">Catatan / Remark:</td>
+					<td style="padding: 8px 0; color: #334155; white-space: pre-wrap; font-size: 12.5px;">%s</td>
+				</tr>
+			</table>
+
+			%s
+
+			<!-- Action CTA -->
+			<div style="text-align: center; margin: 24px 0 12px;">
+				<a href="http://localhost:3025/ecn-monitoring" target="_blank" style="display: inline-block; background-color: #0d7377; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 24px; border-radius: 6px;">
+					Buka Data ECN di Portal PE &rarr;
+				</a>
+			</div>
+		</div>
+
+		<!-- Footer -->
+		<div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px 26px; text-align: center; font-size: 11px; color: #64748b;">
+			Email notifikasi realtime ini dihasilkan otomatis saat ada pembaruan tanggal Running BOM pada <strong>SEIN PE-Portal</strong>.
+		</div>
+	</div>
+</body>
+</html>
+	`, newRec.ECNNo, oldDate, newDate, updaterName, nowStr, newRec.ECNNo, newRec.Model, newRec.Process, newRec.Status, newRec.ECTitle, remarkHTML, partChangeHTML)
+}
+
+// NotifyBOMDateChange sends immediate email notification when an ECN's Running BOM date is changed
+func (w *ECNReminderWorker) NotifyBOMDateChange(ctx context.Context, oldRec, newRec *model.ECNRecord, updaterName string) {
+	if oldRec == nil || newRec == nil {
+		return
+	}
+	// Only notify if running_date_bom actually changed
+	if strings.TrimSpace(oldRec.RunningDateBOM) == strings.TrimSpace(newRec.RunningDateBOM) {
+		return
+	}
+
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		settings, err := w.repo.GetSettings(bgCtx)
+		if err != nil {
+			log.Printf("[ECN Reminder Worker] Failed to fetch settings for BOM change alert: %v\n", err)
+			return
+		}
+
+		if !settings.BOMChangeNotifyEnabled {
+			return
+		}
+
+		rawRecipients := settings.BOMChangeRecipients
+		if strings.TrimSpace(rawRecipients) == "" {
+			rawRecipients = settings.Recipients
+		}
+		recipients := parseEmailList(rawRecipients)
+		if len(recipients) == 0 {
+			log.Println("[ECN Reminder Worker] No recipients configured for BOM change alert. Skipping.")
+			return
+		}
+
+		rawCC := settings.BOMChangeCCRecipients
+		if strings.TrimSpace(rawCC) == "" {
+			rawCC = settings.CCRecipients
+		}
+		ccRecipients := parseEmailList(rawCC)
+
+		subject := settings.BOMChangeEmailSubject
+		if strings.TrimSpace(subject) == "" {
+			subject = "[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})"
+		}
+		subject = strings.ReplaceAll(subject, "{ecn_no}", newRec.ECNNo)
+		subject = strings.ReplaceAll(subject, "{model}", newRec.Model)
+		subject = strings.ReplaceAll(subject, "{old_date}", oldRec.RunningDateBOM)
+		subject = strings.ReplaceAll(subject, "{new_date}", newRec.RunningDateBOM)
+
+		smtpCfg, err := w.reportRepo.GetDefaultSMTP(bgCtx)
+		if err != nil {
+			log.Printf("[ECN Reminder Worker] Failed to get default SMTP gateway: %v\n", err)
+			_ = w.repo.RecordLog(bgCtx, &model.ECNReminderLog{
+				Recipients:   strings.Join(recipients, ", "),
+				CCRecipients: strings.Join(ccRecipients, ", "),
+				ItemCount:    1,
+				ECNNumbers:   newRec.ECNNo,
+				Status:       "FAILED",
+				ErrorMessage: fmt.Sprintf("SMTP gateway error: %v", err),
+				TriggeredBy:  "BOM_DATE_CHANGE",
+			})
+			return
+		}
+
+		htmlBody := w.RenderBOMChangeNotificationHTML(oldRec, newRec, updaterName)
+		sendErr := w.smtpSvc.SendEmail(smtpCfg, recipients, ccRecipients, subject, htmlBody)
+
+		status := "SUCCESS"
+		var errText string
+		if sendErr != nil {
+			status = "FAILED"
+			errText = sendErr.Error()
+			log.Printf("[ECN Reminder Worker] Failed to send BOM date change email: %v\n", sendErr)
+		} else {
+			log.Printf("[ECN Reminder Worker] Dispatched BOM date change email for %s to %v\n", newRec.ECNNo, recipients)
+		}
+
+		_ = w.repo.RecordLog(bgCtx, &model.ECNReminderLog{
+			Recipients:   strings.Join(recipients, ", "),
+			CCRecipients: strings.Join(ccRecipients, ", "),
+			ItemCount:    1,
+			ECNNumbers:   newRec.ECNNo,
+			Status:       status,
+			ErrorMessage: errText,
+			TriggeredBy:  "BOM_DATE_CHANGE",
+		})
+	}()
+}
+
+// SendTestBOMChangeEmail dispatches a test notification for BOM date change
+func (w *ECNReminderWorker) SendTestBOMChangeEmail(ctx context.Context) error {
+	settings, err := w.repo.GetSettings(ctx)
+	if err != nil {
+		return err
+	}
+
+	rawRecipients := settings.BOMChangeRecipients
+	if strings.TrimSpace(rawRecipients) == "" {
+		rawRecipients = settings.Recipients
+	}
+	recipients := parseEmailList(rawRecipients)
+	if len(recipients) == 0 {
+		return fmt.Errorf("daftar penerima email perubahan Running BOM masih kosong")
+	}
+
+	rawCC := settings.BOMChangeCCRecipients
+	if strings.TrimSpace(rawCC) == "" {
+		rawCC = settings.CCRecipients
+	}
+	ccRecipients := parseEmailList(rawCC)
+
+	subject := settings.BOMChangeEmailSubject
+	if strings.TrimSpace(subject) == "" {
+		subject = "[TEST] Perubahan Jadwal Running BOM - GHW202626A8 (SM-F976B)"
+	} else {
+		subject = "[TEST] " + subject
+		subject = strings.ReplaceAll(subject, "{ecn_no}", "GHW202626A8")
+		subject = strings.ReplaceAll(subject, "{model}", "SM-F976B")
+		subject = strings.ReplaceAll(subject, "{old_date}", "2026-06-20")
+		subject = strings.ReplaceAll(subject, "{new_date}", "2026-06-25")
+	}
+
+	smtpCfg, err := w.reportRepo.GetDefaultSMTP(ctx)
+	if err != nil {
+		return fmt.Errorf("gagal mendapatkan gateway SMTP: %w", err)
+	}
+
+	mockOld := &model.ECNRecord{
+		ECNNo:          "GHW202626A8",
+		Model:          "SM-F976B",
+		Process:        "Mainline",
+		Status:         "Progress",
+		ECTitle:        "[ECN-BOM] [Q8] SM-F976B Main win paper change in all regions",
+		RunningDateBOM: "2026-06-20",
+		PartBefore:     "GH63-23138A",
+		PartAfter:      "GH63-23137A",
+		Remark:         "Sample test notification for Running BOM date change",
+	}
+	mockNew := &model.ECNRecord{
+		ECNNo:          "GHW202626A8",
+		Model:          "SM-F976B",
+		Process:        "Mainline",
+		Status:         "Progress",
+		ECTitle:        "[ECN-BOM] [Q8] SM-F976B Main win paper change in all regions",
+		RunningDateBOM: "2026-06-25",
+		PartBefore:     "GH63-23138A",
+		PartAfter:      "GH63-23137A",
+		Remark:         "Sample test notification for Running BOM date change",
+	}
+
+	htmlBody := w.RenderBOMChangeNotificationHTML(mockOld, mockNew, "System Administrator (Test)")
+	sendErr := w.smtpSvc.SendEmail(smtpCfg, recipients, ccRecipients, subject, htmlBody)
+
+	status := "SUCCESS"
+	var errText string
+	if sendErr != nil {
+		status = "FAILED"
+		errText = sendErr.Error()
+	}
+
+	_ = w.repo.RecordLog(ctx, &model.ECNReminderLog{
+		Recipients:   strings.Join(recipients, ", "),
+		CCRecipients: strings.Join(ccRecipients, ", "),
+		ItemCount:    1,
+		ECNNumbers:   "GHW202626A8 (TEST)",
+		Status:       status,
+		ErrorMessage: errText,
+		TriggeredBy:  "MANUAL_TEST_BOM_CHANGE",
+	})
+
+	if sendErr != nil {
+		return fmt.Errorf("gagal mengirim email melalui SMTP: %w", sendErr)
+	}
+	return nil
 }

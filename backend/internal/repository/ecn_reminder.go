@@ -23,7 +23,11 @@ func NewECNReminderRepository(pool *pgxpool.Pool) *ECNReminderRepository {
 func (r *ECNReminderRepository) GetSettings(ctx context.Context) (*model.ECNReminderSettings, error) {
 	query := `
 		SELECT id, is_enabled, days_before, send_time, recipients, cc_recipients,
-		       email_subject, include_overdue, last_sent_date, created_at, updated_at
+		       email_subject, include_overdue, last_sent_date, created_at, updated_at,
+		       COALESCE(bom_change_notify_enabled, TRUE),
+		       COALESCE(bom_change_recipients, ''),
+		       COALESCE(bom_change_cc_recipients, ''),
+		       COALESCE(bom_change_email_subject, '[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})')
 		FROM ecn_reminder_settings
 		ORDER BY created_at ASC
 		LIMIT 1
@@ -32,18 +36,23 @@ func (r *ECNReminderRepository) GetSettings(ctx context.Context) (*model.ECNRemi
 	err := r.pool.QueryRow(ctx, query).Scan(
 		&s.ID, &s.IsEnabled, &s.DaysBefore, &s.SendTime, &s.Recipients, &s.CCRecipients,
 		&s.EmailSubject, &s.IncludeOverdue, &s.LastSentDate, &s.CreatedAt, &s.UpdatedAt,
+		&s.BOMChangeNotifyEnabled, &s.BOMChangeRecipients, &s.BOMChangeCCRecipients, &s.BOMChangeEmailSubject,
 	)
 	if err != nil {
 		// Insert default row
 		insertQ := `
-			INSERT INTO ecn_reminder_settings (is_enabled, days_before, send_time, recipients, email_subject, include_overdue)
-			VALUES (TRUE, 1, '08:00', 'endri.s@samsung.com', '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE', TRUE)
+			INSERT INTO ecn_reminder_settings (is_enabled, days_before, send_time, recipients, email_subject, include_overdue,
+			                                  bom_change_notify_enabled, bom_change_recipients, bom_change_email_subject)
+			VALUES (TRUE, 1, '08:00', 'endri.s@samsung.com', '[REMINDER] ECN Running BOM Deadline Alert - SEIN PE', TRUE,
+			        TRUE, 'endri.s@samsung.com', '[UPDATE] Perubahan Jadwal Running BOM - {ecn_no} ({model})')
 			RETURNING id, is_enabled, days_before, send_time, recipients, cc_recipients,
-			          email_subject, include_overdue, last_sent_date, created_at, updated_at
+			          email_subject, include_overdue, last_sent_date, created_at, updated_at,
+			          bom_change_notify_enabled, bom_change_recipients, bom_change_cc_recipients, bom_change_email_subject
 		`
 		if insertErr := r.pool.QueryRow(ctx, insertQ).Scan(
 			&s.ID, &s.IsEnabled, &s.DaysBefore, &s.SendTime, &s.Recipients, &s.CCRecipients,
 			&s.EmailSubject, &s.IncludeOverdue, &s.LastSentDate, &s.CreatedAt, &s.UpdatedAt,
+			&s.BOMChangeNotifyEnabled, &s.BOMChangeRecipients, &s.BOMChangeCCRecipients, &s.BOMChangeEmailSubject,
 		); insertErr != nil {
 			return nil, fmt.Errorf("failed to create default reminder settings: %w", insertErr)
 		}
@@ -67,20 +76,29 @@ func (r *ECNReminderRepository) SaveSettings(ctx context.Context, s *model.ECNRe
 		    cc_recipients = $5,
 		    email_subject = $6,
 		    include_overdue = $7,
+		    bom_change_notify_enabled = $8,
+		    bom_change_recipients = $9,
+		    bom_change_cc_recipients = $10,
+		    bom_change_email_subject = $11,
 		    updated_at = NOW()
-		WHERE id = $8
+		WHERE id = $12
 		RETURNING id, is_enabled, days_before, send_time, recipients, cc_recipients,
-		          email_subject, include_overdue, last_sent_date, created_at, updated_at
+		          email_subject, include_overdue, last_sent_date, created_at, updated_at,
+		          bom_change_notify_enabled, bom_change_recipients, bom_change_cc_recipients, bom_change_email_subject
 	`
 	var updated model.ECNReminderSettings
 	err = r.pool.QueryRow(ctx, query,
 		s.IsEnabled, s.DaysBefore, strings.TrimSpace(s.SendTime),
 		strings.TrimSpace(s.Recipients), strings.TrimSpace(s.CCRecipients),
-		strings.TrimSpace(s.EmailSubject), s.IncludeOverdue, current.ID,
+		strings.TrimSpace(s.EmailSubject), s.IncludeOverdue,
+		s.BOMChangeNotifyEnabled, strings.TrimSpace(s.BOMChangeRecipients),
+		strings.TrimSpace(s.BOMChangeCCRecipients), strings.TrimSpace(s.BOMChangeEmailSubject),
+		current.ID,
 	).Scan(
 		&updated.ID, &updated.IsEnabled, &updated.DaysBefore, &updated.SendTime,
 		&updated.Recipients, &updated.CCRecipients, &updated.EmailSubject,
 		&updated.IncludeOverdue, &updated.LastSentDate, &updated.CreatedAt, &updated.UpdatedAt,
+		&updated.BOMChangeNotifyEnabled, &updated.BOMChangeRecipients, &updated.BOMChangeCCRecipients, &updated.BOMChangeEmailSubject,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update reminder settings: %w", err)
@@ -129,6 +147,7 @@ func (r *ECNReminderRepository) GetDueRunningBOMRecords(ctx context.Context, tar
 		SELECT e.id, e.ecn_no, COALESCE(e.model, ''), COALESCE(e.function_type, ''),
 		       COALESCE(e.purpose, ''), COALESCE(e.inventory_mgmt, ''), COALESCE(e.process, ''),
 		       COALESCE(e.ec_title, ''), COALESCE(e.parent_code, ''), COALESCE(e.parent_name, ''),
+		       COALESCE(e.part_before, ''), COALESCE(e.part_after, ''),
 		       COALESCE(e.before_after, ''), COALESCE(e.dl, ''), COALESCE(e.child_code, ''),
 		       COALESCE(e.child_name, ''), COALESCE(e.specification, ''), COALESCE(e.quantity, ''),
 		       COALESCE(e.marking_point, ''), COALESCE(e.running_date_bom, ''), COALESCE(e.distribution_date, ''),
@@ -141,6 +160,7 @@ func (r *ECNReminderRepository) GetDueRunningBOMRecords(ctx context.Context, tar
 		  AND e.running_date_bom IS NOT NULL
 		  AND TRIM(e.running_date_bom) != ''
 		  AND TRIM(e.running_date_bom) != '-'
+		  AND (COALESCE(e.part_before, '') != '' OR COALESCE(e.part_after, '') != '')
 		ORDER BY e.created_at DESC
 	`
 
@@ -157,6 +177,7 @@ func (r *ECNReminderRepository) GetDueRunningBOMRecords(ctx context.Context, tar
 			&rec.ID, &rec.ECNNo, &rec.Model, &rec.FunctionType,
 			&rec.Purpose, &rec.InventoryMgmt, &rec.Process,
 			&rec.ECTitle, &rec.ParentCode, &rec.ParentName,
+			&rec.PartBefore, &rec.PartAfter,
 			&rec.BeforeAfter, &rec.DL, &rec.ChildCode,
 			&rec.ChildName, &rec.Specification, &rec.Quantity,
 			&rec.MarkingPoint, &rec.RunningDateBOM, &rec.DistributionDate,

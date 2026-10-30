@@ -1805,7 +1805,26 @@
       "audit_skipped_tooltip": "Pengecekan selesai. Tidak ada ECN jatuh tempo, pengiriman dilewati secara aman.",
       "audit_failed_smtp": "Gagal Kirim (SMTP)",
       "audit_tooltip_prefix": "Penyebab Gagal:",
-      "smtp_error_tooltip": "Koneksi ke server gateway SMTP gagal"
+      "smtp_error_tooltip": "Koneksi ke server gateway SMTP gagal",
+      "tab_deadline": "Pengingat Deadline Running BOM",
+      "tab_bom_change": "Notifikasi Perubahan Jadwal BOM",
+      "filter_part_only_pill": "Filter Aktif: Khusus ECN Part Change BOM (Verifikasi Berubah/Tetap)",
+      "bom_change_title": "Notifikasi Perubahan Jadwal Running BOM",
+      "bom_change_info_banner": "Sistem akan otomatis mengirimkan email notifikasi ke daftar penerima di bawah ini setiap kali ada perubahan tanggal Running BOM pada form Edit ECN, lengkap dengan perbandingan jadwal lama vs baru serta rincian part number.",
+      "bom_change_toggle": "Notifikasi Perubahan Jadwal",
+      "bom_change_active": "Aktif",
+      "bom_change_inactive": "Nonaktif",
+      "bom_change_sub": "Kirim email otomatis ke PIC setiap kali tanggal Running BOM diubah pada sistem ECN",
+      "bom_change_subject_label": "Subjek Email Notifikasi Perubahan",
+      "bom_change_subject_helper": "Placeholder otomatis: {ecn_no}, {model}, {old_date}, {new_date}",
+      "bom_change_recipients_label": "Daftar Email Penerima Khusus Perubahan (To) - Opsional",
+      "bom_change_recipients_placeholder": "Ketik email (misal manager@samsung.com) lalu tekan Enter...",
+      "bom_change_recipients_helper": "Kosongkan jika ingin otomatis menggunakan daftar penerima default dari tab Pengingat Deadline.",
+      "bom_change_cc_label": "Daftar Email Tembusan Khusus Perubahan (CC) - Opsional",
+      "test_deadline_btn": "Kirim Tes Pengingat Deadline",
+      "test_bom_btn": "Kirim Tes Notifikasi Perubahan",
+      "test_bom_success": "Email tes notifikasi perubahan Running BOM berhasil dikirim!",
+      "test_bom_error": "Gagal mengirim email tes perubahan Running BOM."
     }
   }
 }
