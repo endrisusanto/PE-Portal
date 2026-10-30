@@ -279,10 +279,33 @@
 }
 
 .weekdayHeaderRow {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  display: flex;
   background: var(--color-bg-primary);
   border-bottom: 1px solid var(--color-border);
+}
+
+.weekdayHeaderWeekCell {
+  width: 44px;
+  min-width: 44px;
+  padding: 10px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary, #94a3b8);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  user-select: none;
+}
+
+.weekdayHeaderDays {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
 }
 
 .weekdayHeaderCell {
@@ -300,13 +323,50 @@
   color: #ef4444 !important;
 }
 
-/* Week Row in Month View */
+/* Week Row in Month View (ponytail: flex row with week number indicator column) */
 .monthWeekRow {
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   border-bottom: 1px solid var(--color-border);
   min-height: 120px;
+}
+
+.weekNumberCol {
+  width: 44px;
+  min-width: 44px;
+  background: var(--color-bg-primary);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+.weekNumberCol:hover {
+  background-color: var(--color-bg-tertiary, rgba(0, 0, 0, 0.04));
+}
+
+.weekNumberBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: rgba(var(--color-accent-rgb, 59, 130, 246), 0.08);
+  border: 1px solid rgba(var(--color-accent-rgb, 59, 130, 246), 0.2);
+  border-radius: 4px;
+  padding: 3px 5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.weekDaysArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .monthWeekRow:last-child {

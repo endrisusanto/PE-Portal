@@ -34,6 +34,7 @@ import {
   parseDateRangeFromText,
   getMilestoneDeadlineAlert,
   formatTableCellValue,
+  getIsoWeekNumber,
 } from '../components/models/ModelMilestoneMatrix';
 import styles from './ProjectCalendarPage.module.css';
 
@@ -454,7 +455,9 @@ export const ProjectCalendarPage = () => {
       const eDay = end.getDate();
       const eMonth = end.toLocaleDateString(locale, { month: 'short' });
       const year = end.getFullYear();
-      return `${sDay} ${sMonth} - ${eDay} ${eMonth} ${year}`;
+      const weekNum = getIsoWeekNumber(start);
+      const weekLabel = i18n.language === 'id' ? `Minggu ${weekNum}` : i18n.language === 'ko' ? `W${weekNum}주차` : `Week ${weekNum}`;
+      return `${weekLabel} (W${weekNum}) • ${sDay} ${sMonth} - ${eDay} ${eMonth} ${year}`;
     }
     if (viewMode === 'month') {
       return currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
@@ -567,17 +570,24 @@ export const ProjectCalendarPage = () => {
     return (
       <div className={styles.monthGrid}>
         <div className={styles.weekdayHeaderRow}>
-          {weekdays.map((w, idx) => (
-            <div
-              key={idx}
-              className={`${styles.weekdayHeaderCell} ${idx === 5 || idx === 6 ? styles.weekendHeader : ''}`}
-            >
-              {w}
-            </div>
-          ))}
+          <div className={styles.weekdayHeaderWeekCell} title="ISO Week Number (Minggu Kerja)">
+            Wk
+          </div>
+          <div className={styles.weekdayHeaderDays}>
+            {weekdays.map((w, idx) => (
+              <div
+                key={idx}
+                className={`${styles.weekdayHeaderCell} ${idx === 5 || idx === 6 ? styles.weekendHeader : ''}`}
+              >
+                {w}
+              </div>
+            ))}
+          </div>
         </div>
 
         {weeks.map((weekDays, wIdx) => {
+          // ponytail: calculate ISO week number for this row
+          const weekNum = getIsoWeekNumber(weekDays[0].date);
           const weekStartStr = weekDays[0].dateStr;
           const weekEndStr = weekDays[6].dateStr;
 
@@ -622,109 +632,120 @@ export const ProjectCalendarPage = () => {
 
           return (
             <div key={wIdx} className={styles.monthWeekRow}>
-              {/* Background date cells underlay */}
-              <div className={styles.dateCellsUnderlay}>
-                {weekDays.map((cell, cIdx) => {
-                  const holiday = getIndonesianHoliday(cell.dateStr);
-                  const isWeekendDay = isWeekend(cell.date);
-                  const isRedDate = isWeekendDay || Boolean(holiday);
-
-                  return (
-                    <div
-                      key={cIdx}
-                      className={`${styles.dateCellBg} ${cell.isOutside ? styles.outsideMonth : ''} ${
-                        cell.isToday ? styles.todayCell : ''
-                      }`}
-                    >
-                      <div className={styles.dayCellHeader}>
-                        <span
-                          className={`${styles.dateNumber} ${isRedDate && !cell.isToday ? styles.holidayDate : ''}`}
-                        >
-                          {cell.dayNum}
-                        </span>
-                        {holiday && showHolidays && (
-                          <span className={styles.holidayBadge} title={holiday.name}>
-                            {holiday.name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Week Number column badge */}
+              <div
+                className={styles.weekNumberCol}
+                title={`Minggu ke-${weekNum} (ISO W${weekNum})`}
+              >
+                <span className={styles.weekNumberBadge}>W{weekNum}</span>
               </div>
 
-              {/* Foreground Multi-Day Task Bars Overlay */}
-              <div className={styles.taskBarsOverlay}>
-                {weekTasks.slice(0, 4).map((item) => {
-                  const {
-                    task,
-                    colStart,
-                    colSpan,
-                    continuesPrior,
-                    continuesAfter,
-                    diffDays,
-                    isMultiDay,
-                  } = item;
-                  const meta = parseMetadata(task.metadata);
-                  const primaryPic =
-                    (meta.assigned_pics && meta.assigned_pics[0]?.name) || task.owner_name || '';
-                  const avatarInitial = primaryPic ? primaryPic.charAt(0).toUpperCase() : 'T';
+              {/* 7-day calendar track */}
+              <div className={styles.weekDaysArea}>
+                {/* Background date cells underlay */}
+                <div className={styles.dateCellsUnderlay}>
+                  {weekDays.map((cell, cIdx) => {
+                    const holiday = getIndonesianHoliday(cell.dateStr);
+                    const isWeekendDay = isWeekend(cell.date);
+                    const isRedDate = isWeekendDay || Boolean(holiday);
 
-                  return (
-                    <div
-                      key={`${task.id}-w${wIdx}`}
-                      className={`${styles.spanningTaskBar} ${getBarColorClass(task)} ${
-                        continuesPrior ? styles.continuesPrior : ''
-                      } ${continuesAfter ? styles.continuesAfter : ''}`}
-                      style={{
-                        gridColumn: `${colStart} / span ${colSpan}`,
-                      }}
-                      onClick={() => handleOpenTaskModal(task)}
-                      title={`${task.title} (${task.priority || 'medium'}) - ${task.start_date || task.target_date || ''} s/d ${task.target_date || ''} (${diffDays} ${t('project_calendar.duration_days', 'hari')})`}
-                    >
-                      {continuesPrior && <span className={styles.continuationArrow}>◀</span>}
-                      {task.is_model_milestone ? (
-                        <span className={styles.modelBadgeTag} title={task.model_name}>
-                          {task.codename || task.model_name || 'MODEL'}
-                        </span>
-                      ) : (
-                        primaryPic && (
-                          <span className={styles.barPicAvatar} title={primaryPic}>
-                            {avatarInitial}
+                    return (
+                      <div
+                        key={cIdx}
+                        className={`${styles.dateCellBg} ${cell.isOutside ? styles.outsideMonth : ''} ${
+                          cell.isToday ? styles.todayCell : ''
+                        }`}
+                      >
+                        <div className={styles.dayCellHeader}>
+                          <span
+                            className={`${styles.dateNumber} ${isRedDate && !cell.isToday ? styles.holidayDate : ''}`}
+                          >
+                            {cell.dayNum}
                           </span>
-                        )
-                      )}
-                      <span className={styles.barTitle}>{task.title}</span>
-                      {task.is_model_milestone ? (
-                        <span className={styles.barMilestoneBadge}>
-                          {task.status === 'completed' ? '✓ OK' : task.plan_value || 'SCHEDULED'}
-                        </span>
-                      ) : (
-                        task.progress !== undefined && (
+                          {holiday && showHolidays && (
+                            <span className={styles.holidayBadge} title={holiday.name}>
+                              {holiday.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Foreground Multi-Day Task Bars Overlay */}
+                <div className={styles.taskBarsOverlay}>
+                  {weekTasks.slice(0, 4).map((item) => {
+                    const {
+                      task,
+                      colStart,
+                      colSpan,
+                      continuesPrior,
+                      continuesAfter,
+                      diffDays,
+                      isMultiDay,
+                    } = item;
+                    const meta = parseMetadata(task.metadata);
+                    const primaryPic =
+                      (meta.assigned_pics && meta.assigned_pics[0]?.name) || task.owner_name || '';
+                    const avatarInitial = primaryPic ? primaryPic.charAt(0).toUpperCase() : 'T';
+
+                    return (
+                      <div
+                        key={`${task.id}-w${wIdx}`}
+                        className={`${styles.spanningTaskBar} ${getBarColorClass(task)} ${
+                          continuesPrior ? styles.continuesPrior : ''
+                        } ${continuesAfter ? styles.continuesAfter : ''}`}
+                        style={{
+                          gridColumn: `${colStart} / span ${colSpan}`,
+                        }}
+                        onClick={() => handleOpenTaskModal(task)}
+                        title={`${task.title} (${task.priority || 'medium'}) - ${task.start_date || task.target_date || ''} s/d ${task.target_date || ''} (${diffDays} ${t('project_calendar.duration_days', 'hari')})`}
+                      >
+                        {continuesPrior && <span className={styles.continuationArrow}>◀</span>}
+                        {task.is_model_milestone ? (
+                          <span className={styles.modelBadgeTag} title={task.model_name}>
+                            {task.codename || task.model_name || 'MODEL'}
+                          </span>
+                        ) : (
+                          primaryPic && (
+                            <span className={styles.barPicAvatar} title={primaryPic}>
+                              {avatarInitial}
+                            </span>
+                          )
+                        )}
+                        <span className={styles.barTitle}>{task.title}</span>
+                        {task.is_model_milestone ? (
                           <span className={styles.barMilestoneBadge}>
-                            {task.progress}%
+                            {task.status === 'completed' ? '✓ OK' : task.plan_value || 'SCHEDULED'}
                           </span>
-                        )
-                      )}
-                      {isMultiDay && colSpan >= 2 && (
-                        <span style={{ fontSize: '10px', opacity: 0.9, flexShrink: 0, fontWeight: 700 }}>
-                          {diffDays}d
-                        </span>
-                      )}
-                      {continuesAfter && <span className={styles.continuationArrow}>▶</span>}
+                        ) : (
+                          task.progress !== undefined && (
+                            <span className={styles.barMilestoneBadge}>
+                              {task.progress}%
+                            </span>
+                          )
+                        )}
+                        {isMultiDay && colSpan >= 2 && (
+                          <span style={{ fontSize: '10px', opacity: 0.9, flexShrink: 0, fontWeight: 700 }}>
+                            {diffDays}d
+                          </span>
+                        )}
+                        {continuesAfter && <span className={styles.continuationArrow}>▶</span>}
+                      </div>
+                    );
+                  })}
+                  {weekTasks.length > 4 && (
+                    <div className={styles.moreTasksRow}>
+                      <button
+                        className={styles.moreTasksBtn}
+                        onClick={() => handleOpenTaskModal(weekTasks[4].task)}
+                      >
+                        +{weekTasks.length - 4} {t('project_calendar.tasks_count', 'Tasks')}
+                      </button>
                     </div>
-                  );
-                })}
-                {weekTasks.length > 4 && (
-                  <div className={styles.moreTasksRow}>
-                    <button
-                      className={styles.moreTasksBtn}
-                      onClick={() => handleOpenTaskModal(weekTasks[4].task)}
-                    >
-                      +{weekTasks.length - 4} {t('project_calendar.tasks_count', 'Tasks')}
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           );

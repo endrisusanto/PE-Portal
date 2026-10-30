@@ -236,10 +236,12 @@ export const MODERN_CATEGORIES = [
 export const CURRENT_REFERENCE_DATE = new Date(2026, 9, 27); // 27 Oct 2026
 export const CURRENT_ISO_WEEK = 44;
 
-// Helper to calculate ISO Week number
+// Helper to calculate ISO Week number (ponytail: handles Date object, timestamp, or date string)
 export const getIsoWeekNumber = (d) => {
-  if (!d || isNaN(d.getTime())) return 1;
-  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  if (!d) return 1;
+  const dObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dObj.getTime())) return 1;
+  const target = new Date(Date.UTC(dObj.getFullYear(), dObj.getMonth(), dObj.getDate()));
   const dayNr = target.getUTCDay() || 7;
   target.setUTCDate(target.getUTCDate() + 4 - dayNr);
   const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));

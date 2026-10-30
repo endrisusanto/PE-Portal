@@ -38,6 +38,7 @@ import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
 import { CustomHolidayModal } from '../components/common/CustomHolidayModal';
 import { getIndonesianHoliday, isWeekend } from '../utils/indonesianHolidays';
+import { getIsoWeekNumber } from '../components/models/ModelMilestoneMatrix';
 import styles from './DashboardPage.module.css';
 
 // 5 Milestone Problem Solving Stages
@@ -343,6 +344,15 @@ export const DashboardPage = () => {
 
     return cells;
   }, [calendarYear, calendarMonth, customHolidaysVersion]);
+
+  // Group calendar grid cells into 7-day week rows (ponytail: compute rows for week number column)
+  const calendarWeeks = useMemo(() => {
+    const weeks = [];
+    for (let i = 0; i < calendarGridCells.length; i += 7) {
+      weeks.push(calendarGridCells.slice(i, i + 7));
+    }
+    return weeks;
+  }, [calendarGridCells]);
 
   // Month Statistics for Calendar
   const monthCalendarSummary = useMemo(() => {
@@ -790,8 +800,11 @@ export const DashboardPage = () => {
 
             {/* Calendar Month Matrix Grid */}
             <div className={styles.miniCalendarContainer}>
-              {/* Day Name Headers (Min - Sab) */}
+              {/* Day Name Headers (Min - Sab) with Week Number Column */}
               <div className={styles.miniWeekHeaders}>
+                <div className={styles.miniWeekNumHeader} title="ISO Week Number (Minggu Kerja)">
+                  Wk
+                </div>
                 {(t('dashboard.day_names', { returnObjects: true }) || DAY_NAMES_ID).map((dName, idx) => (
                   <div
                     key={dName}
@@ -802,43 +815,60 @@ export const DashboardPage = () => {
                 ))}
               </div>
 
-              {/* Day Cells Matrix */}
+              {/* Day Cells Matrix with Week Numbers */}
               <div className={styles.miniDayGrid}>
-                {calendarGridCells.map((cell, idx) => {
-                  const holiday = getIndonesianHoliday(cell.dateStr);
-                  const isWeekendDay = isWeekend(cell.date);
-                  const isToday = cell.dateStr === todayStr;
-                  const isSelected = cell.dateStr === selectedCalendarDateStr;
-                  const dayTasks = tasksByDate[cell.dateStr] || [];
-
+                {calendarWeeks.map((weekCells, wIdx) => {
+                  // Calculate ISO week number based on Thursday of the week (weekCells[4] or weekCells[0])
+                  const weekNum = getIsoWeekNumber(weekCells[4]?.date || weekCells[0]?.date);
                   return (
-                    <div
-                      key={idx}
-                      className={`
-                        ${styles.miniDayCell}
-                        ${!cell.isCurrentMonth ? styles.cellOtherMonth : ''}
-                        ${holiday ? styles.cellHoliday : ''}
-                        ${isWeekendDay && !holiday ? styles.cellWeekend : ''}
-                        ${isToday ? styles.cellToday : ''}
-                        ${isSelected ? styles.cellSelected : ''}
-                      `}
-                      onClick={() => setSelectedCalendarDateStr(cell.dateStr)}
-                      title={holiday ? `${cell.dateStr}: ${holiday.name}` : cell.dateStr}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <div className={styles.cellDayNumberBox}>
-                        <span className={styles.cellDayNum}>{cell.dayNum}</span>
-                        {holiday && <span className={styles.miniHolidayDot} />}
+                    <React.Fragment key={wIdx}>
+                      <div
+                        className={styles.miniWeekNumCell}
+                        title={`Minggu ke-${weekNum} (ISO W${weekNum}) • Buka Kalender Kerja`}
+                        onClick={() => navigate('/project-calendar')}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <span className={styles.miniWeekNumBadge}>W{weekNum}</span>
                       </div>
+                      {weekCells.map((cell, idx) => {
+                        const holiday = getIndonesianHoliday(cell.dateStr);
+                        const isWeekendDay = isWeekend(cell.date);
+                        const isToday = cell.dateStr === todayStr;
+                        const isSelected = cell.dateStr === selectedCalendarDateStr;
+                        const dayTasks = tasksByDate[cell.dateStr] || [];
 
-                      {/* Task Count / Milestone Dots */}
-                      {dayTasks.length > 0 && (
-                        <div className={styles.cellTaskPill}>
-                          <span className={styles.cellTaskCount}>{dayTasks.length} Task</span>
-                        </div>
-                      )}
-                    </div>
+                        return (
+                          <div
+                            key={idx}
+                            className={`
+                              ${styles.miniDayCell}
+                              ${!cell.isCurrentMonth ? styles.cellOtherMonth : ''}
+                              ${holiday ? styles.cellHoliday : ''}
+                              ${isWeekendDay && !holiday ? styles.cellWeekend : ''}
+                              ${isToday ? styles.cellToday : ''}
+                              ${isSelected ? styles.cellSelected : ''}
+                            `}
+                            onClick={() => setSelectedCalendarDateStr(cell.dateStr)}
+                            title={holiday ? `${cell.dateStr}: ${holiday.name}` : cell.dateStr}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <div className={styles.cellDayNumberBox}>
+                              <span className={styles.cellDayNum}>{cell.dayNum}</span>
+                              {holiday && <span className={styles.miniHolidayDot} />}
+                            </div>
+
+                            {/* Task Count / Milestone Dots */}
+                            {dayTasks.length > 0 && (
+                              <div className={styles.cellTaskPill}>
+                                <span className={styles.cellTaskCount}>{dayTasks.length} Task</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
                   );
                 })}
               </div>

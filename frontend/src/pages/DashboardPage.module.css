@@ -641,11 +641,22 @@
 
 .miniWeekHeaders {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: 34px repeat(7, 1fr);
   gap: 4px;
   text-align: center;
   border-bottom: 1px solid var(--color-border-subtle);
   padding-bottom: 6px;
+}
+
+.miniWeekNumHeader {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-tertiary, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .miniWeekHeaderCell {
@@ -662,8 +673,43 @@
 
 .miniDayGrid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: 34px repeat(7, 1fr);
   gap: 4px;
+}
+
+.miniWeekNumCell {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.miniWeekNumCell:hover {
+  border-color: var(--color-accent);
+  background-color: var(--color-bg-tertiary);
+  transform: translateY(-1px);
+}
+
+.miniWeekNumBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: rgba(var(--color-accent-rgb, 59, 130, 246), 0.08);
+  border: 1px solid rgba(var(--color-accent-rgb, 59, 130, 246), 0.18);
+  border-radius: 4px;
+  padding: 2px 4px;
+  letter-spacing: 0.02em;
+}
+
+.miniWeekNumCell:hover .miniWeekNumBadge {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .miniDayCell {
