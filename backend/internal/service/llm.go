@@ -30,6 +30,7 @@ type openAIChatReq struct {
 	Messages    []model.ChatMessage `json:"messages"`
 	Temperature float64             `json:"temperature,omitempty"`
 	MaxTokens   int                 `json:"max_tokens,omitempty"`
+	Stream      bool                `json:"stream"`
 }
 
 type openAIChatResp struct {
@@ -55,9 +56,6 @@ func (s *LLMService) ChatCompletion(ctx context.Context, cfg *model.LLMConfig, r
 	if cfg == nil || !cfg.IsActive {
 		return "", fmt.Errorf("active LLM configuration not found")
 	}
-
-	baseURL := strings.TrimRight(cfg.BaseURL, "/")
-	endpoint := baseURL + "/chat/completions"
 
 	modelToUse := cfg.ModelName
 	if req.Model != "" {
@@ -87,6 +85,7 @@ func (s *LLMService) ChatCompletion(ctx context.Context, cfg *model.LLMConfig, r
 		Messages:    messages,
 		Temperature: req.Temperature,
 		MaxTokens:   req.MaxTokens,
+		Stream:      false,
 	}
 	if payload.Temperature == 0 {
 		payload.Temperature = 0.7
@@ -100,45 +99,101 @@ func (s *LLMService) ChatCompletion(ctx context.Context, cfg *model.LLMConfig, r
 		return "", fmt.Errorf("failed to marshal chat payload: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(jsonBytes))
-	if err != nil {
-		return "", fmt.Errorf("failed to create http request: %w", err)
+	// ponytail: Support Docker container accessing host services (localhost -> host.docker.internal / bridge gateway)
+	candidates := []string{strings.TrimRight(cfg.BaseURL, "/")}
+	if IsRunningInDocker() {
+		if c := GetCandidateURLs(cfg.BaseURL); len(c) > 0 {
+			candidates = c
+		}
 	}
 
-	httpReq.Header.Set("Content-Type", "application/json")
-	if cfg.APIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+	var lastErr error
+	for _, candBaseURL := range candidates {
+		candBaseURL = strings.TrimRight(candBaseURL, "/")
+		endpoint := candBaseURL + "/chat/completions"
+
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(jsonBytes))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		httpReq.Header.Set("Content-Type", "application/json")
+		if cfg.APIKey != "" {
+			httpReq.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+		}
+
+		resp, err := s.httpClient.Do(httpReq)
+		if err != nil {
+			lastErr = fmt.Errorf("LLM request failed (%s): %w", candBaseURL, err)
+			continue
+		}
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read response: %w", err)
+			continue
+		}
+
+		if resp.StatusCode >= 400 {
+			lastErr = fmt.Errorf("LLM API error (HTTP %d): %s", resp.StatusCode, string(bodyBytes))
+			continue
+		}
+
+		// ponytail: fallback if upstream provider returned SSE streaming chunks (data: {...})
+		trimmedBody := bytes.TrimSpace(bodyBytes)
+		if bytes.HasPrefix(trimmedBody, []byte("data:")) {
+			var contentBuilder strings.Builder
+			for _, line := range strings.Split(string(trimmedBody), "\n") {
+				line = strings.TrimSpace(line)
+				if !strings.HasPrefix(line, "data:") {
+					continue
+				}
+				chunkData := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+				if chunkData == "[DONE]" || chunkData == "" {
+					continue
+				}
+				var chunk struct {
+					Choices []struct {
+						Delta struct {
+							Content string `json:"content"`
+						} `json:"delta"`
+						Message struct {
+							Content string `json:"content"`
+						} `json:"message"`
+					} `json:"choices"`
+				}
+				if err := json.Unmarshal([]byte(chunkData), &chunk); err == nil && len(chunk.Choices) > 0 {
+					if chunk.Choices[0].Delta.Content != "" {
+						contentBuilder.WriteString(chunk.Choices[0].Delta.Content)
+					} else if chunk.Choices[0].Message.Content != "" {
+						contentBuilder.WriteString(chunk.Choices[0].Message.Content)
+					}
+				}
+			}
+			if contentBuilder.Len() > 0 {
+				return contentBuilder.String(), nil
+			}
+		}
+
+		var chatResp openAIChatResp
+		if err := json.Unmarshal(bodyBytes, &chatResp); err != nil {
+			return "", fmt.Errorf("failed to parse LLM response: %w", err)
+		}
+
+		if chatResp.Error != nil && chatResp.Error.Message != "" {
+			return "", fmt.Errorf("LLM error: %s", chatResp.Error.Message)
+		}
+
+		if len(chatResp.Choices) == 0 {
+			return "", fmt.Errorf("no response returned from LLM")
+		}
+
+		return chatResp.Choices[0].Message.Content, nil
 	}
 
-	resp, err := s.httpClient.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("LLM request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("LLM API error (HTTP %d): %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var chatResp openAIChatResp
-	if err := json.Unmarshal(bodyBytes, &chatResp); err != nil {
-		return "", fmt.Errorf("failed to parse LLM response: %w", err)
-	}
-
-	if chatResp.Error != nil && chatResp.Error.Message != "" {
-		return "", fmt.Errorf("LLM error: %s", chatResp.Error.Message)
-	}
-
-	if len(chatResp.Choices) == 0 {
-		return "", fmt.Errorf("no response returned from LLM")
-	}
-
-	return chatResp.Choices[0].Message.Content, nil
+	return "", lastErr
 }
 
 // FetchModels queries /models on the active LLM endpoint
@@ -147,36 +202,56 @@ func (s *LLMService) FetchModels(ctx context.Context, cfg *model.LLMConfig) ([]s
 		return nil, fmt.Errorf("LLM configuration is missing")
 	}
 
-	baseURL := strings.TrimRight(cfg.BaseURL, "/")
-	endpoint := baseURL + "/models"
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, err
+	// ponytail: Support Docker container accessing host services (localhost -> host.docker.internal / bridge gateway)
+	candidates := []string{strings.TrimRight(cfg.BaseURL, "/")}
+	if IsRunningInDocker() {
+		if c := GetCandidateURLs(cfg.BaseURL); len(c) > 0 {
+			candidates = c
+		}
 	}
 
-	if cfg.APIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+	var lastErr error
+	for _, candBaseURL := range candidates {
+		candBaseURL = strings.TrimRight(candBaseURL, "/")
+		endpoint := candBaseURL + "/models"
+
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if cfg.APIKey != "" {
+			httpReq.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+		}
+
+		resp, err := s.httpClient.Do(httpReq)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to reach %s: %w", endpoint, err)
+			continue
+		}
+
+		var mResp openAIModelsResp
+		err = json.NewDecoder(resp.Body).Decode(&mResp)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if resp.StatusCode >= 400 {
+			lastErr = fmt.Errorf("failed with HTTP %d from %s", resp.StatusCode, endpoint)
+			continue
+		}
+
+		var modelIDs []string
+		for _, m := range mResp.Data {
+			if m.ID != "" {
+				modelIDs = append(modelIDs, m.ID)
+			}
+		}
+		return modelIDs, nil
 	}
 
-	resp, err := s.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach /models: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("failed with HTTP %d", resp.StatusCode)
-	}
-
-	var mResp openAIModelsResp
-	if err := json.NewDecoder(resp.Body).Decode(&mResp); err != nil {
-		return nil, err
-	}
-
-	var modelIDs []string
-	for _, m := range mResp.Data {
-		modelIDs = append(modelIDs, m.ID)
-	}
-	return modelIDs, nil
+	return nil, lastErr
 }
