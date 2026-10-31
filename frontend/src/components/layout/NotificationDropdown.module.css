@@ -1,0 +1,654 @@
+/* NotificationDropdown.module.css
+   Emil Kowalski Design Engineering: Snappy easing, scale(0.97) press feedback,
+   origin-aware popover, linear progress transitions.
+*/
+
+.container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.triggerWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Navbar Activity Pill with subtle breathing pulse */
+.activePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  background: color-mix(in srgb, var(--color-accent) 26%, #0f172a);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              background-color 160ms ease-out;
+  animation: activityPulse 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.activePill:hover {
+  transform: scale(1.02);
+  background: color-mix(in srgb, var(--color-accent) 35%, #0f172a);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.activePill:active {
+  transform: scale(0.97);
+}
+
+.zapIcon {
+  color: var(--color-accent);
+  animation: zapSpark 1.8s ease-in-out infinite;
+}
+
+@keyframes zapSpark {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes activityPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 25%, transparent);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--color-accent) 50%, transparent);
+  }
+}
+
+.activePillText {
+  white-space: nowrap;
+}
+
+/* Bell Trigger Button */
+.bellButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              background-color 160ms ease-out,
+              color 160ms ease-out;
+}
+
+.bellButton:hover {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.08));
+  color: var(--color-text, #ffffff);
+}
+
+.bellButton:active {
+  transform: scale(0.97);
+}
+
+.bellButtonActive {
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+/* Badge */
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #64748b;
+  color: #ffffff;
+  border: 1.5px solid var(--color-bg-primary, #0f172a);
+}
+
+.badgeActive {
+  background: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-accent);
+}
+
+/* Origin-aware Popover Dropdown Card */
+.dropdownPopover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 380px;
+  max-width: 90vw;
+  background: var(--color-surface, #1e293b);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, var(--color-border, rgba(255, 255, 255, 0.12)));
+  border-radius: var(--radius-md, 12px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 24px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform-origin: top right;
+  animation: popoverEnter 180ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  backdrop-filter: blur(16px);
+}
+
+@keyframes popoverEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.popoverHeader {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--color-surface) 95%, var(--color-accent) 5%);
+}
+
+.headerTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.popoverTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text, #ffffff);
+}
+
+.headerActiveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  padding: 2px 7px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+.popoverSub {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.scrollArea {
+  max-height: 440px;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+/* Section Header */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text, #ffffff);
+}
+
+.sectionCountBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+/* Empty State */
+.emptyState {
+  padding: 20px 14px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-sm, 8px);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.emptyIcon {
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.openToolsLink {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.openToolsLink:active {
+  transform: scale(0.97);
+}
+
+/* Tools Progress Cards (Pinned Priority) */
+.cardsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toolCard {
+  background: color-mix(in srgb, var(--color-surface, #1e293b) 80%, black 20%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm, 8px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              border-color 160ms ease-out;
+  animation: cardStagger 220ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+  animation-delay: calc(var(--stagger, 0) * 35ms);
+}
+
+@keyframes cardStagger {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toolCardActive {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+
+.cardTopRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.toolIconWrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.toolInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolName {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text, #ffffff);
+}
+
+.fileName {
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusBadge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.badgeProcessing {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-accent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.badgeCompleted {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badgeFailed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badgeCancelled {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.dismissBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms ease;
+}
+
+.dismissBtn:hover {
+  color: #ffffff;
+}
+
+.dismissBtn:active {
+  transform: scale(0.97);
+}
+
+/* Emil Kowalski Linear Progress Bar */
+.progressSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progressBarTrack {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 9999px;
+  /* Emil Kowalski: Continuous work should use linear transition */
+  transition: width 200ms linear;
+  position: relative;
+  overflow: hidden;
+}
+
+.progressShimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 100%
+  );
+  animation: shimmerBeam 2.2s linear infinite;
+}
+
+@keyframes shimmerBeam {
+  0% { transform: translateX(-150%); }
+  100% { transform: translateX(350%); }
+}
+
+.stepRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+.stepText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80%;
+}
+
+.percentText {
+  font-weight: 700;
+  color: var(--color-text, #ffffff);
+}
+
+.errorText {
+  margin: 0;
+  font-size: 10px;
+  color: #f87171;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Card Actions */
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              background-color 160ms ease;
+}
+
+.downloadBtn:hover {
+  background: #059669;
+}
+
+.downloadBtn:active {
+  transform: scale(0.97);
+}
+
+.cardSecondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              background-color 160ms ease;
+}
+
+.cardSecondaryBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.cardSecondaryBtn:active {
+  transform: scale(0.97);
+}
+
+.cancelBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.cancelBtn:active {
+  transform: scale(0.97);
+}
+
+.timeMeta {
+  margin-left: auto;
+  font-size: 9.5px;
+  color: #64748b;
+}
+
+/* Section 2: Change Logs */
+.emptyLogsText {
+  font-size: 11px;
+  color: #64748b;
+  margin: 6px 0;
+  text-align: center;
+}
+
+.logsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              background-color 160ms ease,
+              border-color 160ms ease;
+  animation: cardStagger 220ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+  animation-delay: calc(var(--stagger, 0) * 30ms);
+}
+
+.logItem:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.logItem:active {
+  transform: scale(0.98);
+}
+
+.logLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.logTag {
+  font-size: 8.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.logContent {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.logTitle {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logMessage {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: #94a3b8;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.logTime {
+  font-size: 9px;
+  color: #64748b;
+  white-space: nowrap;
+}
+

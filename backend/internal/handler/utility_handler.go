@@ -23,6 +23,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"pe-portal/internal/model"
 	"pe-portal/internal/repository"
+	"pe-portal/internal/service"
 	"pe-portal/internal/util"
 )
 
@@ -43,21 +44,23 @@ type WITranslateJob struct {
 }
 
 type UtilityHandler struct {
-	llmRepo   *repository.LLMRepository
-	wiRepo    *repository.WITranslatorRepository
-	wiJobs    sync.Map
-	workerSem chan struct{}
+	llmRepo        *repository.LLMRepository
+	wiRepo         *repository.WITranslatorRepository
+	toolJobService *service.ToolJobService
+	wiJobs         sync.Map
+	workerSem      chan struct{}
 }
 
-func NewUtilityHandler(llmRepo *repository.LLMRepository, wiRepo ...*repository.WITranslatorRepository) *UtilityHandler {
-	var wr *repository.WITranslatorRepository
-	if len(wiRepo) > 0 {
-		wr = wiRepo[0]
+func NewUtilityHandler(llmRepo *repository.LLMRepository, wiRepo *repository.WITranslatorRepository, toolJobService ...*service.ToolJobService) *UtilityHandler {
+	var ts *service.ToolJobService
+	if len(toolJobService) > 0 {
+		ts = toolJobService[0]
 	}
 	return &UtilityHandler{
-		llmRepo:   llmRepo,
-		wiRepo:    wr,
-		workerSem: make(chan struct{}, 2), // max 2 concurrent document translations
+		llmRepo:        llmRepo,
+		wiRepo:         wiRepo,
+		toolJobService: ts,
+		workerSem:      make(chan struct{}, 2), // max 2 concurrent document translations
 	}
 }
 
@@ -1442,6 +1445,436 @@ func (h *UtilityHandler) DownloadWISourceFile(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"message": "Source file not found on server"})
 	}
 	return c.Attachment(job.FilePath, job.FileName)
+}
+
+// -------------------------------------------------------------
+// Asynchronous Server-Side Background Jobs for Tools
+// -------------------------------------------------------------
+
+func (h *UtilityHandler) extractUserID(c echo.Context) *uuid.UUID {
+	if uidVal := c.Get("user_id"); uidVal != nil {
+		if uidStr, ok := uidVal.(string); ok && uidStr != "" {
+			if u, err := uuid.Parse(uidStr); err == nil {
+				return &u
+			}
+		}
+	}
+	return nil
+}
+
+// SubmitVideoCompressJob starts async video compression
+func (h *UtilityHandler) SubmitVideoCompressJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	file, err := c.FormFile("video")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No video file provided"})
+	}
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to open video file"})
+	}
+	defer src.Close()
+
+	quality := c.FormValue("quality")
+	if quality == "" {
+		quality = "medium"
+	}
+	resolution := c.FormValue("resolution")
+	if resolution == "" {
+		resolution = "original"
+	}
+	encoder := c.FormValue("encoder")
+	if encoder == "" {
+		encoder = "auto"
+	}
+	muteAudio := c.FormValue("mute_audio") == "true"
+
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	inExt := strings.ToLower(filepath.Ext(file.Filename))
+	if inExt == "" {
+		inExt = ".mp4"
+	}
+	inPath := filepath.Join(tempDir, fmt.Sprintf("vin_%d%s", now, inExt))
+	dst, err := os.Create(inPath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create temp input file"})
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save input video"})
+	}
+	dst.Close()
+
+	userID := h.extractUserID(c)
+	job, err := h.toolJobService.SubmitVideoCompress(c.Request().Context(), userID, inPath, file.Filename, file.Size, quality, resolution, encoder, muteAudio)
+	if err != nil {
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to submit background video compression: " + err.Error()})
+	}
+
+	return c.JSON(http.StatusAccepted, job)
+}
+
+// SubmitRemoveBackgroundJob starts async background removal
+func (h *UtilityHandler) SubmitRemoveBackgroundJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	file, err := c.FormFile("image")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No image file provided"})
+	}
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to open image file"})
+	}
+	defer src.Close()
+
+	tolerance := c.FormValue("tolerance")
+	if tolerance == "" {
+		tolerance = "35"
+	}
+	bgColor := c.FormValue("bg_color")
+	if bgColor == "" {
+		bgColor = "auto"
+	}
+	feather := c.FormValue("feather")
+	if feather == "" {
+		feather = "2"
+	}
+
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	inExt := strings.ToLower(filepath.Ext(file.Filename))
+	if inExt == "" {
+		inExt = ".png"
+	}
+	inPath := filepath.Join(tempDir, fmt.Sprintf("imgin_%d%s", now, inExt))
+	dst, err := os.Create(inPath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create temp input image"})
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save input image"})
+	}
+	dst.Close()
+
+	userID := h.extractUserID(c)
+	job, err := h.toolJobService.SubmitRemoveBackground(c.Request().Context(), userID, inPath, file.Filename, file.Size, tolerance, bgColor, feather)
+	if err != nil {
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to submit background removal: " + err.Error()})
+	}
+
+	return c.JSON(http.StatusAccepted, job)
+}
+
+// SubmitCompressPDFJob starts async PDF compression
+func (h *UtilityHandler) SubmitCompressPDFJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	file, err := c.FormFile("pdf")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No PDF file provided"})
+	}
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to open PDF file"})
+	}
+	defer src.Close()
+
+	quality := c.FormValue("quality")
+	if quality == "" {
+		quality = "ebook"
+	}
+	targetSizeMB := c.FormValue("target_size_mb")
+
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	inPath := filepath.Join(tempDir, fmt.Sprintf("pdfin_%d.pdf", now))
+	dst, err := os.Create(inPath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create temp input PDF"})
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save input PDF"})
+	}
+	dst.Close()
+
+	userID := h.extractUserID(c)
+	job, err := h.toolJobService.SubmitCompressPDF(c.Request().Context(), userID, inPath, file.Filename, file.Size, quality, targetSizeMB)
+	if err != nil {
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to submit PDF compression: " + err.Error()})
+	}
+
+	return c.JSON(http.StatusAccepted, job)
+}
+
+// SubmitMergePDFJob starts async PDF merge
+func (h *UtilityHandler) SubmitMergePDFJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Failed to parse form"})
+	}
+	files := form.File["files"]
+	if len(files) < 2 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Minimal 2 file PDF untuk digabungkan"})
+	}
+
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	var inPaths []string
+	var totalSize int64
+
+	for idx, fHeader := range files {
+		src, err := fHeader.Open()
+		if err != nil {
+			continue
+		}
+		p := filepath.Join(tempDir, fmt.Sprintf("merge_%d_%d.pdf", now, idx))
+		dst, err := os.Create(p)
+		if err == nil {
+			io.Copy(dst, src)
+			dst.Close()
+			inPaths = append(inPaths, p)
+			totalSize += fHeader.Size
+		}
+		src.Close()
+	}
+
+	if len(inPaths) < 2 {
+		for _, p := range inPaths {
+			_ = os.Remove(p)
+		}
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Gagal membaca minimal 2 file PDF"})
+	}
+
+	outName := c.FormValue("output_name")
+	if outName == "" {
+		outName = fmt.Sprintf("Merged_%d_Dokumen.pdf", len(inPaths))
+	}
+
+	userID := h.extractUserID(c)
+	job, err := h.toolJobService.SubmitMergePDF(c.Request().Context(), userID, inPaths, outName, totalSize)
+	if err != nil {
+		for _, p := range inPaths {
+			_ = os.Remove(p)
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to submit PDF merge: " + err.Error()})
+	}
+
+	return c.JSON(http.StatusAccepted, job)
+}
+
+// SubmitSplitPDFJob starts async PDF split
+func (h *UtilityHandler) SubmitSplitPDFJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	file, err := c.FormFile("pdf")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No PDF file provided"})
+	}
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to open PDF file"})
+	}
+	defer src.Close()
+
+	splitRanges := c.FormValue("ranges")
+	tempDir := os.TempDir()
+	now := time.Now().UnixNano()
+	inPath := filepath.Join(tempDir, fmt.Sprintf("splitin_%d.pdf", now))
+	dst, err := os.Create(inPath)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create temp input PDF"})
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save input PDF"})
+	}
+	dst.Close()
+
+	userID := h.extractUserID(c)
+	job, err := h.toolJobService.SubmitSplitPDF(c.Request().Context(), userID, inPath, file.Filename, file.Size, splitRanges)
+	if err != nil {
+		_ = os.Remove(inPath)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to submit PDF split: " + err.Error()})
+	}
+
+	return c.JSON(http.StatusAccepted, job)
+}
+
+// SubmitSummarizePPTXJob starts async PPTX summary
+func (h *UtilityHandler) SubmitSummarizePPTXJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Failed to parse form"})
+	}
+	files := form.File["files"]
+	if len(files) == 0 {
+		files = form.File["pptx_files"]
+	}
+	if len(files) == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No PPTX files provided"})
+	}
+
+	now := time.Now().UnixNano()
+	jobDir := filepath.Join(os.TempDir(), fmt.Sprintf("pptx_job_%d", now))
+	_ = os.MkdirAll(jobDir, 0755)
+
+	var savedPaths []string
+	var totalSize int64
+	for _, fHeader := range files {
+		if !strings.HasSuffix(strings.ToLower(fHeader.Filename), ".pptx") {
+			continue
+		}
+		src, err := fHeader.Open()
+		if err != nil {
+			continue
+		}
+		p := filepath.Join(jobDir, filepath.Base(fHeader.Filename))
+		dst, err := os.Create(p)
+		if err == nil {
+			io.Copy(dst, src)
+			dst.Close()
+			savedPaths = append(savedPaths, p)
+			totalSize += fHeader.Size
+		}
+		src.Close()
+	}
+
+	if len(savedPaths) == 0 {
+		_ = os.RemoveAll(jobDir)
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No valid PPTX files saved"})
+	}
+
+	batchName := c.FormValue("batch_name")
+	if batchName == "" {
+		batchName = fmt.Sprintf("Laporan_%d_File", len(savedPaths))
+	}
+
+	userID := h.extractUserID(c)
+	job, err := h.toolJobService.SubmitSummarizePPTX(c.Request().Context(), userID, savedPaths, batchName, totalSize)
+	if err != nil {
+		_ = os.RemoveAll(jobDir)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to submit PPTX summary: " + err.Error()})
+	}
+
+	return c.JSON(http.StatusAccepted, job)
+}
+
+// GetToolJobStatus returns current progress & status of a specific background job
+func (h *UtilityHandler) GetToolJobStatus(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid job ID"})
+	}
+	job, err := h.toolJobService.GetJob(c.Request().Context(), id)
+	if err != nil || job == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"message": "Job not found"})
+	}
+	return c.JSON(http.StatusOK, job)
+}
+
+// ListActiveToolJobs returns currently executing tools
+func (h *UtilityHandler) ListActiveToolJobs(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusOK, []model.ToolJob{})
+	}
+	userID := h.extractUserID(c)
+	list, err := h.toolJobService.ListActive(c.Request().Context(), userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
+	}
+	return c.JSON(http.StatusOK, list)
+}
+
+// ListRecentToolJobs returns recent jobs (both finished and running)
+func (h *UtilityHandler) ListRecentToolJobs(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusOK, []model.ToolJob{})
+	}
+	userID := h.extractUserID(c)
+	list, err := h.toolJobService.ListRecent(c.Request().Context(), userID, 15)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
+	}
+	return c.JSON(http.StatusOK, list)
+}
+
+// CancelToolJob cancels an ongoing background tool process
+func (h *UtilityHandler) CancelToolJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid job ID"})
+	}
+	if err := h.toolJobService.CancelJob(c.Request().Context(), id); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"message": "Job cancelled"})
+}
+
+// DeleteToolJob deletes job record and generated file
+func (h *UtilityHandler) DeleteToolJob(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid job ID"})
+	}
+	if err := h.toolJobService.DeleteJob(c.Request().Context(), id); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"message": "Job deleted"})
+}
+
+// DownloadToolJobResult streams the generated result file to the client with appropriate headers
+func (h *UtilityHandler) DownloadToolJobResult(c echo.Context) error {
+	if h.toolJobService == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Tool job service not initialized"})
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid job ID"})
+	}
+	job, err := h.toolJobService.GetJob(c.Request().Context(), id)
+	if err != nil || job == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"message": "Job not found"})
+	}
+	if job.Status != "completed" || job.OutputPath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "File belum siap atau proses belum selesai"})
+	}
+	if _, err := os.Stat(job.OutputPath); os.IsNotExist(err) {
+		return c.JSON(http.StatusNotFound, map[string]string{"message": "File hasil tidak ditemukan di server"})
+	}
+
+	dlName := filepath.Base(job.OutputPath)
+	return c.Attachment(job.OutputPath, dlName)
 }
 
 

@@ -1369,6 +1369,11 @@
     "badge_cuti_bersama": "Joint Holiday"
   },
   "tools": {
+    "priority_title": "Server Tools Jobs (Priority)",
+    "download_result": "Download Result",
+    "open_tool": "Open Tool",
+    "no_active_jobs": "No active tool background processes.",
+    "open_utilities": "Open Tools & Utilities",
     "sub_images": "Bulk convert image formats (WEBP, JPEG, PNG, AVIF) and compress size instantly in your browser.",
     "sub_documents": "Securely compress PDF documents locally without uploading to external servers.",
     "sub_bg": "Automatically remove photo or icon backgrounds with precision directly in your browser.",

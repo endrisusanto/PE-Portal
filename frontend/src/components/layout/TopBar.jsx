@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import { ThemePalettePicker } from '../common/ThemePalettePicker';
+import { NotificationDropdown } from './NotificationDropdown';
 import { Avatar } from '../common/Avatar';
 import styles from './TopBar.module.css';
 
@@ -26,6 +27,9 @@ export const TopBar = () => {
       </div>
 
       <div className={styles.right}>
+        {/* Global Notification Center with Prioritized Tools Progress */}
+        <NotificationDropdown />
+
         <LanguageSwitcher />
 
         {/* Decorative Theme & Color Scheme Picker */}

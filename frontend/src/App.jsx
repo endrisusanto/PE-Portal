@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoadingState } from './components/common/LoadingState';
 import { ThemeAnimatedBackground } from './components/common/ThemeAnimatedBackground';
@@ -66,70 +67,72 @@ export function App() {
         <ConfirmProvider>
           <BrowserRouter>
             <AuthProvider>
-            <ThemeAnimatedBackground />
-            <Routes>
-              {/* Public Login Route */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/share/:token" element={<SharedDocumentPage />} />
-              <Route
-                path="/chat"
-                element={
-                  <ProtectedRoute>
-                    <AiChatPage />
-                  </ProtectedRoute>
-                }
-              />
+              <NotificationProvider>
+                <ThemeAnimatedBackground />
+                <Routes>
+                  {/* Public Login Route */}
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/share/:token" element={<SharedDocumentPage />} />
+                  <Route
+                    path="/chat"
+                    element={
+                      <ProtectedRoute>
+                        <AiChatPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-              {/* Protected Application Routes */}
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <AppShell />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<DashboardPage />} />
-                <Route path="innovations" element={<InnovationsPage />} />
-                <Route path="gba-tasks" element={<GbaTasksPage />} />
-                <Route path="projects" element={<ProjectsPage />} />
-                <Route path="project-calendar" element={<ProjectCalendarPage />} />
-                <Route path="samples" element={<SampleManagementPage />} />
-                <Route path="samples/dhl-tracker" element={<DhlTrackerPage />} />
-                <Route path="software-mr" element={<SoftwareMRPage />} />
-                <Route path="gmes" element={<GmesMonitoringPage />} />
-                <Route path="training" element={<TrainingPage />} />
-                <Route path="models" element={<ModelsPage />} />
-                <Route path="articles" element={<ArticlesPage />} />
-                <Route path="ecn-monitoring" element={<EcnMonitoringPage />} />
-                <Route path="imei" element={<Navigate to="/articles" replace />} />
-                <Route path="documents" element={<DocumentsPage />} />
-                <Route path="tools" element={<UtilityPage />} />
-                <Route path="tools/:tab" element={<UtilityPage />} />
-                <Route path="utility" element={<Navigate to="/tools/images" replace />} />
-                <Route path="utility/:tab" element={<UtilityPage />} />
-                <Route path="team" element={<TeamPage />} />
-                <Route path="virtual-office" element={<VirtualOfficePage />} />
-                <Route path="reports" element={<ReportsPage />} />
-                <Route path="reports/new" element={<ReportEditorPage />} />
-                <Route path="reports/editor/:id" element={<ReportEditorPage />} />
-                <Route path="profile" element={<ProfilePage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route
-                  path="admin"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AdminPage />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
+                  {/* Protected Application Routes */}
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <AppShell />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<DashboardPage />} />
+                    <Route path="innovations" element={<InnovationsPage />} />
+                    <Route path="gba-tasks" element={<GbaTasksPage />} />
+                    <Route path="projects" element={<ProjectsPage />} />
+                    <Route path="project-calendar" element={<ProjectCalendarPage />} />
+                    <Route path="samples" element={<SampleManagementPage />} />
+                    <Route path="samples/dhl-tracker" element={<DhlTrackerPage />} />
+                    <Route path="software-mr" element={<SoftwareMRPage />} />
+                    <Route path="gmes" element={<GmesMonitoringPage />} />
+                    <Route path="training" element={<TrainingPage />} />
+                    <Route path="models" element={<ModelsPage />} />
+                    <Route path="articles" element={<ArticlesPage />} />
+                    <Route path="ecn-monitoring" element={<EcnMonitoringPage />} />
+                    <Route path="imei" element={<Navigate to="/articles" replace />} />
+                    <Route path="documents" element={<DocumentsPage />} />
+                    <Route path="tools" element={<UtilityPage />} />
+                    <Route path="tools/:tab" element={<UtilityPage />} />
+                    <Route path="utility" element={<Navigate to="/tools/images" replace />} />
+                    <Route path="utility/:tab" element={<UtilityPage />} />
+                    <Route path="team" element={<TeamPage />} />
+                    <Route path="virtual-office" element={<VirtualOfficePage />} />
+                    <Route path="reports" element={<ReportsPage />} />
+                    <Route path="reports/new" element={<ReportEditorPage />} />
+                    <Route path="reports/editor/:id" element={<ReportEditorPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route
+                      path="admin"
+                      element={
+                        <ProtectedRoute requireAdmin>
+                          <AdminPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Route>
 
-              {/* Catch-all Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
+                  {/* Catch-all Fallback */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </NotificationProvider>
+            </AuthProvider>
+          </BrowserRouter>
         </ConfirmProvider>
       </LanguageProvider>
     </ThemeProvider>

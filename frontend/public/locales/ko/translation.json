@@ -1369,6 +1369,11 @@
     "badge_cuti_bersama": "공동 대체휴일"
   },
   "tools": {
+    "priority_title": "서버 백그라운드 툴 작업 (우선순위)",
+    "download_result": "결과 다운로드",
+    "open_tool": "툴 열기",
+    "no_active_jobs": "현재 실행 중인 백그라운드 툴 작업이 없습니다.",
+    "open_utilities": "툴 및 유틸리티 열기",
     "sub_images": "브라우저 로컬에서 대량 이미지 포맷 변환(WEBP, JPEG, PNG, AVIF) 및 즉각적인 압축 지원.",
     "sub_documents": "외부 서버 업로드 없이 로컬 브라우저에서 안전하게 PDF 문서 압축.",
     "sub_bg": "브라우저에서 정밀하게 사진 및 아이콘 배경을 자동으로 투명 제거.",

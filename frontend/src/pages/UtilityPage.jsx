@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import api from '../api/client';
+import { useNotifications } from '../contexts/NotificationContext';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { RichMessageContent, formatInline } from '../components/chat/AiChatWindow';
@@ -2825,6 +2826,7 @@ const BuildCommandTab = () => {
 // ============================================================================
 const VideoCompressTab = () => {
   const { t } = useTranslation();
+  const { submitToolJob, toolsProgress, downloadJobResult } = useNotifications();
   const [file, setFile] = useState(null);
   const [videoSrc, setVideoSrc] = useState('');
   const [videoMeta, setVideoMeta] = useState(null); // { name, size, duration, width, height }
@@ -2835,15 +2837,50 @@ const VideoCompressTab = () => {
   const [compressing, setCompressing] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState('');
-  const [result, setResult] = useState(null); // { blob, url, originalSize, compressedSize, encoderUsed, filename }
+  const [result, setResult] = useState(null); // { blob, url, originalSize, compressedSize, encoderUsed, filename, jobId }
+  const [activeJobId, setActiveJobId] = useState(null);
 
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // Monitor active job from global notification context
+  const activeJob = useMemo(() => {
+    if (!activeJobId) return null;
+    return toolsProgress.find((j) => j.id === activeJobId) || null;
+  }, [activeJobId, toolsProgress]);
+
+  useEffect(() => {
+    if (activeJob) {
+      if (activeJob.status === 'completed') {
+        setCompressing(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+        const meta = typeof activeJob.result_meta === 'string'
+          ? JSON.parse(activeJob.result_meta || '{}')
+          : (activeJob.result_meta || {});
+        setResult({
+          jobId: activeJob.id,
+          url: `/api/v1/utility/jobs/${activeJob.id}/download`,
+          filename: `${file?.name?.replace(/\.[^/.]+$/, '') || 'video'}_compressed.mp4`,
+          originalSize: meta.original_size || file?.size,
+          compressedSize: meta.compressed_size,
+          encoderUsed: meta.encoder || encoder,
+        });
+      } else if (activeJob.status === 'failed') {
+        setCompressing(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+        setError(activeJob.error_message || 'Kompresi video gagal di server.');
+      } else if (activeJob.status === 'cancelled') {
+        setCompressing(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+        setError('Proses kompresi dibatalkan.');
+      }
+    }
+  }, [activeJob, file, encoder]);
+
   useEffect(() => {
     return () => {
       if (videoSrc) URL.revokeObjectURL(videoSrc);
-      if (result?.url) URL.revokeObjectURL(result.url);
+      if (result?.url && result?.blob) URL.revokeObjectURL(result.url);
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
@@ -2851,10 +2888,11 @@ const VideoCompressTab = () => {
   const handleSelectFile = (selected) => {
     if (!selected) return;
     if (videoSrc) URL.revokeObjectURL(videoSrc);
-    if (result?.url) URL.revokeObjectURL(result.url);
+    if (result?.url && result?.blob) URL.revokeObjectURL(result.url);
 
     setResult(null);
     setError('');
+    setActiveJobId(null);
     setFile(selected);
 
     const objectUrl = URL.createObjectURL(selected);
@@ -2904,6 +2942,7 @@ const VideoCompressTab = () => {
     setError('');
     setResult(null);
     setElapsedSeconds(0);
+    setActiveJobId(null);
 
     const startTime = Date.now();
     timerRef.current = setInterval(() => {
@@ -2918,55 +2957,30 @@ const VideoCompressTab = () => {
       formData.append('encoder', encoder);
       formData.append('mute_audio', muteAudio ? 'true' : 'false');
 
-      const response = await api.post('/utility/compress-video', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        responseType: 'blob',
-        timeout: 600000,
-      });
-
-      const blob = response.data;
-      const encoderUsed = response.headers['x-encoder-used'] || (encoder === 'cpu' ? 'libx264' : 'h264_vaapi');
-      const originalSize = parseInt(response.headers['x-original-size'], 10) || file.size;
-      const compressedSize = parseInt(response.headers['x-compressed-size'], 10) || blob.size;
-
-      const cleanName = file.name.replace(/\.[^/.]+$/, '');
-      const downloadName = `${cleanName}_compressed.mp4`;
-
-      const resultUrl = URL.createObjectURL(blob);
-      setResult({
-        blob,
-        url: resultUrl,
-        filename: downloadName,
-        originalSize,
-        compressedSize,
-        encoderUsed,
-      });
+      const job = await submitToolJob('video-compress', formData);
+      if (job && job.id) {
+        setActiveJobId(job.id);
+      }
     } catch (err) {
       console.error('Compression failed:', err);
       let errMsg = t('common.error', 'Gagal melakukan kompresi video.');
       if (err.response?.status === 413) {
         errMsg = t('video_compress.drop_desc', 'Ukuran berkas video melebihi batas upload server (Maksimal 1 GB).');
-      } else if (err.response?.data instanceof Blob) {
-        try {
-          const text = await err.response.data.text();
-          const json = JSON.parse(text);
-          errMsg = json.message || errMsg;
-        } catch {
-          // keep default
-        }
       } else if (err.response?.data?.message) {
         errMsg = err.response.data.message;
       }
       setError(errMsg);
-    } finally {
       setCompressing(false);
       if (timerRef.current) clearInterval(timerRef.current);
     }
   };
 
   const handleDownloadResult = () => {
-    if (!result?.blob) return;
-    safeDownloadBlob(result.blob, result.filename);
+    if (result?.jobId) {
+      downloadJobResult(result.jobId, result.filename);
+    } else if (result?.blob) {
+      safeDownloadBlob(result.blob, result.filename);
+    }
   };
 
   return (
@@ -3201,6 +3215,40 @@ const VideoCompressTab = () => {
               }}>
                 <AlertCircle size={16} />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {/* Server Background Process Status Box */}
+            {activeJob && (activeJob.status === 'pending' || activeJob.status === 'processing') && (
+              <div style={{
+                padding: '14px 18px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={14} /> Server Background Process ({activeJob.file_name})
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: '13px' }}>
+                    {Math.round(activeJob.progress_percent)}%
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '7px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.max(5, activeJob.progress_percent)}%`,
+                    height: '100%',
+                    background: 'var(--color-accent)',
+                    transition: 'width 200ms linear',
+                  }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
+                  <span>{activeJob.current_step || 'Memproses di server...'}</span>
+                  <span>{elapsedSeconds}s berlalu • Aman ditinggal (Pantau di Navbar)</span>
+                </div>
               </div>
             )}
 

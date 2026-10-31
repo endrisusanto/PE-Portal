@@ -1369,6 +1369,11 @@
     "badge_cuti_bersama": "Cuti Bersama"
   },
   "tools": {
+    "priority_title": "Proses Tools Server (Prioritas)",
+    "download_result": "Unduh Hasil",
+    "open_tool": "Buka Tool",
+    "no_active_jobs": "Belum ada proses tools yang berjalan.",
+    "open_utilities": "Buka Tools & Utilitas",
     "sub_images": "Bulk konversi format gambar (WEBP, JPEG, PNG, AVIF) & kompresi ukuran instan secara lokal di browser.",
     "sub_documents": "Kompresi file dokumen PDF secara aman dan lokal tanpa upload ke server eksternal.",
     "sub_bg": "Hapus background foto atau icon secara otomatis dan presisi langsung di browser Anda.",
