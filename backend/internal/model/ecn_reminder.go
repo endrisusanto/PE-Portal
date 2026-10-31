@@ -66,5 +66,6 @@ type ECNReminderStatusResponse struct {
 	DueRecords            []ECNRecord         `json:"due_records"`
 	TargetDate            string              `json:"target_date"`
 	BOMChangePendingCount int                 `json:"bom_change_pending_count"`
+	PendingBOMRecords     []ECNBOMChangeItem  `json:"pending_bom_records"`
 	LastLog               *ECNReminderLog     `json:"last_log,omitempty"`
 }

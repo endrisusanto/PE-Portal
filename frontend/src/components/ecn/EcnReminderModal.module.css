@@ -716,3 +716,319 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ========================================================================
+   Live Pending BOM Changes Batch Preview (ponytail: antislop-ui compliant)
+   ======================================================================== */
+.batchPreviewSection {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color var(--transition-fast, 120ms ease);
+}
+
+.batchPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast, 120ms ease);
+}
+
+.batchPreviewHeader:hover {
+  background: var(--color-bg-hover);
+}
+
+.batchPreviewTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batchPreviewIcon {
+  color: var(--color-accent, #0d7377);
+  flex-shrink: 0;
+}
+
+.batchPreviewTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.batchPreviewCountPill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.batchPreviewCountActive {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.batchPreviewToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+}
+
+.batchPreviewToggleText {
+  font-size: 11px;
+}
+
+.batchPreviewBody {
+  padding: 12px;
+  background: var(--color-bg-primary);
+}
+
+.batchPreviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.batchPreviewList::-webkit-scrollbar {
+  width: 5px;
+}
+
+.batchPreviewList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.batchPreviewList::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.batchPreviewCard {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+.batchPreviewCard:hover {
+  border-color: var(--color-border-hover, #64748b);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.batchCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.batchCardBadges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.batchEcnChip {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.batchModelBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(13, 115, 119, 0.1);
+  color: var(--color-accent, #0d7377);
+  border: 1px solid rgba(13, 115, 119, 0.2);
+}
+
+.batchProcessBadge {
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.batchStatusBadge {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.batchTimestamp {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.batchCardTitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.batchDiffRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 6px 10px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+}
+
+.batchDiffCol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batchDiffLabel {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.batchDiffValues {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.batchOldDate {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #dc2626;
+  text-decoration: line-through;
+  background: rgba(220, 38, 38, 0.08);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.batchDiffArrow {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.batchNewDate {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.batchPartValues {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.batchPartOld {
+  color: var(--color-text-muted);
+}
+
+.batchPartNew {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.batchCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.batchAuthorInfo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.batchAuthorInfo strong {
+  color: var(--color-text-primary);
+}
+
+.batchRemarkText {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.batchEmptyCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-bg-secondary);
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+}
+
+.batchEmptyIcon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.batchEmptyText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.batchEmptyTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.batchEmptySubtitle {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+

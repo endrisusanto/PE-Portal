@@ -414,6 +414,13 @@ func main() {
 	api.POST("/ecn/bulk-delete", ecnHandler.BulkDelete, middleware.RequireRole("admin", "manager"))
 	api.POST("/ecn/parse-excel", ecnHandler.ParseExcel)
 
+	// ECN PLM Workflow & Approval Actions
+	api.POST("/ecn/:id/purchasing-shift", ecnHandler.PurchasingShiftBOM)
+	api.POST("/ecn/:id/request-approval", ecnHandler.RequestApproval)
+	api.POST("/ecn/:id/approve-plm", ecnHandler.ApprovePLM)
+	api.POST("/ecn/:id/reject-plm", ecnHandler.RejectPLM)
+	api.POST("/ecn/:id/confirm-plm-update", ecnHandler.ConfirmPLMUpdate)
+
 	// ECN Running BOM Deadline Reminder settings, test send, and logs
 	api.GET("/ecn/reminder/settings", ecnReminderHandler.GetSettings)
 	api.PUT("/ecn/reminder/settings", ecnReminderHandler.SaveSettings)

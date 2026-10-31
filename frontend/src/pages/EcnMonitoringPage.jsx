@@ -37,11 +37,17 @@ import {
   History,
   Edit3,
   ShieldCheck,
+  UserCheck,
+  Database,
+  ArrowRight,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/common/Modal';
 import { EcnReminderModal } from '../components/ecn/EcnReminderModal';
+import { EcnStepper } from '../components/ecn/EcnStepper';
+import { EcnWorkflowModal } from '../components/ecn/EcnWorkflowModal';
+import { EcnPurchasingShiftModal } from '../components/ecn/EcnPurchasingShiftModal';
 import { RichMessageContent } from '../components/chat/AiChatWindow';
 import { AiThinkingProgress } from '../components/common/AiThinkingProgress';
 import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
@@ -71,37 +77,39 @@ const parsePartChange = (remark, ecTitle) => {
 
 const DEFAULT_COLUMN_WIDTHS = {
   ecn_no: 135,
-  model: 115,
-  function_type: 95,
-  process: 90,
+  model: 110,
+  running_date_bom: 130,
+  status: 240,
   ec_title: 220,
+  part_change: 190,
   part_before: 130,
   part_after: 130,
+  function_type: 95,
+  process: 85,
   child_code: 125,
   child_name: 180,
   specification: 180,
   quantity: 70,
-  running_date_bom: 125,
   distribution_date: 125,
-  status: 115,
   author_name: 150,
 };
 
 const MIN_COLUMN_WIDTHS = {
   ecn_no: 90,
   model: 70,
-  function_type: 65,
-  process: 65,
+  running_date_bom: 95,
+  status: 160,
   ec_title: 110,
+  part_change: 120,
   part_before: 85,
   part_after: 85,
+  function_type: 65,
+  process: 65,
   child_code: 80,
   child_name: 90,
   specification: 90,
   quantity: 50,
-  running_date_bom: 90,
   distribution_date: 90,
-  status: 80,
   author_name: 90,
 };
 
@@ -238,6 +246,34 @@ export const EcnMonitoringPage = () => {
 
   // --- Modals State ---
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [workflowModalState, setWorkflowModalState] = useState({
+    isOpen: false,
+    item: null,
+    mode: 'request_approval',
+  });
+
+  const handleOpenWorkflow = (item, mode) => {
+    setWorkflowModalState({
+      isOpen: true,
+      item,
+      mode,
+    });
+  };
+
+  const [purchasingShiftModal, setPurchasingShiftModal] = useState({
+    isOpen: false,
+    item: null,
+  });
+
+  const handleOpenPurchasingShift = (item) => {
+    setPurchasingShiftModal({
+      isOpen: true,
+      item,
+    });
+  };
+
+  // Main Tab Navigation state: 'all' | 'in_progress' | 'bom_queue' | 'completed'
+  const [mainTab, setMainTab] = useState('all');
   // ponytail: active reminder schedule & due count badge state
   const [reminderStatus, setReminderStatus] = useState(null);
 
@@ -344,8 +380,8 @@ export const EcnMonitoringPage = () => {
     }
   };
 
-  // --- AI Chatbot Accordion State ---
-  const [isAiAccordionOpen, setIsAiAccordionOpen] = useState(true);
+  // --- AI Chatbot Accordion State (ponytail: default collapsed) ---
+  const [isAiAccordionOpen, setIsAiAccordionOpen] = useState(false);
   const chatScrollRef = useRef(null);
   const [chatMessages, setChatMessages] = useState([
     {
@@ -415,16 +451,17 @@ export const EcnMonitoringPage = () => {
     return () => clearTimeout(handler);
   }, [colFilters]);
 
-  // Reset page when toolbar filters change
+  // Reset page when toolbar filters or main tab changes
   useEffect(() => {
     setPage(1);
-  }, [selectedModel, selectedStatus, selectedProcess, selectedFunction]);
+  }, [mainTab, selectedModel, selectedStatus, selectedProcess, selectedFunction]);
 
   // Fetch ECN Records List from Backend (Server-side whole database filter & pagination)
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
+        tab: mainTab !== 'all' ? mainTab : undefined,
         page,
         limit,
         search: debouncedSearch,
@@ -464,6 +501,7 @@ export const EcnMonitoringPage = () => {
   }, [
     page,
     limit,
+    mainTab,
     debouncedSearch,
     debouncedColFilters,
     selectedModel,
@@ -1219,6 +1257,23 @@ ${
     return `${styles.statusBadge} ${styles.statusDefault}`;
   };
 
+  const formatPlmStatusLabel = (status) => {
+    switch (status) {
+      case 'PENDING_BOM_REVIEW':
+        return 'Pending BOM Review';
+      case 'WAITING_MODEL_APPROVAL':
+        return 'Waiting Model Approval';
+      case 'APPROVED_FOR_PLM':
+        return 'Approved for PLM';
+      case 'PLM_UPDATED':
+        return 'PLM Synced';
+      case 'REJECTED':
+        return 'Rejected';
+      default:
+        return status ? status.replace(/_/g, ' ') : '';
+    }
+  };
+
   return (
     <div className={styles.container}>
       {/* Page Header */}
@@ -1562,6 +1617,55 @@ ${
           MAIN TABLE CONTAINER & TOOLBAR
           ======================================================================== */}
       <div className={styles.tableContainer}>
+        {/* Main Tab Navigation (ponytail: quick switch between all and in-progress) */}
+        <div className={styles.pageTabBar}>
+          <button
+            type="button"
+            className={`${styles.pageTabBtn} ${mainTab === 'all' ? styles.pageTabBtnActive : ''}`}
+            onClick={() => setMainTab('all')}
+          >
+            <Layers size={14} />
+            <span>{t('ecn.tabs.all', 'Semua Dokumen ECN')}</span>
+            <span className={styles.pageTabCount}>{stats.total?.toLocaleString() || 0}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.pageTabBtn} ${mainTab === 'in_progress' ? styles.pageTabBtnActive : ''}`}
+            onClick={() => setMainTab('in_progress')}
+          >
+            <Clock size={14} />
+            <span>{t('ecn.tabs.in_progress', 'Sedang Diprogress')}</span>
+            <span className={`${styles.pageTabCount} ${((stats.in_progress || 0) + (stats.pending || 0)) > 0 ? styles.pageTabCountWarn : ''}`}>
+              {((stats.in_progress || 0) + (stats.pending || 0)).toLocaleString()}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.pageTabBtn} ${mainTab === 'bom_queue' ? styles.pageTabBtnActive : ''}`}
+            onClick={() => setMainTab('bom_queue')}
+          >
+            <Calendar size={14} />
+            <span>{t('ecn.tabs.bom_queue', 'Perubahan BOM & PLM')}</span>
+            {(reminderStatus?.bom_change_pending_count || 0) > 0 && (
+              <span className={`${styles.pageTabCount} ${styles.pageTabCountWarn}`}>
+                {reminderStatus.bom_change_pending_count}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.pageTabBtn} ${mainTab === 'completed' ? styles.pageTabBtnActive : ''}`}
+            onClick={() => setMainTab('completed')}
+          >
+            <CheckCircle2 size={14} />
+            <span>{t('ecn.tabs.completed', 'Selesai')}</span>
+            <span className={styles.pageTabCount}>{stats.completed?.toLocaleString() || 0}</span>
+          </button>
+        </div>
+
         {/* Global Toolbar */}
         <div className={styles.tableToolbar}>
           <div className={styles.toolbarFilters}>
@@ -1742,18 +1846,17 @@ ${
                 {[
                   { key: 'ecn_no', label: t('ecn.table.ecn_no', 'ECN NO') },
                   { key: 'model', label: t('ecn.table.model', 'Model') },
+                  { key: 'running_date_bom', label: t('ecn.table.running_bom', 'Running BOM') },
+                  { key: 'status', label: t('ecn.table.status', 'Status & Workflow') },
+                  { key: 'ec_title', label: t('ecn.table.ec_title', 'EC Title') },
+                  { key: 'part_change', label: t('ecn.table.part_change', 'Part (Before ➔ After)') },
                   { key: 'function_type', label: t('ecn.table.function', 'Function') },
                   { key: 'process', label: t('ecn.table.process', 'Process') },
-                  { key: 'ec_title', label: t('ecn.table.ec_title', 'EC Title') },
-                  { key: 'part_before', label: t('ecn.table.part_before', 'Part (Before)') },
-                  { key: 'part_after', label: t('ecn.table.part_after', 'Part (After)') },
                   { key: 'child_code', label: t('ecn.table.child_code', 'Item Code') },
                   { key: 'child_name', label: t('ecn.table.child_name', 'Part Description') },
                   { key: 'specification', label: t('ecn.table.specification', 'Specification') },
                   { key: 'quantity', label: t('ecn.table.quantity', 'Qty') },
-                  { key: 'running_date_bom', label: t('ecn.table.running_bom', 'Running BOM') },
                   { key: 'distribution_date', label: t('ecn.table.dist_date', 'Dist Date') },
-                  { key: 'status', label: t('ecn.table.status', 'Status') },
                   { key: 'author_name', label: t('ecn.table.author', 'Uploader & Waktu') },
                 ].map((col) => {
                   const width = colWidths[col.key] || DEFAULT_COLUMN_WIDTHS[col.key] || 120;
@@ -1845,6 +1948,54 @@ ${
                   />
                 </th>
                 <th>
+                  <input
+                    type="date"
+                    className={styles.colFilterDate}
+                    title={t('ecn.table.running_bom', 'Pilih tanggal Running BOM')}
+                    value={colFilters.running_date_bom}
+                    onChange={(e) => setColFilters({ ...colFilters, running_date_bom: e.target.value })}
+                    onClick={(e) => {
+                      try {
+                        e.target.showPicker?.();
+                      } catch (_) {}
+                    }}
+                  />
+                </th>
+                <th>
+                  <select
+                    className={styles.colFilterSelect}
+                    value={colFilters.status}
+                    onChange={(e) => setColFilters({ ...colFilters, status: e.target.value })}
+                  >
+                    <option value="">{t('common.all', 'Semua Status')}</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Progress">Progress</option>
+                    <option value="Pending">Pending</option>
+                    <option value="ECO Cancel">ECO Cancel</option>
+                  </select>
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder={t('ecn.filter.search_placeholder', 'Cari title...')}
+                    value={colFilters.ec_title}
+                    onChange={(e) => setColFilters({ ...colFilters, ec_title: e.target.value })}
+                  />
+                </th>
+                <th>
+                  <input
+                    type="text"
+                    className={styles.colFilterInput}
+                    placeholder="Filter part..."
+                    value={colFilters.part_before || colFilters.part_after}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setColFilters({ ...colFilters, part_before: val, part_after: val });
+                    }}
+                  />
+                </th>
+                <th>
                   <select
                     className={styles.colFilterSelect}
                     value={colFilters.function_type}
@@ -1869,33 +2020,6 @@ ${
                     <option value="Vendor">Vendor</option>
                     <option value="PBA">PBA</option>
                   </select>
-                </th>
-                <th>
-                  <input
-                    type="text"
-                    className={styles.colFilterInput}
-                    placeholder={t('ecn.filter.search_placeholder', 'Cari title...')}
-                    value={colFilters.ec_title}
-                    onChange={(e) => setColFilters({ ...colFilters, ec_title: e.target.value })}
-                  />
-                </th>
-                <th>
-                  <input
-                    type="text"
-                    className={styles.colFilterInput}
-                    placeholder="Part before..."
-                    value={colFilters.part_before}
-                    onChange={(e) => setColFilters({ ...colFilters, part_before: e.target.value })}
-                  />
-                </th>
-                <th>
-                  <input
-                    type="text"
-                    className={styles.colFilterInput}
-                    placeholder="Part after..."
-                    value={colFilters.part_after}
-                    onChange={(e) => setColFilters({ ...colFilters, part_after: e.target.value })}
-                  />
                 </th>
                 <th>
                   <input
@@ -1937,20 +2061,6 @@ ${
                   <input
                     type="date"
                     className={styles.colFilterDate}
-                    title={t('ecn.table.running_bom', 'Pilih tanggal Running BOM')}
-                    value={colFilters.running_date_bom}
-                    onChange={(e) => setColFilters({ ...colFilters, running_date_bom: e.target.value })}
-                    onClick={(e) => {
-                      try {
-                        e.target.showPicker?.();
-                      } catch (_) {}
-                    }}
-                  />
-                </th>
-                <th>
-                  <input
-                    type="date"
-                    className={styles.colFilterDate}
                     title={t('ecn.table.dist_date', 'Pilih tanggal Distribution Date')}
                     value={colFilters.distribution_date}
                     onChange={(e) => setColFilters({ ...colFilters, distribution_date: e.target.value })}
@@ -1960,19 +2070,6 @@ ${
                       } catch (_) {}
                     }}
                   />
-                </th>
-                <th>
-                  <select
-                    className={styles.colFilterSelect}
-                    value={colFilters.status}
-                    onChange={(e) => setColFilters({ ...colFilters, status: e.target.value })}
-                  >
-                    <option value="">{t('common.all', 'Semua')}</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Progress">Progress</option>
-                    <option value="Pending">Pending</option>
-                    <option value="ECO Cancel">ECO Cancel</option>
-                  </select>
                 </th>
                 <th>
                   <input
@@ -2040,10 +2137,12 @@ ${
                   const partChange = parsePartChange(item.remark, item.ec_title);
                   const partBefore = item.part_before || partChange.before;
                   const partAfter = item.part_after || partChange.after;
-                  const isEcnBom = Boolean(
-                    (item.ec_title && item.ec_title.toUpperCase().includes('[ECN-BOM]')) ||
-                    (partBefore && partAfter)
-                  );
+                  const hasEcnBomInTitle = Boolean(item.ec_title && item.ec_title.toUpperCase().includes('[ECN-BOM]'));
+                  const isEcnBom = Boolean(hasEcnBomInTitle || (partBefore && partAfter));
+                  // ponytail: Clean raw [ECN-BOM] text prefix so it is universally rendered via the uniform styled badge
+                  const cleanEcTitle = item.ec_title
+                    ? item.ec_title.replace(/^\[ECN-BOM\]\s*/i, '').replace(/\[ECN-BOM\]\s*/gi, '').trim()
+                    : '';
                   return (
                     <React.Fragment key={item.id}>
                       <tr className={`${isExpanded ? styles.rowExpanded : ''} ${selectedIds.has(item.id) ? styles.rowSelected : ''}`}>
@@ -2094,46 +2193,130 @@ ${
                           <span className={styles.modelBadge}>{item.model || '-'}</span>
                         </td>
 
+                        {/* Running Date BOM (Highlighted Critical Milestone - ponytail) */}
+                        <td style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {item.running_date_bom ? (
+                              <span className={styles.runningBomBadge} title={`Running BOM Target: ${item.running_date_bom}`}>
+                                <Calendar size={12} className={styles.runningBomIcon} />
+                                {item.running_date_bom}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                            )}
+                            <button
+                              type="button"
+                              className={styles.editBomShiftBtn}
+                              onClick={() => handleOpenPurchasingShift(item)}
+                              title="Ubah Jadwal Running BOM & Catatan Klarifikasi (Purchasing)"
+                            >
+                              <Edit3 size={11} />
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Status & Stepper & Quick Action */}
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <span className={getStatusBadgeClass(item.status)}>{item.status || 'Pending'}</span>
+                                {item.plm_status && item.plm_status !== 'NONE' && (
+                                  <span className={styles.plmStatusTag} title={`PLM Status: ${item.plm_status}`}>
+                                    {formatPlmStatusLabel(item.plm_status)}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* 1-Click Quick Action Button */}
+                              {item.plm_status === 'PENDING_BOM_REVIEW' && (
+                                <button
+                                  type="button"
+                                  className={styles.quickWorkflowBtn}
+                                  onClick={() => handleOpenWorkflow(item, 'request_approval')}
+                                  title="Minta approval PIC Model"
+                                >
+                                  <Send size={11} /> Minta Approval
+                                </button>
+                              )}
+                              {item.plm_status === 'WAITING_MODEL_APPROVAL' && (
+                                <button
+                                  type="button"
+                                  className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnApprove}`}
+                                  onClick={() => handleOpenWorkflow(item, 'model_approval')}
+                                  title="Persetujuan PIC Model"
+                                >
+                                  <UserCheck size={11} /> Review & Approve
+                                </button>
+                              )}
+                              {item.plm_status === 'APPROVED_FOR_PLM' && (
+                                <button
+                                  type="button"
+                                  className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnPlm}`}
+                                  onClick={() => handleOpenWorkflow(item, 'confirm_plm')}
+                                  title="Konfirmasi update PLM Samsung"
+                                >
+                                  <Database size={11} /> Update PLM
+                                </button>
+                              )}
+                              {(!item.plm_status || item.plm_status === 'NONE') && isEcnBom && item.status !== 'Completed' && item.status !== 'ECO Cancel' && (
+                                <button
+                                  type="button"
+                                  className={styles.quickWorkflowBtnGhost}
+                                  onClick={() => handleOpenWorkflow(item, 'request_approval')}
+                                  title="Mulai workflow persetujuan BOM"
+                                >
+                                  <Sparkles size={10} /> Alur BOM
+                                </button>
+                              )}
+                            </div>
+                            <EcnStepper item={item} detailed={false} />
+                          </div>
+                        </td>
+
+                        {/* EC Title */}
+                        <td style={{ maxWidth: '240px', fontWeight: 500 }} title={item.ec_title}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {isEcnBom && (
+                              <span className={styles.ecnBomTag}>[ECN-BOM]</span>
+                            )}
+                            {cleanEcTitle || item.ec_title || '-'}
+                          </div>
+                        </td>
+
+                        {/* Part (Before ➔ After) - Compact */}
+                        <td>
+                          {(partBefore || partAfter) ? (
+                            <div className={styles.partChangeWrapper}>
+                              {partBefore ? (
+                                <span className={styles.partBeforeBadge} title={`Part Lama (Before): ${partBefore}`}>
+                                  <span className={styles.partSubTagOld}>OLD</span>
+                                  <span className={styles.partMono}>{partBefore}</span>
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                              )}
+                              <ArrowRight size={11} className={styles.partArrow} />
+                              {partAfter ? (
+                                <span className={styles.partAfterBadge} title={`Part Baru (After): ${partAfter}`}>
+                                  <span className={styles.partSubTagNew}>NEW</span>
+                                  <span className={styles.partMono}>{partAfter}</span>
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)' }}>-</span>
+                          )}
+                        </td>
+
                         {/* Function Type */}
                         <td>{item.function_type || '-'}</td>
 
                         {/* Process */}
                         <td>
                           <span className={styles.processBadge}>{item.process || '-'}</span>
-                        </td>
-
-                        {/* EC Title */}
-                        <td style={{ maxWidth: '240px', fontWeight: 500 }} title={item.ec_title}>
-                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {isEcnBom && !item.ec_title?.toUpperCase().includes('[ECN-BOM]') && (
-                              <span className={styles.ecnBomTag}>[ECN-BOM]</span>
-                            )}
-                            {item.ec_title || '-'}
-                          </div>
-                        </td>
-
-                        {/* Part Before (Lama) - ponytail */}
-                        <td>
-                          {partBefore ? (
-                            <span className={styles.partBeforeBadge} title={`Part Lama (Before): ${partBefore}`}>
-                              <span className={styles.partSubTagOld}>OLD</span>
-                              <span className={styles.partMono}>{partBefore}</span>
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--color-text-muted)' }}>-</span>
-                          )}
-                        </td>
-
-                        {/* Part After (Baru) - ponytail */}
-                        <td>
-                          {partAfter ? (
-                            <span className={styles.partAfterBadge} title={`Part Baru (After): ${partAfter}`}>
-                              <span className={styles.partSubTagNew}>NEW</span>
-                              <span className={styles.partMono}>{partAfter}</span>
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--color-text-muted)' }}>-</span>
-                          )}
                         </td>
 
                         {/* Child Code */}
@@ -2160,26 +2343,9 @@ ${
                         {/* Quantity */}
                         <td style={{ textAlign: 'center' }}>{item.quantity || '-'}</td>
 
-                        {/* Running Date BOM (Highlighted Critical Milestone - ponytail) */}
-                        <td style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                          {item.running_date_bom ? (
-                            <span className={styles.runningBomBadge} title={`Running BOM Target: ${item.running_date_bom}`}>
-                              <Calendar size={12} className={styles.runningBomIcon} />
-                              {item.running_date_bom}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--color-text-muted)' }}>-</span>
-                          )}
-                        </td>
-
                         {/* Distribution Date */}
                         <td style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                           {item.distribution_date || '-'}
-                        </td>
-
-                        {/* Status */}
-                        <td>
-                          <span className={getStatusBadgeClass(item.status)}>{item.status || 'Pending'}</span>
                         </td>
 
                         {/* Author & Timestamp (Latest Update - ponytail) */}
@@ -2238,8 +2404,40 @@ ${
                       {/* Expandable Full Detail */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={totalColSpan} style={{ padding: 0 }}>
-                            <div className={styles.detailGrid}>
+                          <td colSpan={totalColSpan} style={{ padding: '12px 16px', background: 'var(--color-bg-tertiary)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {/* Workflow & Approval Stepper */}
+                              <EcnStepper item={item} detailed={true} />
+
+                              {/* Purchasing (PIC A) Clarification Card in Expanded Row */}
+                              {item.plm_change_reason && (
+                                <div style={{
+                                  background: 'rgba(245, 158, 11, 0.08)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  borderRadius: '8px',
+                                  padding: '10px 14px',
+                                  fontSize: '12px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '4px',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                    <strong style={{ color: '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <Clock size={13} /> Klarifikasi Jadwal Running BOM (Purchasing / PIC A):
+                                    </strong>
+                                    {item.plm_vendor_eta && (
+                                      <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                        ETA Vendor: {item.plm_vendor_eta}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
+                                    {item.plm_change_reason}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className={styles.detailGrid}>
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>{t('ecn.detail.parent_code', 'Parent Code')}</span>
                                 <span className={styles.detailValue} style={{ fontFamily: 'var(--font-mono, monospace)' }}>
@@ -2328,8 +2526,9 @@ ${
                                 )}
                               </div>
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                        </td>
+                      </tr>
                       )}
                     </React.Fragment>
                   );
@@ -3332,6 +3531,29 @@ ${
         onClose={() => {
           setIsReminderModalOpen(false);
           fetchReminderStatus();
+        }}
+      />
+
+      {/* ECN PLM Workflow Modal (BOM Team & PIC Model Approval) */}
+      <EcnWorkflowModal
+        isOpen={workflowModalState.isOpen}
+        onClose={() => setWorkflowModalState((prev) => ({ ...prev, isOpen: false }))}
+        item={workflowModalState.item}
+        mode={workflowModalState.mode}
+        onSuccess={() => {
+          fetchRecords();
+          fetchStats();
+        }}
+      />
+
+      {/* ECN Purchasing BOM Shift & Clarification Note Modal */}
+      <EcnPurchasingShiftModal
+        isOpen={purchasingShiftModal.isOpen}
+        onClose={() => setPurchasingShiftModal((prev) => ({ ...prev, isOpen: false }))}
+        item={purchasingShiftModal.item}
+        onSuccess={() => {
+          fetchRecords();
+          fetchStats();
         }}
       />
     </div>

@@ -49,14 +49,18 @@ func (h *ECNReminderHandler) GetSettings(c echo.Context) error {
 	}
 
 	lastLog, _ := h.repo.GetLastLog(ctx)
-	pendingBOMCount, _ := h.repo.GetPendingBOMChangeCount(ctx)
+	pendingBOMRecords, err := h.repo.GetPendingBOMChangeRecords(ctx)
+	if err != nil {
+		pendingBOMRecords = []model.ECNBOMChangeItem{}
+	}
 
 	resp := model.ECNReminderStatusResponse{
 		Settings:              *settings,
 		DueCount:              len(dueRecords),
 		DueRecords:            dueRecords,
 		TargetDate:            targetDateStr,
-		BOMChangePendingCount: pendingBOMCount,
+		BOMChangePendingCount: len(pendingBOMRecords),
+		PendingBOMRecords:     pendingBOMRecords,
 		LastLog:               lastLog,
 	}
 

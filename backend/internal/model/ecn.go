@@ -38,6 +38,22 @@ type ECNRecord struct {
 	UpdaterName      string     `json:"updater_name,omitempty"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+
+	// PLM Workflow & Stepper Tracking (Migration 039)
+	PLMStatus          string     `json:"plm_status"`
+	PLMNewModelID      *uuid.UUID `json:"plm_new_model_id,omitempty"`
+	PLMPICModelID      *uuid.UUID `json:"plm_pic_model_id,omitempty"`
+	PLMPICModelName    string     `json:"plm_pic_model_name,omitempty"`
+	PLMModelStage      string     `json:"plm_model_stage,omitempty"`
+	PLMChangeReason    string     `json:"plm_change_reason,omitempty"`
+	PLMVendorETA       *string    `json:"plm_vendor_eta,omitempty"`
+	PLMModelApprovedAt *time.Time `json:"plm_model_approved_at,omitempty"`
+	PLMModelNote       string     `json:"plm_model_note,omitempty"`
+	PLMEcoNo           string     `json:"plm_eco_no,omitempty"`
+	PLMUpdatedAt       *time.Time `json:"plm_updated_at,omitempty"`
+	PLMUpdatedBy       *uuid.UUID `json:"plm_updated_by,omitempty"`
+	PLMUpdatedByName   string     `json:"plm_updated_by_name,omitempty"`
+	PLMFeedbackNote    string     `json:"plm_feedback_note,omitempty"`
 }
 
 // ECNChangeLog represents an audit log entry for changes made to an ECN record
@@ -54,6 +70,7 @@ type ECNChangeLog struct {
 
 // ECNListQuery parameters for filtering, searching, and pagination.
 type ECNListQuery struct {
+	Tab              string `query:"tab"` // "all", "in_progress", "bom_queue", "completed"
 	Page             int    `query:"page"`
 	Limit            int    `query:"limit"`
 	Search           string `query:"search"`
@@ -112,3 +129,12 @@ type ECNStatsSummary struct {
 	UniqueModels int            `json:"unique_models"`
 	ModelCounts  map[string]int `json:"model_counts"`
 }
+
+// PurchasingBOMShiftRequest represents payload from Purchasing (PIC A) when shifting Running BOM date
+type PurchasingBOMShiftRequest struct {
+	NewRunningDateBOM string  `json:"new_running_date_bom"`
+	ReasonCategory    string  `json:"reason_category"`
+	ClarificationNote string  `json:"clarification_note"`
+	VendorETA         *string `json:"vendor_eta,omitempty"`
+}
+

@@ -11,6 +11,13 @@ import {
   CheckCircle2,
   Plus,
   X,
+  ArrowRight,
+  Layers,
+  User,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  Inbox,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
@@ -58,6 +65,8 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
   const [bomChangeCcRecipients, setBomChangeCcRecipients] = useState('');
   const [bomChangeEmailSubject, setBomChangeEmailSubject] = useState('[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)');
   const [bomChangePendingCount, setBomChangePendingCount] = useState(0);
+  const [bomChangeRecords, setBomChangeRecords] = useState([]);
+  const [isBatchPreviewExpanded, setIsBatchPreviewExpanded] = useState(true);
   const [testingBomChange, setTestingBomChange] = useState(false);
 
   // Status & Info from Backend
@@ -97,6 +106,7 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
       setBomChangeCcRecipients(s.bom_change_cc_recipients || '');
       setBomChangeEmailSubject(s.bom_change_email_subject || '[UPDATE] Perubahan Jadwal Running BOM ({count} ECN)');
       setBomChangePendingCount(data.bom_change_pending_count || 0);
+      setBomChangeRecords(data.pending_bom_records || []);
 
       setDueCount(data.due_count || 0);
       setDueRecords(data.due_records || []);
@@ -727,6 +737,135 @@ export const EcnReminderModal = ({ isOpen, onClose }) => {
                     : t('ecn.reminder.no_pending_batch', '0 Perubahan Menunggu')}
                 </span>
               </div>
+            </div>
+
+            {/* Live Pending Batch Preview Section */}
+            <div className={styles.batchPreviewSection}>
+              <div
+                className={styles.batchPreviewHeader}
+                onClick={() => setIsBatchPreviewExpanded(!isBatchPreviewExpanded)}
+                role="button"
+                tabIndex={0}
+              >
+                <div className={styles.batchPreviewTitleRow}>
+                  <CalendarDays size={14} className={styles.batchPreviewIcon} />
+                  <span className={styles.batchPreviewTitle}>
+                    {t('ecn.reminder.preview_title', 'Daftar Perubahan Jadwal yang Menunggu Batch')}
+                  </span>
+                  <span className={`${styles.batchPreviewCountPill} ${bomChangeRecords.length > 0 ? styles.batchPreviewCountActive : ''}`}>
+                    {bomChangeRecords.length} ECN
+                  </span>
+                </div>
+                <div className={styles.batchPreviewToggle}>
+                  <span className={styles.batchPreviewToggleText}>
+                    {isBatchPreviewExpanded
+                      ? t('common.collapse', 'Tutup')
+                      : t('common.expand', 'Lihat Detail')}
+                  </span>
+                  {isBatchPreviewExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </div>
+              </div>
+
+              {isBatchPreviewExpanded && (
+                <div className={styles.batchPreviewBody}>
+                  {bomChangeRecords.length > 0 ? (
+                    <div className={styles.batchPreviewList}>
+                      {bomChangeRecords.map((item, idx) => (
+                        <div key={item.log_id || `${item.ecn_no}-${idx}`} className={styles.batchPreviewCard}>
+                          <div className={styles.batchCardTop}>
+                            <div className={styles.batchCardBadges}>
+                              <span className={styles.batchEcnChip} title={item.ecn_no}>
+                                {item.ecn_no}
+                              </span>
+                              {item.model && (
+                                <span className={styles.batchModelBadge}>
+                                  {item.model}
+                                </span>
+                              )}
+                              {item.process && (
+                                <span className={styles.batchProcessBadge}>
+                                  {item.process}
+                                </span>
+                              )}
+                              {item.status && (
+                                <span className={styles.batchStatusBadge}>
+                                  {item.status}
+                                </span>
+                              )}
+                            </div>
+                            <span className={styles.batchTimestamp}>
+                              {item.created_at ? new Date(item.created_at).toLocaleString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              }) + ' WIB' : '-'}
+                            </span>
+                          </div>
+
+                          {item.ec_title && (
+                            <div className={styles.batchCardTitle}>
+                              {item.ec_title}
+                            </div>
+                          )}
+
+                          <div className={styles.batchDiffRow}>
+                            <div className={styles.batchDiffCol}>
+                              <span className={styles.batchDiffLabel}>
+                                {t('ecn.reminder.diff_running_bom', 'Running BOM Date')}:
+                              </span>
+                              <div className={styles.batchDiffValues}>
+                                <span className={styles.batchOldDate} title="Jadwal Lama">
+                                  {item.old_date || '-'}
+                                </span>
+                                <ArrowRight size={13} className={styles.batchDiffArrow} />
+                                <span className={styles.batchNewDate} title="Jadwal Baru">
+                                  {item.new_date || '-'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {(item.part_before || item.part_after) && (
+                              <div className={styles.batchDiffCol}>
+                                <span className={styles.batchDiffLabel}>Part BOM:</span>
+                                <div className={styles.batchPartValues}>
+                                  <span className={styles.batchPartOld}>{item.part_before || '-'}</span>
+                                  <ArrowRight size={12} className={styles.batchDiffArrow} />
+                                  <span className={styles.batchPartNew}>{item.part_after || '-'}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className={styles.batchCardFooter}>
+                            <div className={styles.batchAuthorInfo}>
+                              <User size={12} style={{ opacity: 0.7 }} />
+                              <span>{t('ecn.reminder.changed_by', 'Diubah oleh')}: <strong>{item.changed_by_name || 'Purchasing / System'}</strong></span>
+                            </div>
+                            {item.remark && (
+                              <div className={styles.batchRemarkText} title={item.remark}>
+                                {item.remark}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={styles.batchEmptyCard}>
+                      <Inbox size={22} className={styles.batchEmptyIcon} />
+                      <div className={styles.batchEmptyText}>
+                        <span className={styles.batchEmptyTitle}>
+                          {t('ecn.reminder.no_changes_title', 'Belum Ada Perubahan Running BOM yang Menunggu')}
+                        </span>
+                        <span className={styles.batchEmptySubtitle}>
+                          {t('ecn.reminder.no_changes_sub', 'Semua perubahan jadwal Running BOM telah diproses dan terkirim dalam batch sebelumnya.')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Master Switch Row */}

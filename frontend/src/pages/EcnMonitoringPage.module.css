@@ -510,6 +510,184 @@
   flex-direction: column;
 }
 
+/* Main Page Tab Bar (ponytail: antislop-ui compliant) */
+.pageTabBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px 0;
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.pageTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 6px 6px 0 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+.pageTabBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.pageTabBtnActive {
+  color: var(--color-accent, #0d7377);
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-accent, #0d7377);
+  background: var(--color-bg-tertiary);
+}
+
+.pageTabCount {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--color-bg-hover);
+  color: var(--color-text-muted);
+}
+
+.pageTabBtnActive .pageTabCount {
+  background: rgba(13, 115, 119, 0.12);
+  color: var(--color-accent, #0d7377);
+}
+
+.pageTabCountWarn {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #d97706 !important;
+}
+
+.plmStatusTag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 22px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 9px;
+  border-radius: 9999px;
+  box-sizing: border-box;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .plmStatusTag {
+  background: rgba(59, 130, 246, 0.16);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.38);
+}
+
+.quickWorkflowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 22px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 10px;
+  border-radius: 9999px;
+  box-sizing: border-box;
+  background: #d97706;
+  color: #ffffff;
+  border: 1px solid rgba(217, 119, 6, 0.4);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), background-color 160ms ease, box-shadow 160ms ease;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.2);
+}
+
+.quickWorkflowBtn:hover {
+  background: #b45309;
+  border-color: #b45309;
+}
+
+.quickWorkflowBtn:active {
+  transform: scale(0.96);
+}
+
+.quickWorkflowBtnApprove {
+  background: #0d7377;
+  border-color: rgba(13, 115, 119, 0.4);
+  box-shadow: 0 1px 2px rgba(13, 115, 119, 0.2);
+}
+
+.quickWorkflowBtnApprove:hover {
+  background: #0a585b;
+  border-color: #0a585b;
+}
+
+.quickWorkflowBtnPlm {
+  background: #2563eb;
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
+.quickWorkflowBtnPlm:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.quickWorkflowBtnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 22px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 9px;
+  border-radius: 9999px;
+  box-sizing: border-box;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1), background-color 160ms ease, color 160ms ease;
+  white-space: nowrap;
+}
+
+.quickWorkflowBtnGhost:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted);
+}
+
+.quickWorkflowBtnGhost:active {
+  transform: scale(0.96);
+}
+
+.partChangeWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.partArrow {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
 /* Toolbar */
 .tableToolbar {
   display: flex;
@@ -1078,11 +1256,15 @@
 .statusBadge {
   font-weight: 600;
   font-size: 11px;
-  padding: 2px 8px;
+  height: 22px;
+  padding: 0 9px;
   border-radius: 9999px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -1579,6 +1761,29 @@
 
 .runningBomBadge:hover {
   border-color: #f59e0b;
+  transform: translateY(-0.5px);
+}
+
+.editBomShiftBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.editBomShiftBtn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.35);
   transform: translateY(-0.5px);
 }
 

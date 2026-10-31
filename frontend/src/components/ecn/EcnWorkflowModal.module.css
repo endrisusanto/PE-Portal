@@ -1,0 +1,295 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: inherit;
+  color: #1e293b;
+}
+
+.alertError {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.summaryCard {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summaryRowTop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ecnChip {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 13px;
+  color: #2563eb;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.modelPill {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f766e;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.stagePill {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #475569;
+  background-color: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.stagePillMp {
+  color: #b45309;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+  font-weight: 700;
+}
+
+.processBadge {
+  font-size: 11px;
+  color: #64748b;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.ecnTitleText {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.summaryMetaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metaLabel {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.metaValueHighlight {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #d97706;
+}
+
+.metaValue {
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.partDiffText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #0369a1;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 3px 8px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.infoBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  color: #115e59;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.infoIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #0d9488;
+}
+
+.warningBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.successBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inputLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.inputField {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.inputField:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.textareaField {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 72px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.textareaField:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.purchasingClarificationCard {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.purchasingCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.purchasingIcon {
+  color: #d97706;
+}
+
+.purchasingTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.purchasingEtaBadge {
+  font-size: 11px;
+  font-weight: 600;
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #b45309;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.purchasingReasonText {
+  font-size: 12.5px;
+  color: #78350f;
+  line-height: 1.45;
+  background-color: rgba(255, 255, 255, 0.6);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px dashed #fcd34d;
+}
+

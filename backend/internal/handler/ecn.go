@@ -170,6 +170,8 @@ func (h *ECNHandler) Update(c echo.Context) error {
 				changes["running_date_bom"] = map[string]string{"from": oldRec.RunningDateBOM, "to": item.RunningDateBOM}
 				action = "BOM_CHANGE"
 				noteParts = append(noteParts, fmt.Sprintf("Running BOM: %s ➔ %s", oldRec.RunningDateBOM, item.RunningDateBOM))
+				// Automatically queue into PLM workflow for BOM Team review & PIC Model approval
+				_ = h.repo.SetPLMStatus(c.Request().Context(), id, "PENDING_BOM_REVIEW", userID)
 			}
 			// ponytail: Running BOM date changes are stored in ecn_change_logs and batched at scheduled hours by ECNReminderWorker
 		}
@@ -221,6 +223,206 @@ func (h *ECNHandler) GetLogs(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, logs)
+}
+
+// PurchasingShiftBOM handles Purchasing (PIC A) shifting Running BOM date with mandatory clarification note
+func (h *ECNHandler) PurchasingShiftBOM(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
+	}
+
+	var req model.PurchasingBOMShiftRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	if strings.TrimSpace(req.NewRunningDateBOM) == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Jadwal Running BOM baru wajib dipilih")
+	}
+	if strings.TrimSpace(req.ReasonCategory) == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Kategori alasan perubahan wajib dipilih")
+	}
+	if strings.TrimSpace(req.ClarificationNote) == "" || len(strings.TrimSpace(req.ClarificationNote)) < 5 {
+		return echo.NewHTTPError(http.StatusBadRequest, "Catatan klarifikasi Purchasing wajib diisi dengan jelas (minimal 5 karakter)")
+	}
+
+	userID := getUserIDFromContext(c)
+	ctx := c.Request().Context()
+
+	updated, err := h.repo.ShiftRunningBOMWithClarification(ctx, id, &req, userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Jadwal Running BOM dan catatan klarifikasi Purchasing berhasil disimpan",
+		"record":  updated,
+	})
+}
+
+// RequestApproval handles BOM Team requesting approval from PIC Model
+func (h *ECNHandler) RequestApproval(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
+	}
+
+	var req struct {
+		Notes      string     `json:"notes"`
+		PICModelID *uuid.UUID `json:"pic_model_id"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	userID := getUserIDFromContext(c)
+	ctx := c.Request().Context()
+
+	if err := h.repo.RequestModelApproval(ctx, id, req.PICModelID, req.Notes, userID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	note := "BOM Team mengajukan persetujuan perubahan Running BOM ke PIC Model"
+	if req.Notes != "" {
+		note = fmt.Sprintf("BOM Team request approval: %s", req.Notes)
+	}
+	_ = h.repo.RecordChangeLog(ctx, &model.ECNChangeLog{
+		ECNID:     id,
+		Action:    "REQUEST_MODEL_APPROVAL",
+		ChangedBy: userID,
+		Note:      note,
+		CreatedAt: time.Now(),
+	})
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Permohonan persetujuan berhasil dikirim ke PIC Model",
+	})
+}
+
+// ApprovePLM handles PIC Model approving the Running BOM change
+func (h *ECNHandler) ApprovePLM(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
+	}
+
+	var req struct {
+		Notes string `json:"notes"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	userID := getUserIDFromContext(c)
+	ctx := c.Request().Context()
+
+	if err := h.repo.ApprovePLM(ctx, id, req.Notes, userID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	note := "Disetujui oleh PIC Model (Siap Diupdate ke PLM)"
+	if req.Notes != "" {
+		note = fmt.Sprintf("PIC Model Approve: %s", req.Notes)
+	}
+	_ = h.repo.RecordChangeLog(ctx, &model.ECNChangeLog{
+		ECNID:     id,
+		Action:    "MODEL_APPROVED",
+		ChangedBy: userID,
+		Note:      note,
+		CreatedAt: time.Now(),
+	})
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Perubahan Running BOM berhasil disetujui untuk diupdate ke PLM",
+	})
+}
+
+// RejectPLM handles PIC Model rejecting the Running BOM change
+func (h *ECNHandler) RejectPLM(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
+	}
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	userID := getUserIDFromContext(c)
+	ctx := c.Request().Context()
+
+	if err := h.repo.RejectPLM(ctx, id, req.Reason, userID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	note := "Ditolak oleh PIC Model"
+	if req.Reason != "" {
+		note = fmt.Sprintf("PIC Model Reject: %s", req.Reason)
+	}
+	_ = h.repo.RecordChangeLog(ctx, &model.ECNChangeLog{
+		ECNID:     id,
+		Action:    "MODEL_REJECTED",
+		ChangedBy: userID,
+		Note:      note,
+		CreatedAt: time.Now(),
+	})
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Perubahan Running BOM ditolak",
+	})
+}
+
+// ConfirmPLMUpdate handles BOM Team confirming change has been implemented in PLM
+func (h *ECNHandler) ConfirmPLMUpdate(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
+	}
+
+	var req struct {
+		ECONo        string `json:"eco_no"`
+		FeedbackNote string `json:"feedback_note"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
+	}
+
+	userID := getUserIDFromContext(c)
+	ctx := c.Request().Context()
+
+	if err := h.repo.ConfirmPLMUpdate(ctx, id, req.ECONo, req.FeedbackNote, userID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	note := fmt.Sprintf("Selesai disinkronkan ke PLM Samsung (No ECO: %s)", req.ECONo)
+	if req.FeedbackNote != "" {
+		note = fmt.Sprintf("PLM Updated (ECO: %s) • Feedback: %s", req.ECONo, req.FeedbackNote)
+	}
+	_ = h.repo.RecordChangeLog(ctx, &model.ECNChangeLog{
+		ECNID:     id,
+		Action:    "PLM_UPDATED",
+		ChangedBy: userID,
+		Note:      note,
+		CreatedAt: time.Now(),
+	})
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Konfirmasi update PLM berhasil dicatat dan dokumen telah diselesaikan",
+	})
 }
 
 // Delete removes an ECN record

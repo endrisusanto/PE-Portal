@@ -68,6 +68,16 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		argIdx++
 	}
 
+	// Tab filter
+	switch strings.ToLower(strings.TrimSpace(q.Tab)) {
+	case "in_progress", "progress":
+		where = append(where, "LOWER(e.status) IN ('pending', 'progress', 'in progress')")
+	case "completed":
+		where = append(where, "LOWER(e.status) = 'completed'")
+	case "bom_queue":
+		where = append(where, "(COALESCE(e.plm_status, 'NONE') != 'NONE' OR EXISTS (SELECT 1 FROM ecn_change_logs cl WHERE cl.ecn_id = e.id AND cl.changes ? 'running_date_bom' AND cl.notified_at IS NULL))")
+	}
+
 	if q.Model != "" {
 		where = append(where, fmt.Sprintf("LOWER(e.model) LIKE $%d", argIdx))
 		args = append(args, "%"+strings.ToLower(q.Model)+"%")
@@ -78,6 +88,8 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		st := strings.ToLower(strings.TrimSpace(q.Status))
 		if st == "progress" || st == "in progress" {
 			where = append(where, fmt.Sprintf("(LOWER(e.status) = 'progress' OR LOWER(e.status) = 'in progress')"))
+		} else if st == "active" || st == "in_progress_all" {
+			where = append(where, "LOWER(e.status) IN ('pending', 'progress', 'in progress')")
 		} else {
 			where = append(where, fmt.Sprintf("LOWER(e.status) = LOWER($%d)", argIdx))
 			args = append(args, q.Status)
@@ -306,10 +318,29 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 		       e.distribution_date, e.status, e.remark, e.created_by, e.updated_by, e.created_at, e.updated_at,
 		       COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, 'System') AS author_name,
 		       COALESCE(u_cr.full_name, u_cr.username, 'System') AS created_by_name,
-		       COALESCE(u_up.full_name, u_up.username, '') AS updater_name
+		       COALESCE(u_up.full_name, u_up.username, '') AS updater_name,
+		       COALESCE(e.plm_status, 'NONE'), e.plm_new_model_id, e.plm_pic_model_id,
+		       COALESCE(u_pic.full_name, u_pic.username, '') AS plm_pic_model_name,
+		       COALESCE(nm.stage, '') AS plm_model_stage,
+		       COALESCE(e.plm_change_reason, ''),
+		       COALESCE(e.plm_vendor_eta::text, ''), e.plm_model_approved_at,
+		       COALESCE(e.plm_model_note, ''), COALESCE(e.plm_eco_no, ''),
+		       e.plm_updated_at, e.plm_updated_by,
+		       COALESCE(u_plm_up.full_name, u_plm_up.username, '') AS plm_updated_by_name,
+		       COALESCE(e.plm_feedback_note, '')
 		FROM ecn_records e
 		LEFT JOIN users u_cr ON e.created_by = u_cr.id
 		LEFT JOIN users u_up ON e.updated_by = u_up.id
+		LEFT JOIN LATERAL (
+			SELECT m.id, m.stage, m.owner_id
+			FROM new_models m
+			WHERE (e.plm_new_model_id = m.id OR LOWER(e.model) = LOWER(m.model_name))
+			  AND m.deleted_at IS NULL
+			ORDER BY m.created_at DESC
+			LIMIT 1
+		) nm ON true
+		LEFT JOIN users u_pic ON (e.plm_pic_model_id = u_pic.id OR nm.owner_id = u_pic.id)
+		LEFT JOIN users u_plm_up ON e.plm_updated_by = u_plm_up.id
 		WHERE %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d
@@ -326,14 +357,24 @@ func (r *ECNRepository) List(ctx context.Context, q model.ECNListQuery) (*model.
 	records := make([]model.ECNRecord, 0)
 	for rows.Next() {
 		var rec model.ECNRecord
+		var vendorEtaStr string
 		if err := rows.Scan(
 			&rec.ID, &rec.ECNNo, &rec.Model, &rec.FunctionType, &rec.Purpose, &rec.InventoryMgmt, &rec.Process,
 			&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.PartBefore, &rec.PartAfter, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
 			&rec.ChildName, &rec.Specification, &rec.Quantity, &rec.MarkingPoint, &rec.RunningDateBOM,
 			&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.UpdatedBy, &rec.CreatedAt, &rec.UpdatedAt,
 			&rec.AuthorName, &rec.CreatedByName, &rec.UpdaterName,
+			&rec.PLMStatus, &rec.PLMNewModelID, &rec.PLMPICModelID,
+			&rec.PLMPICModelName, &rec.PLMModelStage,
+			&rec.PLMChangeReason, &vendorEtaStr, &rec.PLMModelApprovedAt,
+			&rec.PLMModelNote, &rec.PLMEcoNo,
+			&rec.PLMUpdatedAt, &rec.PLMUpdatedBy,
+			&rec.PLMUpdatedByName, &rec.PLMFeedbackNote,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan ecn record: %w", err)
+		}
+		if vendorEtaStr != "" {
+			rec.PLMVendorETA = &vendorEtaStr
 		}
 		records = append(records, rec)
 	}
@@ -451,22 +492,51 @@ func (r *ECNRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.ECNRe
 		       e.distribution_date, e.status, e.remark, e.created_by, e.updated_by, e.created_at, e.updated_at,
 		       COALESCE(u_up.full_name, u_up.username, u_cr.full_name, u_cr.username, 'System') AS author_name,
 		       COALESCE(u_cr.full_name, u_cr.username, 'System') AS created_by_name,
-		       COALESCE(u_up.full_name, u_up.username, '') AS updater_name
+		       COALESCE(u_up.full_name, u_up.username, '') AS updater_name,
+		       COALESCE(e.plm_status, 'NONE'), e.plm_new_model_id, e.plm_pic_model_id,
+		       COALESCE(u_pic.full_name, u_pic.username, '') AS plm_pic_model_name,
+		       COALESCE(nm.stage, '') AS plm_model_stage,
+		       COALESCE(e.plm_change_reason, ''),
+		       COALESCE(e.plm_vendor_eta::text, ''), e.plm_model_approved_at,
+		       COALESCE(e.plm_model_note, ''), COALESCE(e.plm_eco_no, ''),
+		       e.plm_updated_at, e.plm_updated_by,
+		       COALESCE(u_plm_up.full_name, u_plm_up.username, '') AS plm_updated_by_name,
+		       COALESCE(e.plm_feedback_note, '')
 		FROM ecn_records e
 		LEFT JOIN users u_cr ON e.created_by = u_cr.id
 		LEFT JOIN users u_up ON e.updated_by = u_up.id
+		LEFT JOIN LATERAL (
+			SELECT m.id, m.stage, m.owner_id
+			FROM new_models m
+			WHERE (e.plm_new_model_id = m.id OR LOWER(e.model) = LOWER(m.model_name))
+			  AND m.deleted_at IS NULL
+			ORDER BY m.created_at DESC
+			LIMIT 1
+		) nm ON true
+		LEFT JOIN users u_pic ON (e.plm_pic_model_id = u_pic.id OR nm.owner_id = u_pic.id)
+		LEFT JOIN users u_plm_up ON e.plm_updated_by = u_plm_up.id
 		WHERE e.id = $1
 	`
 	var rec model.ECNRecord
+	var vendorEtaStr string
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&rec.ID, &rec.ECNNo, &rec.Model, &rec.FunctionType, &rec.Purpose, &rec.InventoryMgmt, &rec.Process,
 		&rec.ECTitle, &rec.ParentCode, &rec.ParentName, &rec.PartBefore, &rec.PartAfter, &rec.BeforeAfter, &rec.DL, &rec.ChildCode,
 		&rec.ChildName, &rec.Specification, &rec.Quantity, &rec.MarkingPoint, &rec.RunningDateBOM,
 		&rec.DistributionDate, &rec.Status, &rec.Remark, &rec.CreatedBy, &rec.UpdatedBy, &rec.CreatedAt, &rec.UpdatedAt,
 		&rec.AuthorName, &rec.CreatedByName, &rec.UpdaterName,
+		&rec.PLMStatus, &rec.PLMNewModelID, &rec.PLMPICModelID,
+		&rec.PLMPICModelName, &rec.PLMModelStage,
+		&rec.PLMChangeReason, &vendorEtaStr, &rec.PLMModelApprovedAt,
+		&rec.PLMModelNote, &rec.PLMEcoNo,
+		&rec.PLMUpdatedAt, &rec.PLMUpdatedBy,
+		&rec.PLMUpdatedByName, &rec.PLMFeedbackNote,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ecn record not found: %w", err)
+	}
+	if vendorEtaStr != "" {
+		rec.PLMVendorETA = &vendorEtaStr
 	}
 	return &rec, nil
 }
@@ -501,6 +571,141 @@ func (r *ECNRepository) Update(ctx context.Context, id uuid.UUID, item *model.EC
 		return nil, fmt.Errorf("ecn record not found")
 	}
 	return item, nil
+}
+
+// SetPLMStatus updates ECN PLM status
+func (r *ECNRepository) SetPLMStatus(ctx context.Context, id uuid.UUID, status string, userID *uuid.UUID) error {
+	query := `
+		UPDATE ecn_records
+		SET plm_status = $1,
+		    updated_by = $2,
+		    updated_at = NOW()
+		WHERE id = $3
+	`
+	_, err := r.pool.Exec(ctx, query, status, userID, id)
+	return err
+}
+
+// ShiftRunningBOMWithClarification updates running_date_bom, sets plm_status to PENDING_BOM_REVIEW,
+// and saves the mandatory clarification note & vendor ETA from Purchasing (PIC A).
+func (r *ECNRepository) ShiftRunningBOMWithClarification(ctx context.Context, id uuid.UUID, req *model.PurchasingBOMShiftRequest, userID *uuid.UUID) (*model.ECNRecord, error) {
+	oldRec, err := r.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("ecn record not found: %w", err)
+	}
+
+	formattedReason := fmt.Sprintf("[%s] %s", strings.TrimSpace(req.ReasonCategory), strings.TrimSpace(req.ClarificationNote))
+
+	var vendorEtaParam interface{}
+	if req.VendorETA != nil && strings.TrimSpace(*req.VendorETA) != "" {
+		vendorEtaParam = strings.TrimSpace(*req.VendorETA)
+	} else {
+		vendorEtaParam = nil
+	}
+
+	query := `
+		UPDATE ecn_records
+		SET running_date_bom = $1,
+		    plm_status = 'PENDING_BOM_REVIEW',
+		    plm_change_reason = $2,
+		    plm_vendor_eta = $3,
+		    updated_by = $4,
+		    updated_at = NOW()
+		WHERE id = $5
+	`
+	_, err = r.pool.Exec(ctx, query, req.NewRunningDateBOM, formattedReason, vendorEtaParam, userID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update running bom date: %w", err)
+	}
+
+	// Record audit change log
+	changes := map[string]interface{}{
+		"running_date_bom": map[string]string{
+			"from": oldRec.RunningDateBOM,
+			"to":   req.NewRunningDateBOM,
+		},
+		"reason_category": req.ReasonCategory,
+	}
+	if req.VendorETA != nil && *req.VendorETA != "" {
+		changes["vendor_eta"] = *req.VendorETA
+	}
+
+	logNote := fmt.Sprintf("Klarifikasi Purchasing (%s): %s", req.ReasonCategory, req.ClarificationNote)
+	_ = r.RecordChangeLog(ctx, &model.ECNChangeLog{
+		ECNID:     id,
+		Action:    "PURCHASING_BOM_SHIFT",
+		ChangedBy: userID,
+		Changes:   changes,
+		Note:      logNote,
+		CreatedAt: time.Now(),
+	})
+
+	return r.GetByID(ctx, id)
+}
+
+// RequestModelApproval updates ECN PLM status to WAITING_MODEL_APPROVAL
+func (r *ECNRepository) RequestModelApproval(ctx context.Context, id uuid.UUID, picModelID *uuid.UUID, notes string, userID *uuid.UUID) error {
+	query := `
+		UPDATE ecn_records
+		SET plm_status = 'WAITING_MODEL_APPROVAL',
+		    plm_pic_model_id = COALESCE($1, plm_pic_model_id),
+		    plm_model_note = $2,
+		    updated_by = $3,
+		    updated_at = NOW()
+		WHERE id = $4
+	`
+	_, err := r.pool.Exec(ctx, query, picModelID, notes, userID, id)
+	return err
+}
+
+// ApprovePLM updates ECN PLM status to APPROVED_FOR_PLM
+func (r *ECNRepository) ApprovePLM(ctx context.Context, id uuid.UUID, notes string, userID *uuid.UUID) error {
+	query := `
+		UPDATE ecn_records
+		SET plm_status = 'APPROVED_FOR_PLM',
+		    plm_model_approved_at = NOW(),
+		    plm_model_note = $1,
+		    updated_by = $2,
+		    updated_at = NOW()
+		WHERE id = $3
+	`
+	_, err := r.pool.Exec(ctx, query, notes, userID, id)
+	return err
+}
+
+// RejectPLM updates ECN PLM status to REJECTED
+func (r *ECNRepository) RejectPLM(ctx context.Context, id uuid.UUID, reason string, userID *uuid.UUID) error {
+	query := `
+		UPDATE ecn_records
+		SET plm_status = 'REJECTED',
+		    plm_model_note = $1,
+		    updated_by = $2,
+		    updated_at = NOW()
+		WHERE id = $3
+	`
+	_, err := r.pool.Exec(ctx, query, reason, userID, id)
+	return err
+}
+
+// ConfirmPLMUpdate updates ECN to PLM_UPDATED and marks status as Completed
+func (r *ECNRepository) ConfirmPLMUpdate(ctx context.Context, id uuid.UUID, ecoNo string, feedbackNote string, userID *uuid.UUID) error {
+	query := `
+		UPDATE ecn_records
+		SET plm_status = 'PLM_UPDATED',
+		    status = 'Completed',
+		    plm_eco_no = $1,
+		    plm_updated_at = NOW(),
+		    plm_updated_by = $2,
+		    plm_feedback_note = $3,
+		    updated_by = $2,
+		    updated_at = NOW()
+		WHERE id = $4
+	`
+	_, err := r.pool.Exec(ctx, query, ecoNo, userID, feedbackNote, id)
+	if err == nil {
+		_, _ = r.pool.Exec(ctx, "UPDATE ecn_change_logs SET notified_at = NOW() WHERE ecn_id = $1 AND notified_at IS NULL", id)
+	}
+	return err
 }
 
 // RecordChangeLog logs an audit breadcrumb entry for changes to an ECN record

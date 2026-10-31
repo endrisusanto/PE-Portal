@@ -1,0 +1,382 @@
+/* EcnStepper.module.css
+ * Styled according to /antislop-ui guidelines:
+ * - Concentric border radii
+ * - Optical alignment & semantic colors
+ * - No bloated gradients, restrained and readable
+ */
+
+/* ========================================================================
+   1. Compact Stepper (Table Row View)
+   ======================================================================== */
+.compactContainer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  padding: 0 10px;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.compactStep {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: default;
+}
+
+.compactDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+.compactLabel {
+  font-size: 10.5px;
+}
+
+.compactConnector {
+  width: 10px;
+  height: 1.5px;
+  background: var(--color-border);
+  flex-shrink: 0;
+  margin: 0 1px;
+}
+
+.connectorDone {
+  background: #10b981;
+}
+
+/* Compact Step Status Variations */
+.step_done .compactDot {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+.step_done .compactLabel {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.step_active .compactDot {
+  background: #f59e0b;
+  border-color: #d97706;
+  color: #ffffff;
+}
+.step_active .compactLabel {
+  color: #d97706;
+  font-weight: 700;
+}
+
+.step_pending .compactDot {
+  background: var(--color-bg-primary);
+  color: var(--color-text-muted);
+}
+.step_pending .compactLabel {
+  color: var(--color-text-muted);
+}
+
+.step_rejected .compactDot,
+.step_cancelled .compactDot {
+  background: #ef4444;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+.step_rejected .compactLabel,
+.step_cancelled .compactLabel {
+  color: #dc2626;
+}
+
+.pulseDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+  animation: pulseAnim 1.4s infinite ease-in-out;
+}
+
+@keyframes pulseAnim {
+  0%, 100% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+/* ========================================================================
+   2. Detailed Stepper (Expanded Row & Modal View)
+   ======================================================================== */
+.detailedContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.detailedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 8px;
+}
+
+.detailedHeaderIcon {
+  color: var(--color-accent, #0d7377);
+}
+
+.detailedHeaderTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.stagePill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(13, 115, 119, 0.12);
+  color: var(--color-accent, #0d7377);
+  border: 1px solid rgba(13, 115, 119, 0.25);
+}
+
+.badgeSuccess {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.badgeActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.badgeDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.detailedStepsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .detailedStepsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .detailedStepsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detailedCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+.card_active {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1px #f59e0b;
+}
+
+.card_done {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.detailedCardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+}
+
+.detailedIconWrap {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.iconWrap_done {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.iconWrap_active {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.detailedStepTitles {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.stepNumTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stepSubTitle {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.stepStatusPillWrap {
+  flex-shrink: 0;
+}
+
+.pillDone {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.pillActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.pillPending {
+  font-size: 9.5px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.pillRejected {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.detailedCardBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 6px;
+  font-size: 11px;
+}
+
+.detailedPicRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-secondary);
+}
+
+.picLabel {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.picValue {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detailedDescRow {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
