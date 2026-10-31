@@ -416,9 +416,11 @@
 }
 
 .markdownTable td {
-  padding: 7px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
+  vertical-align: top;
+  line-height: 1.5;
 }
 
 .markdownTable tr:last-child td {

@@ -122,19 +122,38 @@ const SvgBlock = ({ rawSvg, id }) => {
 // ----------------------------------------------------------------------------
 // 2. INLINE FORMATTER & MARKDOWN TABLE COMPONENT
 // ----------------------------------------------------------------------------
-// Universal inline markdown formatter (bold, italic, bold-italic, underline, strikethrough, inline code, links)
+// Parse CSS style string into React style object
+const parseInlineStyle = (styleStr) => {
+  if (!styleStr) return undefined;
+  return styleStr.split(';').reduce((acc, rule) => {
+    const colonIdx = rule.indexOf(':');
+    if (colonIdx > -1) {
+      const prop = rule.slice(0, colonIdx).trim();
+      const val = rule.slice(colonIdx + 1).trim();
+      if (prop && val) {
+        const camelProp = prop.replace(/-([a-z])/g, (_, g) => g.toUpperCase());
+        acc[camelProp] = val;
+      }
+    }
+    return acc;
+  }, {});
+};
+
+// Universal inline markdown formatter (bold, italic, bold-italic, underline, strikethrough, inline code, links, html br & span)
 export const formatInline = (text) => {
   if (!text || typeof text !== 'string') return text;
 
   // Regex matches:
-  // 1. Bold-italic: ***text*** or ___text___
-  // 2. Bold: **text** or __text__
-  // 3. Italic: *text* (no leading/trailing whitespace inside) or _text_
-  // 4. Underline: <u>text</u>
-  // 5. Strikethrough: ~~text~~
-  // 6. Inline code: `text`
-  // 7. Link: [label](url)
-  const regex = /(\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|(?:\*|_)(?!\s)[\s\S]+?(?<!\s)(?:\*|_)|<u>[\s\S]+?<\/u>|~~[\s\S]+?~~|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+  // 1. Linebreak: <br>, <br/>, <br />
+  // 2. Styled Span: <span style="...">text</span> or <span>text</span>
+  // 3. Bold-italic: ***text*** or ___text___
+  // 4. Bold: **text** or __text__
+  // 5. Italic: *text* (no leading/trailing whitespace inside) or _text_
+  // 6. Underline: <u>text</u>
+  // 7. Strikethrough: ~~text~~
+  // 8. Inline code: `text`
+  // 9. Link: [label](url)
+  const regex = /(<br\s*\/?>|<span(?:\s+style=["'][^"']*["'])?>[\s\S]+?<\/span>|\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|(?:\*|_)(?!\s)[\s\S]+?(?<!\s)(?:\*|_)|<u>[\s\S]+?<\/u>|~~[\s\S]+?~~|`[^`]+`|\[[^\]]+\]\([^)]+\))/gi;
 
   const parts = [];
   let lastIndex = 0;
@@ -147,7 +166,21 @@ export const formatInline = (text) => {
     const token = match[0];
     const key = `inline-${match.index}`;
 
-    if (
+    if (/^<br\s*\/?>$/i.test(token)) {
+      parts.push(<br key={key} />);
+    } else if (/^<span/i.test(token) && /<\/span>$/i.test(token)) {
+      const spanMatch = token.match(/^<span(?:\s+style=["']([^"']*)["'])?>([\s\S]*?)<\/span>$/i);
+      if (spanMatch) {
+        const styleObj = parseInlineStyle(spanMatch[1]);
+        parts.push(
+          <span key={key} style={styleObj}>
+            {formatInline(spanMatch[2])}
+          </span>
+        );
+      } else {
+        parts.push(token);
+      }
+    } else if (
       (token.startsWith('***') && token.endsWith('***')) ||
       (token.startsWith('___') && token.endsWith('___'))
     ) {
@@ -253,6 +286,8 @@ const TableBlock = ({ rawTableLines }) => {
     const cleanCell = (str) =>
       str
         ? str
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1')
             .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
             .replace(/\*\*(.*?)\*\*/g, '$1')
             .replace(/\*(.*?)\*/g, '$1')
@@ -261,7 +296,16 @@ const TableBlock = ({ rawTableLines }) => {
         : '';
     const tsvContent = [
       headers.map(cleanCell).join('\t'),
-      ...rows.map((row) => row.map(cleanCell).join('\t')),
+      ...rows.map((row) =>
+        row
+          .map((cell) => {
+            const cleaned = cleanCell(cell);
+            return cleaned.includes('\n') || cleaned.includes('\t') || cleaned.includes('"')
+              ? `"${cleaned.replace(/"/g, '""')}"`
+              : cleaned;
+          })
+          .join('\t')
+      ),
     ].join('\n');
 
     navigator.clipboard.writeText(tsvContent);
