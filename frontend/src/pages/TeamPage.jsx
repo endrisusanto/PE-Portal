@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Layers, ShieldCheck, Mail, Building2, Briefcase } from 'lucide-react';
+import { Users, Layers, ShieldCheck, Mail, Building2, Briefcase, Sparkles } from 'lucide-react';
 import api from '../api/client';
 import { Avatar } from '../components/common/Avatar';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
+import { TeamNeuralConstellation } from '../components/team/TeamNeuralConstellation';
 
 const PARENT_GROUP_TITLES = {
   pe_management: 'PE Executive Management',
@@ -17,6 +18,9 @@ const PARENT_GROUP_TITLES = {
 
 export const TeamPage = () => {
   const { t } = useTranslation();
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('pe_portal_team_view_mode') || 'constellation';
+  });
   const [groups, setGroups] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,18 +64,94 @@ export const TeamPage = () => {
   }, {});
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      <div>
-        <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>
-          {t('team.title', 'PE Team Directory')}
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-          {t('team.subtitle', 'SEIN PE Group structure (Specialized engineering divisions & cross-functional partners)')}
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+      {/* Top Header Bar with View Switcher */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '14px',
+      }}>
+        <div>
+          <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>
+            {t('team.title', 'PE Team Directory')}
+          </h1>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+            {t('team.subtitle', 'SEIN PE Group structure (Specialized engineering divisions & cross-functional partners)')}
+          </p>
+        </div>
+
+        {/* View Mode Tab Switcher */}
+        <div style={{
+          display: 'inline-flex',
+          backgroundColor: 'var(--color-bg-secondary)',
+          borderRadius: '9999px',
+          border: '1px solid var(--color-border)',
+          padding: '3px',
+          gap: '3px',
+        }}>
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('constellation');
+              localStorage.setItem('pe_portal_team_view_mode', 'constellation');
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: '9999px',
+              border: 'none',
+              backgroundColor: viewMode === 'constellation' ? 'var(--color-accent)' : 'transparent',
+              color: viewMode === 'constellation' ? '#ffffff' : 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title={t('team.tab_constellation_tooltip', 'Interactive Neural Constellation View')}
+          >
+            <Sparkles size={13} />
+            <span>{t('team.tab_constellation', 'Constellation')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('structure');
+              localStorage.setItem('pe_portal_team_view_mode', 'structure');
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: '9999px',
+              border: 'none',
+              backgroundColor: viewMode === 'structure' ? 'var(--color-accent)' : 'transparent',
+              color: viewMode === 'structure' ? '#ffffff' : 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title={t('team.tab_structure_tooltip', 'Classic Group Parts Org Hierarchy')}
+          >
+            <Layers size={13} />
+            <span>{t('team.tab_structure', 'Org Structure')}</span>
+          </button>
+        </div>
       </div>
 
-      {/* 1. Internal PE Organization Sections */}
-      {Object.entries(groupedByParent).map(([parentKey, parts]) => (
+      {/* Main View Area */}
+      {viewMode === 'constellation' ? (
+        <TeamNeuralConstellation users={users} groups={groups} />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+          {/* 1. Internal PE Organization Sections */}
+          {Object.entries(groupedByParent).map(([parentKey, parts]) => (
         <section
           key={parentKey}
           style={{
@@ -299,6 +379,8 @@ export const TeamPage = () => {
             ))}
           </div>
         </section>
+      )}
+        </div>
       )}
     </div>
   );

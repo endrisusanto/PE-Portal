@@ -599,7 +599,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
 
   const welcomeGreetingText = t(
     'ai_chat.welcome_greeting',
-    'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!'
+    'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis data **ECN Monitoring (Engineering Change)**, dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!'
   );
 
   const [messages, setMessages] = useState([
@@ -619,7 +619,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             ...m,
             content: t(
               'ai_chat.welcome_greeting',
-              'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!'
+              'Halo! Saya **SEIN PE AI Assistant**. Saya dapat membantu analisis data **ECN Monitoring (Engineering Change)**, dokumen/log teknis, JIG CAD, BOM verification, GBA Task approval, data Software MR, menyajikan data dalam **Tabel interaktif**, serta membuat **Diagram Alir / Skema SVG** langsung di sini.\n\nKetik pertanyaan Anda atau lampirkan dokumen untuk memulai!'
             ),
           };
         }
@@ -1203,6 +1203,45 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Quick ECN & Engineering Prompts (Ponytail) */}
+      {messages.length <= 1 && (
+        <div className={styles.quickPromptChips}>
+          <button
+            type="button"
+            className={styles.quickChip}
+            onClick={() => {
+              setInputVal('Ambil data ECN terbaru beserta ringkasan status, model, dan perubahannya.');
+              textareaRef.current?.focus();
+            }}
+          >
+            <FileSpreadsheet size={12} color="#10b981" />
+            <span>⚡ Ambil Data ECN</span>
+          </button>
+          <button
+            type="button"
+            className={styles.quickChip}
+            onClick={() => {
+              setInputVal('Ringkas seluruh ECN yang berstatus Progress beserta dampaknya pada part & material.');
+              textareaRef.current?.focus();
+            }}
+          >
+            <Sparkles size={12} color="#f59e0b" />
+            <span>⚠️ ECN Progress</span>
+          </button>
+          <button
+            type="button"
+            className={styles.quickChip}
+            onClick={() => {
+              setInputVal('Bagaimana status dan milestone model baru yang sedang aktif saat ini?');
+              textareaRef.current?.focus();
+            }}
+          >
+            <Layers size={12} color="#3b82f6" />
+            <span>📊 Status Model Baru</span>
+          </button>
+        </div>
+      )}
+
       {/* Unified Input Composer */}
       <form onSubmit={handleSendMessage} className={styles.composerForm}>
         {/* Hidden File Input */}
@@ -1277,6 +1316,18 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
                 title={t('ai_chat.attach_tooltip', 'Lampirkan Dokumen (TXT, CSV, JSON, Log, PDF, Image)')}
               >
                 <Paperclip size={17} />
+              </button>
+              <button
+                type="button"
+                className={styles.ecnDataBtn}
+                onClick={() => {
+                  setInputVal('Ambil data ECN terbaru beserta ringkasan status, model, dan perubahannya.');
+                  textareaRef.current?.focus();
+                }}
+                title="Ambil Data Live ECN Monitoring"
+              >
+                <FileSpreadsheet size={13} color="#10b981" />
+                <span>Data ECN</span>
               </button>
               {attachments.length > 0 && (
                 <span className={styles.attachmentsCount}>

@@ -478,7 +478,7 @@ func (h *AIHandler) detectAndFetchPEData(ctx context.Context, userMsg string) st
 		"inovasi", "innovation", "kaizen", "ringkasan", "overview",
 		"summary", "statistik", "database", "unit", "mr release", "companion",
 		"evt", "dvt", "pvt", "sop", "s26", "s25",
-		"ecn", "eco", "running bom", "bom date", "child part", "remark", "smd", "mainline",
+		"ecn", "eco", "engineering change", "running bom", "bom date", "child part", "remark", "smd", "mainline", "perubahan part", "perubahan komponen",
 	}
 	for _, kw := range keywords {
 		if strings.Contains(lower, kw) {
@@ -584,7 +584,7 @@ func (h *AIHandler) detectAndFetchPEData(ctx context.Context, userMsg string) st
 	}
 
 	// 7. ECN (Engineering Change Notice) Monitoring - Full Database Access via MCP
-	if strings.Contains(lower, "ecn") || strings.Contains(lower, "eco") || strings.Contains(lower, "running bom") || strings.Contains(lower, "remark") || strings.Contains(lower, "bom date") {
+	if strings.Contains(lower, "ecn") || strings.Contains(lower, "eco") || strings.Contains(lower, "running bom") || strings.Contains(lower, "remark") || strings.Contains(lower, "bom date") || strings.Contains(lower, "engineering change") || strings.Contains(lower, "perubahan part") || strings.Contains(lower, "perubahan komponen") {
 		statArgs := map[string]interface{}{}
 		for _, w := range strings.Fields(lower) {
 			wClean := strings.Trim(w, `",.?!'()[]`)
@@ -605,7 +605,8 @@ func (h *AIHandler) detectAndFetchPEData(ctx context.Context, userMsg string) st
 		if strings.Contains(lower, "cancel") {
 			searchArgs["status"] = "cancel"
 		} else if strings.Contains(lower, "progress") {
-			searchArgs["status"] = "in progress"
+			// ponytail: match DB status "Progress" without requiring exact "in progress" prefix
+			searchArgs["status"] = "progress"
 		} else if strings.Contains(lower, "pending") {
 			searchArgs["status"] = "pending"
 		} else if strings.Contains(lower, "completed") || strings.Contains(lower, "selesai") {

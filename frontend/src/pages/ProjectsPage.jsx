@@ -55,6 +55,7 @@ import { CommentTimelineSection, logTimelineEvent } from '../components/common/C
 import { AttachmentViewer } from '../components/common/AttachmentViewer';
 import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 import { TaskAnalystTechnicalReportCard } from '../components/common/TaskAnalystTechnicalReportCard';
+import { PipelineTunnelCard } from '../components/common/PipelineTunnelCard';
 import i18n from '../utils/i18n';
 import styles from './ProjectsPage.module.css';
 
@@ -117,6 +118,7 @@ export const ProjectsPage = () => {
   const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'my_tasks'
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [selectedStageFilter, setSelectedStageFilter] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
   // ponytail: Auto-open edit modal if routed from calendar
@@ -1246,6 +1248,16 @@ export const ProjectsPage = () => {
         </div>
       </div>
 
+      {/* Pipeline Tunnel 3D Wireframe Funnel Card */}
+      <PipelineTunnelCard
+        tasks={visibleProjects}
+        stages={MILESTONE_STAGES}
+        selectedStage={selectedStageFilter}
+        onStageSelect={(step) => {
+          setSelectedStageFilter((prev) => (prev === step ? null : step));
+        }}
+      />
+
       {/* Search, Filter & Scope Switcher Bar */}
       <div style={{
         display: 'flex',
@@ -1283,6 +1295,40 @@ export const ProjectsPage = () => {
               </option>
             ))}
           </select>
+
+          {selectedStageFilter && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 11px',
+              borderRadius: '9999px',
+              backgroundColor: 'color-mix(in srgb, var(--color-accent) 15%, transparent)',
+              border: '1px solid var(--color-accent)',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              color: 'var(--color-accent)',
+            }}>
+              <span>
+                {t('projects.tunnel_filter_active_stage', 'Stage')}: {MILESTONE_STAGES.find((s) => s.step === selectedStageFilter)?.label}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedStageFilter(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--color-accent)',
+                  display: 'inline-flex',
+                  padding: 0,
+                }}
+                title={t('projects.tunnel_clear_stage', 'Reset filter tahap')}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ponytail: Switch Button filter Semua Task vs Terkait Saya */}
@@ -1330,7 +1376,9 @@ export const ProjectsPage = () => {
           gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
           gap: '16px',
         }}>
-          {filteredProjects.map((p) => {
+          {filteredProjects
+            .filter((p) => !selectedStageFilter || getMilestone(p.progress || 0).step === selectedStageFilter)
+            .map((p) => {
             const ms = getMilestone(p.progress || 0);
             return (
               <div
@@ -1558,6 +1606,7 @@ export const ProjectsPage = () => {
         }}>
           {MILESTONE_STAGES.map((st) => {
             const colTasks = kanbanColumns[st.step] || [];
+            const isColumnSelected = selectedStageFilter === st.step;
             return (
               <div
                 key={st.id}
@@ -1565,12 +1614,19 @@ export const ProjectsPage = () => {
                   flex: '0 0 310px',
                   width: '310px',
                   background: 'var(--color-bg-secondary)',
-                  border: '1px solid var(--color-border)',
+                  border: isColumnSelected
+                    ? '2px solid var(--color-accent)'
+                    : '1px solid var(--color-border)',
+                  boxShadow: isColumnSelected
+                    ? '0 0 20px color-mix(in srgb, var(--color-accent) 25%, transparent)'
+                    : 'none',
+                  transform: isColumnSelected ? 'translateY(-2px)' : 'none',
                   borderRadius: 'var(--radius-sm)',
                   display: 'flex',
                   flexDirection: 'column',
                   maxHeight: 'calc(100vh - 220px)',
                   minHeight: '480px',
+                  transition: 'all 0.25s ease',
                 }}
               >
                 {/* Column Header */}
@@ -1799,7 +1855,12 @@ export const ProjectsPage = () => {
         </div>
       ) : (
         /* TABLE VIEW */
-        <Table columns={columns} data={filteredProjects} />
+        <Table
+          columns={columns}
+          data={filteredProjects.filter(
+            (p) => !selectedStageFilter || getMilestone(p.progress || 0).step === selectedStageFilter
+          )}
+        />
       )}
 
       {/* CREATE MODAL */}

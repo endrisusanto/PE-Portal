@@ -1,0 +1,502 @@
+/* TeamNeuralConstellation.module.css
+   Futuristic, theme-adaptive neural people constellation network.
+*/
+
+.constellationCard {
+  position: relative;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent) 12%, #080d1e) 0%,
+    color-mix(in srgb, var(--color-accent) 20%, #0d1730) 45%,
+    color-mix(in srgb, var(--color-accent) 9%, #050814) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--color-accent) 32%, transparent);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  overflow: hidden;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:global([data-theme="light"]) .constellationCard {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent) 10%, #0c1322) 0%,
+    color-mix(in srgb, var(--color-accent) 18%, #162035) 50%,
+    color-mix(in srgb, var(--color-accent) 8%, #090e1a) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), 0 0 24px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+/* Card Header */
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 14px;
+  flex-wrap: wrap;
+  gap: 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 15%, transparent);
+  position: relative;
+  z-index: 5;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+    box-shadow: 0 0 12px var(--color-accent);
+  }
+}
+
+.cardTitle {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  margin: 0;
+}
+
+.cardSubtitle {
+  font-size: 12.5px;
+  color: #94a3b8;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* Division Filter Pills */
+.filterPillsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 24px 8px;
+  position: relative;
+  z-index: 5;
+}
+
+.filterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 13px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, rgba(255, 255, 255, 0.12));
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  backdrop-filter: blur(8px);
+}
+
+.filterPill:hover {
+  color: #ffffff;
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 15%, rgba(15, 23, 42, 0.8));
+}
+
+.filterPillActive {
+  background: color-mix(in srgb, var(--color-accent) 30%, #1e293b);
+  color: #ffffff;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.filterPillDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.filterPillBadge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+.filterPillActive .filterPillBadge {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+/* Graph Canvas Viewport */
+.viewportContainer {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  user-select: none;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.viewportContainer:active {
+  cursor: grabbing;
+}
+
+.graphSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* Floating Obsidian Interactive HUD Controls */
+.graphControlsHud {
+  position: absolute;
+  bottom: 16px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(11, 18, 38, 0.85);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, rgba(255, 255, 255, 0.12));
+  border-radius: 9999px;
+  padding: 4px 10px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 16px color-mix(in srgb, var(--color-accent) 20%, transparent);
+  z-index: 30;
+  transition: all 0.2s ease;
+}
+
+.graphControlsHud:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 22px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.hudBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hudBtn:hover {
+  color: #ffffff;
+  background: color-mix(in srgb, var(--color-accent) 22%, rgba(255, 255, 255, 0.1));
+}
+
+.hudBtnActive {
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 26%, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.hudZoomText {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbd5e1;
+  min-width: 42px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.hudDivider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  margin: 0 2px;
+}
+
+/* Animations */
+@keyframes starPulse {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.3);
+  }
+}
+
+.starParticle {
+  animation: starPulse 3.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes coreHaloPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+}
+
+.coreHalo {
+  animation: coreHaloPulse 4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Member Interactive Node */
+.memberNode {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.memberNodeDimmed {
+  opacity: 0.22;
+  filter: grayscale(0.7);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+/* Jobdesk Sub-Hub Node */
+.jobdeskNode {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.jobdeskPillBg {
+  fill: rgba(15, 23, 42, 0.92);
+  transition: fill 0.2s ease, stroke-width 0.2s ease;
+}
+
+.jobdeskNode:hover .jobdeskPillBg {
+  fill: rgba(30, 41, 59, 0.98);
+  stroke-width: 1.6;
+}
+
+/* Node Text Labels */
+.memberLabelText {
+  font-size: 8.5px;
+  font-weight: 700;
+  fill: #ffffff;
+  pointer-events: none;
+  letter-spacing: 0.01em;
+}
+
+.memberJobdeskText {
+  font-size: 7px;
+  font-weight: 600;
+  fill: #94a3b8;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+
+/* Inspector Popover Modal / Tooltip */
+.inspectorPopover {
+  position: absolute;
+  pointer-events: none; /* CRITICAL: Never steal mouse hover from nodes */
+  background: rgba(11, 18, 38, 0.95);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  min-width: 240px;
+  max-width: 300px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  backdrop-filter: blur(14px);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: popoverFadeIn 0.15s ease-out;
+  transform: translate(-50%, -120%);
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -95%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -105%);
+  }
+}
+
+.popoverHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.popoverAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-accent);
+  object-fit: cover;
+}
+
+.popoverAvatarFallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 25%, #1e293b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.popoverName {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.popoverEmail {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 2px 0 0;
+}
+
+.popoverDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+  font-size: 11.5px;
+}
+
+.popoverRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.popoverLabel {
+  color: #94a3b8;
+}
+
+.popoverValue {
+  font-weight: 600;
+  color: #e2e8f0;
+  text-align: right;
+}
+
+/* Bottom Bar */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: rgba(11, 18, 38, 0.7);
+  border-top: 1px solid color-mix(in srgb, var(--color-accent) 15%, transparent);
+  flex-wrap: wrap;
+  gap: 12px;
+  position: relative;
+  z-index: 5;
+}
+
+.footerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.liveTickerPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(234, 179, 8, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.footerTickerText {
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.statLabel {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.statValue {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+}
+

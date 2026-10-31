@@ -1,0 +1,385 @@
+/* PipelineTunnelCard.module.css
+   Futuristic, theme-adaptive 3D perspective wireframe pipeline card.
+*/
+
+.tunnelCard {
+  position: relative;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent) 12%, #080d1e) 0%,
+    color-mix(in srgb, var(--color-accent) 20%, #0d1730) 45%,
+    color-mix(in srgb, var(--color-accent) 9%, #050814) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--color-accent) 32%, transparent);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #f8fafc;
+}
+
+/* Light Mode Overrides for Crisp Contrast */
+:global([data-theme="light"]) .tunnelCard {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent) 10%, #0c1322) 0%,
+    color-mix(in srgb, var(--color-accent) 18%, #162035) 50%,
+    color-mix(in srgb, var(--color-accent) 8%, #090e1a) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), 0 0 24px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.tunnelCard:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 36px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+/* Header Bar */
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px 10px;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 15%, transparent);
+  position: relative;
+  z-index: 2;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 8.5px;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.liveDot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+    box-shadow: 0 0 12px var(--color-accent);
+  }
+}
+
+.cardSubtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Time Range Filter Pill Controls */
+.timeControlGroup {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, rgba(255, 255, 255, 0.1));
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 2px;
+  backdrop-filter: blur(8px);
+}
+
+.timeBtn {
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  padding: 4px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.timeBtn:hover {
+  color: #ffffff;
+}
+
+.timeBtnActive {
+  background: color-mix(in srgb, var(--color-accent) 28%, #1e293b);
+  color: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+.collapseBtn {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, rgba(255, 255, 255, 0.1));
+  border-radius: 9999px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.collapseBtn:hover {
+  color: #ffffff;
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 20%, rgba(15, 23, 42, 0.8));
+}
+
+/* Collapsible Content Area */
+.tunnelBody {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+/* Stage Headers Row */
+.stageHeadersRow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.stageHeaderCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.stageHeaderCol:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.stageHeaderColActive {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.stageLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.stageCount {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.stageCountExit {
+  color: #facc15;
+  text-shadow: 0 0 14px rgba(250, 204, 21, 0.55);
+}
+
+/* SVG Tunnel Visualizer Viewport */
+.tunnelViewport {
+  width: 100%;
+  height: 140px;
+  position: relative;
+  user-select: none;
+}
+
+.tunnelSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Particle and Node Animations */
+@keyframes floatDrift {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-4px) scale(1.15);
+    opacity: 1;
+  }
+}
+
+.floatingParticle {
+  animation: floatDrift 4s ease-in-out infinite;
+  transform-origin: center;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.floatingParticle:hover {
+  filter: brightness(1.5) drop-shadow(0 0 8px #ffffff);
+}
+
+/* Stage Ellipse Rings */
+.tunnelRing {
+  cursor: pointer;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+}
+
+.tunnelRing:hover {
+  stroke: var(--color-accent) !important;
+  stroke-width: 2.5 !important;
+  filter: drop-shadow(0 0 10px var(--color-accent));
+}
+
+.tunnelRingActive {
+  stroke: var(--color-accent) !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 14px var(--color-accent));
+}
+
+/* Conversion Rate Pills Row */
+.conversionRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 0 10%;
+  margin-top: -6px;
+  position: relative;
+  z-index: 2;
+}
+
+.conversionItem {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.conversionPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, rgba(255, 255, 255, 0.12));
+  color: #cbd5e1;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+}
+
+.conversionPill:hover {
+  color: #ffffff;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+/* Tooltip on Hover */
+.nodeTooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-xs);
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  z-index: 99;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  transform: translate(-50%, -120%);
+  transition: opacity 0.15s ease;
+}
+
+/* Collapsed State Bar */
+.collapsedSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px 12px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.collapsedStages {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.collapsedStageItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.collapsedStageDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+

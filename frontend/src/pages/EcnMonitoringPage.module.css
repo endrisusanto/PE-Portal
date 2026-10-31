@@ -216,6 +216,28 @@
   gap: var(--space-2, 8px);
 }
 
+.aiMaximizeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: var(--font-size-xs, 11px);
+  font-weight: 600;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, var(--color-border));
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+.aiMaximizeBtn:hover {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
 .aiToggleText {
   font-size: var(--font-size-xs, 11px);
   font-weight: 600;
@@ -331,6 +353,107 @@
 .aiMessageTime {
   font-size: 10px;
   margin-top: 4px;
+}
+
+/* Fullscreen ECN AI Assistant Modal (Ponytail) */
+.aiModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4, 16px);
+  animation: modalFadeIn 0.18s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.aiModalContainer {
+  width: 100%;
+  max-width: 1360px;
+  height: 92vh;
+  background: var(--color-bg-primary);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 32px color-mix(in srgb, var(--color-accent) 20%, transparent);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleUp {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.aiModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.aiModalTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.aiModalActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.aiModalCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aiModalCloseBtn:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
+}
+
+.aiModalMessagesContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  padding: 18px 22px;
+  overflow-y: auto;
+  background: var(--color-bg-secondary);
+  scrollbar-width: thin;
+}
+
+.aiModalBubble {
+  max-width: 95%;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 /* ECN AI Assistant Thinking State - Ponytail */

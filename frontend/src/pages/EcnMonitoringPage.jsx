@@ -41,6 +41,8 @@ import {
   Database,
   ArrowRight,
   ShieldAlert,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -395,7 +397,9 @@ export const EcnMonitoringPage = () => {
 
   // --- AI Chatbot Accordion State (ponytail: default collapsed) ---
   const [isAiAccordionOpen, setIsAiAccordionOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false); // ponytail: ECN AI fullscreen modal
   const chatScrollRef = useRef(null);
+  const chatModalScrollRef = useRef(null);
   const [chatMessages, setChatMessages] = useState([
     {
       id: 'welcome',
@@ -428,6 +432,17 @@ export const EcnMonitoringPage = () => {
   const [chatInput, setChatInput] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
 
+  // Esc key closes the AI modal (ponytail)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isAiModalOpen) {
+        setIsAiModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAiModalOpen]);
+
   // Debounce global search
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -442,7 +457,10 @@ export const EcnMonitoringPage = () => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [chatMessages, isAiThinking]);
+    if (chatModalScrollRef.current) {
+      chatModalScrollRef.current.scrollTop = chatModalScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isAiThinking, isAiModalOpen]);
 
   // Fetch Stats
   const fetchStats = useCallback(async () => {
@@ -1497,6 +1515,18 @@ ${
             </span>
           </div>
           <div className={styles.aiAccordionActions}>
+            <button
+              type="button"
+              className={styles.aiMaximizeBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAiModalOpen(true);
+              }}
+              title={t('ecn.ai.maximize_tooltip', 'Perbesar ke Mode Layar Penuh (Fullscreen Modal)')}
+            >
+              <Maximize2 size={13} />
+              <span>{t('common.maximize', 'Maximize')}</span>
+            </button>
             <span className={styles.aiToggleText}>
               {isAiAccordionOpen
                 ? t('ecn.ai.hide_assistant', 'Sembunyikan Asisten AI')
@@ -1639,6 +1669,183 @@ ${
           </div>
         )}
       </div>
+
+      {/* ========================================================================
+          FULLSCREEN AI ASSISTANT MODAL (Shortcut from Accordion - Ponytail)
+          ======================================================================== */}
+      {isAiModalOpen && (
+        <div className={styles.aiModalOverlay} onClick={() => setIsAiModalOpen(false)}>
+          <div className={styles.aiModalContainer} onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className={styles.aiModalHeader}>
+              <div className={styles.aiAccordionTitleArea}>
+                <div className={styles.aiIconWrapper}>
+                  <Sparkles size={18} />
+                </div>
+                <h3 className={styles.aiModalTitle}>
+                  {t('ecn.ai.title', 'SEIN ECN Engineering AI Assistant')}
+                  <span className={styles.aiContextBadge}>
+                    {displayedRecords.length === totalRecords
+                      ? t('ecn.ai.context_badge_full', {
+                          total: totalRecords,
+                          defaultValue: `⚡ Full DB MCP: ${totalRecords} data`,
+                        })
+                      : t('ecn.ai.context_badge_filtered', {
+                          total: totalRecords,
+                          active: displayedRecords.length,
+                          defaultValue: `⚡ Full DB MCP: ${totalRecords} data (Tabel: ${displayedRecords.length} difilter)`,
+                        })}
+                  </span>
+                </h3>
+                <span className={styles.aiOnlinePill}>
+                  <span className={styles.aiOnlineDot} />
+                  {t('ecn.ai.llm_ready', 'LLM Ready')}
+                </span>
+              </div>
+
+              <div className={styles.aiModalActions}>
+                <button
+                  type="button"
+                  className={styles.aiClearBtn}
+                  title={t('ecn.ai.clear_history', 'Bersihkan riwayat percakapan')}
+                  onClick={() =>
+                    setChatMessages([
+                      {
+                        id: 'welcome',
+                        role: 'assistant',
+                        isWelcome: true,
+                        content: t(
+                          'ecn.ai.welcome_msg',
+                          'Halo! Saya asisten AI spesialis **ECN Monitoring SEIN PE**.\n\nSaya menganalisis seluruh database ECN yang sedang aktif (terfilter).\nAnda dapat menanyakan hal-hal seperti:\n- **Ringkasan ECN** model tertentu\n- **Analisis pergantian komponen/supplier** pada kolom *Remark*\n- Cek status **ECO Cancel** atau **In Progress**\n- Rekomendasi verifikasi **Running BOM**'
+                        ),
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      },
+                    ])
+                  }
+                >
+                  <RotateCcw size={14} />
+                  <span>{t('common.clear', 'Reset')}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.aiModalCloseBtn}
+                  onClick={() => setIsAiModalOpen(false)}
+                  title={t('common.close', 'Kecilkan / Tutup Modal (Esc)')}
+                >
+                  <Minimize2 size={16} />
+                  <span>{t('common.minimize', 'Kecilkan')}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Suggestion Chips */}
+            <div className={styles.aiQuickChips}>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_in_progress', 'Ringkas seluruh ECN yang berstatus Progress beserta dampaknya.')
+                  )
+                }
+              >
+                {t('ecn.ai.chip_in_progress', '💡 ECN Progress')}
+              </button>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_material', 'Apakah ada perubahan material kritis, FET, atau supplier pada kolom Remark?')
+                  )
+                }
+              >
+                {t('ecn.ai.chip_material', '⚠️ Isu Material & Supplier')}
+              </button>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_cancelled', 'Berapa banyak ECN yang statusnya ECO Cancel dan apa alasannya?')
+                  )
+                }
+              >
+                {t('ecn.ai.chip_cancelled', '❌ ECN Dibatalkan (Cancel)')}
+              </button>
+              <button
+                type="button"
+                className={styles.aiChipBtn}
+                onClick={() =>
+                  handleSendAiMessage(
+                    t('ecn.ai.prompt_process', 'Jelaskan distribusi proses perubahan antara SMD, Mainline, dan Vendor.')
+                  )
+                }
+              >
+                {t('ecn.ai.chip_process', '📊 Distribusi Proses')}
+              </button>
+            </div>
+
+            {/* Fullscreen Messages Container */}
+            <div className={styles.aiModalMessagesContainer} ref={chatModalScrollRef}>
+              {chatMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`${styles.aiMessageBubble} ${
+                    msg.role === 'user' ? styles.aiMessageUser : styles.aiMessageAssistant
+                  } ${styles.aiModalBubble}`}
+                >
+                  {msg.role === 'assistant' ? (
+                    <RichMessageContent content={msg.content} />
+                  ) : (
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                  )}
+                  <div className={styles.aiMessageTime}>{msg.timestamp}</div>
+                </div>
+              ))}
+
+              {isAiThinking && (
+                <div className={`${styles.aiMessageBubble} ${styles.aiMessageAssistant} ${styles.aiModalBubble}`}>
+                  <AiThinkingProgress
+                    text={t('ecn.ai.thinking', 'AI sedang menganalisis database ECN...')}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Composer Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendAiMessage();
+              }}
+              className={styles.aiComposerBar}
+            >
+              <input
+                type="text"
+                className={styles.aiInput}
+                placeholder={t(
+                  'ecn.ai.input_placeholder',
+                  'Tanyakan analisis ECN, model, part number, perubahan spek, kendala material...'
+                )}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={isAiThinking}
+                autoFocus
+              />
+              <button
+                type="submit"
+                className={styles.aiSendBtn}
+                disabled={!chatInput.trim() || isAiThinking}
+                title={t('ecn.ai.send_message', 'Kirim Pertanyaan')}
+              >
+                <Send size={15} />
+                <span>{t('ecn.ai.send_btn', 'Kirim')}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================
           MAIN TABLE CONTAINER & TOOLBAR
