@@ -307,7 +307,7 @@ export const WITranslatorTab = () => {
     }
   };
 
-  // ponytail: 1-second ticker for live elapsed time updates on active processing jobs
+  // ponytail: 1-second ticker for live ETA / elapsed updates on active processing jobs
   const [tickerNow, setTickerNow] = useState(Date.now());
   useEffect(() => {
     const hasProcessing = jobs.some((j) => j.status === 'processing');
@@ -316,28 +316,84 @@ export const WITranslatorTab = () => {
     return () => clearInterval(interval);
   }, [jobs]);
 
-  // ponytail: Format duration seconds into human-readable elapsed time (e.g. 17.1s, 1m 24s)
+  // ponytail: Format duration seconds into human-readable elapsed/remaining time (e.g. 17s, 1m 24s)
   const formatDuration = (sec) => {
-    if (sec === null || sec === undefined || isNaN(sec) || sec <= 0) return '—';
+    if (sec === null || sec === undefined || isNaN(sec) || sec <= 0) return '0s';
     if (sec < 60) {
-      return `${sec.toFixed(1)}s`;
+      return `${Math.round(sec)}s`;
     }
     const mins = Math.floor(sec / 60);
     const remSec = Math.round(sec % 60);
     return `${mins}m ${remSec < 10 ? '0' : ''}${remSec}s`;
   };
 
-  // ponytail: Calculate elapsed time from trigger start until completed or live
-  const getJobElapsed = (job) => {
-    if (job.status === 'completed' || (job.status === 'failed' && job.duration_sec > 0)) {
-      return formatDuration(job.duration_sec);
+  // ponytail: Calculate Estimated Completion Time (ETA) for active jobs or display finished time
+  const getJobEta = (job) => {
+    if (job.status === 'completed') {
+      const dur = formatDuration(job.duration_sec);
+      const timeStr = job.completed_at
+        ? new Date(job.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      return {
+        status: 'completed',
+        primary: `Selesai (${dur})`,
+        secondary: timeStr ? `Pukul ${timeStr}` : '',
+        tooltip: `Total durasi pengerjaan: ${job.duration_sec}s`,
+      };
     }
+
+    if (job.status === 'failed') {
+      const dur = job.duration_sec > 0 ? formatDuration(job.duration_sec) : '';
+      return {
+        status: 'failed',
+        primary: dur ? `Gagal (${dur})` : 'Gagal',
+        secondary: '',
+        tooltip: job.error_message || 'Pemrosesan gagal',
+      };
+    }
+
     if (job.status === 'processing') {
       const startRef = job.started_at ? new Date(job.started_at).getTime() : new Date(job.updated_at).getTime();
-      const elapsedSec = Math.max(0, (tickerNow - startRef) / 1000);
-      return formatDuration(elapsedSec);
+      const elapsedSec = Math.max(1, (tickerNow - startRef) / 1000);
+
+      // Determine progress ratio
+      let progress = 0;
+      if (job.total_pages > 0 && job.current_page > 0) {
+        progress = job.current_page / job.total_pages;
+      } else if (job.progress_percent > 0) {
+        progress = job.progress_percent / 100;
+      }
+
+      if (progress > 0.03) {
+        const estTotalSec = elapsedSec / progress;
+        const remainingSec = Math.max(0, estTotalSec - elapsedSec);
+        const targetDate = new Date(Date.now() + remainingSec * 1000);
+        const targetTimeStr = targetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        return {
+          status: 'processing',
+          primary: remainingSec < 4 ? '~Segera selesai' : `~${formatDuration(remainingSec)} lagi`,
+          secondary: `Est. Pukul ${targetTimeStr}`,
+          tooltip: `Elapsed: ${formatDuration(elapsedSec)} | Est. Total: ${formatDuration(estTotalSec)}`,
+        };
+      }
+
+      // Initializing / calculating early phase
+      return {
+        status: 'calculating',
+        primary: 'Menghitung...',
+        secondary: `Elapsed: ${formatDuration(elapsedSec)}`,
+        tooltip: `Sedang menganalisis struktur PDF... (Elapsed: ${formatDuration(elapsedSec)})`,
+      };
     }
-    return '—';
+
+    // Pending / queued
+    return {
+      status: 'pending',
+      primary: 'Dalam Antrean',
+      secondary: '',
+      tooltip: 'Menunggu giliran eksekusi',
+    };
   };
 
   // Status counters
@@ -714,7 +770,7 @@ export const WITranslatorTab = () => {
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_file', 'Berkas PDF')}</th>
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_config', 'Pengaturan')}</th>
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_status', 'Status & Progres Aktual')}</th>
-                <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_elapsed_time', 'Elapsed Time')}</th>
+                <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_est_completion', 'Est. Selesai (ETA)')}</th>
                 <th style={{ padding: '12px 14px' }}>{t('tools.wi_col_time', 'Waktu')}</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>{t('tools.wi_col_action', 'Aksi')}</th>
               </tr>
@@ -937,51 +993,77 @@ export const WITranslatorTab = () => {
                         )}
                       </td>
 
-                      {/* Elapsed Time */}
+                      {/* Estimate Time Completed (ETA) */}
                       <td style={{ padding: '14px', whiteSpace: 'nowrap' }}>
-                        {isProcessing ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            color: 'var(--color-accent)',
-                            fontVariantNumeric: 'tabular-nums',
-                          }}>
-                            <Clock size={13} style={{ animation: 'spin 2s linear infinite' }} />
-                            {getJobElapsed(j)}
-                          </span>
-                        ) : isCompleted ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: 'var(--color-text-primary)',
-                            fontVariantNumeric: 'tabular-nums',
-                          }} title={`Total durasi pengerjaan: ${j.duration_sec}s`}>
-                            <Clock size={13} style={{ color: '#10b981' }} />
-                            {getJobElapsed(j)}
-                          </span>
-                        ) : isFailed && j.duration_sec > 0 ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '12px',
-                            color: 'var(--color-text-secondary)',
-                            fontVariantNumeric: 'tabular-nums',
-                          }} title={`Berhenti pada: ${j.duration_sec}s`}>
-                            <Clock size={13} style={{ opacity: 0.6 }} />
-                            {getJobElapsed(j)}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>
-                            —
-                          </span>
-                        )}
+                        {(() => {
+                          const eta = getJobEta(j);
+                          if (eta.status === 'processing' || eta.status === 'calculating') {
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }} title={eta.tooltip}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: 'var(--color-accent)',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}>
+                                  <Clock size={13} style={{ animation: 'spin 2s linear infinite' }} />
+                                  {eta.primary}
+                                </span>
+                                {eta.secondary && (
+                                  <span style={{ fontSize: '10.5px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                                    {eta.secondary}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                          if (eta.status === 'completed') {
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }} title={eta.tooltip}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  color: '#10b981',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}>
+                                  <CheckCircle2 size={13} color="#10b981" />
+                                  {eta.primary}
+                                </span>
+                                {eta.secondary && (
+                                  <span style={{ fontSize: '10.5px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                                    {eta.secondary}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                          if (eta.status === 'failed') {
+                            return (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                fontSize: '12px',
+                                color: 'var(--color-danger, #ef4444)',
+                                fontVariantNumeric: 'tabular-nums',
+                              }} title={eta.tooltip}>
+                                <AlertCircle size={13} />
+                                {eta.primary}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>
+                              {eta.primary}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Time */}

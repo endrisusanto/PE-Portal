@@ -1457,6 +1457,7 @@
     "wi_col_config": "설정",
     "wi_col_status": "상태 및 진행률",
     "wi_col_elapsed_time": "소요 시간 (Elapsed Time)",
+    "wi_col_est_completion": "예상 완료 시간 (ETA)",
     "wi_col_time": "시간",
     "wi_col_action": "작업",
     "wi_no_jobs_title": "대기열에 파일이 없습니다",
