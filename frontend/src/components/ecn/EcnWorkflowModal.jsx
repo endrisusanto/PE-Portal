@@ -253,7 +253,7 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
 
             {(item.part_before || item.part_after) && (
               <div className={styles.metaItem} style={{ gridColumn: 'span 2' }}>
-                <span className={styles.metaLabel}>Part Change:</span>
+                <span className={styles.metaLabel}>{t('ecn.table.part_change_label', 'Perubahan Part:')}</span>
                 <span className={styles.partDiffText}>
                   {item.part_before || '-'} <ArrowRight size={11} /> {item.part_after || '-'}
                 </span>

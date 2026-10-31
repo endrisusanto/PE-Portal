@@ -72,15 +72,9 @@ func main() {
 	// AI & LLM Service (OpenAI-compatible / LM Studio)
 	llmService := service.NewLLMService()
 
-	// Auth Provider selection (local vs ldap)
-	var activeAuthProvider auth.AuthProvider
-	if cfg.AuthProvider == "ldap" {
-		log.Println("[Auth] Initializing LDAP Active Directory provider")
-		activeAuthProvider = auth.NewLDAPAuthProvider(cfg, pgPool.Pool)
-	} else {
-		log.Println("[Auth] Initializing Local bcrypt provider")
-		activeAuthProvider = auth.NewLocalAuthProvider(pgPool.Pool)
-	}
+	// Auth Provider selection (Unified Local + Active Directory LDAP provider)
+	log.Println("[Auth] Initializing Unified Auth provider (Local + Dynamic LDAP ADCORP)")
+	activeAuthProvider := auth.NewLDAPAuthProvider(cfg, pgPool.Pool)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(activeAuthProvider, jwtService, userRepo)
@@ -336,6 +330,7 @@ func main() {
 	// Settings & Dashboard
 	api.GET("/settings/auth", settingsHandler.GetAuthConfig, middleware.RequireRole("admin"))
 	api.PUT("/settings/auth", settingsHandler.UpdateAuthConfig, middleware.RequireRole("admin"))
+	api.POST("/settings/auth/test", settingsHandler.TestLDAPConnection, middleware.RequireRole("admin"))
 	api.GET("/settings/datahub", settingsHandler.GetDataHubConfig)
 	api.PUT("/settings/datahub", settingsHandler.UpdateDataHubConfig, middleware.RequireRole("admin"))
 	api.POST("/settings/datahub/test", settingsHandler.TestDataHubConnection, middleware.RequireRole("admin"))

@@ -1752,7 +1752,7 @@ ${
               title={t('ecn.filter.part_changes_tooltip', 'Tampilkan hanya data ECN yang memiliki perubahan Part Number (BOM Change)')}
             >
               <ArrowLeftRight size={13} />
-              <span>{t('ecn.filter.part_changes_only', 'Part Change BOM')}</span>
+              <span>{t('ecn.filter.part_changes_only', 'Perubahan Part BOM')}</span>
               {onlyPartChanges && <span className={styles.activeDot} />}
             </button>
           </div>

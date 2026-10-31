@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"crypto/tls"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/go-ldap/ldap/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 
@@ -126,6 +129,89 @@ func (h *SettingsHandler) UpdateAuthConfig(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "auth config updated successfully"})
+}
+
+type TestLDAPRequest struct {
+	Host         string `json:"ldap_host"`
+	Port         int    `json:"ldap_port"`
+	BaseDN       string `json:"ldap_base_dn"`
+	BindDN       string `json:"ldap_bind_dn"`
+	BindPassword string `json:"ldap_bind_password"`
+	UserFilter   string `json:"ldap_user_filter"`
+	UseTLS       bool   `json:"ldap_use_tls"`
+}
+
+// TestLDAPConnection tests TCP connectivity and service bind credentials against Corporate Active Directory
+func (h *SettingsHandler) TestLDAPConnection(c echo.Context) error {
+	var req TestLDAPRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
+	}
+
+	if req.Host == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Host / IP server LDAP wajib diisi")
+	}
+
+	if req.Port <= 0 {
+		req.Port = 389
+	}
+
+	// If bind password is blank in test request, try using saved bind password from database
+	if req.BindPassword == "" && req.BindDN != "" {
+		var savedPass *string
+		_ = h.pool.QueryRow(c.Request().Context(), "SELECT ldap_bind_password FROM auth_config WHERE is_active = true ORDER BY updated_at DESC LIMIT 1").Scan(&savedPass)
+		if savedPass != nil {
+			req.BindPassword = *savedPass
+		}
+	}
+
+	addr := fmt.Sprintf("%s:%d", req.Host, req.Port)
+	var conn *ldap.Conn
+	var err error
+
+	if req.UseTLS || req.Port == 636 {
+		conn, err = ldap.DialTLS("tcp", addr, &tls.Config{InsecureSkipVerify: true})
+	} else {
+		conn, err = ldap.Dial("tcp", addr)
+	}
+
+	if err != nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Gagal terhubung ke host LDAP (%s): %v", addr, err),
+		})
+	}
+	defer conn.Close()
+
+	if req.BindDN != "" {
+		if err := conn.Bind(req.BindDN, req.BindPassword); err != nil {
+			return c.JSON(http.StatusOK, map[string]interface{}{
+				"success": false,
+				"message": fmt.Sprintf("Koneksi berhasil tetapi service bind akun (%s) ditolak: %v", req.BindDN, err),
+			})
+		}
+	}
+
+	if req.BaseDN != "" {
+		searchReq := ldap.NewSearchRequest(
+			req.BaseDN,
+			ldap.ScopeBaseObject, ldap.NeverDerefAliases, 1, 5, false,
+			"(objectClass=*)",
+			[]string{"dn"},
+			nil,
+		)
+		if _, err := conn.Search(searchReq); err != nil {
+			return c.JSON(http.StatusOK, map[string]interface{}{
+				"success": false,
+				"message": fmt.Sprintf("Koneksi & Bind berhasil, namun verifikasi Base DN (%s) gagal: %v", req.BaseDN, err),
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Koneksi ke Active Directory ADCORP (%s) dan Service Bind berhasil diverifikasi!", addr),
+	})
 }
 
 func (h *SettingsHandler) ListAuditLogs(c echo.Context) error {

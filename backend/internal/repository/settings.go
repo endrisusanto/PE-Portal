@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"pe-portal/internal/model"
@@ -37,6 +38,15 @@ func (r *SettingsRepository) GetAuthConfig(ctx context.Context) (*model.AuthConf
 }
 
 func (r *SettingsRepository) UpdateAuthConfig(ctx context.Context, cfg *model.AuthConfig) error {
+	if cfg.ID == uuid.Nil {
+		_ = r.pool.QueryRow(ctx, "SELECT id FROM auth_config ORDER BY created_at DESC LIMIT 1").Scan(&cfg.ID)
+	}
+
+	var bindPass *string
+	if cfg.LDAPBindPassword != nil && *cfg.LDAPBindPassword != "" {
+		bindPass = cfg.LDAPBindPassword
+	}
+
 	query := `
 		UPDATE auth_config
 		SET provider = $1, ldap_host = $2, ldap_port = $3, ldap_base_dn = $4,
@@ -46,7 +56,7 @@ func (r *SettingsRepository) UpdateAuthConfig(ctx context.Context, cfg *model.Au
 	`
 	_, err := r.pool.Exec(ctx, query,
 		cfg.Provider, cfg.LDAPHost, cfg.LDAPPort, cfg.LDAPBaseDN,
-		cfg.LDAPBindDN, cfg.LDAPBindPassword, cfg.LDAPUserFilter, cfg.LDAPUseTLS,
+		cfg.LDAPBindDN, bindPass, cfg.LDAPUserFilter, cfg.LDAPUseTLS,
 		cfg.IsActive, cfg.ID,
 	)
 	return err

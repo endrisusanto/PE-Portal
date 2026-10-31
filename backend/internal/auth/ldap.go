@@ -46,19 +46,60 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 	}
 
 	// 3. Connect to LDAP server
-	if l.cfg.LDAPHost == "" {
+	host := l.cfg.LDAPHost
+	port := l.cfg.LDAPPort
+	baseDN := l.cfg.LDAPBaseDN
+	bindDN := l.cfg.LDAPBindDN
+	bindPass := l.cfg.LDAPBindPassword
+	useTLS := false
+	userFilter := "(sAMAccountName=%s)"
+
+	// Check if database has updated LDAP configuration
+	if l.pool != nil {
+		var dbProvider string
+		var dbHost, dbBaseDN, dbBindDN, dbBindPass *string
+		var dbPort int
+		var dbUserFilter string
+		var dbUseTLS bool
+		row := l.pool.QueryRow(ctx, "SELECT provider, ldap_host, ldap_port, ldap_base_dn, ldap_bind_dn, ldap_bind_password, ldap_user_filter, ldap_use_tls FROM auth_config WHERE is_active = true ORDER BY updated_at DESC LIMIT 1")
+		if err := row.Scan(&dbProvider, &dbHost, &dbPort, &dbBaseDN, &dbBindDN, &dbBindPass, &dbUserFilter, &dbUseTLS); err == nil {
+			if dbProvider == "local" {
+				return nil, errors.New("Active Directory LDAP login is currently disabled (Local Auth active)")
+			}
+			if dbHost != nil && *dbHost != "" {
+				host = *dbHost
+			}
+			if dbPort > 0 {
+				port = dbPort
+			}
+			if dbBaseDN != nil && *dbBaseDN != "" {
+				baseDN = *dbBaseDN
+			}
+			if dbBindDN != nil && *dbBindDN != "" {
+				bindDN = *dbBindDN
+			}
+			if dbBindPass != nil && *dbBindPass != "" {
+				bindPass = *dbBindPass
+			}
+			if dbUserFilter != "" {
+				userFilter = dbUserFilter
+			}
+			useTLS = dbUseTLS
+		}
+	}
+
+	if host == "" {
 		return nil, errors.New("LDAP host is not configured; check settings or environment variables")
 	}
 
-	port := l.cfg.LDAPPort
 	if port <= 0 {
 		port = 389
 	}
-	addr := fmt.Sprintf("%s:%d", l.cfg.LDAPHost, port)
+	addr := fmt.Sprintf("%s:%d", host, port)
 	var conn *ldap.Conn
 	var err error
 
-	if port == 636 {
+	if useTLS || port == 636 {
 		conn, err = ldap.DialTLS("tcp", addr, &tls.Config{InsecureSkipVerify: true})
 	} else {
 		conn, err = ldap.Dial("tcp", addr)
@@ -70,16 +111,16 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 	defer conn.Close()
 
 	// 4. Service Bind
-	if l.cfg.LDAPBindDN != "" {
-		if err := conn.Bind(l.cfg.LDAPBindDN, l.cfg.LDAPBindPassword); err != nil {
+	if bindDN != "" {
+		if err := conn.Bind(bindDN, bindPass); err != nil {
 			return nil, fmt.Errorf("service bind to LDAP failed: %w", err)
 		}
 	}
 
 	// 5. Search user in LDAP directory
-	searchFilter := fmt.Sprintf("(sAMAccountName=%s)", ldap.EscapeFilter(username))
+	searchFilter := fmt.Sprintf(userFilter, ldap.EscapeFilter(username))
 	searchRequest := ldap.NewSearchRequest(
-		l.cfg.LDAPBaseDN,
+		baseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		searchFilter,
 		[]string{"dn", "cn", "displayName", "mail", "userPrincipalName", "sAMAccountName", "employeeID", "employeeNumber"},
@@ -95,7 +136,12 @@ func (l *LDAPAuthProvider) Authenticate(ctx context.Context, username, password 
 	userDN := userEntry.DN
 
 	// 6. User Bind (Authenticate user with LDAP password)
-	userConn, err := ldap.Dial("tcp", addr)
+	var userConn *ldap.Conn
+	if useTLS || port == 636 {
+		userConn, err = ldap.DialTLS("tcp", addr, &tls.Config{InsecureSkipVerify: true})
+	} else {
+		userConn, err = ldap.Dial("tcp", addr)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect for user bind: %w", err)
 	}

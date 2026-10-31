@@ -14,7 +14,21 @@ export const SettingsPage = () => {
   const { t } = useTranslation();
 
   const [servers, setServers] = useState([]);
-  const [authConfig, setAuthConfig] = useState(null);
+  const [authConfig, setAuthConfig] = useState({
+    provider: 'local',
+    ldap_host: '',
+    ldap_port: 389,
+    ldap_base_dn: '',
+    ldap_bind_dn: '',
+    ldap_bind_password: '',
+    ldap_user_filter: '(sAMAccountName=%s)',
+    ldap_use_tls: false,
+    is_active: true,
+  });
+  const [savingAuth, setSavingAuth] = useState(false);
+  const [testingLdap, setTestingLdap] = useState(false);
+  const [authFeedback, setAuthFeedback] = useState(null);
+
   const [smtpConfig, setSmtpConfig] = useState({
     name: 'Corporate SEIN Mail Gateway',
     host: 'smtp.sein.corp.local',
@@ -96,7 +110,18 @@ export const SettingsPage = () => {
         api.get('/settings/datahub').catch(() => ({ data: null })),
       ]);
       setServers(mcpRes.data);
-      setAuthConfig(authRes.data);
+      if (authRes.data) {
+        setAuthConfig((prev) => ({
+          ...prev,
+          ...authRes.data,
+          ldap_host: authRes.data.ldap_host || '',
+          ldap_port: authRes.data.ldap_port || 389,
+          ldap_base_dn: authRes.data.ldap_base_dn || '',
+          ldap_bind_dn: authRes.data.ldap_bind_dn || '',
+          ldap_user_filter: authRes.data.ldap_user_filter || '(sAMAccountName=%s)',
+          ldap_bind_password: '',
+        }));
+      }
       if (smtpRes.data) {
         setSmtpConfig(smtpRes.data);
       }
@@ -244,6 +269,94 @@ export const SettingsPage = () => {
     } finally {
       setTestingHealth(null);
     }
+  };
+
+  const handleSaveAuth = async (e) => {
+    e.preventDefault();
+    setSavingAuth(true);
+    setAuthFeedback(null);
+    try {
+      await api.put('/settings/auth', {
+        provider: authConfig.provider,
+        ldap_host: authConfig.ldap_host ? authConfig.ldap_host.trim() : null,
+        ldap_port: parseInt(authConfig.ldap_port, 10) || 389,
+        ldap_base_dn: authConfig.ldap_base_dn ? authConfig.ldap_base_dn.trim() : null,
+        ldap_bind_dn: authConfig.ldap_bind_dn ? authConfig.ldap_bind_dn.trim() : null,
+        ldap_bind_password: authConfig.ldap_bind_password ? authConfig.ldap_bind_password : null,
+        ldap_user_filter: authConfig.ldap_user_filter ? authConfig.ldap_user_filter.trim() : '(sAMAccountName=%s)',
+        ldap_use_tls: Boolean(authConfig.ldap_use_tls),
+        is_active: true,
+      });
+      setAuthFeedback({
+        type: 'success',
+        text: t('settings.auth_save_success', 'Konfigurasi autentikasi & Active Directory LDAP berhasil disimpan!'),
+      });
+    } catch (err) {
+      setAuthFeedback({
+        type: 'error',
+        text: err.response?.data?.message || err.message,
+      });
+    } finally {
+      setSavingAuth(false);
+    }
+  };
+
+  const handleTestLdap = async () => {
+    if (!authConfig.ldap_host) {
+      setAuthFeedback({
+        type: 'error',
+        text: t('settings.ldap_host_required', 'Harap isi Host / Alamat Server LDAP terlebih dahulu sebelum melakukan tes.'),
+      });
+      return;
+    }
+    setTestingLdap(true);
+    setAuthFeedback(null);
+    try {
+      const res = await api.post('/settings/auth/test', {
+        ldap_host: authConfig.ldap_host.trim(),
+        ldap_port: parseInt(authConfig.ldap_port, 10) || 389,
+        ldap_base_dn: authConfig.ldap_base_dn ? authConfig.ldap_base_dn.trim() : '',
+        ldap_bind_dn: authConfig.ldap_bind_dn ? authConfig.ldap_bind_dn.trim() : '',
+        ldap_bind_password: authConfig.ldap_bind_password,
+        ldap_user_filter: authConfig.ldap_user_filter || '(sAMAccountName=%s)',
+        ldap_use_tls: Boolean(authConfig.ldap_use_tls),
+      });
+      if (res.data?.success) {
+        setAuthFeedback({
+          type: 'success',
+          text: res.data.message || t('settings.ldap_test_success', 'Koneksi ke Active Directory ADCORP berhasil terhubung!'),
+        });
+      } else {
+        setAuthFeedback({
+          type: 'error',
+          text: res.data?.message || t('settings.ldap_test_failed', 'Gagal terhubung ke LDAP Server.'),
+        });
+      }
+    } catch (err) {
+      setAuthFeedback({
+        type: 'error',
+        text: err.response?.data?.message || err.message,
+      });
+    } finally {
+      setTestingLdap(false);
+    }
+  };
+
+  const handleApplyAdcorpPreset = () => {
+    setAuthConfig((prev) => ({
+      ...prev,
+      provider: 'ldap',
+      ldap_host: 'adcorp.samsung.net',
+      ldap_port: 389,
+      ldap_use_tls: false,
+      ldap_base_dn: 'DC=samsung,DC=net',
+      ldap_bind_dn: prev.ldap_bind_dn || 'CN=svc_peportal,OU=ServiceAccounts,DC=samsung,DC=net',
+      ldap_user_filter: '(sAMAccountName=%s)',
+    }));
+    setAuthFeedback({
+      type: 'success',
+      text: t('settings.adcorp_preset_applied', 'Preset Active Directory Samsung ADCORP (adcorp.samsung.net, Port 389, Base DN DC=samsung,DC=net) berhasil dimuat!'),
+    });
   };
 
   const handleSaveSmtp = async (e) => {
@@ -617,40 +730,201 @@ export const SettingsPage = () => {
         </div>
       </section>
 
-      {/* Auth Settings Section */}
+      {/* Active Directory & Corporate LDAP (ADCORP) Settings Section */}
       <section style={{
         backgroundColor: 'var(--color-bg-secondary)',
         border: '1px solid var(--color-border)',
         borderRadius: 'var(--radius-md)',
         padding: '24px',
       }}>
-        <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <ShieldCheck size={18} color="var(--color-accent)" />
-          {t('settings.auth_config')}
-        </h2>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)', marginBottom: '16px' }}>
-          {t('settings.auth_desc', 'Configured authentication method for engineers and managers')}
-        </p>
-
-        <div style={{
-          padding: '16px',
-          backgroundColor: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-sm)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
-              {authConfig?.provider === 'ldap' ? t('settings.ldap_auth') : t('settings.local_auth')}
-            </span>
-            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              {t('settings.auth_swappable', 'Swappable without code modifications via AUTH_PROVIDER setting')}
+            <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={18} color="var(--color-accent)" />
+              {t('settings.ldap_title', 'Active Directory / Corporate LDAP (ADCORP)')}
+            </h2>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)', marginTop: '4px' }}>
+              {t('settings.ldap_desc', 'Konfigurasi server Active Directory korporat untuk single sign-on (SSO), service bind, dan auto-provisioning akun karyawan.')}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            style={{ fontSize: '0.75rem', height: '32px', padding: '0 10px' }}
+            onClick={handleApplyAdcorpPreset}
+          >
+            {t('settings.ldap_preset_btn', 'Gunakan Preset Samsung ADCORP (adcorp.samsung.net)')}
+          </Button>
+        </div>
+
+        {authFeedback && (
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '16px',
+            fontSize: 'var(--font-size-xs)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: authFeedback.type === 'success' ? 'var(--color-success-subtle)' : 'var(--color-error-subtle)',
+            color: authFeedback.type === 'success' ? 'var(--color-success)' : 'var(--color-error)',
+            border: `1px solid ${authFeedback.type === 'success' ? 'var(--color-success)' : 'var(--color-error)'}`,
+          }}>
+            {authFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+            <span>{authFeedback.text}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSaveAuth}>
+          {/* Provider Mode Selection */}
+          <div style={{
+            padding: '14px 16px',
+            backgroundColor: 'var(--color-bg-primary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}>
+            <div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                {t('settings.ldap_provider_mode', 'Mode Autentikasi Sistem')}
+              </div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                {authConfig.provider === 'ldap'
+                  ? 'Active Directory LDAP aktif (Fallback otomatis ke DB lokal untuk akun admin)'
+                  : 'Autentikasi basis data internal PostgreSQL aktif (LDAP dinonaktifkan)'}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                value={authConfig.provider}
+                onChange={(e) => setAuthConfig({ ...authConfig, provider: e.target.value })}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 'var(--font-size-xs)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="local">{t('settings.local_auth', 'Basis Data Lokal (Bcrypt)')}</option>
+                <option value="ldap">{t('settings.ldap_auth', 'Active Directory / LDAP Korporat')}</option>
+              </select>
+              <StatusBadge
+                status={authConfig.provider === 'ldap' ? 'approved' : 'neutral'}
+                label={authConfig.provider === 'ldap' ? 'ADCORP Active' : 'Local Only'}
+              />
             </div>
           </div>
-          <StatusBadge status="approved" label={authConfig?.provider || 'local'} />
-        </div>
+
+          {/* LDAP Server Details Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '16px',
+            opacity: authConfig.provider === 'ldap' ? 1 : 0.75,
+            transition: 'opacity 0.2s ease',
+          }}>
+            <Input
+              label={t('settings.ldap_host_label', 'Hostname / IP Server LDAP ADCORP')}
+              value={authConfig.ldap_host || ''}
+              onChange={(e) => setAuthConfig({ ...authConfig, ldap_host: e.target.value })}
+              placeholder="e.g. adcorp.samsung.net atau 10.x.x.x"
+              required={authConfig.provider === 'ldap'}
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Input
+                label={t('settings.ldap_port_label', 'Port LDAP')}
+                type="number"
+                value={authConfig.ldap_port || 389}
+                onChange={(e) => setAuthConfig({ ...authConfig, ldap_port: parseInt(e.target.value, 10) || 389 })}
+                placeholder="389 (LDAP) / 636 (LDAPS)"
+                required
+              />
+
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(authConfig.ldap_use_tls)}
+                    onChange={(e) => setAuthConfig({ ...authConfig, ldap_use_tls: e.target.checked })}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                  <span>{t('settings.ldap_use_tls', 'Gunakan LDAPS (SSL/TLS)')}</span>
+                </label>
+              </div>
+            </div>
+
+            <Input
+              label={t('settings.ldap_base_dn_label', 'Base DN (Search Root Directory)')}
+              value={authConfig.ldap_base_dn || ''}
+              onChange={(e) => setAuthConfig({ ...authConfig, ldap_base_dn: e.target.value })}
+              placeholder="e.g. DC=samsung,DC=net"
+            />
+
+            <Input
+              label={t('settings.ldap_filter_label', 'Filter Pencarian Akun Pengguna (User Filter)')}
+              value={authConfig.ldap_user_filter || '(sAMAccountName=%s)'}
+              onChange={(e) => setAuthConfig({ ...authConfig, ldap_user_filter: e.target.value })}
+              placeholder="(sAMAccountName=%s)"
+            />
+
+            <Input
+              label={t('settings.ldap_bind_dn_label', 'Service Account Bind DN / Username')}
+              value={authConfig.ldap_bind_dn || ''}
+              onChange={(e) => setAuthConfig({ ...authConfig, ldap_bind_dn: e.target.value })}
+              placeholder="e.g. CN=svc_peportal,OU=ServiceAccounts,DC=samsung,DC=net"
+            />
+
+            <Input
+              label={t('settings.ldap_bind_pass_label', 'Password Service Account (Bind Password)')}
+              type="password"
+              value={authConfig.ldap_bind_password || ''}
+              onChange={(e) => setAuthConfig({ ...authConfig, ldap_bind_password: e.target.value })}
+              placeholder={t('settings.ldap_bind_pass_placeholder', 'Kosongkan jika tidak ingin mengubah kata sandi tersimpan')}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px',
+            marginTop: '20px',
+            paddingTop: '16px',
+            borderTop: '1px solid var(--color-border)',
+            flexWrap: 'wrap',
+          }}>
+            <Button
+              type="button"
+              variant="outline"
+              icon={Activity}
+              onClick={handleTestLdap}
+              loading={testingLdap}
+              disabled={!authConfig.ldap_host}
+            >
+              {t('settings.ldap_test_btn', 'Uji Koneksi LDAP & Bind')}
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              icon={CheckCircle2}
+              loading={savingAuth}
+            >
+              {t('settings.ldap_save_btn', 'Simpan Konfigurasi Auth & LDAP')}
+            </Button>
+          </div>
+        </form>
       </section>
 
       {/* SMTP Gateway Configuration */}
