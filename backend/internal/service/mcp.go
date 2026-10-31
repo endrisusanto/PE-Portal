@@ -426,6 +426,7 @@ func (s *MCPClientService) CallMCPChat(ctx context.Context, server *model.MCPSer
 		"messages":  formattedMsgs,
 		"user":      userName,
 		"role":      userRole,
+		"stream":    false,
 	}
 	if llmCfg != nil {
 		if llmCfg.BaseURL != "" {

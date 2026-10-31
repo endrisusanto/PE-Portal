@@ -362,7 +362,8 @@ func (h *AIHandler) Chat(c echo.Context) error {
 
 	if isMcpQuery && targetMcpServer != nil && h.mcpSvc != nil {
 		mcpReply, err := h.mcpSvc.CallMCPChat(c.Request().Context(), targetMcpServer, lastUserMsg, req.Messages, userName, userRole, cfg)
-		if err == nil && strings.TrimSpace(mcpReply) != "" {
+		// ponytail: only return MCP reply if successful and not returning an unhandled upstream connection failure
+		if err == nil && strings.TrimSpace(mcpReply) != "" && !strings.Contains(mcpReply, "Gagal terhubung ke LM Studio") {
 			return c.JSON(http.StatusOK, map[string]interface{}{
 				"reply":       mcpReply,
 				"model":       "MCP: " + targetMcpServer.Name,
