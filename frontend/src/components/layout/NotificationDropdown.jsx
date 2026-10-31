@@ -161,7 +161,7 @@ export const NotificationDropdown = () => {
             onClick={handleToggle}
             title={`${activeJobsCount} proses latar belakang sedang berjalan`}
           >
-            <Zap size={12} className={styles.zapIcon} />
+            <Sparkles size={13} className={styles.aiSparkleIcon} />
             <span className={styles.activePillText}>
               {activeJobsCount} {t('common.processing', 'Berjalan')}
             </span>
@@ -197,7 +197,7 @@ export const NotificationDropdown = () => {
               </h3>
               {activeJobsCount > 0 && (
                 <span className={styles.headerActiveBadge}>
-                  <Zap size={11} /> {activeJobsCount} Aktif
+                  <Sparkles size={11} className={styles.aiSparkleIcon} /> {activeJobsCount} Aktif
                 </span>
               )}
             </div>
@@ -214,7 +214,7 @@ export const NotificationDropdown = () => {
               <div style={{ marginBottom: '14px' }}>
                 <div className={styles.sectionHeaderActive}>
                   <span className={styles.sectionTitleActive}>
-                    <Zap size={14} className={styles.zapIcon} />
+                    <Sparkles size={14} className={styles.aiSparkleIcon} />
                     {t('tools.active_running_title', 'SEDANG BERJALAN')} ({activeTools.length})
                   </span>
                   <span className={styles.livePulseDot} />
@@ -261,8 +261,9 @@ export const NotificationDropdown = () => {
                           </div>
                         </div>
                         <div className={styles.stepRow}>
-                          <span className={styles.stepText}>
-                            {job.current_step || 'Memproses di background server...'}
+                          <span className={styles.stepText} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <Sparkles size={11} className={styles.aiSparkleIcon} />
+                            <span>{job.current_step || 'Memproses di background server...'}</span>
                           </span>
                           <span className={styles.percentText}>
                             {Math.round(job.progress_percent)}%
@@ -385,8 +386,8 @@ export const NotificationDropdown = () => {
                               </span>
                             )}
                             {meta.target_lang && (
-                              <span className={styles.metaInfoPill}>
-                                🌐 {meta.target_lang.toUpperCase()}
+                              <span className={styles.metaInfoPill} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <Languages size={11} color="var(--color-accent)" /> {meta.target_lang.toUpperCase()}
                               </span>
                             )}
                             {meta.translated_count > 0 && (
@@ -395,8 +396,8 @@ export const NotificationDropdown = () => {
                               </span>
                             )}
                             {job.duration_sec > 0 && (
-                              <span className={styles.metaInfoPill}>
-                                ⏱️ {job.duration_sec.toFixed(1)}s
+                              <span className={styles.metaInfoPill} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <Clock size={11} color="var(--color-accent)" /> {job.duration_sec.toFixed(1)}s
                               </span>
                             )}
                           </div>

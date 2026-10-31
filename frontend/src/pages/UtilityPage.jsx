@@ -3231,7 +3231,7 @@ const VideoCompressTab = () => {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Zap size={14} /> Server Background Process ({activeJob.file_name})
+                    <Sparkles size={14} className={styles.spin} /> Server Background Process ({activeJob.file_name})
                   </span>
                   <span style={{ fontWeight: 800, fontSize: '13px' }}>
                     {Math.round(activeJob.progress_percent)}%

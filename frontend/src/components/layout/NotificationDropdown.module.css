@@ -48,19 +48,25 @@
   transform: scale(0.97);
 }
 
-.zapIcon {
+.zapIcon,
+.aiSparkleIcon {
   color: currentColor;
-  animation: zapSpark 1.8s ease-in-out infinite;
+  animation: aiSparkleTwinkle 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  display: inline-block;
+  transform-origin: center;
+  flex-shrink: 0;
 }
 
-@keyframes zapSpark {
+@keyframes aiSparkleTwinkle {
   0%, 100% {
+    transform: scale(0.9) rotate(0deg);
     opacity: 0.85;
-    transform: scale(0.95);
+    filter: drop-shadow(0 0 2px var(--color-accent));
   }
   50% {
+    transform: scale(1.18) rotate(15deg);
     opacity: 1;
-    transform: scale(1.15);
+    filter: drop-shadow(0 0 7px var(--color-accent));
   }
 }
 
