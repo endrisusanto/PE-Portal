@@ -26,7 +26,25 @@ func (r *NewModelRepository) List(ctx context.Context, stage string) ([]model.Ne
 		SELECT m.id, m.model_name, m.marketing_name, m.codename, COALESCE(m.basic_models, '[]'::jsonb),
 		       m.stage, m.description, m.project_id, m.owner_id, u.full_name as owner_name,
 		       m.target_release::text, m.specifications, m.is_active, m.sort_order,
-		       m.created_at, m.updated_at
+		       m.created_at, m.updated_at,
+		       COALESCE((
+		           SELECT json_agg(json_build_object(
+		               'user_id', u2.id,
+		               'full_name', u2.full_name,
+		               'username', u2.username,
+		               'email', u2.email,
+		               'role', nmp.role,
+		               'avatar_path', u2.avatar_path
+		           ) ORDER BY (nmp.role = 'lead') DESC, nmp.created_at ASC)
+		           FROM new_model_pics nmp
+		           JOIN users u2 ON nmp.user_id = u2.id
+		           WHERE nmp.model_id = m.id
+		       ), '[]'::json) as pics,
+		       COALESCE((
+		           SELECT json_agg(nmp.user_id ORDER BY (nmp.role = 'lead') DESC, nmp.created_at ASC)
+		           FROM new_model_pics nmp
+		           WHERE nmp.model_id = m.id
+		       ), '[]'::json) as pic_ids
 		FROM new_models m
 		LEFT JOIN users u ON m.owner_id = u.id
 		WHERE m.deleted_at IS NULL
@@ -43,15 +61,27 @@ func (r *NewModelRepository) List(ctx context.Context, stage string) ([]model.Ne
 	items := []model.NewModel{}
 	for rows.Next() {
 		var m model.NewModel
+		var picsJSON, picIDsJSON []byte
 		err := rows.Scan(
 			&m.ID, &m.ModelName, &m.MarketingName, &m.Codename, &m.BasicModels,
 			&m.Stage, &m.Description, &m.ProjectID, &m.OwnerID, &m.OwnerName,
 			&m.TargetRelease, &m.Specifications, &m.IsActive, &m.SortOrder,
 			&m.CreatedAt, &m.UpdatedAt,
+			&picsJSON, &picIDsJSON,
 		)
 		if err != nil {
 			return nil, err
 		}
+
+		m.PICs = []model.ModelPIC{}
+		if len(picsJSON) > 0 {
+			_ = json.Unmarshal(picsJSON, &m.PICs)
+		}
+		m.PICIDs = []uuid.UUID{}
+		if len(picIDsJSON) > 0 {
+			_ = json.Unmarshal(picIDsJSON, &m.PICIDs)
+		}
+
 		items = append(items, m)
 	}
 	return items, nil
@@ -62,22 +92,52 @@ func (r *NewModelRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.
 		SELECT m.id, m.model_name, m.marketing_name, m.codename, COALESCE(m.basic_models, '[]'::jsonb),
 		       m.stage, m.description, m.project_id, m.owner_id, u.full_name as owner_name,
 		       m.target_release::text, m.specifications, m.is_active, m.sort_order,
-		       m.created_at, m.updated_at
+		       m.created_at, m.updated_at,
+		       COALESCE((
+		           SELECT json_agg(json_build_object(
+		               'user_id', u2.id,
+		               'full_name', u2.full_name,
+		               'username', u2.username,
+		               'email', u2.email,
+		               'role', nmp.role,
+		               'avatar_path', u2.avatar_path
+		           ) ORDER BY (nmp.role = 'lead') DESC, nmp.created_at ASC)
+		           FROM new_model_pics nmp
+		           JOIN users u2 ON nmp.user_id = u2.id
+		           WHERE nmp.model_id = m.id
+		       ), '[]'::json) as pics,
+		       COALESCE((
+		           SELECT json_agg(nmp.user_id ORDER BY (nmp.role = 'lead') DESC, nmp.created_at ASC)
+		           FROM new_model_pics nmp
+		           WHERE nmp.model_id = m.id
+		       ), '[]'::json) as pic_ids
 		FROM new_models m
 		LEFT JOIN users u ON m.owner_id = u.id
 		WHERE m.id = $1 AND m.deleted_at IS NULL
 	`
 
 	var m model.NewModel
+	var picsJSON, picIDsJSON []byte
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&m.ID, &m.ModelName, &m.MarketingName, &m.Codename, &m.BasicModels,
 		&m.Stage, &m.Description, &m.ProjectID, &m.OwnerID, &m.OwnerName,
 		&m.TargetRelease, &m.Specifications, &m.IsActive, &m.SortOrder,
 		&m.CreatedAt, &m.UpdatedAt,
+		&picsJSON, &picIDsJSON,
 	)
 	if err != nil {
 		return nil, err
 	}
+
+	m.PICs = []model.ModelPIC{}
+	if len(picsJSON) > 0 {
+		_ = json.Unmarshal(picsJSON, &m.PICs)
+	}
+	m.PICIDs = []uuid.UUID{}
+	if len(picIDsJSON) > 0 {
+		_ = json.Unmarshal(picIDsJSON, &m.PICIDs)
+	}
+
 	return &m, nil
 }
 
@@ -93,6 +153,13 @@ func (r *NewModelRepository) Create(ctx context.Context, m *model.NewModel) (*mo
 	}
 	if len(m.BasicModels) == 0 {
 		m.BasicModels = json.RawMessage("[]")
+	}
+
+	// Lead PIC synchronization
+	if len(m.PICIDs) > 0 {
+		m.OwnerID = &m.PICIDs[0]
+	} else if m.OwnerID != nil {
+		m.PICIDs = []uuid.UUID{*m.OwnerID}
 	}
 
 	var targetRelease string
@@ -113,6 +180,19 @@ func (r *NewModelRepository) Create(ctx context.Context, m *model.NewModel) (*mo
 	).Scan(&m.CreatedAt, &m.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new model: %w", err)
+	}
+
+	// Insert into new_model_pics
+	for i, uid := range m.PICIDs {
+		role := "pic"
+		if i == 0 {
+			role = "lead"
+		}
+		_, _ = r.pool.Exec(ctx, `
+			INSERT INTO new_model_pics (model_id, user_id, role)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (model_id, user_id) DO UPDATE SET role = EXCLUDED.role
+		`, m.ID, uid, role)
 	}
 
 	// Record initial stage history entry
@@ -143,6 +223,15 @@ func (r *NewModelRepository) Update(ctx context.Context, m *model.NewModel) (*mo
 		basicModelsParam = m.BasicModels
 	}
 
+	// Sync Lead PIC if PICIDs provided
+	if m.PICIDs != nil {
+		if len(m.PICIDs) > 0 {
+			m.OwnerID = &m.PICIDs[0]
+		} else {
+			m.OwnerID = nil
+		}
+	}
+
 	query := `
 		UPDATE new_models
 		SET model_name = $1,
@@ -151,7 +240,7 @@ func (r *NewModelRepository) Update(ctx context.Context, m *model.NewModel) (*mo
 		    basic_models = COALESCE($4::jsonb, basic_models),
 		    description = $5,
 		    project_id = $6,
-		    owner_id = COALESCE($7, owner_id),
+		    owner_id = $7,
 		    target_release = NULLIF($8, '')::date,
 		    specifications = COALESCE($9::jsonb, specifications),
 		    is_active = COALESCE($10, is_active),
@@ -167,6 +256,23 @@ func (r *NewModelRepository) Update(ctx context.Context, m *model.NewModel) (*mo
 	if err != nil {
 		return nil, err
 	}
+
+	// Update new_model_pics junction table if PICIDs was supplied
+	if m.PICIDs != nil {
+		_, _ = r.pool.Exec(ctx, `DELETE FROM new_model_pics WHERE model_id = $1`, m.ID)
+		for i, uid := range m.PICIDs {
+			role := "pic"
+			if i == 0 {
+				role = "lead"
+			}
+			_, _ = r.pool.Exec(ctx, `
+				INSERT INTO new_model_pics (model_id, user_id, role)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (model_id, user_id) DO UPDATE SET role = EXCLUDED.role
+			`, m.ID, uid, role)
+		}
+	}
+
 	return r.GetByID(ctx, m.ID)
 }
 

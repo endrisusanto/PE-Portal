@@ -50,6 +50,8 @@ type CreateModelRequest struct {
 	Stage          string          `json:"stage"`
 	Description    *string         `json:"description"`
 	ProjectID      *uuid.UUID      `json:"project_id"`
+	OwnerID        *uuid.UUID      `json:"owner_id"`
+	PICIDs         []uuid.UUID     `json:"pic_ids"`
 	TargetRelease  *string         `json:"target_release"`
 	Specifications json.RawMessage `json:"specifications"`
 	IsActive       *bool           `json:"is_active"`
@@ -67,10 +69,19 @@ func (h *NewModelHandler) Create(c echo.Context) error {
 	}
 
 	var ownerID *uuid.UUID
-	if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
-		if uid, ok := uidVal.(uuid.UUID); ok {
+	if req.OwnerID != nil {
+		ownerID = req.OwnerID
+	} else if len(req.PICIDs) > 0 {
+		ownerID = &req.PICIDs[0]
+	} else if uidVal := c.Get(middleware.ContextKeyUserID); uidVal != nil {
+		if uid, ok := uidVal.(uuid.UUID); ok && uid != uuid.Nil {
 			ownerID = &uid
 		}
+	}
+
+	picIDs := req.PICIDs
+	if len(picIDs) == 0 && ownerID != nil {
+		picIDs = []uuid.UUID{*ownerID}
 	}
 
 	isActive := true
@@ -91,6 +102,7 @@ func (h *NewModelHandler) Create(c echo.Context) error {
 		Description:    req.Description,
 		ProjectID:      req.ProjectID,
 		OwnerID:        ownerID,
+		PICIDs:         picIDs,
 		TargetRelease:  req.TargetRelease,
 		Specifications: req.Specifications,
 		IsActive:       isActive,
@@ -131,8 +143,11 @@ func (h *NewModelHandler) Update(c echo.Context) error {
 		MarketingName:  req.MarketingName,
 		Codename:       req.Codename,
 		BasicModels:    req.BasicModels,
+		Stage:          req.Stage,
 		Description:    req.Description,
 		ProjectID:      req.ProjectID,
+		OwnerID:        req.OwnerID,
+		PICIDs:         req.PICIDs,
 		TargetRelease:  req.TargetRelease,
 		Specifications: req.Specifications,
 		IsActive:       isActive,

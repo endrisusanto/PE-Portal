@@ -32,9 +32,12 @@ import { portalConfirm, portalAlert } from '../contexts/ConfirmContext';
 
 // ponytail: parent group display labels and grouping helper
 const PARENT_GROUP_LABELS = {
+  pe_management: 'PE Executive Management',
   pe_mecha: 'PE Mecha',
   pe_production: 'PE Part',
   pe_solution: 'PE Solution Production',
+  purchasing: 'Purchasing & Sourcing',
+  qa: 'Quality Assurance (QA)',
 };
 
 const getParentGroupLabel = (key) => {
@@ -62,6 +65,7 @@ export const AdminPage = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
+  const [department, setDepartment] = useState('PE');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('member');
   const [groupPartId, setGroupPartId] = useState('');
@@ -74,6 +78,7 @@ export const AdminPage = () => {
   const [editUsername, setEditUsername] = useState('');
   const [editFullName, setEditFullName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editDepartment, setEditDepartment] = useState('PE');
   const [editGroupPartId, setEditGroupPartId] = useState('');
   const [editGroupPartIds, setEditGroupPartIds] = useState([]);
   const [editRole, setEditRole] = useState('member');
@@ -262,6 +267,7 @@ export const AdminPage = () => {
         full_name: fullName,
         password,
         role,
+        department: department || 'PE',
         group_part_id: createGroupPartIds[0] || undefined,
         group_part_ids: createGroupPartIds,
         preferred_lang: 'en',
@@ -273,6 +279,7 @@ export const AdminPage = () => {
       setEmail('');
       setFullName('');
       setPassword('');
+      setDepartment('PE');
       setCreateGroupPartIds([]);
     } catch (err) {
       alert(err.response?.data?.message || err.message);
@@ -296,6 +303,7 @@ export const AdminPage = () => {
     setEditUsername(u.username || '');
     setEditFullName(u.full_name || '');
     setEditEmail(u.email || '');
+    setEditDepartment(u.department || 'PE');
     const initialGroupPartIds = u.group_part_ids && u.group_part_ids.length > 0
       ? u.group_part_ids
       : (u.group_part_id ? [u.group_part_id] : []);
@@ -316,6 +324,7 @@ export const AdminPage = () => {
         employee_id: editEmployeeId,
         full_name: editFullName,
         email: editEmail,
+        department: editDepartment || 'PE',
         group_part_id: editGroupPartIds[0] || null,
         group_part_ids: editGroupPartIds,
         role: editRole,
@@ -395,6 +404,30 @@ export const AdminPage = () => {
     {
       title: t('admin.col_email', 'Email'),
       key: 'email',
+    },
+    {
+      title: 'Department',
+      key: 'department',
+      render: (val) => {
+        const dept = val || 'PE';
+        const isPE = dept === 'PE';
+        return (
+          <span
+            style={{
+              display: 'inline-block',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: 600,
+              backgroundColor: isPE ? 'rgba(59, 130, 246, 0.12)' : 'rgba(249, 115, 22, 0.12)',
+              border: isPE ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(249, 115, 22, 0.3)',
+              color: isPE ? '#3b82f6' : '#ea580c',
+            }}
+          >
+            {dept}
+          </span>
+        );
+      },
     },
     {
       title: t('admin.col_group', 'Group Part'),
@@ -1215,6 +1248,32 @@ export const AdminPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Departemen Asal (Home Department)
+              </label>
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                <option value="PE">PE (Product Engineering - Internal)</option>
+                <option value="Purchasing">Purchasing & Sourcing</option>
+                <option value="QA">Quality Assurance (QA)</option>
+                <option value="SCM">Supply Chain Management (SCM)</option>
+                <option value="Production">Production / Manufacturing</option>
+                <option value="Other">Other / External Collaborator</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Role Access
               </label>
               <select
@@ -1234,6 +1293,7 @@ export const AdminPage = () => {
                 <option value="admin">Administrator</option>
               </select>
             </div>
+          </div>
 
             <Input
               label="Initial Password"
@@ -1245,7 +1305,6 @@ export const AdminPage = () => {
               autoComplete="new-password"
               required
             />
-          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1435,7 +1494,33 @@ export const AdminPage = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Departemen Asal
+              </label>
+              <select
+                value={editDepartment}
+                onChange={(e) => setEditDepartment(e.target.value)}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                <option value="PE">PE (Internal PE)</option>
+                <option value="Purchasing">Purchasing & Sourcing</option>
+                <option value="QA">Quality Assurance (QA)</option>
+                <option value="SCM">Supply Chain (SCM)</option>
+                <option value="Production">Production / Mfg</option>
+                <option value="Other">Other / Collaborator</option>
+              </select>
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
                 Role Access

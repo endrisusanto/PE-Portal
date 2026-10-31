@@ -25,7 +25,7 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	query := `
 		SELECT u.id, u.employee_id, u.username, u.email,
-		       u.full_name, u.avatar_path, u.preferred_lang, u.group_part_id,
+		       u.full_name, u.avatar_path, u.preferred_lang, COALESCE(u.department, 'PE') as department, u.group_part_id,
 		       gp.name as group_part_name, gp.parent_group,
 		       u.role, u.auth_provider, u.is_active, u.last_login_at, u.created_at, u.updated_at
 		FROM users u
@@ -36,7 +36,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User
 	var user model.User
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&user.ID, &user.EmployeeID, &user.Username, &user.Email,
-		&user.FullName, &user.AvatarPath, &user.PreferredLang, &user.GroupPartID,
+		&user.FullName, &user.AvatarPath, &user.PreferredLang, &user.Department, &user.GroupPartID,
 		&user.GroupPartName, &user.ParentGroup,
 		&user.Role, &user.AuthProvider, &user.IsActive, &user.LastLoginAt, &user.CreatedAt, &user.UpdatedAt,
 	)
@@ -81,7 +81,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User
 func (r *UserRepository) ListUsers(ctx context.Context, groupPartID *uuid.UUID, role string) ([]model.User, error) {
 	query := `
 		SELECT u.id, u.employee_id, u.username, u.email,
-		       u.full_name, u.avatar_path, u.preferred_lang, u.group_part_id,
+		       u.full_name, u.avatar_path, u.preferred_lang, COALESCE(u.department, 'PE') as department, u.group_part_id,
 		       gp.name as group_part_name, gp.parent_group,
 		       u.role, u.auth_provider, u.is_active, u.last_login_at, u.created_at, u.updated_at
 		FROM users u
@@ -106,7 +106,7 @@ func (r *UserRepository) ListUsers(ctx context.Context, groupPartID *uuid.UUID, 
 		var u model.User
 		err := rows.Scan(
 			&u.ID, &u.EmployeeID, &u.Username, &u.Email,
-			&u.FullName, &u.AvatarPath, &u.PreferredLang, &u.GroupPartID,
+			&u.FullName, &u.AvatarPath, &u.PreferredLang, &u.Department, &u.GroupPartID,
 			&u.GroupPartName, &u.ParentGroup,
 			&u.Role, &u.AuthProvider, &u.IsActive, &u.LastLoginAt, &u.CreatedAt, &u.UpdatedAt,
 		)
@@ -178,6 +178,9 @@ func (r *UserRepository) CreateUser(ctx context.Context, u *model.User, rawPassw
 	if u.AuthProvider == "" {
 		u.AuthProvider = "local"
 	}
+	if u.Department == "" {
+		u.Department = "PE"
+	}
 	u.IsActive = true
 	now := time.Now()
 	u.CreatedAt = now
@@ -189,13 +192,14 @@ func (r *UserRepository) CreateUser(ctx context.Context, u *model.User, rawPassw
 	}
 
 	query := `
-		INSERT INTO users (id, employee_id, username, email, password_hash, full_name, avatar_path, preferred_lang, group_part_id, role, auth_provider, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		INSERT INTO users (id, employee_id, username, email, password_hash, full_name, avatar_path, preferred_lang, department, group_part_id, role, auth_provider, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		ON CONFLICT (username) DO UPDATE
 		SET employee_id = EXCLUDED.employee_id,
 		    email = EXCLUDED.email,
 		    password_hash = EXCLUDED.password_hash,
 		    full_name = EXCLUDED.full_name,
+		    department = EXCLUDED.department,
 		    group_part_id = EXCLUDED.group_part_id,
 		    role = EXCLUDED.role,
 		    is_active = true,
@@ -206,7 +210,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, u *model.User, rawPassw
 
 	err := r.pool.QueryRow(ctx, query,
 		u.ID, u.EmployeeID, u.Username, u.Email, hash,
-		u.FullName, u.AvatarPath, u.PreferredLang, u.GroupPartID,
+		u.FullName, u.AvatarPath, u.PreferredLang, u.Department, u.GroupPartID,
 		u.Role, u.AuthProvider, u.IsActive, u.CreatedAt, u.UpdatedAt,
 	).Scan(&u.ID)
 
@@ -231,14 +235,18 @@ func (r *UserRepository) UpdateUser(ctx context.Context, u *model.User, newPassw
 		u.GroupPartID = &u.GroupPartIDs[0]
 	}
 
+	if u.Department == "" {
+		u.Department = "PE"
+	}
+
 	query := `
 		UPDATE users
 		SET full_name = $1, email = $2, employee_id = $3,
-		    group_part_id = $4, role = $5, is_active = $6, updated_at = NOW()
-		WHERE id = $7 AND deleted_at IS NULL
+		    department = $4, group_part_id = $5, role = $6, is_active = $7, updated_at = NOW()
+		WHERE id = $8 AND deleted_at IS NULL
 	`
 
-	_, err := r.pool.Exec(ctx, query, u.FullName, u.Email, u.EmployeeID, u.GroupPartID, u.Role, u.IsActive, u.ID)
+	_, err := r.pool.Exec(ctx, query, u.FullName, u.Email, u.EmployeeID, u.Department, u.GroupPartID, u.Role, u.IsActive, u.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update user: %w", err)
 	}

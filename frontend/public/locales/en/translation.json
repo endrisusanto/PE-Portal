@@ -499,6 +499,10 @@
     "initial_stage": "Initial Stage",
     "target_release": "Target Release Date",
     "initial_description": "Description / Initial Specs",
+    "pic_label": "Model PIC (Person In Charge)",
+    "pic_select_placeholder": "+ Select & Add Model PIC...",
+    "pic_lead_badge": "Lead PIC",
+    "pic_empty_hint": "No PIC assigned yet. Select registered users above.",
     "edit_model": "Edit Model",
     "edit_stage_data": "Edit Stage Notes & Documents",
     "update_stage_data": "Update Stage Data: {{name}}",
@@ -1256,7 +1260,9 @@
     "parent_pe_production": "PE Part",
     "parent_pe_mecha": "PE Mecha",
     "parent_pe_solution": "PE Solution Production",
-    "loading": "Loading engineering organization..."
+    "loading": "Loading engineering organization...",
+    "cross_dept_title": "Cross-Department Partners & Collaborators",
+    "cross_dept_desc": "Collaborators from other departments participating in engineering workflows (BOM, Purchasing, QA, etc)."
   },
   "admin": {
     "title": "Administration & Access Control",
@@ -1266,6 +1272,7 @@
     "tab_audit": "Audit Logs",
     "add_user_btn": "Add Engineer User",
     "col_full_name": "Full Name",
+    "col_department": "Department",
     "col_username": "Username / Knots",
     "col_group": "Primary Group Part",
     "col_multi_group": "Multiple Jobdesks",
@@ -1288,7 +1295,7 @@
     "attach_tooltip": "Attach photo, PCB layout, or PDF document",
     "send_btn": "Send",
     "clear_btn": "Clear Chat",
-    "thinking": "AI is analyzing and drafting response...",
+    "thinking": "Analyzing...",
     "vision_badge": "Photo / Image Attached",
     "pdf_badge": "PDF Document Text Extracted",
     "quick_prompt_1": "Analyze PCB defect symptoms",

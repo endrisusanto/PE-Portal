@@ -18,6 +18,7 @@ type User struct {
 	FullName      string     `json:"full_name"`
 	AvatarPath    *string    `json:"avatar_path"`
 	PreferredLang string     `json:"preferred_lang"`
+	Department    string     `json:"department"` // PE, Purchasing, QA, etc.
 	GroupPartID    *uuid.UUID  `json:"group_part_id"`
 	GroupPartName  *string     `json:"group_part_name,omitempty"`
 	GroupPartIDs   []uuid.UUID `json:"group_part_ids,omitempty"`
@@ -37,6 +38,7 @@ type UserClaims struct {
 	UserID        uuid.UUID  `json:"user_id"`
 	Username      string     `json:"username"`
 	Role          string     `json:"role"`
+	Department    string     `json:"department,omitempty"`
 	GroupPartID   *uuid.UUID `json:"group_part_id"`
 	PreferredLang string     `json:"preferred_lang"`
 	jwt.RegisteredClaims
@@ -170,6 +172,16 @@ type ProjectTask struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
+// ModelPIC represents an assigned engineer/PIC for a new model
+type ModelPIC struct {
+	UserID     uuid.UUID `json:"user_id"`
+	FullName   string    `json:"full_name"`
+	Username   string    `json:"username"`
+	Email      string    `json:"email"`
+	Role       string    `json:"role"` // 'lead' | 'pic'
+	AvatarPath *string   `json:"avatar_path,omitempty"`
+}
+
 // NewModel represents a product model under engineering development
 type NewModel struct {
 	ID             uuid.UUID       `json:"id"`
@@ -182,6 +194,8 @@ type NewModel struct {
 	ProjectID      *uuid.UUID      `json:"project_id"`
 	OwnerID        *uuid.UUID      `json:"owner_id"`
 	OwnerName      *string         `json:"owner_name,omitempty"`
+	PICs           []ModelPIC      `json:"pics"`
+	PICIDs         []uuid.UUID     `json:"pic_ids"`
 	TargetRelease  *string         `json:"target_release"`
 	Specifications json.RawMessage `json:"specifications"`
 	IsActive       bool            `json:"is_active"`

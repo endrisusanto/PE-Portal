@@ -30,6 +30,7 @@ func (j *JWTService) GenerateTokens(user *model.User) (string, string, error) {
 		UserID:        user.ID,
 		Username:      user.Username,
 		Role:          user.Role,
+		Department:    user.Department,
 		GroupPartID:   user.GroupPartID,
 		PreferredLang: user.PreferredLang,
 		RegisteredClaims: jwt.RegisteredClaims{

@@ -499,6 +499,10 @@
     "initial_stage": "Tahap Awal (Initial Stage)",
     "target_release": "Target Release Date",
     "initial_description": "Deskripsi / Spesifikasi Awal",
+    "pic_label": "PIC Model (Person In Charge)",
+    "pic_select_placeholder": "+ Pilih & Tambahkan PIC Model...",
+    "pic_lead_badge": "Lead PIC",
+    "pic_empty_hint": "Belum ada PIC yang ditugaskan. Pilih user terdaftar di atas.",
     "edit_model": "Edit Model",
     "edit_stage_data": "Edit Catatan & Dokumen Tahap",
     "update_stage_data": "Update Data Tahap: {{name}}",
@@ -1256,7 +1260,9 @@
     "parent_pe_production": "PE Part",
     "parent_pe_mecha": "PE Mecha",
     "parent_pe_solution": "PE Solution Production",
-    "loading": "Memuat struktur organisasi engineering..."
+    "loading": "Memuat struktur organisasi engineering...",
+    "cross_dept_title": "Mitra Kolaborasi Lintas Departemen",
+    "cross_dept_desc": "Rekan tim dari departemen lain yang berkolaborasi dalam workflow engineering (BOM, Purchasing, QA, dll)."
   },
   "admin": {
     "title": "Administrasi & Kontrol Akses",
@@ -1266,6 +1272,7 @@
     "tab_audit": "Log Audit",
     "add_user_btn": "Tambah Pengguna Engineer",
     "col_full_name": "Nama Lengkap",
+    "col_department": "Departemen",
     "col_username": "Username / Knots",
     "col_group": "Group Part Utama",
     "col_multi_group": "Multi-Jobdesk",
@@ -1288,7 +1295,7 @@
     "attach_tooltip": "Lampirkan foto, layout PCB, atau dokumen PDF",
     "send_btn": "Kirim",
     "clear_btn": "Bersihkan Obrolan",
-    "thinking": "AI sedang menganalisis dan menyusun jawaban...",
+    "thinking": "Menganalisis...",
     "vision_badge": "Foto / Gambar Dilampirkan",
     "pdf_badge": "Teks Dokumen PDF Diekstraksi",
     "quick_prompt_1": "Analisis gejala cacat komponen PCB",

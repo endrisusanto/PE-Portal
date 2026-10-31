@@ -499,6 +499,10 @@
     "initial_stage": "초기 단계 (Initial Stage)",
     "target_release": "목표 출시일",
     "initial_description": "설명 / 초기 사양",
+    "pic_label": "모델 담당자 (PIC Model)",
+    "pic_select_placeholder": "+ 모델 담당자(PIC) 추가...",
+    "pic_lead_badge": "대표 담당자",
+    "pic_empty_hint": "배정된 담당자가 없습니다. 등록된 사용자를 선택하세요.",
     "edit_model": "모델 수정",
     "edit_stage_data": "단계 노트 및 문서 수정",
     "update_stage_data": "단계 데이터 업데이트: {{name}}",
@@ -1256,7 +1260,9 @@
     "parent_pe_production": "생산기술 (PE Part)",
     "parent_pe_mecha": "기구기술 (PE Mecha)",
     "parent_pe_solution": "솔루션생산 (PE Solution Production)",
-    "loading": "엔지니어링 조직도 로딩 중..."
+    "loading": "엔지니어링 조직도 로딩 중...",
+    "cross_dept_title": "부서 간 협업 파트너",
+    "cross_dept_desc": "엔지니어링 워크플로우를 공동 진행하는 타 부서 협업 담당자 (BOM, 구매, QA 등)."
   },
   "admin": {
     "title": "시스템 관리 & 접근 제어",
@@ -1267,6 +1273,7 @@
     "add_user_btn": "엔지니어 사용자 등록",
     "save_permissions": "권한 설정 저장",
     "col_full_name": "성명",
+    "col_department": "소속 부서",
     "col_username": "사번 / Knots 계정",
     "col_email": "이메일",
     "col_group": "기본 소속 파트",
@@ -1292,7 +1299,7 @@
     "open_standalone": "새 창에서 열기 (독립 모드)",
     "confirm_clear": "AI 어시스턴트 대화 내용을 지우시겠습니까?",
     "history_cleared": "대화 내용이 초기화되었습니다. 새로운 질문을 입력하거나 문서를 첨부해 주세요!",
-    "thinking": "AI가 데이터를 분석하여 답변을 작성하고 있습니다...",
+    "thinking": "분석 중...",
     "vision_badge": "사진 / 이미지 첨부됨",
     "pdf_badge": "PDF 문서 텍스트 추출됨",
     "quick_prompt_1": "PCB 부품 불량 증상 정밀 분석",

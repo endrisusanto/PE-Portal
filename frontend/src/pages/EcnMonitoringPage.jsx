@@ -40,6 +40,7 @@ import {
   UserCheck,
   Database,
   ArrowRight,
+  ShieldAlert,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -117,6 +118,18 @@ export const EcnMonitoringPage = () => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const userDept = (user?.department || 'PE').toUpperCase();
+  const isPurchasing = userDept === 'PURCHASING';
+  const isBomTeam = Boolean(
+    user?.group_part_names?.some((name) => /BOM/i.test(name)) ||
+    (user?.group_part_name && /BOM/i.test(user.group_part_name))
+  );
+
+  const canModifyEcn = isAdmin || isBomTeam;
+  const canShiftBom = isAdmin || isBomTeam || isPurchasing;
+  const canRequestApproval = isAdmin || (isBomTeam && !isPurchasing);
+  const canConfirmPlm = isAdmin || (isBomTeam && !isPurchasing);
+  const canApprovePlm = (row) => isAdmin || (row?.plm_pic_model_id && String(row.plm_pic_model_id) === String(user?.id));
 
   // --- Column Widths & Drag Resize State (ponytail) ---
   const [colWidths, setColWidths] = useState(() => {
@@ -1324,24 +1337,28 @@ ${
               )
             )}
           </button>
-          <button
-            type="button"
-            className={styles.btnSecondary}
-            onClick={() => setIsPasteModalOpen(true)}
-            title={t('ecn.paste_excel', 'Paste Tabel Excel')}
-          >
-            <ClipboardPaste size={15} />
-            {t('ecn.paste_excel', 'Paste Table')}
-          </button>
-          <button
-            type="button"
-            className={styles.btnSecondary}
-            onClick={() => setIsUploadModalOpen(true)}
-            title={t('ecn.upload_excel', 'Upload Excel')}
-          >
-            <Upload size={15} />
-            {t('ecn.upload_excel', 'Upload Excel')}
-          </button>
+          {canModifyEcn && (
+            <>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => setIsPasteModalOpen(true)}
+                title={t('ecn.paste_excel', 'Paste Tabel Excel')}
+              >
+                <ClipboardPaste size={15} />
+                {t('ecn.paste_excel', 'Paste Table')}
+              </button>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => setIsUploadModalOpen(true)}
+                title={t('ecn.upload_excel', 'Upload Excel')}
+              >
+                <Upload size={15} />
+                {t('ecn.upload_excel', 'Upload Excel')}
+              </button>
+            </>
+          )}
           <button
             type="button"
             className={styles.btnSecondary}
@@ -1351,51 +1368,61 @@ ${
             <Download size={15} />
             {t('ecn.export_csv', 'Export CSV')}
           </button>
-          <button
-            type="button"
-            className={styles.btnPrimary}
-            onClick={() => {
-              setEditingItem(null);
-              setEcnChangeLogs([]);
-              setFormData({
-                ecn_no: '',
-                model: '',
-                function_type: 'Circuit',
-                purpose: '',
-                inventory_mgmt: '',
-                process: 'SMD',
-                ec_title: '',
-                parent_code: '',
-                parent_name: '',
-                part_before: '',
-                part_after: '',
-                before_after: '',
-                dl: '',
-                child_code: '',
-                child_name: '',
-                specification: '',
-                quantity: '',
-                marking_point: '',
-                running_date_bom: '',
-                distribution_date: '',
-                status: 'Pending',
-                remark: '',
-              });
-              setOpenSections({
-                1: true,
-                2: true,
-                3: true,
-                4: true,
-                5: false,
-              });
-              setIsFormModalOpen(true);
-            }}
-          >
-            <Plus size={15} />
-            {t('ecn.add_ecn', 'Manual Entry')}
-          </button>
+          {canModifyEcn && (
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              onClick={() => {
+                setEditingItem(null);
+                setEcnChangeLogs([]);
+                setFormData({
+                  ecn_no: '',
+                  model: '',
+                  function_type: 'Circuit',
+                  purpose: '',
+                  inventory_mgmt: '',
+                  process: 'SMD',
+                  ec_title: '',
+                  parent_code: '',
+                  parent_name: '',
+                  part_before: '',
+                  part_after: '',
+                  before_after: '',
+                  dl: '',
+                  child_code: '',
+                  child_name: '',
+                  specification: '',
+                  quantity: '',
+                  marking_point: '',
+                  running_date_bom: '',
+                  distribution_date: '',
+                  status: 'Pending',
+                  remark: '',
+                });
+                setOpenSections({
+                  1: true,
+                  2: true,
+                  3: true,
+                  4: true,
+                  5: false,
+                });
+                setIsFormModalOpen(true);
+              }}
+            >
+              <Plus size={15} />
+              {t('ecn.add_ecn', 'Manual Entry')}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Read-Only Mode Banner for Non-BOM / Non-Admin Users */}
+      {!canModifyEcn && (
+        <div className={styles.readOnlyBanner}>
+          <ShieldAlert size={16} />
+          <span>{t('ecn.read_only_banner', 'Mode Pantau (Read-Only) — Modifikasi data ECN hanya dapat dilakukan oleh Tim BOM Material & Admin.')}</span>
+        </div>
+      )}
 
       {/* Metric KPI Cards Grid */}
       <div className={styles.statsGrid}>
@@ -2204,14 +2231,16 @@ ${
                             ) : (
                               <span style={{ color: 'var(--color-text-muted)' }}>-</span>
                             )}
-                            <button
-                              type="button"
-                              className={styles.editBomShiftBtn}
-                              onClick={() => handleOpenPurchasingShift(item)}
-                              title={t('ecn.table.edit_bom_shift_tooltip', 'Ubah Jadwal Running BOM & Catatan Klarifikasi (Purchasing)')}
-                            >
-                              <Edit3 size={11} />
-                            </button>
+                            {canShiftBom && (
+                              <button
+                                type="button"
+                                className={styles.editBomShiftBtn}
+                                onClick={() => handleOpenPurchasingShift(item)}
+                                title={t('ecn.table.edit_bom_shift_tooltip', 'Ubah Jadwal Running BOM & Catatan Klarifikasi (Purchasing)')}
+                              >
+                                <Edit3 size={11} />
+                              </button>
+                            )}
                           </div>
                         </td>
 
@@ -2239,37 +2268,43 @@ ${
 
                               {/* Right Element: Action Button or Secondary PLM Tag (50:50 if present, 100% if single) */}
                               {item.plm_status === 'PENDING_BOM_REVIEW' ? (
-                                <button
-                                  type="button"
-                                  className={styles.quickWorkflowBtn}
-                                  onClick={() => handleOpenWorkflow(item, 'request_approval')}
-                                  title={t('ecn.workflow.btn_request_tooltip', 'Minta approval PIC Model')}
-                                >
-                                  <Send size={11} /> {t('ecn.workflow.btn_request', 'Minta Approval')}
-                                </button>
+                                canRequestApproval ? (
+                                  <button
+                                    type="button"
+                                    className={styles.quickWorkflowBtn}
+                                    onClick={() => handleOpenWorkflow(item, 'request_approval')}
+                                    title={t('ecn.workflow.btn_request_tooltip', 'Minta approval PIC Model')}
+                                  >
+                                    <Send size={11} /> {t('ecn.workflow.btn_request', 'Minta Approval')}
+                                  </button>
+                                ) : null
                               ) : item.plm_status === 'WAITING_MODEL_APPROVAL' ? (
-                                <button
-                                  type="button"
-                                  className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnApprove}`}
-                                  onClick={() => handleOpenWorkflow(item, 'model_approval')}
-                                  title={t('ecn.workflow.btn_approve_tooltip', 'Persetujuan PIC Model')}
-                                >
-                                  <UserCheck size={11} /> {t('ecn.workflow.btn_approve', 'Review & Approve')}
-                                </button>
+                                canApprovePlm(item) ? (
+                                  <button
+                                    type="button"
+                                    className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnApprove}`}
+                                    onClick={() => handleOpenWorkflow(item, 'model_approval')}
+                                    title={t('ecn.workflow.btn_approve_tooltip', 'Persetujuan PIC Model')}
+                                  >
+                                    <UserCheck size={11} /> {t('ecn.workflow.btn_approve', 'Review & Approve')}
+                                  </button>
+                                ) : null
                               ) : item.plm_status === 'APPROVED_FOR_PLM' ? (
-                                <button
-                                  type="button"
-                                  className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnPlm}`}
-                                  onClick={() => handleOpenWorkflow(item, 'confirm_plm')}
-                                  title={t('ecn.workflow.btn_plm_tooltip', 'Konfirmasi update PLM Samsung')}
-                                >
-                                  <Database size={11} /> {t('ecn.workflow.btn_plm', 'Update PLM')}
-                                </button>
+                                canConfirmPlm ? (
+                                  <button
+                                    type="button"
+                                    className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnPlm}`}
+                                    onClick={() => handleOpenWorkflow(item, 'confirm_plm')}
+                                    title={t('ecn.workflow.btn_plm_tooltip', 'Konfirmasi update PLM Samsung')}
+                                  >
+                                    <Database size={11} /> {t('ecn.workflow.btn_plm', 'Update PLM')}
+                                  </button>
+                                ) : null
                               ) : item.plm_status === 'PLM_UPDATED' ? (
                                 <span className={styles.plmStatusTag} title={t('ecn.plm_status.plm_synced_title', 'PLM Status: PLM Synced')}>
                                   {t('ecn.plm_status.plm_synced', 'PLM Synced')}
                                 </span>
-                              ) : (!item.plm_status || item.plm_status === 'NONE') && isEcnBom && item.status !== 'Completed' && item.status !== 'ECO Cancel' ? (
+                              ) : (!item.plm_status || item.plm_status === 'NONE') && isEcnBom && item.status !== 'Completed' && item.status !== 'ECO Cancel' && canRequestApproval ? (
                                 <button
                                   type="button"
                                   className={styles.quickWorkflowBtnGhost}
@@ -2389,14 +2424,16 @@ ${
                           style={{ width: '85px', minWidth: '85px', maxWidth: '85px', textAlign: 'center', whiteSpace: 'nowrap' }}
                         >
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <button
-                              type="button"
-                              className={styles.actionBtn}
-                              title="Edit Record"
-                              onClick={() => handleEditClick(item)}
-                            >
-                              <Edit size={14} />
-                            </button>
+                            {canModifyEcn && (
+                              <button
+                                type="button"
+                                className={styles.actionBtn}
+                                title="Edit Record"
+                                onClick={() => handleEditClick(item)}
+                              >
+                                <Edit size={14} />
+                              </button>
+                            )}
                             {isAdmin && (
                               <button
                                 type="button"

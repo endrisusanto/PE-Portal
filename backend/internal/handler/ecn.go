@@ -22,14 +22,64 @@ import (
 
 type ECNHandler struct {
 	repo           *repository.ECNRepository
+	userRepo       *repository.UserRepository
 	reminderWorker *service.ECNReminderWorker
 }
 
-func NewECNHandler(repo *repository.ECNRepository, reminderWorker *service.ECNReminderWorker) *ECNHandler {
+func NewECNHandler(repo *repository.ECNRepository, userRepo *repository.UserRepository, reminderWorker *service.ECNReminderWorker) *ECNHandler {
 	return &ECNHandler{
 		repo:           repo,
+		userRepo:       userRepo,
 		reminderWorker: reminderWorker,
 	}
+}
+
+type ECNUserContext struct {
+	UserID       uuid.UUID
+	Role         string
+	Department   string
+	IsAdmin      bool
+	IsBOMTeam    bool
+	IsPurchasing bool
+}
+
+func (h *ECNHandler) getECNUserContext(c echo.Context) (*ECNUserContext, error) {
+	uidVal := c.Get(middleware.ContextKeyUserID)
+	if uidVal == nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Wajib login untuk mengakses aksi ini")
+	}
+	uid, ok := uidVal.(uuid.UUID)
+	if !ok || uid == uuid.Nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Wajib login untuk mengakses aksi ini")
+	}
+
+	user, err := h.userRepo.GetByID(c.Request().Context(), uid)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "User profil tidak ditemukan")
+	}
+
+	isAdmin := user.Role == "admin" || user.Role == "manager"
+	isBOMTeam := false
+	isPurchasing := strings.EqualFold(user.Department, "Purchasing")
+
+	for _, name := range user.GroupPartNames {
+		if strings.Contains(strings.ToUpper(name), "BOM") {
+			isBOMTeam = true
+			break
+		}
+	}
+	if !isBOMTeam && user.GroupPartName != nil && strings.Contains(strings.ToUpper(*user.GroupPartName), "BOM") {
+		isBOMTeam = true
+	}
+
+	return &ECNUserContext{
+		UserID:       uid,
+		Role:         user.Role,
+		Department:   user.Department,
+		IsAdmin:      isAdmin,
+		IsBOMTeam:    isBOMTeam,
+		IsPurchasing: isPurchasing,
+	}, nil
 }
 
 // List returns filtered and paginated ECN records
@@ -76,6 +126,17 @@ func getUserIDFromContext(c echo.Context) *uuid.UUID {
 
 // Create inserts a new single ECN record
 func (h *ECNHandler) Create(c echo.Context) error {
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && !uCtx.IsBOMTeam {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Pembuatan data ECN hanya diizinkan untuk Tim BOM Material dan Management.",
+			"code":    "FORBIDDEN_NOT_BOM_TEAM",
+		})
+	}
+
 	var item model.ECNRecord
 	if err := c.Bind(&item); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
@@ -117,6 +178,17 @@ func (h *ECNHandler) Create(c echo.Context) error {
 
 // Update modifies an existing ECN record and logs delta changes
 func (h *ECNHandler) Update(c echo.Context) error {
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && !uCtx.IsBOMTeam {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Modifikasi data ECN hanya diizinkan untuk Tim BOM Material dan Management.",
+			"code":    "FORBIDDEN_NOT_BOM_TEAM",
+		})
+	}
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -227,6 +299,17 @@ func (h *ECNHandler) GetLogs(c echo.Context) error {
 
 // PurchasingShiftBOM handles Purchasing (PIC A) shifting Running BOM date with mandatory clarification note
 func (h *ECNHandler) PurchasingShiftBOM(c echo.Context) error {
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && !uCtx.IsBOMTeam && !uCtx.IsPurchasing {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Pergeseran jadwal Running BOM hanya dapat diajukan oleh Purchasing atau Tim BOM.",
+			"code":    "FORBIDDEN_NOT_PURCHASING",
+		})
+	}
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -265,6 +348,17 @@ func (h *ECNHandler) PurchasingShiftBOM(c echo.Context) error {
 
 // RequestApproval handles BOM Team requesting approval from PIC Model
 func (h *ECNHandler) RequestApproval(c echo.Context) error {
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && (!uCtx.IsBOMTeam || uCtx.IsPurchasing) {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Pengajuan persetujuan ke PIC Model hanya diizinkan untuk Tim BOM Material.",
+			"code":    "FORBIDDEN_NOT_BOM_TEAM",
+		})
+	}
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -312,6 +406,19 @@ func (h *ECNHandler) ApprovePLM(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
 	}
 
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	oldRec, _ := h.repo.GetByID(c.Request().Context(), id)
+	isAssignedPIC := oldRec != nil && oldRec.PLMPICModelID != nil && *oldRec.PLMPICModelID == uCtx.UserID
+	if !uCtx.IsAdmin && !isAssignedPIC {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Persetujuan perubahan Running BOM hanya dapat dilakukan oleh PIC Model yang ditunjuk.",
+			"code":    "FORBIDDEN_NOT_PIC_MODEL",
+		})
+	}
+
 	var req struct {
 		Notes string `json:"notes"`
 	}
@@ -350,6 +457,19 @@ func (h *ECNHandler) RejectPLM(c echo.Context) error {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
+	}
+
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	oldRec, _ := h.repo.GetByID(c.Request().Context(), id)
+	isAssignedPIC := oldRec != nil && oldRec.PLMPICModelID != nil && *oldRec.PLMPICModelID == uCtx.UserID
+	if !uCtx.IsAdmin && !isAssignedPIC {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Penolakan perubahan Running BOM hanya dapat dilakukan oleh PIC Model yang ditunjuk.",
+			"code":    "FORBIDDEN_NOT_PIC_MODEL",
+		})
 	}
 
 	var req struct {
@@ -392,6 +512,17 @@ func (h *ECNHandler) ConfirmPLMUpdate(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid UUID")
 	}
 
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && (!uCtx.IsBOMTeam || uCtx.IsPurchasing) {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Konfirmasi update PLM hanya dapat dilakukan oleh Tim BOM Material.",
+			"code":    "FORBIDDEN_NOT_BOM_TEAM",
+		})
+	}
+
 	var req struct {
 		ECONo        string `json:"eco_no"`
 		FeedbackNote string `json:"feedback_note"`
@@ -427,6 +558,17 @@ func (h *ECNHandler) ConfirmPLMUpdate(c echo.Context) error {
 
 // Delete removes an ECN record
 func (h *ECNHandler) Delete(c echo.Context) error {
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && !uCtx.IsBOMTeam {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Penghapusan data ECN hanya diizinkan untuk Tim BOM Material dan Management.",
+			"code":    "FORBIDDEN_NOT_BOM_TEAM",
+		})
+	}
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -442,6 +584,17 @@ func (h *ECNHandler) Delete(c echo.Context) error {
 
 // BulkDelete removes multiple ECN records by their IDs (ponytail)
 func (h *ECNHandler) BulkDelete(c echo.Context) error {
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && !uCtx.IsBOMTeam {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Penghapusan data ECN hanya diizinkan untuk Tim BOM Material dan Management.",
+			"code":    "FORBIDDEN_NOT_BOM_TEAM",
+		})
+	}
+
 	var req model.ECNBulkDeleteRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request payload")
@@ -465,6 +618,16 @@ func (h *ECNHandler) BulkDelete(c echo.Context) error {
 
 // BulkImport accepts an array of ECN records (from Paste Table or parsed Excel)
 func (h *ECNHandler) BulkImport(c echo.Context) error {
+	uCtx, err := h.getECNUserContext(c)
+	if err != nil {
+		return err
+	}
+	if !uCtx.IsAdmin && !uCtx.IsBOMTeam {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"message": "Akses ditolak: Import data ECN hanya diizinkan untuk Tim BOM Material dan Management.",
+			"code":    "FORBIDDEN_NOT_BOM_TEAM",
+		})
+	}
 	var req model.ECNBulkImportRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON payload for bulk import")

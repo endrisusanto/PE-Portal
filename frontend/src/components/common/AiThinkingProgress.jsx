@@ -20,9 +20,9 @@ export const AiThinkingProgress = ({ text, subtext, className = '' }) => {
         <span className={styles.shimmerText}>{text}</span>
       </div>
       {subtext && (
-        <div className={styles.subtextWrapper}>
-          <span className={styles.subtext} title={subtext}>
-            {subtext}
+        <div className={styles.subtextWrapper} title={subtext}>
+          <span className={styles.subtext}>
+            {typeof subtext === 'string' && subtext.includes('/') ? subtext.split('/').pop() : subtext}
           </span>
           <span className={styles.pulseDot} />
         </div>

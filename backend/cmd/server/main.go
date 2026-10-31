@@ -117,7 +117,7 @@ func main() {
 	ecnReminderHandler := handler.NewECNReminderHandler(ecnReminderRepo, ecnReminderWorker)
 
 	ecnRepo := repository.NewECNRepository(pgPool.Pool)
-	ecnHandler := handler.NewECNHandler(ecnRepo, ecnReminderWorker)
+	ecnHandler := handler.NewECNHandler(ecnRepo, userRepo, ecnReminderWorker)
 
 	// Echo App
 	e := echo.New()

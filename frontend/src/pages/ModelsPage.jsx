@@ -30,6 +30,7 @@ import {
   Save,
   Check,
   Zap,
+  X,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -117,6 +118,9 @@ export const ModelsPage = () => {
   const [detailTab, setDetailTab] = useState('history'); // 'history' | 'comments'
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
 
+  // User directory for PIC assignment
+  const [availableUsers, setAvailableUsers] = useState([]);
+
   // Add form
   const [modelName, setModelName] = useState('');
   const [marketingName, setMarketingName] = useState('');
@@ -126,6 +130,7 @@ export const ModelsPage = () => {
   const [category, setCategory] = useState('mass_product');
   const [targetRelease, setTargetRelease] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedPics, setSelectedPics] = useState([]);
 
   // Advance & Update Stage form state
   const [advanceMode, setAdvanceMode] = useState('update_only'); // 'update_only' (tetap di tahap ini) | 'advance' (naik tahap)
@@ -147,6 +152,7 @@ export const ModelsPage = () => {
   const [editCategory, setEditCategory] = useState('mass_product');
   const [editTargetRelease, setEditTargetRelease] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editSelectedPics, setEditSelectedPics] = useState([]);
 
   const photoInputRef = useRef(null);
   const docInputRef = useRef(null);
@@ -171,6 +177,18 @@ export const ModelsPage = () => {
     fetchModels();
   }, [selectedStageFilter]);
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await api.get('/users');
+        setAvailableUsers(res.data || []);
+      } catch (err) {
+        console.error('Failed to load users for PIC assignment:', err);
+      }
+    };
+    fetchUsers();
+  }, []);
+
   // Open Detail & History Modal
   const openDetailModal = async (m, initialTab = 'history') => {
     setViewingModel(m);
@@ -192,6 +210,8 @@ export const ModelsPage = () => {
     if (!m || !user) return false;
     if (user.role === 'admin' || user.role === 'manager') return true;
     if (m.owner_id === user.id) return true;
+    if (Array.isArray(m.pic_ids) && m.pic_ids.includes(user.id)) return true;
+    if (Array.isArray(m.pics) && m.pics.some((p) => (p.user_id || p.id) === user.id)) return true;
     return false;
   };
 
@@ -228,12 +248,15 @@ export const ModelsPage = () => {
         ? basicModelsStr.split(',').map((s) => s.trim()).filter(Boolean)
         : [];
 
+      const picIds = selectedPics.map((p) => p.id || p.user_id).filter(Boolean);
+
       const res = await api.post('/models', {
         model_name: modelName,
         marketing_name: marketingName || undefined,
         codename: codename || undefined,
         basic_models: bsmArray,
         stage,
+        pic_ids: picIds,
         target_release: targetRelease || undefined,
         description: description || undefined,
         specifications: {
@@ -246,6 +269,7 @@ export const ModelsPage = () => {
       setMarketingName('');
       setCodename('');
       setBasicModelsStr('');
+      setSelectedPics([]);
       setCategory('mass_product');
       setTargetRelease('');
       setDescription('');
@@ -415,6 +439,24 @@ export const ModelsPage = () => {
     setEditBasicModelsStr(bsmStr);
     setEditTargetRelease(m.target_release ? m.target_release.substring(0, 10) : '');
     setEditDescription(m.description || '');
+
+    // Prepopulate PICs
+    if (Array.isArray(m.pics) && m.pics.length > 0) {
+      setEditSelectedPics(m.pics);
+    } else if (Array.isArray(m.pic_ids) && m.pic_ids.length > 0) {
+      const matched = m.pic_ids.map((id) => availableUsers.find((u) => u.id === id)).filter(Boolean);
+      setEditSelectedPics(matched);
+    } else if (m.owner_id) {
+      const matched = availableUsers.find((u) => u.id === m.owner_id);
+      if (matched) {
+        setEditSelectedPics([matched]);
+      } else {
+        setEditSelectedPics([]);
+      }
+    } else {
+      setEditSelectedPics([]);
+    }
+
     setIsEditModalOpen(true);
   };
 
@@ -434,11 +476,14 @@ export const ModelsPage = () => {
           : (editingModel.specifications || {});
       } catch {}
 
+      const picIds = editSelectedPics.map((p) => p.id || p.user_id).filter(Boolean);
+
       const res = await api.put(`/models/${editingModel.id}`, {
         model_name: editModelName,
         marketing_name: editMarketingName || undefined,
         codename: editCodename || undefined,
         basic_models: bsmArray,
+        pic_ids: picIds,
         target_release: editTargetRelease || undefined,
         description: editDescription || undefined,
         specifications: {
@@ -464,6 +509,7 @@ export const ModelsPage = () => {
 
       setIsEditModalOpen(false);
       setEditingModel(null);
+      setEditSelectedPics([]);
     } catch (err) {
       alert(err.response?.data?.message || err.message);
     }
@@ -860,11 +906,41 @@ export const ModelsPage = () => {
                           <Calendar size={12} /> Target: {new Date(m.target_release).toLocaleDateString('id-ID')}
                         </span>
                       )}
-                      {m.owner_name && (
+                      {m.pics && m.pics.length > 0 ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <User size={12} /> PIC:
+                          </span>
+                          {m.pics.map((p, idx) => {
+                            const isLead = p.role === 'lead' || idx === 0;
+                            return (
+                              <span
+                                key={p.user_id || idx}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '11px',
+                                  padding: '1px 6px',
+                                  borderRadius: '10px',
+                                  backgroundColor: isLead ? 'rgba(59, 130, 246, 0.12)' : 'var(--color-bg-secondary)',
+                                  border: isLead ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--color-border)',
+                                  color: isLead ? '#3b82f6' : 'var(--color-text-secondary)',
+                                  fontWeight: isLead ? 600 : 500,
+                                }}
+                                title={isLead ? `${p.full_name} (${t('models.pic_lead_badge', 'Lead PIC')})` : p.full_name}
+                              >
+                                {p.full_name || p.username}
+                                {isLead && <span style={{ fontSize: '9px', opacity: 0.85 }}>★</span>}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : m.owner_name ? (
                         <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                           <User size={12} /> PIC: {m.owner_name}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     {m.description && (
                       <p style={{
@@ -1140,11 +1216,46 @@ export const ModelsPage = () => {
                       <Calendar size={13} /> Target Release: {new Date(viewingModel.target_release).toLocaleDateString('id-ID')}
                     </span>
                   )}
-                  {viewingModel.owner_name && (
+                  {viewingModel.pics && viewingModel.pics.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <User size={13} /> PIC Engineer ({viewingModel.pics.length}):
+                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingLeft: '18px' }}>
+                        {viewingModel.pics.map((p, idx) => {
+                          const isLead = p.role === 'lead' || idx === 0;
+                          return (
+                            <span
+                              key={p.user_id || idx}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                backgroundColor: isLead ? 'rgba(59, 130, 246, 0.15)' : 'var(--color-bg-secondary)',
+                                border: isLead ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--color-border)',
+                                color: isLead ? '#3b82f6' : 'var(--color-text-secondary)',
+                                fontWeight: isLead ? 600 : 500,
+                              }}
+                            >
+                              {p.full_name || p.username}
+                              {isLead && (
+                                <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: '#2563eb' }}>
+                                  ({t('models.pic_lead_badge', 'Lead')})
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : viewingModel.owner_name ? (
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <User size={13} /> PIC Engineer: {viewingModel.owner_name}
                     </span>
-                  )}
+                  ) : null}
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Clock size={13} /> Terdaftar: {new Date(viewingModel.created_at).toLocaleString('id-ID')}
                   </span>
@@ -1836,6 +1947,135 @@ export const ModelsPage = () => {
             placeholder="e.g. BSM-S952BE/2D1, BSM-S952BE/5D1"
           />
 
+          {/* PIC Model Assignment */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                {t('models.pic_label', 'PIC Model (Person In Charge)')}
+              </label>
+              {selectedPics.length > 0 && (
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                  {selectedPics.length} PIC dipilih
+                </span>
+              )}
+            </div>
+
+            {/* Quick user selector */}
+            <select
+              value=""
+              onChange={(e) => {
+                const uId = e.target.value;
+                if (!uId) return;
+                const found = availableUsers.find((u) => String(u.id) === String(uId));
+                if (found && !selectedPics.some((p) => String(p.id || p.user_id) === String(found.id))) {
+                  setSelectedPics((prev) => [...prev, found]);
+                }
+              }}
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-text-primary)',
+                fontSize: 'var(--font-size-sm)',
+              }}
+            >
+              <option value="">{t('models.pic_select_placeholder', '+ Pilih & Tambahkan PIC Model...')}</option>
+              {availableUsers.map((u) => {
+                const isSelected = selectedPics.some((p) => String(p.id || p.user_id) === String(u.id));
+                return (
+                  <option key={u.id} value={u.id} disabled={isSelected}>
+                    {isSelected ? `✓ ${u.full_name || u.username} (Sudah dipilih)` : `${u.full_name || u.username} (${u.group_part_name || u.role})`}
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Selected PIC chips */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '6px',
+                minHeight: '38px',
+                padding: '6px 8px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)',
+                alignItems: 'center',
+              }}
+            >
+              {selectedPics.length === 0 ? (
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                  {t('models.pic_empty_hint', 'Belum ada PIC yang ditugaskan. Pilih user terdaftar di atas.')}
+                </span>
+              ) : (
+                selectedPics.map((p, idx) => {
+                  const isLead = idx === 0;
+                  const pId = p.id || p.user_id;
+                  const pName = p.full_name || p.username;
+                  return (
+                    <span
+                      key={pId || idx}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 8px',
+                        borderRadius: '16px',
+                        backgroundColor: isLead ? 'rgba(59, 130, 246, 0.15)' : 'var(--color-bg-primary)',
+                        border: isLead ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid var(--color-border)',
+                        color: isLead ? '#3b82f6' : 'var(--color-text-primary)',
+                        fontSize: '11.5px',
+                        fontWeight: isLead ? 600 : 500,
+                      }}
+                    >
+                      <User size={11} style={{ opacity: 0.7 }} />
+                      <span>{pName}</span>
+                      {isLead && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            padding: '1px 4px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            color: '#2563eb',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {t('models.pic_lead_badge', 'Lead PIC')}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPics((prev) => prev.filter((item) => (item.id || item.user_id) !== pId))}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '0 2px',
+                          cursor: 'pointer',
+                          color: 'var(--color-text-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                        title="Hapus PIC"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+            </div>
+            {selectedPics.length > 1 && (
+              <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)' }}>
+                * PIC urutan pertama otomatis menjadi Lead PIC (PIC Utama) model ini.
+              </span>
+            )}
+          </div>
+
           {/* ponytail: Switch Button Kategori Model */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
@@ -1994,6 +2234,135 @@ export const ModelsPage = () => {
             onChange={(e) => setEditBasicModelsStr(e.target.value)}
             placeholder="e.g. BSM-S952BE/2D1, BSM-S952BE/5D1"
           />
+
+          {/* PIC Model Assignment (Edit) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                {t('models.pic_label', 'PIC Model (Person In Charge)')}
+              </label>
+              {editSelectedPics.length > 0 && (
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                  {editSelectedPics.length} PIC ditugaskan
+                </span>
+              )}
+            </div>
+
+            {/* Quick user selector */}
+            <select
+              value=""
+              onChange={(e) => {
+                const uId = e.target.value;
+                if (!uId) return;
+                const found = availableUsers.find((u) => String(u.id) === String(uId));
+                if (found && !editSelectedPics.some((p) => String(p.id || p.user_id) === String(found.id))) {
+                  setEditSelectedPics((prev) => [...prev, found]);
+                }
+              }}
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-text-primary)',
+                fontSize: 'var(--font-size-sm)',
+              }}
+            >
+              <option value="">{t('models.pic_select_placeholder', '+ Pilih & Tambahkan PIC Model...')}</option>
+              {availableUsers.map((u) => {
+                const isSelected = editSelectedPics.some((p) => String(p.id || p.user_id) === String(u.id));
+                return (
+                  <option key={u.id} value={u.id} disabled={isSelected}>
+                    {isSelected ? `✓ ${u.full_name || u.username} (Sudah dipilih)` : `${u.full_name || u.username} (${u.group_part_name || u.role})`}
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Selected PIC chips */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '6px',
+                minHeight: '38px',
+                padding: '6px 8px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)',
+                alignItems: 'center',
+              }}
+            >
+              {editSelectedPics.length === 0 ? (
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                  {t('models.pic_empty_hint', 'Belum ada PIC yang ditugaskan. Pilih user terdaftar di atas.')}
+                </span>
+              ) : (
+                editSelectedPics.map((p, idx) => {
+                  const isLead = idx === 0 || p.role === 'lead';
+                  const pId = p.id || p.user_id;
+                  const pName = p.full_name || p.username;
+                  return (
+                    <span
+                      key={pId || idx}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 8px',
+                        borderRadius: '16px',
+                        backgroundColor: isLead ? 'rgba(59, 130, 246, 0.15)' : 'var(--color-bg-primary)',
+                        border: isLead ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid var(--color-border)',
+                        color: isLead ? '#3b82f6' : 'var(--color-text-primary)',
+                        fontSize: '11.5px',
+                        fontWeight: isLead ? 600 : 500,
+                      }}
+                    >
+                      <User size={11} style={{ opacity: 0.7 }} />
+                      <span>{pName}</span>
+                      {isLead && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            padding: '1px 4px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            color: '#2563eb',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {t('models.pic_lead_badge', 'Lead PIC')}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditSelectedPics((prev) => prev.filter((item) => (item.id || item.user_id) !== pId))}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '0 2px',
+                          cursor: 'pointer',
+                          color: 'var(--color-text-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                        title="Hapus PIC"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+            </div>
+            {editSelectedPics.length > 1 && (
+              <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)' }}>
+                * PIC urutan pertama otomatis menjadi Lead PIC (PIC Utama) model ini.
+              </span>
+            )}
+          </div>
 
           {/* ponytail: Switch Button Kategori Model */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

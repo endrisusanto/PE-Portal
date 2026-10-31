@@ -62,6 +62,7 @@ type CreateUserRequest struct {
 	Email         string      `json:"email"`
 	Password      string      `json:"password"`
 	FullName      string      `json:"full_name"`
+	Department    string      `json:"department"`
 	GroupPartID   *uuid.UUID  `json:"group_part_id"`
 	GroupPartIDs  []uuid.UUID `json:"group_part_ids"`
 	Role          string      `json:"role"`
@@ -86,11 +87,17 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		groupPartIDs = []uuid.UUID{*groupPartID}
 	}
 
+	dept := req.Department
+	if dept == "" {
+		dept = "PE"
+	}
+
 	user := model.User{
 		EmployeeID:    req.EmployeeID,
 		Username:      req.Username,
 		Email:         req.Email,
 		FullName:      req.FullName,
+		Department:    dept,
 		GroupPartID:   groupPartID,
 		GroupPartIDs:  groupPartIDs,
 		Role:          req.Role,
@@ -109,6 +116,7 @@ type UpdateUserRequest struct {
 	EmployeeID   string      `json:"employee_id"`
 	Email        string      `json:"email"`
 	FullName     string      `json:"full_name"`
+	Department   string      `json:"department"`
 	GroupPartID  *uuid.UUID  `json:"group_part_id"`
 	GroupPartIDs []uuid.UUID `json:"group_part_ids"`
 	Role         string      `json:"role"`
@@ -135,11 +143,17 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 		groupPartIDs = []uuid.UUID{*groupPartID}
 	}
 
+	dept := req.Department
+	if dept == "" {
+		dept = "PE"
+	}
+
 	user := model.User{
 		ID:           id,
 		EmployeeID:   req.EmployeeID,
 		Email:        req.Email,
 		FullName:     req.FullName,
+		Department:   dept,
 		GroupPartID:  groupPartID,
 		GroupPartIDs: groupPartIDs,
 		Role:         req.Role,
