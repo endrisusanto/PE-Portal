@@ -569,6 +569,31 @@
   color: #d97706 !important;
 }
 
+.statusCellWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.statusTopRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+/* Emil Kowalski: Dynamic Proportional Ratio
+   1 child = 100% fullwidth, 2 children = 50:50 equal split */
+.statusTopRow > * {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 .plmStatusTag {
   display: inline-flex;
   align-items: center;
@@ -578,13 +603,15 @@
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
-  padding: 0 9px;
+  padding: 0 8px;
   border-radius: 9999px;
   box-sizing: border-box;
   background: rgba(59, 130, 246, 0.1);
   color: #2563eb;
   border: 1px solid rgba(59, 130, 246, 0.28);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 [data-theme='dark'] .plmStatusTag {

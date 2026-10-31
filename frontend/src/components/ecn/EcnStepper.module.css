@@ -9,16 +9,17 @@
    1. Compact Stepper (Table Row View)
    ======================================================================== */
 .compactContainer {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  width: 100%;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  padding: 0 10px;
+  padding: 0 8px;
   height: 24px;
   box-sizing: border-box;
   border-radius: 9999px;
-  white-space: nowrap;
+  overflow: hidden;
 }
 
 .compactStep {
@@ -29,6 +30,8 @@
   font-weight: 500;
   color: var(--color-text-secondary);
   cursor: default;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .compactDot {
@@ -49,14 +52,19 @@
 
 .compactLabel {
   font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 68px;
 }
 
 .compactConnector {
-  width: 10px;
+  flex: 1;
+  min-width: 4px;
   height: 1.5px;
   background: var(--color-border);
-  flex-shrink: 0;
-  margin: 0 1px;
+  margin: 0 4px;
+  transition: background-color 200ms ease;
 }
 
 .connectorDone {

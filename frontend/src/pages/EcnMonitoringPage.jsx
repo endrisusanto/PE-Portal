@@ -76,12 +76,12 @@ const parsePartChange = (remark, ecTitle) => {
 };
 
 const DEFAULT_COLUMN_WIDTHS = {
-  ecn_no: 135,
-  model: 110,
-  running_date_bom: 130,
-  status: 240,
+  ecn_no: 130,
+  model: 105,
+  running_date_bom: 125,
+  status: 290,
   ec_title: 220,
-  part_change: 190,
+  part_change: 180,
   part_before: 130,
   part_after: 130,
   function_type: 95,
@@ -98,7 +98,7 @@ const MIN_COLUMN_WIDTHS = {
   ecn_no: 90,
   model: 70,
   running_date_bom: 95,
-  status: 160,
+  status: 220,
   ec_title: 110,
   part_change: 120,
   part_before: 85,
@@ -1260,15 +1260,15 @@ ${
   const formatPlmStatusLabel = (status) => {
     switch (status) {
       case 'PENDING_BOM_REVIEW':
-        return 'Pending BOM Review';
+        return t('ecn.plm_status.pending_bom', 'Pending BOM Review');
       case 'WAITING_MODEL_APPROVAL':
-        return 'Waiting Model Approval';
+        return t('ecn.plm_status.waiting_model', 'Waiting Model Approval');
       case 'APPROVED_FOR_PLM':
-        return 'Approved for PLM';
+        return t('ecn.plm_status.approved_plm', 'Approved for PLM');
       case 'PLM_UPDATED':
-        return 'PLM Synced';
+        return t('ecn.plm_status.plm_synced', 'PLM Synced');
       case 'REJECTED':
-        return 'Rejected';
+        return t('ecn.plm_status.rejected', 'Rejected');
       default:
         return status ? status.replace(/_/g, ' ') : '';
     }
@@ -2208,7 +2208,7 @@ ${
                               type="button"
                               className={styles.editBomShiftBtn}
                               onClick={() => handleOpenPurchasingShift(item)}
-                              title="Ubah Jadwal Running BOM & Catatan Klarifikasi (Purchasing)"
+                              title={t('ecn.table.edit_bom_shift_tooltip', 'Ubah Jadwal Running BOM & Catatan Klarifikasi (Purchasing)')}
                             >
                               <Edit3 size={11} />
                             </button>
@@ -2217,58 +2217,68 @@ ${
 
                         {/* Status & Stepper & Quick Action */}
                         <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <span className={getStatusBadgeClass(item.status)}>{item.status || 'Pending'}</span>
-                                {item.plm_status && item.plm_status !== 'NONE' && (
-                                  <span className={styles.plmStatusTag} title={`PLM Status: ${item.plm_status}`}>
-                                    {formatPlmStatusLabel(item.plm_status)}
-                                  </span>
-                                )}
-                              </div>
+                          <div className={styles.statusCellWrapper}>
+                            <div className={styles.statusTopRow}>
+                              {/* Left Element: Primary Status or Active Workflow Status */}
+                              <span
+                                className={
+                                  item.plm_status && item.plm_status !== 'NONE' && item.plm_status !== 'PLM_UPDATED'
+                                    ? styles.plmStatusTag
+                                    : getStatusBadgeClass(item.status)
+                                }
+                                title={
+                                  item.plm_status && item.plm_status !== 'NONE' && item.plm_status !== 'PLM_UPDATED'
+                                    ? `PLM Status: ${item.plm_status}`
+                                    : `Status: ${item.status || 'Pending'}`
+                                }
+                              >
+                                {item.plm_status && item.plm_status !== 'NONE' && item.plm_status !== 'PLM_UPDATED'
+                                  ? formatPlmStatusLabel(item.plm_status)
+                                  : (item.status || 'Pending')}
+                              </span>
 
-                              {/* 1-Click Quick Action Button */}
-                              {item.plm_status === 'PENDING_BOM_REVIEW' && (
+                              {/* Right Element: Action Button or Secondary PLM Tag (50:50 if present, 100% if single) */}
+                              {item.plm_status === 'PENDING_BOM_REVIEW' ? (
                                 <button
                                   type="button"
                                   className={styles.quickWorkflowBtn}
                                   onClick={() => handleOpenWorkflow(item, 'request_approval')}
-                                  title="Minta approval PIC Model"
+                                  title={t('ecn.workflow.btn_request_tooltip', 'Minta approval PIC Model')}
                                 >
-                                  <Send size={11} /> Minta Approval
+                                  <Send size={11} /> {t('ecn.workflow.btn_request', 'Minta Approval')}
                                 </button>
-                              )}
-                              {item.plm_status === 'WAITING_MODEL_APPROVAL' && (
+                              ) : item.plm_status === 'WAITING_MODEL_APPROVAL' ? (
                                 <button
                                   type="button"
                                   className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnApprove}`}
                                   onClick={() => handleOpenWorkflow(item, 'model_approval')}
-                                  title="Persetujuan PIC Model"
+                                  title={t('ecn.workflow.btn_approve_tooltip', 'Persetujuan PIC Model')}
                                 >
-                                  <UserCheck size={11} /> Review & Approve
+                                  <UserCheck size={11} /> {t('ecn.workflow.btn_approve', 'Review & Approve')}
                                 </button>
-                              )}
-                              {item.plm_status === 'APPROVED_FOR_PLM' && (
+                              ) : item.plm_status === 'APPROVED_FOR_PLM' ? (
                                 <button
                                   type="button"
                                   className={`${styles.quickWorkflowBtn} ${styles.quickWorkflowBtnPlm}`}
                                   onClick={() => handleOpenWorkflow(item, 'confirm_plm')}
-                                  title="Konfirmasi update PLM Samsung"
+                                  title={t('ecn.workflow.btn_plm_tooltip', 'Konfirmasi update PLM Samsung')}
                                 >
-                                  <Database size={11} /> Update PLM
+                                  <Database size={11} /> {t('ecn.workflow.btn_plm', 'Update PLM')}
                                 </button>
-                              )}
-                              {(!item.plm_status || item.plm_status === 'NONE') && isEcnBom && item.status !== 'Completed' && item.status !== 'ECO Cancel' && (
+                              ) : item.plm_status === 'PLM_UPDATED' ? (
+                                <span className={styles.plmStatusTag} title={t('ecn.plm_status.plm_synced_title', 'PLM Status: PLM Synced')}>
+                                  {t('ecn.plm_status.plm_synced', 'PLM Synced')}
+                                </span>
+                              ) : (!item.plm_status || item.plm_status === 'NONE') && isEcnBom && item.status !== 'Completed' && item.status !== 'ECO Cancel' ? (
                                 <button
                                   type="button"
                                   className={styles.quickWorkflowBtnGhost}
                                   onClick={() => handleOpenWorkflow(item, 'request_approval')}
-                                  title="Mulai workflow persetujuan BOM"
+                                  title={t('ecn.workflow.btn_flow_tooltip', 'Mulai workflow persetujuan BOM')}
                                 >
-                                  <Sparkles size={10} /> Alur BOM
+                                  <Sparkles size={10} /> {t('ecn.workflow.btn_flow', 'Alur BOM')}
                                 </button>
-                              )}
+                              ) : null}
                             </div>
                             <EcnStepper item={item} detailed={false} />
                           </div>

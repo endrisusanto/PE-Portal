@@ -742,7 +742,7 @@
     "open_standalone": "새 창에서 열기 (독립 모드)",
     "confirm_clear": "AI 어시스턴트 대화 내용을 지우시겠습니까?",
     "history_cleared": "대화 내용이 초기화되었습니다. 새로운 질문을 입력하거나 문서를 첨부해 주세요!",
-    "thinking": "AI가 데이터를 분석하여 답변을 작성하고 있습니다...",
+    "thinking": "분석 중...",
     "vision_badge": "사진 / 이미지 첨부됨",
     "pdf_badge": "PDF 문서 텍스트 추출됨",
     "quick_prompt_1": "PCB 부품 불량 증상 정밀 분석",

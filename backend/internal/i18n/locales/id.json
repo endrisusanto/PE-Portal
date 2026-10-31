@@ -738,7 +738,7 @@
     "attach_tooltip": "Lampirkan foto, layout PCB, atau dokumen PDF",
     "send_btn": "Kirim",
     "clear_btn": "Bersihkan Obrolan",
-    "thinking": "AI sedang menganalisis dan menyusun jawaban...",
+    "thinking": "Menganalisis...",
     "vision_badge": "Foto / Gambar Dilampirkan",
     "pdf_badge": "Teks Dokumen PDF Diekstraksi",
     "quick_prompt_1": "Analisis gejala cacat komponen PCB",
@@ -749,5 +749,22 @@
     "open_standalone": "Buka di Jendela Baru (Detach Standalone)",
     "confirm_clear": "Kosongkan riwayat percakapan AI Assistant?",
     "history_cleared": "Riwayat percakapan telah dibersihkan. Silakan ajukan pertanyaan baru atau lampirkan dokumen!"
+  },
+  "ecn": {
+    "workflow": {
+      "title_request": "Minta Persetujuan PIC Model",
+      "submit_request": "Kirim Permohonan ke PIC Model",
+      "title_approval": "Persetujuan PIC Model (Line Readiness)",
+      "reject_btn": "Tolak (Reject)",
+      "approve_btn": "Setujui (Approve)",
+      "title_plm": "Konfirmasi Update Sistem PLM Samsung",
+      "submit_plm": "Konfirmasi Selesai di PLM & Kirim Feedback"
+    },
+    "purchasing_shift": {
+      "title": "Klarifikasi Perubahan Running BOM (Purchasing / PIC A)",
+      "submit_btn": "Simpan & Ajukan ke BOM Team",
+      "err_date_required": "Tanggal Running BOM baru wajib diisi.",
+      "err_note_required": "Catatan klarifikasi Purchasing wajib diisi dengan jelas (minimal 5 karakter)."
+    }
   }
 }

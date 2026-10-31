@@ -19,7 +19,7 @@
 
 @keyframes pulseDot {
   0%, 100% {
-    opacity: 0.3;
+    opacity: 0.35;
     transform: scale(0.85);
   }
   50% {
@@ -29,17 +29,29 @@
 }
 
 .container {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 3px 6px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
   user-select: none;
+  flex-wrap: nowrap; /* ponytail: strict single-line, prevents unwanted newlines */
+  width: 100%;
+  min-width: 0;
+}
+
+.mainInfo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
 }
 
 .circleProgress {
-  width: 17px;
-  height: 17px;
-  animation: circleSpin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  width: 16px;
+  height: 16px;
+  animation: circleSpin 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   flex-shrink: 0;
   display: block;
 }
@@ -64,9 +76,9 @@
 }
 
 .shimmerText {
-  font-size: var(--font-size-sm, 13px);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.15px;
+  letter-spacing: 0.1px;
   background: linear-gradient(
     90deg,
     var(--color-text-secondary, #64748b) 0%,
@@ -80,13 +92,37 @@
   -webkit-text-fill-color: transparent;
   animation: textShimmer 2.2s linear infinite;
   display: inline-block;
+  line-height: 1.3;
+  white-space: nowrap; /* ponytail: strictly single-line, prevent newline */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtextWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 2px 7px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.06));
+  margin-left: auto;
+}
+
+:global([data-theme="dark"]) .subtextWrapper {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .subtext {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--color-text-muted, #94a3b8);
   font-weight: 500;
-  margin-left: 2px;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pulseDot {
@@ -96,6 +132,5 @@
   border-radius: 50%;
   background-color: var(--color-accent, #2563eb);
   animation: pulseDot 1.4s ease-in-out infinite;
-  margin-left: 2px;
   flex-shrink: 0;
 }

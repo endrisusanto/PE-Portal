@@ -983,7 +983,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
           </div>
           <div className={styles.headerText}>
             <h3>{t('ai_chat.title', 'SEIN PE AI Assistant')}</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className={styles.headerMetaRow}>
               <div className={styles.headerModel}>
                 <span className={styles.onlineBadge} />
                 <span>{activeProvider} • {activeModel}</span>
@@ -991,25 +991,13 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
               {mcpConnectors.length > 0 && (
                 <div
                   title={`Terhubung dengan ${mcpConnectors.length} MCP Connector: ${mcpConnectors.map((m) => `${m.name} (${m.tools_count} tools: ${m.tools?.join(', ') || ''})`).join('; ')}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    fontSize: '11px',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                    color: '#10b981',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                  }}
+                  className={styles.mcpBadge}
                   onClick={() => navigate('/settings')}
                 >
                   <span style={{ fontSize: '10px' }}>🔌</span>
-                  <span>
+                  <span className={styles.mcpName}>
                     {mcpConnectors[0]?.name || 'MCP'}
-                    {mcpConnectors[0]?.tools_count > 0 && ` (${mcpConnectors[0].tools_count} tools)`}
+                    {mcpConnectors[0]?.tools_count > 0 && ` (${mcpConnectors[0].tools_count})`}
                   </span>
                   {mcpConnectors.length > 1 && (
                     <span style={{ fontWeight: 700 }}>+{mcpConnectors.length - 1}</span>
@@ -1034,7 +1022,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             <>
               <button
                 type="button"
-                className={styles.headerBtn}
+                className={`${styles.headerBtn} ${styles.desktopOnly}`}
                 onClick={() => setIsMaximized((prev) => !prev)}
                 title={isMaximized ? t('common.minimize', 'Perkecil Jendela') : t('common.maximize', 'Perbesar Jendela')}
               >
@@ -1042,7 +1030,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
               </button>
               <button
                 type="button"
-                className={styles.headerBtn}
+                className={`${styles.headerBtn} ${styles.desktopOnly}`}
                 onClick={handleDetachWindow}
                 title={t('ai_chat.open_standalone', 'Buka di Jendela Baru (Detach Standalone)')}
               >
@@ -1162,7 +1150,7 @@ export const AiChatWindow = ({ isDrawer = true, onClose }) => {
             <span className={styles.messageSender}>PE Assistant</span>
             <div className={`${styles.messageBubble} ${styles.assistantBubble}`}>
               <AiThinkingProgress
-                text={t('ai_chat.thinking', 'Sedang memproses respon...')}
+                text={t('ai_chat.thinking', 'Menganalisis...')}
                 subtext={activeModel}
               />
             </div>

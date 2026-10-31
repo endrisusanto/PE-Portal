@@ -738,7 +738,7 @@
     "attach_tooltip": "Attach photo, PCB layout, or PDF document",
     "send_btn": "Send",
     "clear_btn": "Clear Chat",
-    "thinking": "AI is analyzing and drafting response...",
+    "thinking": "Analyzing...",
     "vision_badge": "Photo / Image Attached",
     "pdf_badge": "PDF Document Text Extracted",
     "quick_prompt_1": "Analyze PCB defect symptoms",
@@ -749,5 +749,22 @@
     "open_standalone": "Open in New Window (Standalone Mode)",
     "confirm_clear": "Clear AI Assistant conversation history?",
     "history_cleared": "Conversation history cleared. Feel free to ask a new question or attach documents!"
+  },
+  "ecn": {
+    "workflow": {
+      "title_request": "Request PIC Model Approval",
+      "submit_request": "Submit Request to PIC Model",
+      "title_approval": "PIC Model Approval (Line Readiness)",
+      "reject_btn": "Reject",
+      "approve_btn": "Approve",
+      "title_plm": "Confirm Samsung PLM System Update",
+      "submit_plm": "Confirm Completed in PLM & Send Feedback"
+    },
+    "purchasing_shift": {
+      "title": "Running BOM Clarification (Purchasing / PIC A)",
+      "submit_btn": "Save & Submit to BOM Team",
+      "err_date_required": "New Running BOM date is required.",
+      "err_note_required": "Purchasing clarification note is required (minimum 5 characters)."
+    }
   }
 }

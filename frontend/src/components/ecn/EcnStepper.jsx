@@ -78,7 +78,7 @@ export const EcnStepper = ({ item, detailed = false }) => {
       pic: item.created_by_name || item.author_name || 'Purchasing',
       desc: item.running_date_bom
         ? `Target BOM: ${item.running_date_bom}`
-        : 'Inisiasi ECN',
+        : t('ecn.stepper.init_ecn', 'Inisiasi ECN'),
     },
     {
       num: 2,
@@ -88,7 +88,7 @@ export const EcnStepper = ({ item, detailed = false }) => {
       pic: item.updater_name || 'BOM Coordinator',
       desc: item.part_before && item.part_after
         ? `${item.part_before} ➔ ${item.part_after}`
-        : 'Cek struktur part BOM',
+        : t('ecn.stepper.check_bom', 'Cek struktur part BOM'),
     },
     {
       num: 3,
@@ -100,7 +100,7 @@ export const EcnStepper = ({ item, detailed = false }) => {
         : (item.model ? `PIC ${item.model}` : 'PIC Model'),
       desc: item.plm_model_stage
         ? `Model: ${item.model || ''} (${item.plm_model_stage})`
-        : 'Validasi kesiapan lini',
+        : t('ecn.stepper.validate_line', 'Validasi kesiapan lini'),
     },
     {
       num: 4,
@@ -110,7 +110,7 @@ export const EcnStepper = ({ item, detailed = false }) => {
       pic: item.plm_updated_by_name || 'BOM Specialist',
       desc: item.plm_eco_no
         ? `ECO: ${item.plm_eco_no}`
-        : (isCompleted ? 'Disinkronkan ke PLM' : 'Menunggu update PLM'),
+        : (isCompleted ? t('ecn.stepper.synced_to_plm', 'Disinkronkan ke PLM') : t('ecn.stepper.waiting_plm', 'Menunggu update PLM')),
     },
   ];
 

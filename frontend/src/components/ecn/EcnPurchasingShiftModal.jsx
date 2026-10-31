@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Calendar,
@@ -15,20 +15,20 @@ import { Button } from '../common/Button';
 import api from '../../api/client';
 import styles from './EcnPurchasingShiftModal.module.css';
 
-const REASON_CATEGORIES = [
-  'Keterlambatan Pengiriman Vendor (Vendor Shipment Delay)',
-  'Kekurangan Material / Buffer Stock Rendah (Part Shortage)',
-  'Kendala Bea Cukai / Perpanjangan Lead Time (Customs / Lead Time)',
-  'Isu Kualitas Material Vendor (Vendor Quality Issue)',
-  'Penyesuaian Jadwal Produksi (Line Balancing / Production Shift)',
-  'Lainnya (Other)',
-];
-
 export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) => {
   const { t } = useTranslation();
 
+  const reasonCategories = useMemo(() => [
+    { key: 'cat_vendor_delay', label: t('ecn.purchasing_shift.cat_vendor_delay', 'Keterlambatan Pengiriman Vendor (Vendor Shipment Delay)') },
+    { key: 'cat_shortage', label: t('ecn.purchasing_shift.cat_shortage', 'Kekurangan Material / Buffer Stock Rendah (Part Shortage)') },
+    { key: 'cat_customs', label: t('ecn.purchasing_shift.cat_customs', 'Kendala Bea Cukai / Perpanjangan Lead Time (Customs / Lead Time)') },
+    { key: 'cat_quality', label: t('ecn.purchasing_shift.cat_quality', 'Isu Kualitas Material Vendor (Vendor Quality Issue)') },
+    { key: 'cat_line_balancing', label: t('ecn.purchasing_shift.cat_line_balancing', 'Penyesuaian Jadwal Produksi (Line Balancing / Production Shift)') },
+    { key: 'cat_other', label: t('ecn.purchasing_shift.cat_other', 'Lainnya (Other)') },
+  ], [t]);
+
   const [newDate, setNewDate] = useState('');
-  const [reasonCategory, setReasonCategory] = useState(REASON_CATEGORIES[0]);
+  const [reasonCategory, setReasonCategory] = useState('');
   const [clarificationNote, setClarificationNote] = useState('');
   const [vendorEta, setVendorEta] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,23 +37,23 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
   useEffect(() => {
     if (item && isOpen) {
       setNewDate(item.running_date_bom || '');
-      setReasonCategory(REASON_CATEGORIES[0]);
+      setReasonCategory(reasonCategories[0]?.label || '');
       setClarificationNote(item.plm_change_reason ? item.plm_change_reason.replace(/^\[.*?\]\s*/, '') : '');
       setVendorEta(item.plm_vendor_eta || '');
       setError(null);
     }
-  }, [item, isOpen]);
+  }, [item, isOpen, reasonCategories]);
 
   if (!isOpen || !item) return null;
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
     if (!newDate.trim()) {
-      setError('Tanggal Running BOM baru wajib diisi.');
+      setError(t('ecn.purchasing_shift.err_date_required', 'Tanggal Running BOM baru wajib diisi.'));
       return;
     }
     if (!clarificationNote.trim() || clarificationNote.trim().length < 5) {
-      setError('Catatan klarifikasi Purchasing wajib diisi dengan jelas (minimal 5 karakter).');
+      setError(t('ecn.purchasing_shift.err_note_required', 'Catatan klarifikasi Purchasing wajib diisi dengan jelas (minimal 5 karakter).'));
       return;
     }
 
@@ -62,7 +62,7 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
     try {
       await api.post(`/ecn/${item.id}/purchasing-shift`, {
         new_running_date_bom: newDate,
-        reason_category: reasonCategory,
+        reason_category: reasonCategory || reasonCategories[0]?.label,
         clarification_note: clarificationNote.trim(),
         vendor_eta: vendorEta ? vendorEta : undefined,
       });
@@ -78,7 +78,7 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
   const modalTitle = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <Truck size={18} style={{ color: '#d97706' }} />
-      <span>Klarifikasi Perubahan Running BOM (Purchasing / PIC A)</span>
+      <span>{t('ecn.purchasing_shift.title', 'Klarifikasi Perubahan Running BOM (Purchasing / PIC A)')}</span>
     </div>
   );
 
@@ -95,7 +95,7 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
         loading={loading}
         style={{ backgroundColor: '#d97706', borderColor: '#d97706' }}
       >
-        Simpan & Ajukan ke BOM Team
+        {t('ecn.purchasing_shift.submit_btn', 'Simpan & Ajukan ke BOM Team')}
       </Button>
     </div>
   );
@@ -130,9 +130,9 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
 
           <div className={styles.summaryMetaGrid}>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Jadwal Running BOM Saat Ini:</span>
+              <span className={styles.metaLabel}>{t('ecn.purchasing_shift.current_schedule', 'Jadwal Running BOM Saat Ini:')}</span>
               <span className={styles.currentDateValue}>
-                <Calendar size={13} /> {item.running_date_bom || '(Belum ditetapkan)'}
+                <Calendar size={13} /> {item.running_date_bom || t('ecn.purchasing_shift.not_set', '(Belum ditetapkan)')}
               </span>
             </div>
 
@@ -151,7 +151,7 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
         <div className={styles.infoBanner}>
           <Info size={15} className={styles.infoIcon} />
           <span>
-            Perubahan tanggal Running BOM akan memicu antrean verifikasi di <strong>BOM Team (PIC B)</strong> dan persetujuan kesiapan lini oleh <strong>PIC Model (PIC C)</strong>.
+            {t('ecn.purchasing_shift.info_banner', 'Perubahan tanggal Running BOM akan memicu antrean verifikasi di BOM Team (PIC B) dan persetujuan kesiapan lini oleh PIC Model (PIC C).')}
           </span>
         </div>
 
@@ -160,7 +160,7 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
           {/* New Running BOM Date */}
           <div className={styles.formGroup}>
             <label className={styles.inputLabel}>
-              Jadwal Running BOM Baru <span className={styles.requiredMark}>*</span>:
+              {t('ecn.purchasing_shift.new_date_label', 'Jadwal Running BOM Baru')} <span className={styles.requiredMark}>*</span>:
             </label>
             <div className={styles.dateInputWrapper}>
               <Calendar size={15} className={styles.inputIcon} />
@@ -177,7 +177,7 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
           {/* Reason Category */}
           <div className={styles.formGroup}>
             <label className={styles.inputLabel}>
-              Kategori Alasan Perubahan <span className={styles.requiredMark}>*</span>:
+              {t('ecn.purchasing_shift.category_label', 'Kategori Alasan Perubahan')} <span className={styles.requiredMark}>*</span>:
             </label>
             <select
               className={styles.selectField}
@@ -185,9 +185,9 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
               onChange={(e) => setReasonCategory(e.target.value)}
               required
             >
-              {REASON_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+              {reasonCategories.map((cat) => (
+                <option key={cat.key} value={cat.label}>
+                  {cat.label}
                 </option>
               ))}
             </select>
@@ -196,25 +196,25 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
           {/* Clarification Note */}
           <div className={styles.formGroup}>
             <label className={styles.inputLabel}>
-              Catatan Klarifikasi Purchasing <span className={styles.requiredMark}>*</span>:
+              {t('ecn.purchasing_shift.note_label', 'Catatan Klarifikasi Purchasing')} <span className={styles.requiredMark}>*</span>:
             </label>
             <textarea
               rows={3}
               className={styles.textareaField}
-              placeholder="Contoh: Vendor supplier ABC mengonfirmasi shipment batch part baru mengalami delay 1 minggu akibat kendala customs. Buffer stock part lama di gudang masih cukup untuk 4 hari produksi..."
+              placeholder={t('ecn.purchasing_shift.note_placeholder', 'Contoh: Vendor supplier ABC mengonfirmasi shipment batch part baru mengalami delay 1 minggu akibat kendala customs. Buffer stock part lama di gudang masih cukup untuk 4 hari produksi...')}
               value={clarificationNote}
               onChange={(e) => setClarificationNote(e.target.value)}
               required
             />
             <span className={styles.fieldHelpText}>
-              Wajib diisi jelas agar PIC BOM & PIC Model memahami latar belakang dan risiko pergeseran jadwal.
+              {t('ecn.purchasing_shift.note_help', 'Wajib diisi jelas agar PIC BOM & PIC Model memahami latar belakang dan risiko pergeseran jadwal.')}
             </span>
           </div>
 
           {/* Vendor ETA */}
           <div className={styles.formGroup}>
             <label className={styles.inputLabel}>
-              Estimasi Kedatangan Material Vendor (Vendor ETA) <span className={styles.optionalMark}>(Opsional)</span>:
+              {t('ecn.purchasing_shift.vendor_eta_label', 'Estimasi Kedatangan Material Vendor (Vendor ETA)')} <span className={styles.optionalMark}>{t('common.optional', '(Opsional)')}</span>:
             </label>
             <div className={styles.dateInputWrapper}>
               <Clock size={15} className={styles.inputIcon} />
@@ -223,11 +223,11 @@ export const EcnPurchasingShiftModal = ({ isOpen, onClose, item, onSuccess }) =>
                 className={styles.inputField}
                 value={vendorEta}
                 onChange={(e) => setVendorEta(e.target.value)}
-                placeholder="Pilih tanggal estimasi tiba di pabrik"
+                placeholder={t('ecn.purchasing_shift.vendor_eta_placeholder', 'Pilih tanggal estimasi tiba di pabrik')}
               />
             </div>
             <span className={styles.fieldHelpText}>
-              Estimasi tanggal fisik part baru tiba di gudang penerimaan material SEIN.
+              {t('ecn.purchasing_shift.vendor_eta_help', 'Estimasi tanggal fisik part baru tiba di gudang penerimaan material SEIN.')}
             </span>
           </div>
         </form>

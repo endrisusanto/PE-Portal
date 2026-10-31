@@ -64,7 +64,7 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
     setError(null);
     try {
       await api.post(`/ecn/${item.id}/approve-plm`, {
-        notes: notes || 'Disetujui. Kesiapan lini produksi dan buffer stock part lama aman.',
+        notes: notes || t('ecn.workflow.default_approve_note', 'Disetujui. Kesiapan lini produksi dan buffer stock part lama aman.'),
       });
       onSuccess?.();
       onClose();
@@ -78,7 +78,7 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
   // Handle PIC Model Reject
   const handleReject = async () => {
     if (!notes.trim()) {
-      setError('Harap masukkan alasan penolakan agar tim Purchasing dapat menegosiasikan opsi ke vendor.');
+      setError(t('ecn.workflow.err_reject_reason', 'Harap masukkan alasan penolakan agar tim Purchasing dapat menegosiasikan opsi ke vendor.'));
       return;
     }
     setLoading(true);
@@ -99,7 +99,7 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
   // Handle Confirm PLM Update (BOM Team -> Complete)
   const handleConfirmPLM = async () => {
     if (!ecoNo.trim()) {
-      setError('Harap masukkan Nomor ECO / Dokumen referensi PLM Samsung.');
+      setError(t('ecn.workflow.err_eco_required', 'Harap masukkan Nomor ECO / Dokumen referensi PLM Samsung.'));
       return;
     }
     setLoading(true);
@@ -107,7 +107,7 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
     try {
       await api.post(`/ecn/${item.id}/confirm-plm-update`, {
         eco_no: ecoNo,
-        feedback_note: feedbackNote || 'Running BOM Date telah resmi disinkronkan di sistem PLM Samsung.',
+        feedback_note: feedbackNote || t('ecn.workflow.default_plm_feedback', 'Running BOM Date telah resmi disinkronkan di sistem PLM Samsung.'),
       });
       onSuccess?.();
       onClose();
@@ -245,7 +245,7 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
             </div>
 
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>PIC Model Terkait:</span>
+              <span className={styles.metaLabel}>{t('ecn.workflow.related_pic_model', 'PIC Model Terkait:')}</span>
               <strong className={styles.metaValue}>
                 {item.plm_pic_model_name || `PIC ${item.model || 'Model'}`}
               </strong>
@@ -268,11 +268,11 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
             <div className={styles.purchasingCardHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Truck size={14} className={styles.purchasingIcon} />
-                <span className={styles.purchasingTitle}>Klarifikasi Perubahan dari Purchasing (PIC A)</span>
+                <span className={styles.purchasingTitle}>{t('ecn.workflow.purchasing_clarification_title', 'Klarifikasi Perubahan dari Purchasing (PIC A)')}</span>
               </div>
               {item.plm_vendor_eta && (
                 <span className={styles.purchasingEtaBadge}>
-                  ETA Vendor: {item.plm_vendor_eta}
+                  {t('ecn.workflow.vendor_eta_prefix', 'ETA Vendor:')} {item.plm_vendor_eta}
                 </span>
               )}
             </div>
@@ -288,18 +288,20 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
             <div className={styles.infoBanner}>
               <Info size={15} className={styles.infoIcon} />
               <span>
-                Permohonan akan diarahkan secara otomatis ke <strong>{item.plm_pic_model_name || 'PIC Model penanggung jawab'}</strong> sesuai master <em>New Model Development</em>.
+                {t('ecn.workflow.info_request_routing', 'Permohonan akan diarahkan secara otomatis ke {{name}} sesuai master New Model Development.', {
+                  name: item.plm_pic_model_name || 'PIC Model',
+                })}
               </span>
             </div>
 
             <div className={styles.formGroup}>
               <label className={styles.inputLabel}>
-                Catatan Telaah BOM Team untuk PIC Model (Opsional):
+                {t('ecn.workflow.bom_notes_label', 'Catatan Telaah BOM Team untuk PIC Model (Opsional):')}
               </label>
               <textarea
                 rows={3}
                 className={styles.textareaField}
-                placeholder="Contoh: Struktur part BOM sudah dicek dan konsisten. Mohon verifikasi kecukupan buffer stock part lama dan jadwal trial lini."
+                placeholder={t('ecn.workflow.bom_notes_placeholder', 'Contoh: Struktur part BOM sudah dicek dan konsisten. Mohon verifikasi kecukupan buffer stock part lama dan jadwal trial lini.')}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -314,9 +316,9 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
               <div className={styles.warningBanner}>
                 <AlertTriangle size={16} color="#d97706" />
                 <div>
-                  <strong>Peringatan Mass Production (MP):</strong>
+                  <strong>{t('ecn.workflow.warning_mp_title', 'Peringatan Mass Production (MP):')}</strong>
                   <div style={{ fontSize: '11.5px', marginTop: '2px' }}>
-                    Model ini berada pada tahap MP. Pergeseran Running BOM berisiko menghentikan lini produksi jika part lama habis sebelum part baru tiba.
+                    {t('ecn.workflow.warning_mp_desc', 'Model ini berada pada tahap MP. Pergeseran Running BOM berisiko menghentikan lini produksi jika part lama habis sebelum part baru tiba.')}
                   </div>
                 </div>
               </div>
@@ -324,19 +326,19 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
               <div className={styles.infoBanner}>
                 <ShieldCheck size={15} color="#0d7377" />
                 <span>
-                  Silakan evaluasi kesiapan lini perakitan, ketersediaan sample/material, dan buffer stock part lama sebelum menyetujui.
+                  {t('ecn.workflow.info_model_eval', 'Silakan evaluasi kesiapan lini perakitan, ketersediaan sample/material, dan buffer stock part lama sebelum menyetujui.')}
                 </span>
               </div>
             )}
 
             <div className={styles.formGroup}>
               <label className={styles.inputLabel}>
-                Catatan Keputusan Kesiapan Lini (Wajib diisi jika menolak):
+                {t('ecn.workflow.model_decision_notes_label', 'Catatan Keputusan Kesiapan Lini (Wajib diisi jika menolak):')}
               </label>
               <textarea
                 rows={3}
                 className={styles.textareaField}
-                placeholder="Masukkan catatan evaluasi, kesiapan line balancing, atau instruksi alternatif jika menolak..."
+                placeholder={t('ecn.workflow.model_decision_placeholder', 'Masukkan catatan evaluasi, kesiapan line balancing, atau instruksi alternatif jika menolak...')}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -350,18 +352,18 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
             <div className={styles.successBanner}>
               <CheckCircle2 size={16} color="#10b981" />
               <span>
-                Perubahan jadwal telah disetujui oleh PIC Model. Masukkan nomor referensi ECO sistem PLM Samsung untuk menandai penyelesaian.
+                {t('ecn.workflow.success_approved_banner', 'Perubahan jadwal telah disetujui oleh PIC Model. Masukkan nomor referensi ECO sistem PLM Samsung untuk menandai penyelesaian.')}
               </span>
             </div>
 
             <div className={styles.formGroup}>
               <label className={styles.inputLabel}>
-                Nomor ECO / Dokumen Referensi PLM Samsung <span style={{ color: '#ef4444' }}>*</span>:
+                {t('ecn.workflow.eco_no_label', 'Nomor ECO / Dokumen Referensi PLM Samsung')} <span style={{ color: '#ef4444' }}>*</span>:
               </label>
               <input
                 type="text"
                 className={styles.inputField}
-                placeholder="Contoh: PLM-2026-09811 atau ECO-S26-004"
+                placeholder={t('ecn.workflow.eco_no_placeholder', 'Contoh: PLM-2026-09811 atau ECO-S26-004')}
                 value={ecoNo}
                 onChange={(e) => setEcoNo(e.target.value)}
                 required
@@ -370,12 +372,12 @@ export const EcnWorkflowModal = ({ isOpen, onClose, item, mode, onSuccess }) => 
 
             <div className={styles.formGroup}>
               <label className={styles.inputLabel}>
-                Pesan Konfirmasi Feedback untuk Purchasing:
+                {t('ecn.workflow.feedback_label', 'Pesan Konfirmasi Feedback untuk Purchasing:')}
               </label>
               <textarea
                 rows={2}
                 className={styles.textareaField}
-                placeholder="Contoh: Running BOM Date telah resmi disesuaikan di PLM Samsung. Jadwal pengiriman material supplier dapat dieksekusi sesuai tanggal ini."
+                placeholder={t('ecn.workflow.feedback_placeholder', 'Contoh: Running BOM Date telah resmi disesuaikan di PLM Samsung. Jadwal pengiriman material supplier dapat dieksekusi sesuai tanggal ini.')}
                 value={feedbackNote}
                 onChange={(e) => setFeedbackNote(e.target.value)}
               />
