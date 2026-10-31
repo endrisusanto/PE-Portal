@@ -19,11 +19,13 @@ import {
   FileDown,
 } from 'lucide-react';
 import api from '../../api/client';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { Button } from '../common/Button';
 import styles from '../../pages/UtilityPage.module.css';
 
 export const WITranslatorTab = () => {
   const { t } = useTranslation();
+  const { fetchSummary } = useNotifications();
   const [jobs, setJobs] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -65,7 +67,8 @@ export const WITranslatorTab = () => {
       if (!pollTimerRef.current) {
         pollTimerRef.current = setInterval(() => {
           fetchJobs();
-        }, 2500);
+          fetchSummary();
+        }, 2000);
       }
     } else {
       if (pollTimerRef.current) {
@@ -178,6 +181,7 @@ export const WITranslatorTab = () => {
       await api.post('/utility/wi-translator/jobs/execute', { job_ids: targetIds });
       setSelectedIds(new Set());
       await fetchJobs();
+      setTimeout(fetchSummary, 300);
     } catch (err) {
       setErrorMsg(err?.response?.data?.message || err?.message || 'Gagal memulai pemrosesan antrean.');
     } finally {
@@ -190,6 +194,7 @@ export const WITranslatorTab = () => {
     try {
       await api.post('/utility/wi-translator/jobs/execute', { job_ids: [jobId] });
       await fetchJobs();
+      setTimeout(fetchSummary, 300);
     } catch (err) {
       setErrorMsg(err?.response?.data?.message || err?.message || 'Gagal memulai pemrosesan.');
     }

@@ -1869,12 +1869,26 @@ func (h *UtilityHandler) DownloadToolJobResult(c echo.Context) error {
 	if job.Status != "completed" || job.OutputPath == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "File belum siap atau proses belum selesai"})
 	}
-	if _, err := os.Stat(job.OutputPath); os.IsNotExist(err) {
-		return c.JSON(http.StatusNotFound, map[string]string{"message": "File hasil tidak ditemukan di server"})
+	targetPath := job.OutputPath
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		storageDir := os.Getenv("FILE_STORAGE_PATH")
+		if storageDir == "" {
+			if runtime.GOOS == "windows" {
+				storageDir = filepath.Join("data", "files")
+			} else {
+				storageDir = "/data/files"
+			}
+		}
+		altPath := filepath.Join(storageDir, filepath.Base(job.OutputPath))
+		if _, err := os.Stat(altPath); err == nil {
+			targetPath = altPath
+		} else {
+			return c.JSON(http.StatusNotFound, map[string]string{"message": "File hasil tidak ditemukan di server"})
+		}
 	}
 
-	dlName := filepath.Base(job.OutputPath)
-	return c.Attachment(job.OutputPath, dlName)
+	dlName := filepath.Base(targetPath)
+	return c.Attachment(targetPath, dlName)
 }
 
 

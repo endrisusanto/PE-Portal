@@ -54,8 +54,26 @@ func (r *ToolJobRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.T
 		       COALESCE(output_path, ''), COALESCE(result_url, ''),
 		       COALESCE(result_meta, '{}'::jsonb), COALESCE(error_message, ''),
 		       duration_sec, started_at, completed_at, created_at, updated_at
-		FROM tool_jobs
+		FROM (
+			SELECT id, user_id, tool_type, file_name, file_size,
+			       status, progress_percent, current_step,
+			       output_path, result_url,
+			       result_meta, error_message,
+			       duration_sec, started_at, completed_at, created_at, updated_at
+			FROM tool_jobs
+
+			UNION ALL
+
+			SELECT id, user_id, 'wi-translator' AS tool_type, file_name, file_size,
+			       status, progress_percent, message AS current_step,
+			       translated_file AS output_path, download_url AS result_url,
+			       jsonb_build_object('target_lang', target_lang, 'mode', mode, 'translated_count', translated_count) AS result_meta,
+			       error_message,
+			       duration_sec, started_at, completed_at, created_at, updated_at
+			FROM wi_translation_jobs
+		) AS combined_jobs
 		WHERE id = $1
+		LIMIT 1
 	`
 	var job model.ToolJob
 	err := r.db.QueryRow(ctx, query, id).Scan(
@@ -123,12 +141,19 @@ func (r *ToolJobRepository) MarkFailed(ctx context.Context, id uuid.UUID, errMsg
 
 func (r *ToolJobRepository) MarkCancelled(ctx context.Context, id uuid.UUID) error {
 	now := time.Now()
-	query := `
+	query1 := `
 		UPDATE tool_jobs
 		SET status = 'cancelled', current_step = 'Dibatalkan', completed_at = $2, updated_at = $2
 		WHERE id = $1 AND status IN ('pending', 'processing')
 	`
-	_, err := r.db.Exec(ctx, query, id, now)
+	_, err := r.db.Exec(ctx, query1, id, now)
+
+	query2 := `
+		UPDATE wi_translation_jobs
+		SET status = 'failed', message = 'Dibatalkan', completed_at = $2, updated_at = $2
+		WHERE id = $1 AND status IN ('pending', 'processing')
+	`
+	_, _ = r.db.Exec(ctx, query2, id, now)
 	return err
 }
 
@@ -139,8 +164,26 @@ func (r *ToolJobRepository) ListActive(ctx context.Context, userID *uuid.UUID) (
 		       COALESCE(output_path, ''), COALESCE(result_url, ''),
 		       COALESCE(result_meta, '{}'::jsonb), COALESCE(error_message, ''),
 		       duration_sec, started_at, completed_at, created_at, updated_at
-		FROM tool_jobs
-		WHERE status IN ('pending', 'processing')
+		FROM (
+			SELECT id, user_id, tool_type, file_name, file_size,
+			       status, progress_percent, current_step,
+			       output_path, result_url,
+			       result_meta, error_message,
+			       duration_sec, started_at, completed_at, created_at, updated_at
+			FROM tool_jobs
+			WHERE status IN ('pending', 'processing')
+
+			UNION ALL
+
+			SELECT id, user_id, 'wi-translator' AS tool_type, file_name, file_size,
+			       status, progress_percent, message AS current_step,
+			       translated_file AS output_path, download_url AS result_url,
+			       jsonb_build_object('target_lang', target_lang, 'mode', mode, 'translated_count', translated_count) AS result_meta,
+			       error_message,
+			       duration_sec, started_at, completed_at, created_at, updated_at
+			FROM wi_translation_jobs
+			WHERE status IN ('pending', 'processing')
+		) AS active_jobs
 		ORDER BY created_at DESC
 	`
 	rows, err := r.db.Query(ctx, query)
@@ -176,7 +219,24 @@ func (r *ToolJobRepository) ListRecent(ctx context.Context, userID *uuid.UUID, l
 		       COALESCE(output_path, ''), COALESCE(result_url, ''),
 		       COALESCE(result_meta, '{}'::jsonb), COALESCE(error_message, ''),
 		       duration_sec, started_at, completed_at, created_at, updated_at
-		FROM tool_jobs
+		FROM (
+			SELECT id, user_id, tool_type, file_name, file_size,
+			       status, progress_percent, current_step,
+			       output_path, result_url,
+			       result_meta, error_message,
+			       duration_sec, started_at, completed_at, created_at, updated_at
+			FROM tool_jobs
+
+			UNION ALL
+
+			SELECT id, user_id, 'wi-translator' AS tool_type, file_name, file_size,
+			       status, progress_percent, message AS current_step,
+			       translated_file AS output_path, download_url AS result_url,
+			       jsonb_build_object('target_lang', target_lang, 'mode', mode, 'translated_count', translated_count) AS result_meta,
+			       error_message,
+			       duration_sec, started_at, completed_at, created_at, updated_at
+			FROM wi_translation_jobs
+		) AS combined_jobs
 		ORDER BY 
 			CASE WHEN status IN ('pending', 'processing') THEN 0 ELSE 1 END ASC,
 			created_at DESC
@@ -206,8 +266,10 @@ func (r *ToolJobRepository) ListRecent(ctx context.Context, userID *uuid.UUID, l
 }
 
 func (r *ToolJobRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM tool_jobs WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+	query1 := `DELETE FROM tool_jobs WHERE id = $1`
+	_, err := r.db.Exec(ctx, query1, id)
+	query2 := `DELETE FROM wi_translation_jobs WHERE id = $1`
+	_, _ = r.db.Exec(ctx, query2, id)
 	return err
 }
 

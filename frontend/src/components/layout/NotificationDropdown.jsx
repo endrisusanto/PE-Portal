@@ -384,6 +384,16 @@ export const NotificationDropdown = () => {
                                 {meta.encoder.toUpperCase()}
                               </span>
                             )}
+                            {meta.target_lang && (
+                              <span className={styles.metaInfoPill}>
+                                🌐 {meta.target_lang.toUpperCase()}
+                              </span>
+                            )}
+                            {meta.translated_count > 0 && (
+                              <span className={styles.savingsPill}>
+                                {meta.translated_count} blocks
+                              </span>
+                            )}
                             {job.duration_sec > 0 && (
                               <span className={styles.metaInfoPill}>
                                 ⏱️ {job.duration_sec.toFixed(1)}s
