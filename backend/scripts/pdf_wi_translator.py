@@ -23,6 +23,7 @@ import argparse
 import tempfile
 import urllib.request
 import urllib.parse
+import math
 
 # ponytail: graceful auto-install & error reporting for missing PDF dependencies
 try:
@@ -256,15 +257,28 @@ def group_page_text_elements(page, page_width, page_height):
         t_clean = text.strip()
         if not t_clean:
             return
-        x = tm[4]
-        y = tm[5]
-        fs = font_size if font_size and font_size > 0 else 10.0
+        # ponytail: combined affine transform M = Tm x CTM to get real user-space coordinates and font size
+        a = tm[0] * cm[0] + tm[1] * cm[2]
+        b = tm[0] * cm[1] + tm[1] * cm[3]
+        c = tm[2] * cm[0] + tm[3] * cm[2]
+        d = tm[2] * cm[1] + tm[3] * cm[3]
+        x = tm[4] * cm[0] + tm[5] * cm[2] + cm[4]
+        y = tm[4] * cm[1] + tm[5] * cm[3] + cm[5]
+        sy = math.sqrt(c * c + d * d)
+        sx = math.sqrt(a * a + b * b)
+        scale = sy if sy > 0 else (sx if sx > 0 else 1.0)
+        fs = (font_size or 10.0) * scale
+
+        base_font = str(font_dict.get("/BaseFont", "")) if font_dict and isinstance(font_dict, dict) else ""
+        is_bold = any(k in base_font.lower() for k in ["bold", "black", "heavy"])
+
         raw_elements.append({
             "text": text,
             "clean_text": t_clean,
             "x": float(x),
             "y": float(y),
             "font_size": float(fs),
+            "is_bold": is_bold,
             "font_dict": font_dict,
         })
 
@@ -314,8 +328,8 @@ def group_page_text_elements(page, page_width, page_height):
                 sub_block = [elem]
             else:
                 last_elem = sub_block[-1]
-                # Estimate last element width
-                approx_w = dummy_c.stringWidth(last_elem["text"], FONT_REGULAR, last_elem["font_size"])
+                last_font = FONT_BOLD if last_elem.get("is_bold") else FONT_REGULAR
+                approx_w = dummy_c.stringWidth(last_elem["text"], last_font, last_elem["font_size"])
                 expected_next_x = last_elem["x"] + approx_w
                 gap = elem["x"] - expected_next_x
 
@@ -330,12 +344,15 @@ def group_page_text_elements(page, page_width, page_height):
                         min_x = sub_block[0]["x"]
                         y = sub_block[0]["y"]
                         fs = sum([e["font_size"] for e in sub_block]) / len(sub_block)
-                        full_w = dummy_c.stringWidth(b_text, FONT_REGULAR, fs)
+                        is_bold = any(e.get("is_bold") for e in sub_block)
+                        b_font = FONT_BOLD if is_bold else FONT_REGULAR
+                        full_w = dummy_c.stringWidth(b_text, b_font, fs)
                         blocks.append({
                             "text": b_text,
                             "x": min_x,
                             "y": y,
                             "font_size": fs,
+                            "is_bold": is_bold,
                             "width": full_w,
                         })
                     sub_block = [elem]
@@ -346,12 +363,15 @@ def group_page_text_elements(page, page_width, page_height):
                 min_x = sub_block[0]["x"]
                 y = sub_block[0]["y"]
                 fs = sum([e["font_size"] for e in sub_block]) / len(sub_block)
-                full_w = dummy_c.stringWidth(b_text, FONT_REGULAR, fs)
+                is_bold = any(e.get("is_bold") for e in sub_block)
+                b_font = FONT_BOLD if is_bold else FONT_REGULAR
+                full_w = dummy_c.stringWidth(b_text, b_font, fs)
                 blocks.append({
                     "text": b_text,
                     "x": min_x,
                     "y": y,
                     "font_size": fs,
+                    "is_bold": is_bold,
                     "width": full_w,
                 })
 
@@ -688,27 +708,32 @@ def process_pdf(
                             mask_y = y - (fs * 0.28)
                             mask_h = fs * 1.25
 
-                            trans_w = overlay_canvas.stringWidth(translated, FONT_REGULAR, fs)
+                            font_to_use = FONT_BOLD if block.get("is_bold") else FONT_REGULAR
+                            trans_w = overlay_canvas.stringWidth(translated, font_to_use, fs)
 
                             if mode == "replace":
-                                mask_w = max(orig_w, trans_w) + (pad_x * 2)
+                                # Calculate available width without overly shrinking translated text
+                                max_page_w = max(page_width - x - 20.0, orig_w)
+                                avail_w = max(orig_w * 1.35, min(max_page_w, orig_w + 50.0))
+                                if trans_w > avail_w:
+                                    scale = max(0.80, avail_w / trans_w)
+                                    draw_fs = fs * scale
+                                    drawn_w = overlay_canvas.stringWidth(translated, font_to_use, draw_fs)
+                                else:
+                                    draw_fs = fs
+                                    drawn_w = trans_w
+
+                                mask_w = max(orig_w, drawn_w) + (pad_x * 2)
                                 overlay_canvas.setFillColor(colors.white)
                                 overlay_canvas.rect(x - pad_x, mask_y - pad_y, mask_w, mask_h + (pad_y * 2), fill=1, stroke=0)
 
                                 overlay_canvas.setFillColor(colors.black)
-                                avail_w = max(orig_w * 1.15, 30.0)
-                                if trans_w > avail_w:
-                                    scale = max(0.65, avail_w / trans_w)
-                                    draw_fs = fs * scale
-                                else:
-                                    draw_fs = fs
-
-                                overlay_canvas.setFont(FONT_REGULAR, draw_fs)
+                                overlay_canvas.setFont(font_to_use, draw_fs)
                                 overlay_canvas.drawString(x, y, translated)
                             elif mode == "bilingual":
                                 overlay_canvas.setFillColor(colors.HexColor("#0D47A1"))
                                 draw_fs = max(6.0, fs * 0.75)
-                                overlay_canvas.setFont(FONT_REGULAR, draw_fs)
+                                overlay_canvas.setFont(font_to_use, draw_fs)
                                 overlay_canvas.drawString(x, y - (fs * 0.85), f"[{translated}]")
 
                         overlay_canvas.save()
