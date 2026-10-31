@@ -42,7 +42,7 @@ export const WITranslatorTab = () => {
   const fetchJobs = async () => {
     try {
       const res = await api.get('/utility/wi-translator/jobs');
-      const data = res.data || [];
+      const data = Array.isArray(res.data) ? res.data : (res.data?.jobs || []);
       setJobs(data);
     } catch (err) {
       console.error('Failed to fetch WI jobs:', err);
@@ -507,6 +507,7 @@ export const WITranslatorTab = () => {
                 multiple
                 accept=".pdf"
                 onChange={handleFileChange}
+                onClick={(e) => e.stopPropagation()}
                 style={{ display: 'none' }}
               />
 

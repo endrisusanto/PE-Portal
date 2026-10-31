@@ -44,9 +44,9 @@ func (r *WITranslatorRepository) Create(ctx context.Context, job *model.WITransl
 func (r *WITranslatorRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.WITranslationJob, error) {
 	query := `
 		SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
-		       status, current_page, total_pages, progress_percent, message,
-		       translated_count, duration_sec, translated_file, download_url,
-		       error_message, started_at, completed_at, created_at, updated_at
+		       status, current_page, total_pages, progress_percent, COALESCE(message, ''),
+		       translated_count, duration_sec, COALESCE(translated_file, ''), COALESCE(download_url, ''),
+		       COALESCE(error_message, ''), started_at, completed_at, created_at, updated_at
 		FROM wi_translation_jobs
 		WHERE id = $1
 	`
@@ -70,9 +70,9 @@ func (r *WITranslatorRepository) List(ctx context.Context, limit int) ([]*model.
 	}
 	query := `
 		SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
-		       status, current_page, total_pages, progress_percent, message,
-		       translated_count, duration_sec, translated_file, download_url,
-		       error_message, started_at, completed_at, created_at, updated_at
+		       status, current_page, total_pages, progress_percent, COALESCE(message, ''),
+		       translated_count, duration_sec, COALESCE(translated_file, ''), COALESCE(download_url, ''),
+		       COALESCE(error_message, ''), started_at, completed_at, created_at, updated_at
 		FROM wi_translation_jobs
 		ORDER BY created_at DESC
 		LIMIT $1
@@ -128,7 +128,7 @@ func (r *WITranslatorRepository) MarkCompleted(ctx context.Context, id uuid.UUID
 		SET status = 'completed', progress_percent = 100.0, translated_file = $2,
 		    download_url = $3, translated_count = $4, duration_sec = $5,
 		    completed_at = NOW(),
-		    error_message = NULL,
+		    error_message = '',
 		    message = 'Penerjemahan dokumen selesai', updated_at = NOW()
 		WHERE id = $1
 	`
@@ -188,9 +188,9 @@ func (r *WITranslatorRepository) GetPendingJobs(ctx context.Context, specificIDs
 	if len(specificIDs) > 0 {
 		query = `
 			SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
-			       status, current_page, total_pages, progress_percent, message,
-			       translated_count, duration_sec, translated_file, download_url,
-			       error_message, started_at, completed_at, created_at, updated_at
+			       status, current_page, total_pages, progress_percent, COALESCE(message, ''),
+			       translated_count, duration_sec, COALESCE(translated_file, ''), COALESCE(download_url, ''),
+			       COALESCE(error_message, ''), started_at, completed_at, created_at, updated_at
 			FROM wi_translation_jobs
 			WHERE id = ANY($1) AND status != 'processing'
 			ORDER BY created_at ASC
@@ -199,9 +199,9 @@ func (r *WITranslatorRepository) GetPendingJobs(ctx context.Context, specificIDs
 	} else {
 		query = `
 			SELECT id, user_id, file_name, file_path, file_size, target_lang, mode,
-			       status, current_page, total_pages, progress_percent, message,
-			       translated_count, duration_sec, translated_file, download_url,
-			       error_message, started_at, completed_at, created_at, updated_at
+			       status, current_page, total_pages, progress_percent, COALESCE(message, ''),
+			       translated_count, duration_sec, COALESCE(translated_file, ''), COALESCE(download_url, ''),
+			       COALESCE(error_message, ''), started_at, completed_at, created_at, updated_at
 			FROM wi_translation_jobs
 			WHERE status = 'pending'
 			ORDER BY created_at ASC
