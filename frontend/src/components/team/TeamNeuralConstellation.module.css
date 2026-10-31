@@ -306,13 +306,12 @@
 }
 
 .jobdeskPillBg {
-  fill: rgba(15, 23, 42, 0.92);
-  transition: fill 0.2s ease, stroke-width 0.2s ease;
+  fill: rgba(15, 23, 42, 0.94);
+  transition: fill 0.15s ease;
 }
 
 .jobdeskNode:hover .jobdeskPillBg {
   fill: rgba(30, 41, 59, 0.98);
-  stroke-width: 1.6;
 }
 
 /* Node Text Labels */
@@ -321,6 +320,8 @@
   font-weight: 700;
   fill: #ffffff;
   pointer-events: none;
+  user-select: none;
+  text-anchor: middle;
   letter-spacing: 0.01em;
 }
 
@@ -329,6 +330,8 @@
   font-weight: 600;
   fill: #94a3b8;
   pointer-events: none;
+  user-select: none;
+  text-anchor: middle;
   letter-spacing: 0.02em;
 }
 

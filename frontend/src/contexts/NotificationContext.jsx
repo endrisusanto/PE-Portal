@@ -34,10 +34,10 @@ export const NotificationProvider = ({ children }) => {
     }
   }, []);
 
-  // Adaptive polling: fast (2.5s) when processing, relaxed (20s) when idle
+  // Adaptive polling: fast (1.5s) when processing, relaxed (5s) when idle
   useEffect(() => {
     fetchSummary();
-    const intervalTime = activeJobsCount > 0 ? 2500 : 20000;
+    const intervalTime = activeJobsCount > 0 ? 1500 : 5000;
     const interval = setInterval(fetchSummary, intervalTime);
     return () => clearInterval(interval);
   }, [fetchSummary, activeJobsCount]);
@@ -97,8 +97,13 @@ export const NotificationProvider = ({ children }) => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      await fetchSummary();
-      return res.data;
+      const newJob = res.data;
+      if (newJob && newJob.id) {
+        setToolsProgress((prev) => [newJob, ...prev.filter((j) => j.id !== newJob.id)]);
+        setActiveJobsCount((prev) => Math.max(1, prev + 1));
+      }
+      setTimeout(fetchSummary, 250);
+      return newJob;
     } finally {
       setLoading(false);
     }

@@ -27,34 +27,34 @@ const DIVISION_CONFIG = {
     color: '#eab308', // Gold
     icon: ShieldCheck,
     angle: -90, // Top
-    dist: 190,
+    dist: 180,
   },
   pe_mecha: {
     title: 'PE Mecha',
     color: '#3b82f6', // Electric Blue
     icon: Layers,
-    angle: -20, // Top-Right
+    angle: -18, // Top-Right
     dist: 310,
   },
   pe_solution: {
     title: 'PE Solution',
     color: '#10b981', // Emerald
     icon: Sparkles,
-    angle: 50, // Bottom-Right
-    dist: 285,
+    angle: 52, // Bottom-Right
+    dist: 290,
   },
   cross_dept: {
     title: 'Cross-Dept Partners',
     color: '#f97316', // Orange
     icon: Building2,
-    angle: 130, // Bottom-Left
-    dist: 285,
+    angle: 128, // Bottom-Left
+    dist: 290,
   },
   pe_production: {
     title: 'PE Part',
     color: '#a855f7', // Violet
     icon: Briefcase,
-    angle: 200, // Top-Left
+    angle: 198, // Top-Left
     dist: 310,
   },
 };
@@ -103,17 +103,19 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
     return map;
   }, [groups]);
 
-  // Ambient auto-orbit physics simulation
+  // Ambient auto-orbit physics simulation (pauses smoothly on hover for inspection)
   useEffect(() => {
     if (!isAutoOrbit) return;
     let animId;
     const step = () => {
-      setOrbitAngle((prev) => (prev + 0.0022) % (Math.PI * 2));
+      if (!hoveredMember && !hoveredJobdesk) {
+        setOrbitAngle((prev) => (prev + 0.0022) % (Math.PI * 2));
+      }
       animId = requestAnimationFrame(step);
     };
     animId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animId);
-  }, [isAutoOrbit]);
+  }, [isAutoOrbit, hoveredMember, hoveredJobdesk]);
 
   // Non-passive wheel listener for smooth zooming without page scrolling
   useEffect(() => {
@@ -176,10 +178,10 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
     };
   }, [users, groupPartMap]);
 
-  // Center coordinate of ViewBox (1060 x 660)
-  const center = { x: 530, y: 330 };
+  // Center coordinate of ViewBox (1120 x 700)
+  const center = { x: 560, y: 350 };
 
-  // Calculate coordinates for cluster hubs, jobdesk sub-hubs, and their members
+  // Calculate coordinates for cluster hubs, jobdesk sub-hubs, and their unique member nodes
   const clusterData = useMemo(() => {
     return Object.entries(DIVISION_CONFIG).map(([key, cfg]) => {
       const rad = (cfg.angle * Math.PI) / 180 + orbitAngle;
@@ -188,7 +190,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
       const hubY = customHub ? customHub.y : center.y + cfg.dist * Math.sin(rad);
       const members = divisions[key] || [];
 
-      // Find active jobdesks (group parts) for this division that have assigned members
+      // 1. Identify active jobdesks for this division that have assigned members
       const activeParts = groups
         .filter((g) => {
           if (key === 'cross_dept') {
@@ -202,46 +204,29 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
           )
         );
 
-      // Generate Jobdesk Sub-Nodes with generous spacing
-      const totalParts = activeParts.length;
-      const jobdeskNodes = activeParts.map((jPart, jIdx) => {
-        const angleSpread = totalParts > 1 ? Math.min(2.1, (totalParts - 1) * 0.65) : 0;
-        const jAngle = totalParts > 1 ? rad + (jIdx - (totalParts - 1) / 2) * (angleSpread / (totalParts - 1)) : rad;
-        const distJobdesk = 90;
-        const customJob = customPositions[`jobdesk-${key}-${jPart.id}`];
-        const jx = customJob ? customJob.x : hubX + distJobdesk * Math.cos(jAngle);
-        const jy = customJob ? customJob.y : hubY + distJobdesk * Math.sin(jAngle);
+      const numParts = activeParts.length;
 
-        // Members assigned to this jobdesk
+      // 2. Position active jobdesk anchors along outward sector arc
+      const jobdeskNodes = activeParts.map((jPart, jIdx) => {
+        const customJob = customPositions[`jobdesk-${key}-${jPart.id}`];
+        let jx, jy;
+        if (customJob) {
+          jx = customJob.x;
+          jy = customJob.y;
+        } else {
+          const distJobdesk = numParts > 2 ? 92 : 82;
+          const arcSpread = numParts > 1 ? Math.min(2.0, (numParts - 1) * 0.58) : 0;
+          const jAngle = numParts > 1
+            ? rad + (jIdx - (numParts - 1) / 2) * (arcSpread / (numParts - 1))
+            : rad;
+          jx = hubX + distJobdesk * Math.cos(jAngle);
+          jy = hubY + distJobdesk * Math.sin(jAngle);
+        }
+
+        // Assigned members for this jobdesk
         const jMembers = members.filter(
           (m) => (m.group_part_ids && m.group_part_ids.includes(jPart.id)) || m.group_part_id === jPart.id
         );
-
-        // Position members radiating out from this jobdesk node without overlapping
-        const mTotal = jMembers.length;
-        const mSpread = mTotal > 1 ? Math.min(1.5, (mTotal - 1) * 0.42) : 0;
-        const memberNodes = jMembers.map((m, mIdx) => {
-          const mAngle = mTotal > 1 ? jAngle + (mIdx - (mTotal - 1) / 2) * (mSpread / (mTotal - 1)) : jAngle;
-          const distMember = 42;
-          const customMem = customPositions[`member-${m.id}`];
-          const mx = customMem ? customMem.x : jx + distMember * Math.cos(mAngle);
-          const my = customMem ? customMem.y : jy + distMember * Math.sin(mAngle);
-          const avatarInitial = (m.full_name || m.username || 'U').charAt(0).toUpperCase();
-          const firstName = (m.full_name || 'Engineer').split(' ')[0];
-          const shortJob = formatShortJobdesk(jPart.name);
-
-          return {
-            member: m,
-            x: mx,
-            y: my,
-            initial: avatarInitial,
-            firstName,
-            shortJob,
-            r: 12,
-            jobdeskId: jPart.id,
-            nodeId: `member-${m.id}`,
-          };
-        });
 
         return {
           part: jPart,
@@ -249,37 +234,158 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
           y: jy,
           shortTitle: formatShortJobdesk(jPart.name),
           assignedMembers: jMembers,
-          memberNodes,
           nodeId: `jobdesk-${key}-${jPart.id}`,
         };
       });
 
-      // Members without explicit part assignment (placed opposite from jobdesks)
-      const assignedIds = new Set(jobdeskNodes.flatMap((jn) => jn.assignedMembers.map((m) => m.id)));
-      const unassigned = members.filter((m) => !assignedIds.has(m.id));
-      const unassignedNodes = unassigned.map((m, uIdx) => {
-        const uAngle = rad + Math.PI + (uIdx - (unassigned.length - 1) / 2) * 0.45;
+      // Relaxation for jobdesk badges so badges never overlap each other
+      const MIN_JOB_DIST = 76;
+      for (let iter = 0; iter < 10; iter++) {
+        for (let i = 0; i < jobdeskNodes.length; i++) {
+          for (let j = i + 1; j < jobdeskNodes.length; j++) {
+            const a = jobdeskNodes[i];
+            const b = jobdeskNodes[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const d = Math.hypot(dx, dy) || 1;
+            if (d < MIN_JOB_DIST) {
+              const push = (MIN_JOB_DIST - d) / 2;
+              const nx = (dx / d) * push;
+              const ny = (dy / d) * push;
+              if (!customPositions[a.nodeId]) { a.x -= nx; a.y -= ny; }
+              if (!customPositions[b.nodeId]) { b.x += nx; b.y += ny; }
+            }
+          }
+        }
+      }
+
+      // 3. Map EVERY member in this division EXACTLY ONCE!
+      // Multi-jobdesk members are anchored to their primary jobdesk and connected to other jobdesks via synaptic axons
+      const memberNodes = members.map((m, mIdx) => {
         const customMem = customPositions[`member-${m.id}`];
-        const ux = customMem ? customMem.x : hubX + 52 * Math.cos(uAngle);
-        const uy = customMem ? customMem.y : hubY + 52 * Math.sin(uAngle);
+        if (customMem) {
+          return {
+            member: m,
+            x: customMem.x,
+            y: customMem.y,
+            initial: (m.full_name || m.username || 'U').charAt(0).toUpperCase(),
+            firstName: (m.full_name || 'Engineer').split(' ')[0],
+            shortJob: m.mainPart ? formatShortJobdesk(m.mainPart.name) : 'Member',
+            r: 12,
+            primaryJobdeskId: m.group_part_id || (m.group_part_ids && m.group_part_ids[0]),
+            nodeId: `member-${m.id}`,
+          };
+        }
+
+        // Find matched primary jobdesk anchor
+        const primaryPartId = m.group_part_id ||
+          (m.group_part_ids && m.group_part_ids.find(id => jobdeskNodes.some(jn => jn.part.id === id))) ||
+          (m.group_part_ids && m.group_part_ids[0]);
+
+        const parentJNode = jobdeskNodes.find((jn) => jn.part.id === primaryPartId);
+
+        let initialX, initialY;
+        if (parentJNode) {
+          // Angle from hub to this jobdesk
+          const baseAngle = Math.atan2(parentJNode.y - hubY, parentJNode.x - hubX);
+          // Siblings under the same primary jobdesk
+          const siblings = members.filter(sib => {
+            const sibPart = sib.group_part_id ||
+              (sib.group_part_ids && sib.group_part_ids.find(id => jobdeskNodes.some(jn => jn.part.id === id))) ||
+              (sib.group_part_ids && sib.group_part_ids[0]);
+            return sibPart === primaryPartId;
+          });
+          const sibIdx = siblings.findIndex(sib => sib.id === m.id);
+          const sibTotal = siblings.length;
+
+          if (sibTotal === 1) {
+            initialX = parentJNode.x + 54 * Math.cos(baseAngle);
+            initialY = parentJNode.y + 54 * Math.sin(baseAngle);
+          } else {
+            const fanSpread = Math.min(1.7, (sibTotal - 1) * 0.44);
+            const mAngle = baseAngle + (sibIdx - (sibTotal - 1) / 2) * (fanSpread / (sibTotal - 1));
+            const dist = sibTotal > 3 ? (sibIdx % 2 === 0 ? 54 : 74) : 58;
+            initialX = parentJNode.x + dist * Math.cos(mAngle);
+            initialY = parentJNode.y + dist * Math.sin(mAngle);
+          }
+        } else {
+          // Unassigned: fan out inward/around hub
+          const uAngle = rad + Math.PI * 0.75 + (mIdx / Math.max(1, members.length)) * Math.PI * 0.6;
+          initialX = hubX + 54 * Math.cos(uAngle);
+          initialY = hubY + 54 * Math.sin(uAngle);
+        }
+
         const avatarInitial = (m.full_name || m.username || 'U').charAt(0).toUpperCase();
+        const firstName = (m.full_name || 'Engineer').split(' ')[0];
+        const shortJob = m.mainPart ? formatShortJobdesk(m.mainPart.name) : 'Member';
+
         return {
           member: m,
-          x: ux,
-          y: uy,
+          x: initialX,
+          y: initialY,
           initial: avatarInitial,
-          firstName: (m.full_name || 'Engineer').split(' ')[0],
-          shortJob: 'Lead',
+          firstName,
+          shortJob,
           r: 12,
-          jobdeskId: null,
+          primaryJobdeskId: primaryPartId,
           nodeId: `member-${m.id}`,
         };
       });
 
+      // 4. Force Relaxation on member nodes: ZERO overlaps mathematically guaranteed!
+      const MIN_MEMBER_DIST = 46; // node diameter is 24, leaves 22px clear margin
+      for (let iter = 0; iter < 15; iter++) {
+        // Member-to-Member repulsion
+        for (let i = 0; i < memberNodes.length; i++) {
+          for (let j = i + 1; j < memberNodes.length; j++) {
+            const a = memberNodes[i];
+            const b = memberNodes[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const d = Math.hypot(dx, dy) || 1;
+            if (d < MIN_MEMBER_DIST) {
+              const push = (MIN_MEMBER_DIST - d) / 2;
+              const nx = (dx / d) * push;
+              const ny = (dy / d) * push;
+              if (!customPositions[a.nodeId]) { a.x -= nx; a.y -= ny; }
+              if (!customPositions[b.nodeId]) { b.x += nx; b.y += ny; }
+            }
+          }
+
+          // Member-to-Jobdesk repulsion
+          for (const jn of jobdeskNodes) {
+            const a = memberNodes[i];
+            const dx = a.x - jn.x;
+            const dy = a.y - jn.y;
+            const d = Math.hypot(dx, dy) || 1;
+            if (d < 44) {
+              const push = 44 - d;
+              if (!customPositions[a.nodeId]) {
+                a.x += (dx / d) * push;
+                a.y += (dy / d) * push;
+              }
+            }
+          }
+
+          // Member-to-Hub repulsion
+          const a = memberNodes[i];
+          const dhx = a.x - hubX;
+          const dhy = a.y - hubY;
+          const dh = Math.hypot(dhx, dhy) || 1;
+          if (dh < 50) {
+            const push = 50 - dh;
+            if (!customPositions[a.nodeId]) {
+              a.x += (dhx / dh) * push;
+              a.y += (dhy / dh) * push;
+            }
+          }
+        }
+      }
+
       // Stardust particles
       const stardust = Array.from({ length: 6 }).map((_, sIdx) => {
         const sAngle = (sIdx / 6) * Math.PI * 2 + key.length + orbitAngle * 0.7;
-        const sDist = 105 + (sIdx % 3) * 18;
+        const sDist = 110 + (sIdx % 3) * 18;
         return {
           id: `star-${key}-${sIdx}`,
           x: hubX + sDist * Math.cos(sAngle),
@@ -296,7 +402,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
         hubY,
         hubNodeId: `hub-${key}`,
         jobdeskNodes,
-        unassignedNodes,
+        memberNodes,
         stardust,
       };
     });
@@ -306,7 +412,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
   const getSvgScale = useCallback(() => {
     if (!svgRef.current) return 1;
     const rect = svgRef.current.getBoundingClientRect();
-    return rect.width > 0 ? 1060 / rect.width : 1;
+    return rect.width > 0 ? 1120 / rect.width : 1;
   }, []);
 
   // Background Pan Handlers
@@ -431,7 +537,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
         <svg
           ref={svgRef}
           className={styles.graphSvg}
-          viewBox="0 0 1060 660"
+          viewBox="0 0 1120 700"
           preserveAspectRatio="xMidYMid meet"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -440,14 +546,8 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
           style={{ cursor: isPanning || draggedNode ? 'grabbing' : 'grab' }}
         >
           <defs>
-            {/* Filters */}
             <filter id="coreGlow" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="6" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-
-            <filter id="nodeGlow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="3.5" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
 
@@ -464,7 +564,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
             <circle
               cx={center.x}
               cy={center.y}
-              r={140}
+              r={150}
               fill="none"
               stroke="var(--color-accent)"
               strokeOpacity="0.12"
@@ -473,7 +573,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
             <circle
               cx={center.x}
               cy={center.y}
-              r={260}
+              r={280}
               fill="none"
               stroke="var(--color-accent)"
               strokeOpacity="0.1"
@@ -482,7 +582,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
             <circle
               cx={center.x}
               cy={center.y}
-              r={390}
+              r={410}
               fill="none"
               stroke="var(--color-accent)"
               strokeOpacity="0.06"
@@ -507,7 +607,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                     x2={cluster.hubX}
                     y2={cluster.hubY}
                     stroke={isClusterActive ? 'var(--color-accent)' : cluster.color}
-                    strokeWidth={isClusterActive ? '2.2' : '1.5'}
+                    strokeWidth={isClusterActive ? '2.4' : '1.5'}
                     strokeOpacity={isClusterActive !== null ? (isClusterActive ? 0.9 : 0.08) : 0.45}
                     strokeDasharray={isClusterActive ? 'none' : '3 3'}
                   />
@@ -515,62 +615,76 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                   {/* 2. Synaptic Axons from Hub to each Jobdesk Sub-Node */}
                   {cluster.jobdeskNodes.map((jNode, jIdx) => {
                     const isJobdeskActive = hoveredMember
-                      ? jNode.memberNodes.some((mn) => mn.member.id === hoveredMember.id)
+                      ? (hoveredMember.primaryJobdeskId === jNode.part.id ||
+                         (hoveredMember.group_part_ids && hoveredMember.group_part_ids.includes(jNode.part.id)))
                       : hoveredJobdesk
                       ? jNode.part.id === hoveredJobdesk.id
                       : null;
 
                     return (
-                      <g key={`j-axons-${cluster.key}-${jIdx}`}>
-                        <line
-                          x1={cluster.hubX}
-                          y1={cluster.hubY}
-                          x2={jNode.x}
-                          y2={jNode.y}
-                          stroke={isJobdeskActive ? 'var(--color-accent)' : cluster.color}
-                          strokeWidth={isJobdeskActive ? '2' : '1.1'}
-                          strokeOpacity={isJobdeskActive !== null ? (isJobdeskActive ? 0.95 : 0.08) : 0.38}
-                        />
-
-                        {/* 3. Branch Axons from Jobdesk Node to its Member Engineers */}
-                        {jNode.memberNodes.map((mNode, mIdx) => {
-                          const isMemberActive = hoveredMember
-                            ? mNode.member.id === hoveredMember.id
-                            : hoveredJobdesk
-                            ? jNode.part.id === hoveredJobdesk.id
-                            : null;
-
-                          return (
-                            <line
-                              key={`m-branch-${cluster.key}-${jIdx}-${mIdx}`}
-                              x1={jNode.x}
-                              y1={jNode.y}
-                              x2={mNode.x}
-                              y2={mNode.y}
-                              stroke={isMemberActive ? 'var(--color-accent)' : cluster.color}
-                              strokeWidth={isMemberActive ? '2' : '0.75'}
-                              strokeOpacity={isMemberActive !== null ? (isMemberActive ? 1 : 0.08) : 0.28}
-                            />
-                          );
-                        })}
-                      </g>
+                      <line
+                        key={`j-axons-${cluster.key}-${jIdx}`}
+                        x1={cluster.hubX}
+                        y1={cluster.hubY}
+                        x2={jNode.x}
+                        y2={jNode.y}
+                        stroke={isJobdeskActive ? 'var(--color-accent)' : cluster.color}
+                        strokeWidth={isJobdeskActive ? '2' : '1.1'}
+                        strokeOpacity={isJobdeskActive !== null ? (isJobdeskActive ? 0.95 : 0.08) : 0.38}
+                      />
                     );
                   })}
 
-                  {/* Unassigned Member Connectors directly to Hub */}
-                  {cluster.unassignedNodes.map((uNode, uIdx) => {
-                    const isUnassignedActive = hoveredMember ? uNode.member.id === hoveredMember.id : null;
+                  {/* 3. Branch Axons from primary Jobdesk (or Hub) to Member Engineers */}
+                  {cluster.memberNodes.map((mNode) => {
+                    const isMemberActive = hoveredMember
+                      ? mNode.member.id === hoveredMember.id
+                      : hoveredJobdesk
+                      ? (mNode.primaryJobdeskId === hoveredJobdesk.id ||
+                         (mNode.member.group_part_ids && mNode.member.group_part_ids.includes(hoveredJobdesk.id)))
+                      : null;
+
+                    const parentJobdesk = cluster.jobdeskNodes.find(
+                      (jn) => jn.part.id === mNode.primaryJobdeskId
+                    );
+                    const originX = parentJobdesk ? parentJobdesk.x : cluster.hubX;
+                    const originY = parentJobdesk ? parentJobdesk.y : cluster.hubY;
+
                     return (
-                      <line
-                        key={`u-branch-${cluster.key}-${uIdx}`}
-                        x1={cluster.hubX}
-                        y1={cluster.hubY}
-                        x2={uNode.x}
-                        y2={uNode.y}
-                        stroke={isUnassignedActive ? 'var(--color-accent)' : cluster.color}
-                        strokeWidth={isUnassignedActive ? '2' : '0.8'}
-                        strokeOpacity={isUnassignedActive !== null ? (isUnassignedActive ? 1 : 0.08) : 0.3}
-                      />
+                      <g key={`m-branch-${mNode.member.id}`}>
+                        {/* Primary Connection Line */}
+                        <line
+                          x1={originX}
+                          y1={originY}
+                          x2={mNode.x}
+                          y2={mNode.y}
+                          stroke={isMemberActive ? 'var(--color-accent)' : cluster.color}
+                          strokeWidth={isMemberActive ? '2' : '0.8'}
+                          strokeOpacity={isMemberActive !== null ? (isMemberActive ? 1 : 0.08) : 0.28}
+                        />
+
+                        {/* Multi-jobdesk secondary synaptic bridges */}
+                        {mNode.member.group_part_ids &&
+                          mNode.member.group_part_ids
+                            .filter((pid) => pid !== mNode.primaryJobdeskId)
+                            .map((otherPid) => {
+                              const otherJn = cluster.jobdeskNodes.find((jn) => jn.part.id === otherPid);
+                              if (!otherJn) return null;
+                              return (
+                                <line
+                                  key={`multi-bridge-${mNode.member.id}-${otherPid}`}
+                                  x1={mNode.x}
+                                  y1={mNode.y}
+                                  x2={otherJn.x}
+                                  y2={otherJn.y}
+                                  stroke={isMemberActive ? 'var(--color-accent)' : '#3b82f6'}
+                                  strokeWidth={isMemberActive ? '1.5' : '0.6'}
+                                  strokeDasharray="2 3"
+                                  strokeOpacity={isMemberActive !== null ? (isMemberActive ? 0.9 : 0.05) : 0.2}
+                                />
+                              );
+                            })}
+                      </g>
                     );
                   })}
 
@@ -607,23 +721,44 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                     }
                   }}
                 >
-                  {/* Pill Shape - Centered on Hub Anchor */}
+                  {/* Subtle Glow Backdrop Pill - No raster filter to avoid ghost artifacts */}
+                  <rect
+                    x={cluster.hubX - 60}
+                    y={cluster.hubY - 14}
+                    width={120}
+                    height={28}
+                    rx={14}
+                    fill={cluster.color}
+                    opacity="0.12"
+                    pointerEvents="none"
+                  />
+                  {/* Main Division Capsule */}
                   <rect
                     x={cluster.hubX - 58}
                     y={cluster.hubY - 12}
                     width={116}
                     height={24}
                     rx={12}
-                    fill="rgba(15, 23, 42, 0.92)"
+                    fill="rgba(15, 23, 42, 0.94)"
                     stroke={cluster.color}
-                    strokeWidth="1.4"
-                    filter="url(#nodeGlow)"
+                    strokeWidth="1.5"
+                    pointerEvents="none"
+                  />
+                  {/* Hit Area */}
+                  <rect
+                    x={cluster.hubX - 62}
+                    y={cluster.hubY - 16}
+                    width={124}
+                    height={32}
+                    fill="transparent"
+                    pointerEvents="all"
                   />
                   <circle
                     cx={cluster.hubX - 44}
                     cy={cluster.hubY}
                     r={3.5}
                     fill={cluster.color}
+                    pointerEvents="none"
                   />
                   <text
                     x={cluster.hubX - 34}
@@ -632,6 +767,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                     fontSize="9.5"
                     fontWeight="700"
                     letterSpacing="0.02em"
+                    pointerEvents="none"
                   >
                     {cluster.title.substring(0, 14)} {count}
                   </text>
@@ -646,6 +782,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                 className={styles.coreHalo}
                 r={40}
                 fill="url(#centerCoreGrad)"
+                pointerEvents="none"
               />
               {/* Inner Core Circle */}
               <circle
@@ -654,6 +791,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                 stroke="#facc15"
                 strokeWidth="2.5"
                 filter="url(#coreGlow)"
+                pointerEvents="none"
               />
               {/* Core Icon / Text */}
               <text
@@ -663,6 +801,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                 fontSize="11"
                 fontWeight="800"
                 letterSpacing="0.06em"
+                pointerEvents="none"
               >
                 PE CORE
               </text>
@@ -671,96 +810,124 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
             {/* Jobdesk Sub-Nodes & Member Nodes */}
             {clusterData.map((cluster) => {
               const isDimmed = activeFilter !== 'all' && activeFilter !== cluster.key;
-              const allMembers = [
-                ...cluster.jobdeskNodes.flatMap((jn) => jn.memberNodes),
-                ...cluster.unassignedNodes,
-              ];
 
               return (
                 <g key={`subnodes-${cluster.key}`} opacity={isDimmed ? 0.18 : 1}>
                   {/* Jobdesk Sub-Nodes */}
-                  {cluster.jobdeskNodes.map((jn) => (
-                    <g
-                      key={`j-node-${jn.part.id}`}
-                      data-node="true"
-                      className={styles.jobdeskNode}
-                      style={{ cursor: 'move' }}
-                      onMouseDown={(e) => handleNodeDragStart(e, jn.nodeId, { x: jn.x, y: jn.y })}
-                      onClick={(e) => {
-                        if (hasMovedNode.current) return;
-                        const rect = containerRef.current?.getBoundingClientRect();
-                        if (!rect) return;
-                        setHoveredJobdesk((prev) =>
-                          prev?.id === jn.part.id
-                            ? null
-                            : {
-                                ...jn.part,
-                                divisionTitle: cluster.title,
-                                assignedMembers: jn.assignedMembers,
-                                screenX: Math.min(rect.width - 260, Math.max(16, e.clientX - rect.left)),
-                                screenY: Math.max(20, e.clientY - rect.top),
-                              }
-                        );
-                      }}
-                      onMouseEnter={(e) => {
-                        if (draggedNode) return;
-                        const rect = containerRef.current?.getBoundingClientRect();
-                        if (!rect) return;
-                        setHoveredJobdesk({
-                          ...jn.part,
-                          divisionTitle: cluster.title,
-                          assignedMembers: jn.assignedMembers,
-                          screenX: Math.min(rect.width - 260, Math.max(16, e.clientX - rect.left)),
-                          screenY: Math.max(20, e.clientY - rect.top),
-                        });
-                      }}
-                      onMouseLeave={() => setHoveredJobdesk(null)}
-                    >
-                      {/* Jobdesk Solid Capsule Pill */}
-                      <rect
-                        x={jn.x - 32}
-                        y={jn.y - 9}
-                        width={64}
-                        height={18}
-                        rx={9}
-                        className={styles.jobdeskPillBg}
-                        stroke={cluster.color}
-                        strokeWidth="1.2"
-                      />
-                      <circle cx={jn.x - 22} cy={jn.y} r={2.5} fill={cluster.color} />
-                      <text
-                        x={jn.x - 16}
-                        y={jn.y + 3}
-                        fill="#e2e8f0"
-                        fontSize="7.5"
-                        fontWeight="700"
-                      >
-                        {jn.shortTitle.substring(0, 8)}
-                      </text>
-                      <rect
-                        x={jn.x + 16}
-                        y={jn.y - 5.5}
-                        width={11}
-                        height={11}
-                        rx={5.5}
-                        fill={cluster.color}
-                        opacity="0.35"
-                      />
-                      <text
-                        x={jn.x + 21.5}
-                        y={jn.y + 3}
-                        textAnchor="middle"
-                        fill="#ffffff"
-                        fontSize="7"
-                        fontWeight="800"
-                      >
-                        {jn.assignedMembers.length}
-                      </text>
-                    </g>
-                  ))}
+                  {cluster.jobdeskNodes.map((jn) => {
+                    const isJobdeskHovered = hoveredJobdesk?.id === jn.part.id;
 
-                  {/* Member Interactive Nodes */}
-                  {allMembers.map((mNode) => {
+                    return (
+                      <g
+                        key={`j-node-${jn.part.id}`}
+                        data-node="true"
+                        className={styles.jobdeskNode}
+                        style={{ cursor: 'move' }}
+                        onMouseDown={(e) => handleNodeDragStart(e, jn.nodeId, { x: jn.x, y: jn.y })}
+                        onClick={(e) => {
+                          if (hasMovedNode.current) return;
+                          const rect = containerRef.current?.getBoundingClientRect();
+                          if (!rect) return;
+                          setHoveredJobdesk((prev) =>
+                            prev?.id === jn.part.id
+                              ? null
+                              : {
+                                  ...jn.part,
+                                  divisionTitle: cluster.title,
+                                  assignedMembers: jn.assignedMembers,
+                                  screenX: Math.min(rect.width - 260, Math.max(16, e.clientX - rect.left)),
+                                  screenY: Math.max(20, e.clientY - rect.top),
+                                }
+                          );
+                        }}
+                        onMouseEnter={(e) => {
+                          if (draggedNode) return;
+                          const rect = containerRef.current?.getBoundingClientRect();
+                          if (!rect) return;
+                          setHoveredJobdesk({
+                            ...jn.part,
+                            divisionTitle: cluster.title,
+                            assignedMembers: jn.assignedMembers,
+                            screenX: Math.min(rect.width - 260, Math.max(16, e.clientX - rect.left)),
+                            screenY: Math.max(20, e.clientY - rect.top),
+                          });
+                        }}
+                        onMouseLeave={() => setHoveredJobdesk(null)}
+                      >
+                        {/* Generous Hit Area: Prevents rapid jitter / flicker */}
+                        <rect
+                          x={jn.x - 38}
+                          y={jn.y - 12}
+                          width={76}
+                          height={24}
+                          fill="transparent"
+                          pointerEvents="all"
+                        />
+
+                        {/* Hover Halo Ring: Instant GPU render, no SVG filter lag */}
+                        {isJobdeskHovered && (
+                          <rect
+                            x={jn.x - 36}
+                            y={jn.y - 11}
+                            width={72}
+                            height={22}
+                            rx={11}
+                            fill={cluster.color}
+                            opacity="0.25"
+                            pointerEvents="none"
+                          />
+                        )}
+
+                        {/* Jobdesk Solid Capsule Pill */}
+                        <rect
+                          x={jn.x - 34}
+                          y={jn.y - 10}
+                          width={68}
+                          height={20}
+                          rx={10}
+                          className={styles.jobdeskPillBg}
+                          stroke={isJobdeskHovered ? 'var(--color-accent)' : cluster.color}
+                          strokeWidth={isJobdeskHovered ? '1.8' : '1.2'}
+                          pointerEvents="none"
+                        />
+                        <circle cx={jn.x - 24} cy={jn.y} r={2.5} fill={cluster.color} pointerEvents="none" />
+                        <text
+                          x={jn.x - 17}
+                          y={jn.y + 3.2}
+                          fill="#e2e8f0"
+                          fontSize="7.5"
+                          fontWeight="700"
+                          pointerEvents="none"
+                        >
+                          {jn.shortTitle.substring(0, 8)}
+                        </text>
+                        <rect
+                          x={jn.x + 18}
+                          y={jn.y - 6}
+                          width={12}
+                          height={12}
+                          rx={6}
+                          fill={cluster.color}
+                          opacity="0.35"
+                          pointerEvents="none"
+                        />
+                        <text
+                          x={jn.x + 24}
+                          y={jn.y + 3}
+                          textAnchor="middle"
+                          fill="#ffffff"
+                          fontSize="7"
+                          fontWeight="800"
+                          pointerEvents="none"
+                        >
+                          {jn.assignedMembers.length}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Member Interactive Nodes - Guaranteed 1 unique node per teammate */}
+                  {cluster.memberNodes.map((mNode) => {
                     const m = mNode.member;
                     const isHovered = hoveredMember?.id === m.id;
                     return (
@@ -777,6 +944,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                           if (!rect) return;
                           setHoveredMember({
                             ...m,
+                            primaryJobdeskId: mNode.primaryJobdeskId,
                             screenX: Math.min(rect.width - 260, Math.max(16, e.clientX - rect.left)),
                             screenY: Math.max(20, e.clientY - rect.top),
                           });
@@ -791,13 +959,27 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                               ? null
                               : {
                                   ...m,
+                                  primaryJobdeskId: mNode.primaryJobdeskId,
                                   screenX: Math.min(rect.width - 260, Math.max(16, e.clientX - rect.left)),
                                   screenY: Math.max(20, e.clientY - rect.top),
                                 }
                           );
                         }}
                       >
-                        {/* Aura halo ring if multi-jobdesk or admin */}
+                        {/* Generous Hit-Area: Prevents rapid mouseout bouncing between circle & labels */}
+                        <circle r={22} fill="transparent" pointerEvents="all" />
+
+                        {/* Hover Ring Aura: Glitch-free native SVG glow (no feGaussianBlur GPU delay) */}
+                        {isHovered && (
+                          <circle
+                            r={mNode.r + 6}
+                            fill={cluster.color}
+                            opacity="0.35"
+                            pointerEvents="none"
+                          />
+                        )}
+
+                        {/* Multi-jobdesk orbital halo ring */}
                         {m.isMulti && (
                           <circle
                             r={mNode.r + 4.5}
@@ -805,19 +987,20 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                             stroke="#3b82f6"
                             strokeWidth="1.2"
                             strokeDasharray="2 3"
+                            pointerEvents="none"
                           />
                         )}
 
-                        {/* Main Node Circle */}
+                        {/* Main Node Avatar Circle */}
                         <circle
                           r={mNode.r}
                           fill="#0f172a"
                           stroke={isHovered ? 'var(--color-accent)' : cluster.color}
                           strokeWidth={isHovered ? 2.5 : 1.5}
-                          filter={isHovered ? 'url(#nodeGlow)' : 'none'}
+                          pointerEvents="none"
                         />
 
-                        {/* Avatar initial text */}
+                        {/* Avatar Initial Text */}
                         <text
                           textAnchor="middle"
                           y={3.8}
@@ -834,6 +1017,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                           x={0}
                           y={mNode.r + 9}
                           className={styles.memberLabelText}
+                          pointerEvents="none"
                         >
                           {mNode.firstName}
                         </text>
@@ -841,6 +1025,7 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
                           x={0}
                           y={mNode.r + 17}
                           className={styles.memberJobdeskText}
+                          pointerEvents="none"
                         >
                           {mNode.shortJob}
                         </text>
@@ -911,7 +1096,8 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
             className={styles.inspectorPopover}
             style={{
               left: `${hoveredJobdesk.screenX}px`,
-              top: `${hoveredJobdesk.screenY - 14}px`,
+              top: `${hoveredJobdesk.screenY}px`,
+              transform: hoveredJobdesk.screenY < 180 ? 'translate(-50%, 16px)' : 'translate(-50%, -120%)',
             }}
           >
             <div className={styles.popoverHeader}>
@@ -965,7 +1151,8 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
             className={styles.inspectorPopover}
             style={{
               left: `${hoveredMember.screenX}px`,
-              top: `${hoveredMember.screenY - 14}px`,
+              top: `${hoveredMember.screenY}px`,
+              transform: hoveredMember.screenY < 180 ? 'translate(-50%, 16px)' : 'translate(-50%, -120%)',
             }}
           >
             <div className={styles.popoverHeader}>
@@ -1066,4 +1253,3 @@ export const TeamNeuralConstellation = ({ users = [], groups = [] }) => {
     </div>
   );
 };
-

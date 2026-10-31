@@ -111,10 +111,19 @@ export const NotificationDropdown = () => {
     changeLogs,
     activeJobsCount,
     unreadLogsCount,
+    fetchSummary,
     cancelJob,
     deleteJob,
     downloadJobResult,
   } = useNotifications();
+
+  const activeTools = useMemo(() => {
+    return toolsProgress.filter((j) => j.status === 'processing' || j.status === 'pending');
+  }, [toolsProgress]);
+
+  const completedTools = useMemo(() => {
+    return toolsProgress.filter((j) => j.status !== 'processing' && j.status !== 'pending');
+  }, [toolsProgress]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -129,6 +138,16 @@ export const NotificationDropdown = () => {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isOpen]);
 
+  const handleToggle = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        fetchSummary();
+      }
+      return next;
+    });
+  };
+
   const totalBadgeCount = activeJobsCount + unreadLogsCount;
 
   return (
@@ -139,7 +158,7 @@ export const NotificationDropdown = () => {
           <button
             type="button"
             className={styles.activePill}
-            onClick={() => setIsOpen((prev) => !prev)}
+            onClick={handleToggle}
             title={`${activeJobsCount} proses latar belakang sedang berjalan`}
           >
             <Zap size={12} className={styles.zapIcon} />
@@ -152,7 +171,7 @@ export const NotificationDropdown = () => {
         <button
           type="button"
           className={`${styles.bellButton} ${isOpen ? styles.bellButtonActive : ''}`}
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={handleToggle}
           aria-label="Notifications"
           title={t('common.notifications', 'Notifikasi & Status Tools')}
         >
@@ -189,19 +208,234 @@ export const NotificationDropdown = () => {
 
           <div className={styles.scrollArea}>
             {/* ======================================================== */}
-            {/* SECTION 1: PROSES TOOLS SERVER (PRIORITAS UTAMA / PINNED) */}
+            {/* SECTION 1: PROSES TOOLS AKTIF BERJALAN (PRIORITAS TINGGI) */}
             {/* ======================================================== */}
-            <div className={styles.sectionHeader}>
-              <span className={styles.sectionTitle}>
-                <Zap size={13} color="var(--color-accent)" />
-                {t('tools.priority_title', 'Proses Tools Server (Prioritas)')}
-              </span>
-              <span className={styles.sectionCountBadge}>
-                {toolsProgress.length}
-              </span>
-            </div>
+            {activeTools.length > 0 && (
+              <div style={{ marginBottom: '14px' }}>
+                <div className={styles.sectionHeaderActive}>
+                  <span className={styles.sectionTitleActive}>
+                    <Zap size={14} className={styles.zapIcon} />
+                    {t('tools.active_running_title', 'SEDANG BERJALAN')} ({activeTools.length})
+                  </span>
+                  <span className={styles.livePulseDot} />
+                </div>
+                <div className={styles.cardsList}>
+                  {activeTools.map((job, idx) => (
+                    <div
+                      key={job.id}
+                      className={`${styles.toolCard} ${styles.toolCardActive}`}
+                      style={{ '--stagger': idx }}
+                    >
+                      <div className={styles.cardTopRow}>
+                        <div
+                          className={styles.toolIconWrap}
+                          style={{
+                            backgroundColor: `${getToolConfig(job.tool_type).color}1a`,
+                            borderColor: `${getToolConfig(job.tool_type).color}4d`,
+                          }}
+                        >
+                          {React.createElement(getToolConfig(job.tool_type).icon, {
+                            size: 16,
+                            color: getToolConfig(job.tool_type).color,
+                          })}
+                        </div>
+                        <div className={styles.toolInfo}>
+                          <span className={styles.toolName}>{getToolConfig(job.tool_type).label}</span>
+                          <span className={styles.fileName} title={job.file_name}>
+                            {job.file_name}
+                          </span>
+                        </div>
+                        <span className={`${styles.statusBadge} ${styles.badgeProcessing}`}>
+                          {job.status === 'pending' ? 'Antrean' : `${Math.round(job.progress_percent)}%`}
+                        </span>
+                      </div>
 
-            {toolsProgress.length === 0 ? (
+                      {/* Live animated progress bar for active running jobs */}
+                      <div className={styles.progressSection}>
+                        <div className={styles.progressBarTrack}>
+                          <div
+                            className={styles.progressBarFill}
+                            style={{ width: `${Math.max(6, job.progress_percent)}%` }}
+                          >
+                            <div className={styles.progressShimmer} />
+                          </div>
+                        </div>
+                        <div className={styles.stepRow}>
+                          <span className={styles.stepText}>
+                            {job.current_step || 'Memproses di background server...'}
+                          </span>
+                          <span className={styles.percentText}>
+                            {Math.round(job.progress_percent)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className={styles.cardActions}>
+                        <button
+                          type="button"
+                          className={styles.cardSecondaryBtn}
+                          onClick={() => {
+                            navigate(getToolConfig(job.tool_type).route);
+                            setIsOpen(false);
+                          }}
+                        >
+                          <ExternalLink size={12} />
+                          <span>{t('tools.open_tool', 'Buka Tool')}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className={styles.cancelBtn}
+                          onClick={() => cancelJob(job.id)}
+                        >
+                          <X size={12} />
+                          <span>{t('common.cancel', 'Batal')}</span>
+                        </button>
+
+                        <span className={styles.timeMeta}>
+                          {timeAgo(job.created_at)}
+                          {job.file_size > 0 && ` • ${formatBytes(job.file_size)}`}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* SECTION 2: RIWAYAT TOOLS SELESAI / GAGAL                */}
+            {/* ======================================================== */}
+            {completedTools.length > 0 && (
+              <div>
+                <div className={styles.sectionHeader}>
+                  <span className={styles.sectionTitle}>
+                    <CheckCircle2 size={13} color="var(--color-success, #10b981)" />
+                    {t('tools.completed_title', 'Riwayat Selesai')}
+                  </span>
+                  <span className={styles.sectionCountBadge}>{completedTools.length}</span>
+                </div>
+                <div className={styles.cardsList}>
+                  {completedTools.map((job, idx) => {
+                    const cfg = getToolConfig(job.tool_type);
+                    const Icon = cfg.icon;
+                    const isCompleted = job.status === 'completed';
+                    const isFailed = job.status === 'failed';
+                    const isCancelled = job.status === 'cancelled';
+
+                    let statusText = 'Selesai';
+                    let statusClass = styles.badgeCompleted;
+                    if (isFailed) {
+                      statusText = 'Gagal';
+                      statusClass = styles.badgeFailed;
+                    } else if (isCancelled) {
+                      statusText = 'Dibatalkan';
+                      statusClass = styles.badgeCancelled;
+                    }
+
+                    const meta = typeof job.result_meta === 'string'
+                      ? JSON.parse(job.result_meta || '{}')
+                      : (job.result_meta || {});
+
+                    return (
+                      <div
+                        key={job.id}
+                        className={styles.toolCard}
+                        style={{ '--stagger': idx }}
+                      >
+                        <div className={styles.cardTopRow}>
+                          <div className={styles.toolIconWrap} style={{ backgroundColor: `${cfg.color}1a`, borderColor: `${cfg.color}4d` }}>
+                            <Icon size={16} color={cfg.color} />
+                          </div>
+                          <div className={styles.toolInfo}>
+                            <span className={styles.toolName}>{cfg.label}</span>
+                            <span className={styles.fileName} title={job.file_name}>
+                              {job.file_name}
+                            </span>
+                          </div>
+                          <span className={`${styles.statusBadge} ${statusClass}`}>
+                            {statusText}
+                          </span>
+                          <button
+                            type="button"
+                            className={styles.dismissBtn}
+                            onClick={() => deleteJob(job.id)}
+                            title="Hapus notifikasi"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+
+                        {/* Informative Metadata Pill Row */}
+                        {(isCompleted || (meta && Object.keys(meta).length > 0)) && (
+                          <div className={styles.metaPillsRow}>
+                            {meta.savings_percent > 0 && (
+                              <span className={styles.savingsPill}>
+                                Hemat {meta.savings_percent}%
+                              </span>
+                            )}
+                            {meta.original_size > 0 && meta.compressed_size > 0 && (
+                              <span className={styles.metaInfoPill}>
+                                {formatBytes(meta.original_size)} ➔ {formatBytes(meta.compressed_size)}
+                              </span>
+                            )}
+                            {meta.encoder && (
+                              <span className={styles.metaInfoPill}>
+                                {meta.encoder.toUpperCase()}
+                              </span>
+                            )}
+                            {job.duration_sec > 0 && (
+                              <span className={styles.metaInfoPill}>
+                                ⏱️ {job.duration_sec.toFixed(1)}s
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {isFailed && job.error_message && (
+                          <p className={styles.errorText}>
+                            <AlertCircle size={12} /> {job.error_message}
+                          </p>
+                        )}
+
+                        <div className={styles.cardActions}>
+                          {isCompleted && (
+                            <button
+                              type="button"
+                              className={styles.downloadBtn}
+                              onClick={() => downloadJobResult(job.id, job.file_name)}
+                            >
+                              <Download size={13} />
+                              <span>{t('tools.download_result', 'Unduh Hasil')}</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className={styles.cardSecondaryBtn}
+                            onClick={() => {
+                              navigate(cfg.route);
+                              setIsOpen(false);
+                            }}
+                          >
+                            <ExternalLink size={12} />
+                            <span>{t('tools.open_tool', 'Buka Tool')}</span>
+                          </button>
+
+                          <span className={styles.timeMeta}>
+                            {timeAgo(job.created_at)}
+                            {job.file_size > 0 && ` • ${formatBytes(job.file_size)}`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state if both active and completed are 0 */}
+            {toolsProgress.length === 0 && (
               <div className={styles.emptyState}>
                 <Clock size={20} className={styles.emptyIcon} />
                 <p>{t('tools.no_active_jobs', 'Belum ada proses tools yang berjalan.')}</p>
@@ -215,135 +449,6 @@ export const NotificationDropdown = () => {
                 >
                   {t('tools.open_utilities', 'Buka Tools & Utilitas')} <ChevronRight size={13} />
                 </button>
-              </div>
-            ) : (
-              <div className={styles.cardsList}>
-                {toolsProgress.map((job, idx) => {
-                  const cfg = getToolConfig(job.tool_type);
-                  const Icon = cfg.icon;
-                  const isProcessing = job.status === 'processing' || job.status === 'pending';
-                  const isCompleted = job.status === 'completed';
-                  const isFailed = job.status === 'failed';
-                  const isCancelled = job.status === 'cancelled';
-
-                  let statusText = 'Selesai';
-                  let statusClass = styles.badgeCompleted;
-                  if (isProcessing) {
-                    statusText = job.status === 'pending' ? 'Antrean' : `${Math.round(job.progress_percent)}%`;
-                    statusClass = styles.badgeProcessing;
-                  } else if (isFailed) {
-                    statusText = 'Gagal';
-                    statusClass = styles.badgeFailed;
-                  } else if (isCancelled) {
-                    statusText = 'Dibatalkan';
-                    statusClass = styles.badgeCancelled;
-                  }
-
-                  return (
-                    <div
-                      key={job.id}
-                      className={`${styles.toolCard} ${isProcessing ? styles.toolCardActive : ''}`}
-                      style={{ '--stagger': idx }}
-                    >
-                      {/* Card Top Row */}
-                      <div className={styles.cardTopRow}>
-                        <div className={styles.toolIconWrap} style={{ backgroundColor: `${cfg.color}1a`, borderColor: `${cfg.color}4d` }}>
-                          <Icon size={14} color={cfg.color} />
-                        </div>
-                        <div className={styles.toolInfo}>
-                          <span className={styles.toolName}>{cfg.label}</span>
-                          <span className={styles.fileName} title={job.file_name}>
-                            {job.file_name}
-                          </span>
-                        </div>
-                        <span className={`${styles.statusBadge} ${statusClass}`}>
-                          {statusText}
-                        </span>
-                        {!isProcessing && (
-                          <button
-                            type="button"
-                            className={styles.dismissBtn}
-                            onClick={() => deleteJob(job.id)}
-                            title="Hapus notifikasi"
-                          >
-                            <X size={13} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Progress Bar (Visible when processing or completed) */}
-                      {isProcessing && (
-                        <div className={styles.progressSection}>
-                          <div className={styles.progressBarTrack}>
-                            <div
-                              className={styles.progressBarFill}
-                              style={{ width: `${Math.max(5, job.progress_percent)}%` }}
-                            >
-                              <div className={styles.progressShimmer} />
-                            </div>
-                          </div>
-                          <div className={styles.stepRow}>
-                            <span className={styles.stepText}>
-                              {job.current_step || 'Memproses di background server...'}
-                            </span>
-                            <span className={styles.percentText}>
-                              {Math.round(job.progress_percent)}%
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Result / Error Info */}
-                      {isFailed && job.error_message && (
-                        <p className={styles.errorText}>
-                          <AlertCircle size={12} /> {job.error_message}
-                        </p>
-                      )}
-
-                      {/* Actions Footer */}
-                      <div className={styles.cardActions}>
-                        {isCompleted && (
-                          <button
-                            type="button"
-                            className={styles.downloadBtn}
-                            onClick={() => downloadJobResult(job.id, job.file_name)}
-                          >
-                            <Download size={13} />
-                            <span>{t('tools.download_result', 'Unduh Hasil')}</span>
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          className={styles.cardSecondaryBtn}
-                          onClick={() => {
-                            navigate(cfg.route);
-                            setIsOpen(false);
-                          }}
-                        >
-                          <ExternalLink size={12} />
-                          <span>{t('tools.open_tool', 'Buka Tool')}</span>
-                        </button>
-
-                        {isProcessing && (
-                          <button
-                            type="button"
-                            className={styles.cancelBtn}
-                            onClick={() => cancelJob(job.id)}
-                          >
-                            <X size={12} />
-                            <span>{t('common.cancel', 'Batal')}</span>
-                          </button>
-                        )}
-
-                        <span className={styles.timeMeta}>
-                          {timeAgo(job.created_at)}
-                          {job.file_size > 0 && ` • ${formatBytes(job.file_size)}`}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             )}
 

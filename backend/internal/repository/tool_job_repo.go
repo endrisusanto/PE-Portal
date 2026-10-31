@@ -177,7 +177,9 @@ func (r *ToolJobRepository) ListRecent(ctx context.Context, userID *uuid.UUID, l
 		       COALESCE(result_meta, '{}'::jsonb), COALESCE(error_message, ''),
 		       duration_sec, started_at, completed_at, created_at, updated_at
 		FROM tool_jobs
-		ORDER BY created_at DESC
+		ORDER BY 
+			CASE WHEN status IN ('pending', 'processing') THEN 0 ELSE 1 END ASC,
+			created_at DESC
 		LIMIT $1
 	`
 	rows, err := r.db.Query(ctx, query, limit)

@@ -174,6 +174,25 @@ func (s *ToolJobService) SubmitVideoCompress(
 		usedEncoder := "libx264"
 		success := false
 
+		// Progress ticker while processing
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(1200 * time.Millisecond)
+			defer ticker.Stop()
+			curr := 20.0
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					if curr < 92.0 {
+						curr += 5.0
+						_ = s.repo.UpdateProgress(context.Background(), job.ID, curr, fmt.Sprintf("Sedang mengompresi video (%s)...", usedEncoder))
+					}
+				}
+			}
+		}()
+
 		// Try VAAPI if available
 		if encoder == "auto" || encoder == "vaapi" {
 			if _, err := os.Stat("/dev/dri/renderD128"); err == nil {
@@ -242,6 +261,7 @@ func (s *ToolJobService) SubmitVideoCompress(
 			}
 		}
 
+		close(done)
 		duration := time.Since(startTime).Seconds()
 
 		if jobCtx.Err() != nil {
@@ -421,7 +441,25 @@ func (s *ToolJobService) SubmitCompressPDF(
 			gsSetting = "/ebook"
 		}
 
-		_ = s.repo.UpdateProgress(context.Background(), job.ID, 60.0, "Mengompresi streams & resampling visual...")
+		_ = s.repo.UpdateProgress(context.Background(), job.ID, 45.0, "Mengompresi streams & resampling visual...")
+
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(800 * time.Millisecond)
+			defer ticker.Stop()
+			curr := 45.0
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					if curr < 90.0 {
+						curr += 10.0
+						_ = s.repo.UpdateProgress(context.Background(), job.ID, curr, "Mengoptimalkan font & gambar PDF...")
+					}
+				}
+			}
+		}()
 
 		args := []string{
 			"-sDEVICE=pdfwrite",
@@ -436,6 +474,7 @@ func (s *ToolJobService) SubmitCompressPDF(
 
 		cmd := exec.CommandContext(jobCtx, "gs", args...)
 		out, err := cmd.CombinedOutput()
+		close(done)
 		duration := time.Since(startTime).Seconds()
 
 		if jobCtx.Err() != nil {
